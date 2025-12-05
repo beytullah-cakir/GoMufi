@@ -1,10 +1,14 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
+
+from routers import auth, profile, courses
+
 import uvicorn
 
 app = FastAPI()
 
-# CORS settings
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,18 +17,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-@app.get("/api/")
-def read_root():
-    return {"Home": "Page"}
 
-@app.get("/api/courses")
-def read_courses():
-    return {"courses": ["Course 1", "Course 2", "Course 3"]}
-
-
-@app.get("/api/profile")
-def read_profile():
-    return {"username": "Beytullah Çakır", "email": "beytullah@example.com"}
+app.include_router(auth.router, prefix="/api")
+app.include_router(profile.router, prefix="/api")
+app.include_router(courses.router, prefix="/api")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

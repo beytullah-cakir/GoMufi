@@ -3,7 +3,7 @@ import { Music, Zap } from 'lucide-react';
 import MufiLogo from '../assets/sprites/MufiLogo.png';
 import LogoText from '../assets/sprites/LogoText.png';
 import Paw from '../assets/sprites/Paw.png';
-
+import api from "../api";
 interface AuthPageProps {
     onLogin: () => void;
 }
@@ -14,10 +14,20 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Just simulate a successful login/register immediately for demo purposes.
-        onLogin();
+        try {
+        if (isLogin) {
+            await api.post("/login", { email, password });
+        } else {
+            await api.post("/register", { name, email, password });
+        }
+
+        onLogin(); // başarı olursa yönlendirme
+    } catch (err) {
+        console.error("Auth error:", err);
+    }
+        
     };
 
     return (

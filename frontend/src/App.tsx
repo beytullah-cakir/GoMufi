@@ -11,7 +11,9 @@ function App() {
   const [activePage, setActivePage] = useState('Ana Sayfa');
 
   if (!isAuthenticated) {
-    return <AuthPage onLogin={() => setIsAuthenticated(true)} />;
+    return(
+      <AuthPage onLogin={() => setIsAuthenticated(true)} />     
+    )
   }
 
   return (
