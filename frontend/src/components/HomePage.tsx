@@ -14,6 +14,8 @@ import GrassIcon from '../assets/sprites/grass.png';
 
 const HomePage: React.FC = () => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
+    const [activeCourseId, setActiveCourseId] = useState<string>('Python');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     // Dynamic Header State
     const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
@@ -42,7 +44,7 @@ const HomePage: React.FC = () => {
         title: string; // Used for dynamic header
     }
 
-    const nodes: PathNode[] = [
+    const pythonNodes: PathNode[] = [
         { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
         { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
         { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
@@ -60,6 +62,27 @@ const HomePage: React.FC = () => {
         { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
     ];
 
+    const mathNodes: PathNode[] = [
+        { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Matematiğe Giriş' },
+        { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus Ödül' },
+        { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Toplama İşlemi' },
+        { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Çıkarma İşlemi' },
+        { id: 5, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Final Sınavı' },
+    ];
+
+    interface CourseData {
+        id: string;
+        title: string;
+        icon: string;
+        themeColor: string;
+        nodes: PathNode[];
+    }
+
+    const courses: Record<string, CourseData> = {
+        'Python': { id: 'Python', title: 'PYTHON', icon: '🐍', themeColor: '#58cc02', nodes: pythonNodes },
+        'Matematik': { id: 'Matematik', title: 'MATEMATİK', icon: '📐', themeColor: '#3b82f6', nodes: mathNodes }
+    };
+
     const handleNodeClick = (node: PathNode) => {
         if (activeNodeId === node.id) {
             setActiveNodeId(null);
@@ -71,25 +94,66 @@ const HomePage: React.FC = () => {
         }
     };
 
+    const handleCourseChange = (courseId: string) => {
+        setActiveCourseId(courseId);
+        setIsDropdownOpen(false);
+        setActiveNodeId(null); // Reset active node on change
+        // Optional: Reset header color to course default if desired
+    };
+
+    const currentCourse = courses[activeCourseId];
+
     // Calculate dynamic styles for the Course Box to match the header
     const courseBoxStyle = {
-        borderColor: headerColor,
-        color: headerColor
+        borderColor: currentCourse.themeColor,
+        color: currentCourse.themeColor
     };
 
     return (
-        <div className="w-full h-full bg-white flex flex-col items-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
             {/* WIDENED CONTAINER: Removed max-w-7xl, increased px to push to edges but keep safe area */}
             <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
                 <div className="flex items-center gap-4">
-                    {/* Course Info Box (New) - ENLARGED to h-28 w-28 */}
-                    <div className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-colors duration-500 hover:-translate-y-1 hover:shadow-md cursor-pointer"
-                        style={courseBoxStyle}>
-                        <span className="text-4xl mb-1">🐍</span>
-                        <span className="font-black text-sm uppercase tracking-wider font-display">Python</span>
+                    {/* Course Info Box (New) - Dropdown Enabled */}
+                    <div className="relative">
+                        <div
+                            className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+                            style={courseBoxStyle}
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                            <span className="text-4xl mb-1">{currentCourse.icon}</span>
+                            <span className="font-black text-sm uppercase tracking-wider font-display">{currentCourse.title}</span>
+                            {/* Dropdown Indicator */}
+                            <div className="absolute top-2 right-2 opacity-50">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M6 9l6 6 6-6" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* DROPDOWN MENU */}
+                        {isDropdownOpen && (
+                            <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {Object.values(courses).map((course) => (
+                                    <div
+                                        key={course.id}
+                                        className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
+                                        onClick={() => handleCourseChange(course.id)}
+                                    >
+                                        <span className="text-2xl">{course.icon}</span>
+                                        <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
+                                            {course.title}
+                                        </span>
+                                        {activeCourseId === course.id && (
+                                            <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Unit Header (Left) - ENLARGED to h-28 */}
@@ -247,7 +311,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Middle Section: Horizontal Path (Vertically Centered) */}
-            <div className="w-full h-full flex items-center justify-center relative z-20">
+            <div className="w-full flex-1 flex items-center justify-center relative z-20">
                 {/* Horizontal Gamified Path */}
                 {/* Added 'no-scrollbar' class (make sure to have it in CSS or use inline styling for hiding scrollbar) */}
                 <style>{`
@@ -264,7 +328,8 @@ const HomePage: React.FC = () => {
                     <div className="flex items-center min-w-max relative pl-20 pr-20">
                         {(() => {
                             let levelCounter = 0;
-                            return nodes.map((node, index) => {
+                            const currentNodes = courses[activeCourseId].nodes;
+                            return currentNodes.map((node, index) => {
                                 const isLevel = node.type === 'start' || node.type === 'paw';
                                 if (isLevel) levelCounter++;
 
@@ -343,7 +408,7 @@ const HomePage: React.FC = () => {
                                         </div>
 
                                         {/* Connector (if not last node) */}
-                                        {index < nodes.length - 1 && (
+                                        {index < currentNodes.length - 1 && (
                                             <div className="w-32 h-24 -mx-6 relative z-0 flex items-center justify-center">
                                                 <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                     <path
@@ -391,34 +456,6 @@ const HomePage: React.FC = () => {
                             });
                         })()}
                     </div>
-                </div>
-            </div>
-
-            {/* Sleeping Cat (Absolute Bottom Right) - LOWERED POSITION (translate-y-16) */}
-            <div className="fixed bottom-4 right-4 z-50 pointer-events-none md:block hidden">
-                <div className="relative translate-y-16">
-                    {/* Zzz Animation with Tailwind */}
-                    <style>{`
-                         @keyframes floatZ {
-                             0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
-                             25% { opacity: 1; }
-                             100% { opacity: 0; transform: translate(20px, -40px) scale(1.2); }
-                         }
-                         .animate-zzz {
-                             animation: floatZ 2.5s infinite ease-out;
-                         }
-                         .delay-1000 { animation-delay: 1s; }
-                         .delay-2000 { animation-delay: 2s; }
-                     `}</style>
-                    <div className="absolute top-20 right-16 z-20 flex flex-col">
-                        <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-xl font-black text-sky-400/80 animate-zzz delay-1000 font-display absolute -top-3 -right-3">z</span>
-                        <span className="text-lg font-black text-sky-400/60 animate-zzz delay-2000 font-display absolute -top-6 -right-6">z</span>
-                    </div>
-
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-40 animate-breathe drop-shadow-xl relative z-10" />
-                    {/* Cat Shadow - SOLID GRAY CIRCLE - SUBTLE ANIMATION - RAISED TO bottom-24 */}
-                    <div className="absolute bottom-20 left-8 w-24 h-4 bg-gray-400 rounded-[100%] animate-shadow-breathe z-0"></div>
                 </div>
             </div>
 

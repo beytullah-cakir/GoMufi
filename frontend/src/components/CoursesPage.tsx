@@ -217,11 +217,11 @@ const CoursesPage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Filter Group: Video Duration */}
+                        {/* Filter Group: Lesson Count */}
                         <div className="border-t border-gray-100 pt-6">
-                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">VİDEO SÜRESİ</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">DERS SAYISI</h4>
                             <div className="flex flex-col gap-3">
-                                {['0-1 Saat (350)', '1-3 Saat (1.1k)', '3-6 Saat (850)', '6-17 Saat (2.4k)', '17+ Saat (500)'].map((opt, i) => (
+                                {['0-5 Ders (350)', '5-10 Ders (1.1k)', '10-20 Ders (850)', '20-50 Ders (2.4k)', '50+ Ders (500)'].map((opt, i) => (
                                     <label key={i} className="flex items-center gap-3 cursor-pointer group select-none relative">
                                         <input type="checkbox" className="peer sr-only" />
 
@@ -322,7 +322,10 @@ const CoursesPage: React.FC = () => {
                                     {/* Price & Badge Section */}
                                     <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
                                         <div className="flex flex-col items-end">
-                                            <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
+                                            <div className="flex items-baseline gap-1 whitespace-nowrap">
+                                                <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
+                                                <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                            </div>
                                             {course.oldPrice && (
                                                 <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
                                             )}

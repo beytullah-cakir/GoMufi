@@ -11,6 +11,23 @@
     --animate-float-z: float-z 2s ease-in-out infinite;
     --animate-shadow-breathe: shadow-breathe 3s ease-in-out infinite;
     --animate-breathe: breathe 3s ease-in-out infinite;
+    --animate-zzz: float-z 2.5s ease-out infinite;
+
+    @keyframes float-z {
+        0% {
+            opacity: 0;
+            transform: translate(0, 0) scale(0.5);
+        }
+
+        25% {
+            opacity: 1;
+        }
+
+        100% {
+            opacity: 0;
+            transform: translate(20px, -40px) scale(1.2);
+        }
+    }
 
     @keyframes wiggle {
 
