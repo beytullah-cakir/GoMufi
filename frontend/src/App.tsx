@@ -1,13 +1,10 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import HomePage from './components/HomePage';
-<<<<<<< Updated upstream
-import AuthPage from './components/AuthPage';
-=======
 import { Route, Routes } from 'react-router-dom';
 import Courses from './components/Courses';
 import Profile from './components/Profile';
->>>>>>> Stashed changes
+import AuthPage from './components/AuthPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
