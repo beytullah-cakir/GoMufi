@@ -21,5 +21,10 @@ def read_root():
 def read_courses():
     return {"courses": ["Course 1", "Course 2", "Course 3"]}
 
+
+@app.get("/api/profile")
+def read_profile():
+    return {"username": "Beytullah Çakır", "email": "beytullah@example.com"}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

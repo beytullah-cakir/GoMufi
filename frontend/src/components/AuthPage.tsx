@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { Music, Zap } from 'lucide-react';
 import MufiLogo from '../assets/sprites/MufiLogo.png';
 import LogoText from '../assets/sprites/LogoText.png';
+import Paw from '../assets/sprites/Paw.png';
 
 interface AuthPageProps {
     onLogin: () => void;
@@ -29,30 +31,41 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
 
             {/* Background Animations */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                {/* Floating Elements (Paws/Notes) - Starting from bottom (-bottom-8) */}
-                <div className="absolute left-[10%] -bottom-8 animate-[float-up_10s_linear_infinite] opacity-0 text-sky-300">
-                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5.5-2.5l7.51-3.22-7.52-3.22 3.22 7.52 3.22-7.52-7.52-3.22-3.22 7.52 3.22-7.52z" /></svg> {/* Star/Sparkle shape */}
+                {/* Scattered Icons - Matching screenshot style */}
+
+                {/* Music Note - Blue & Rotated */}
+                <div className="absolute top-[15%] left-[10%] animate-float opacity-20 text-sky-400 transform -rotate-12">
+                    <Music className="w-12 h-12" strokeWidth={2.5} />
                 </div>
-                <div className="absolute left-[25%] -bottom-8 animate-[float-up_14s_linear_infinite_3s] opacity-0 text-pink-300">
-                    <span className="text-3xl">🎶</span>
+
+                {/* Paw - Brown & Rotated */}
+                <div className="absolute top-[25%] right-[15%] animate-float animation-delay-2000 opacity-20 transform rotate-12">
+                    <img src={Paw} alt="Paw" className="w-10 h-10 opacity-60" style={{ filter: 'sepia(1) hue-rotate(-30deg) saturate(2)' }} />
                 </div>
-                <div className="absolute left-[50%] -bottom-8 animate-[float-up_18s_linear_infinite_1s] opacity-0 text-yellow-300">
-                    <span className="text-4xl">✨</span>
+
+                {/* Lightning - Yellow & Rotated */}
+                <div className="absolute bottom-[20%] left-[20%] animate-float animation-delay-4000 opacity-20 text-yellow-400 transform -rotate-12">
+                    <Zap className="w-10 h-10 fill-current" />
                 </div>
-                <div className="absolute left-[70%] -bottom-8 animate-[float-up_11s_linear_infinite_4s] opacity-0 text-purple-300">
-                    <span className="text-3xl">🎵</span>
+
+                {/* Music Note - Purple & Rotated */}
+                <div className="absolute top-[50%] right-[25%] animate-float animation-delay-1000 opacity-20 text-purple-400 transform rotate-45">
+                    <Music className="w-8 h-8" strokeWidth={2.5} />
                 </div>
-                <div className="absolute left-[85%] -bottom-8 animate-[float-up_13s_linear_infinite_2s] opacity-0 text-cyan-300">
-                    <span className="text-4xl">🐾</span>
+
+                {/* Paw - Brown/Orange */}
+                <div className="absolute bottom-[10%] right-[10%] animate-float animation-delay-3000 opacity-20 transform -rotate-6">
+                    <img src={Paw} alt="Paw" className="w-12 h-12 opacity-60" style={{ filter: 'sepia(1) hue-rotate(-30deg) saturate(2)' }} />
                 </div>
-                <div className="absolute left-[15%] -bottom-8 animate-[float-up_16s_linear_infinite_5s] opacity-0 text-indigo-300">
-                    <span className="text-2xl">⚡</span>
+
+                {/* Sparkle/Star - Pink */}
+                <div className="absolute top-[10%] right-[40%] animate-float animation-delay-500 opacity-20 text-pink-300 transform rotate-12">
+                    <span className="text-4xl font-black">✦</span>
                 </div>
-                <div className="absolute left-[60%] -bottom-8 animate-[float-up_19s_linear_infinite_0s] opacity-0 text-pink-300">
-                    <span className="text-5xl">🐾</span>
-                </div>
-                <div className="absolute left-[90%] -bottom-8 animate-[float-up_15s_linear_infinite_6s] opacity-0 text-orange-300">
-                    <span className="text-3xl">🎼</span>
+
+                {/* Extra Lightning */}
+                <div className="absolute top-[40%] left-[5%] animate-float animation-delay-2500 opacity-20 text-yellow-300 transform rotate-12">
+                    <Zap className="w-8 h-8 fill-current" />
                 </div>
             </div>
 

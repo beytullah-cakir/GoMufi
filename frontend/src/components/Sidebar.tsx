@@ -60,7 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
         { label: 'Kurslar', icon: ShopIcon ,path:"/courses"},
         { label: 'Profilim', icon: ProfileIcon ,path:"/profile"},
         { label: 'İçerik', icon: BooksIcon ,path:"/content"},
-        { label: 'Soru Sor!', icon: ChatIcon ,},
+        { label: 'Soru Sor!', icon: ChatIcon ,path:"/ask"},
     ];
 
     return (
