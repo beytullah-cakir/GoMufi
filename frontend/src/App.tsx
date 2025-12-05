@@ -3,6 +3,7 @@ import Sidebar from './components/Sidebar';
 import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
 import ProfilePage from './components/ProfilePage';
+import ContentPage from './components/ContentPage';
 
 function App() {
   const [activePage, setActivePage] = useState('Ana Sayfa');
@@ -18,6 +19,8 @@ function App() {
           <CoursesPage />
         ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
           <ProfilePage />
+        ) : activePage === 'İÇERİK' || activePage === 'İçerik' ? (
+          <ContentPage />
         ) : (
           <div className="p-8">
             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>

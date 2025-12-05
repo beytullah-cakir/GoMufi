@@ -85,33 +85,33 @@ const HomePage: React.FC = () => {
             <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
                 <div className="flex items-center gap-4">
-                    {/* Course Info Box (New) */}
-                    <div className="w-24 h-24 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-colors duration-500 hover:-translate-y-1 hover:shadow-md cursor-pointer"
+                    {/* Course Info Box (New) - ENLARGED to h-28 w-28 */}
+                    <div className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-colors duration-500 hover:-translate-y-1 hover:shadow-md cursor-pointer"
                         style={courseBoxStyle}>
-                        <span className="text-3xl mb-1">🐍</span>
+                        <span className="text-4xl mb-1">🐍</span>
                         <span className="font-black text-sm uppercase tracking-wider font-display">Python</span>
                     </div>
 
-                    {/* Unit Header (Left) - DYNAMIC COLOR */}
+                    {/* Unit Header (Left) - ENLARGED to h-28 */}
                     <div
-                        className="rounded-2xl p-4 md:p-5 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-24 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
+                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
                         style={{ backgroundColor: headerColor }}
                     >
                         {/* Status Bar Top Line */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
 
                         <div className="relative z-10">
-                            <h2 className="text-xs font-black tracking-widest opacity-90 mb-1 uppercase font-display">{headerSubtitle}</h2>
-                            <h1 className="text-xl md:text-2xl font-black font-display tracking-tight drop-shadow-sm">{headerTitle}</h1>
+                            <h2 className="text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display">{headerSubtitle}</h2>
+                            <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm">{headerTitle}</h1>
                         </div>
 
-                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-2 rounded-xl text-xs transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
-                            <span className="text-lg">📖</span> REHBER
+                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-5 py-3 rounded-xl text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
+                            <span className="text-xl">📖</span> REHBER
                         </button>
                     </div>
 
-                    {/* Instructor Widget (Moved Inside Left Group) */}
-                    <div className="hidden xl:flex h-24 px-6 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-4 shadow-sm ml-2">
+                    {/* Instructor Widget (Moved Inside Left Group) - ENLARGED to h-28 */}
+                    <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
                         {/* Avatar */}
                         <div className="relative">
                             <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
@@ -143,7 +143,7 @@ const HomePage: React.FC = () => {
                     {/* User Stats Row - FIXED WIDTH w-80 to match sidebar */}
                     <div className="flex flex-col gap-3 w-80">
 
-                        {/* REDESIGNED XP BAR (Ranked/Graded Style) */}
+                        {/* REDESIGNED XP BAR (Ranked/Graded Style) - REVERTED HEIGHT */}
                         <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
                             {/* Background Progress Tint */}
                             <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
@@ -169,7 +169,7 @@ const HomePage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* UNIFIED STATS BAR: Single container like the XP bar */}
+                        {/* UNIFIED STATS BAR: Single container like the XP bar - REVERTED HEIGHT */}
                         <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl px-3 py-2 flex items-center justify-between shadow-sm">
                             {/* Flags / Lang */}
                             <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0">
@@ -394,9 +394,9 @@ const HomePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Sleeping Cat (Absolute Bottom Right) - LOWERED POSITION (translate-y-4) */}
+            {/* Sleeping Cat (Absolute Bottom Right) - LOWERED POSITION (translate-y-16) */}
             <div className="fixed bottom-4 right-4 z-50 pointer-events-none md:block hidden">
-                <div className="relative translate-y-4">
+                <div className="relative translate-y-16">
                     {/* Zzz Animation with Tailwind */}
                     <style>{`
                          @keyframes floatZ {
@@ -410,15 +410,15 @@ const HomePage: React.FC = () => {
                          .delay-1000 { animation-delay: 1s; }
                          .delay-2000 { animation-delay: 2s; }
                      `}</style>
-                    <div className="absolute -top-8 right-8 z-10 flex flex-col">
-                        <span className="text-3xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-2xl font-black text-sky-400/80 animate-zzz delay-1000 font-display absolute -top-4 -right-4">z</span>
-                        <span className="text-xl font-black text-sky-400/60 animate-zzz delay-2000 font-display absolute -top-8 -right-8">z</span>
+                    <div className="absolute top-20 right-16 z-20 flex flex-col">
+                        <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
+                        <span className="text-xl font-black text-sky-400/80 animate-zzz delay-1000 font-display absolute -top-3 -right-3">z</span>
+                        <span className="text-lg font-black text-sky-400/60 animate-zzz delay-2000 font-display absolute -top-6 -right-6">z</span>
                     </div>
 
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-56 animate-breathe drop-shadow-2xl relative z-10" />
-                    {/* Cat Shadow - SOLID GRAY CIRCLE */}
-                    <div className="absolute bottom-4 left-10 w-36 h-6 bg-gray-400/50 rounded-[100%] animate-shadow-breathe z-0"></div>
+                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-40 animate-breathe drop-shadow-xl relative z-10" />
+                    {/* Cat Shadow - SOLID GRAY CIRCLE - SUBTLE ANIMATION - RAISED TO bottom-24 */}
+                    <div className="absolute bottom-20 left-8 w-24 h-4 bg-gray-400 rounded-[100%] animate-shadow-breathe z-0"></div>
                 </div>
             </div>
 
