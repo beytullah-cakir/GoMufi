@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import Sidebar from './components/Sidebar';
+import Navbar from './components/Navbar';
 import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
 import ProfilePage from './components/ProfilePage';
@@ -9,10 +9,10 @@ function App() {
   const [activePage, setActivePage] = useState('Ana Sayfa');
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+    <div className="flex flex-col h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
+      <Navbar activePage={activePage} onNavigate={setActivePage} />
 
-      <div className="flex-1 overflow-auto">
+      <div className="flex-1 overflow-y-scroll relative w-full">
         {activePage === 'Ana Sayfa' ? (
           <HomePage />
         ) : activePage === 'Kurslar' ? (

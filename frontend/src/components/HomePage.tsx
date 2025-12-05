@@ -78,7 +78,7 @@ const HomePage: React.FC = () => {
     };
 
     return (
-        <div className="w-full h-screen bg-white flex flex-col items-center relative overflow-hidden">
+        <div className="w-full h-full bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
             {/* WIDENED CONTAINER: Removed max-w-7xl, increased px to push to edges but keep safe area */}

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Star, Zap, Search, ChevronDown, MonitorPlay } from 'lucide-react';
 
 // Import Icons
 import PythonIcon from '../assets/sprites/PythonIcon.png';
@@ -125,7 +126,7 @@ const CoursesPage: React.FC = () => {
     ];
 
     return (
-        <div className="w-full h-full bg-white overflow-y-auto pb-20">
+        <div className="w-full bg-white pb-20">
             {/* Header / Top Bar */}
             <div className="p-8 pb-4 border-b border-gray-100 bg-white sticky top-0 z-30">
                 <div className="max-w-7xl mx-auto">
@@ -171,61 +172,92 @@ const CoursesPage: React.FC = () => {
                     </div>
                 </div>
 
+
+
                 {/* Content Layout: Sidebar + List */}
                 <div className="flex gap-8">
 
                     {/* LEFT SIDEBAR FILTERS (Fixed width) */}
-                    <div className="hidden lg:flex flex-col w-64 shrink-0 gap-6">
+                    <div className="hidden lg:flex flex-col w-64 shrink-0 gap-8">
+                        {/* Header */}
                         <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xl">⚡</span>
-                            <h3 className="font-black text-gray-800 text-lg uppercase tracking-wide">Filtrele</h3>
+                            <Zap className="w-5 h-5 text-orange-500 fill-orange-500" />
+                            <h3 className="font-black text-gray-900 text-base uppercase tracking-wider font-display">FİLTRELE</h3>
                         </div>
 
                         {/* Filter Group: Ratings */}
-                        <div className="border-t border-gray-100 pt-4">
-                            <h4 className="font-bold text-gray-800 mb-3 text-sm">Puanlar</h4>
-                            <div className="flex flex-col gap-2">
-                                {[4.5, 4.0, 3.5, 3.0].map((rate) => (
-                                    <label key={rate} className="flex items-center gap-3 cursor-pointer group">
-                                        <div className="w-5 h-5 rounded-full border-2 border-gray-300 group-hover:border-gray-800 flex items-center justify-center">
-                                            <div className="w-2.5 h-2.5 rounded-full bg-transparent group-hover:bg-gray-800"></div>
+                        <div className="border-t border-gray-100 pt-6">
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">PUANLAR</h4>
+                            <div className="flex flex-col gap-3">
+                                {[
+                                    { val: 4.5, label: "4.5 ve üzeri", count: "1.2k" },
+                                    { val: 4.0, label: "4 ve üzeri", count: "1.9k" },
+                                    { val: 3.5, label: "3.5 ve üzeri", count: "500" },
+                                    { val: 3.0, label: "3 ve üzeri", count: "100" }
+                                ].map((item) => (
+                                    <label key={item.val} className="flex items-center gap-3 cursor-pointer group relative pl-1">
+                                        <input type="radio" name="rating" className="peer sr-only" />
+
+                                        {/* Custom Radio Circle */}
+                                        <div className="w-6 h-6 rounded-full border-2 border-gray-300 peer-checked:border-yellow-500 peer-checked:bg-yellow-50 flex items-center justify-center shrink-0 transition-all duration-200 group-hover:border-gray-400">
+                                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-500 opacity-0 peer-checked:opacity-100 transform scale-50 peer-checked:scale-100 transition-all duration-200"></div>
                                         </div>
-                                        <div className="flex items-center gap-1 text-sm text-gray-600 group-hover:text-gray-900">
-                                            <span className="text-yellow-500 text-base">⭐⭐⭐⭐⭐</span>
-                                            <span className="font-bold">{rate} ve üzeri</span>
-                                            <span className="text-xs text-gray-400 font-normal">(1.2k)</span>
+
+                                        <div className="flex items-center gap-2 text-sm text-gray-600 peer-checked:text-gray-900 transition-colors">
+                                            <div className="flex gap-0.5">
+                                                {[1, 2, 3, 4, 5].map(i => (
+                                                    <Star key={i} className={`w-3.5 h-3.5 ${i <= Math.floor(item.val) ? 'fill-yellow-400 text-yellow-400' : 'fill-gray-200 text-gray-200'}`} />
+                                                ))}
+                                            </div>
+                                            <span className="font-bold text-gray-700 peer-checked:text-black">{item.label}</span>
+                                            <span className="text-xs text-gray-400 font-normal group-hover:text-gray-500 transition-colors">({item.count})</span>
                                         </div>
                                     </label>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Filter Group: Duration */}
-                        <div className="border-t border-gray-100 pt-4">
-                            <h4 className="font-bold text-gray-800 mb-3 text-sm">Video Süresi</h4>
-                            <div className="flex flex-col gap-2">
-                                {['0-1 Saat (350)', '1-3 Saat (1.1k)', '3-6 Saat (850)', '6-17 Saat (2.4k)', '17+ Saat (500)'].map((opt) => (
-                                    <label key={opt} className="flex items-center gap-3 cursor-pointer group">
-                                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-gray-800 focus:ring-gray-800" />
-                                        <span className="text-sm text-gray-600 group-hover:text-gray-900 font-medium">{opt}</span>
+                        {/* Filter Group: Video Duration */}
+                        <div className="border-t border-gray-100 pt-6">
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">VİDEO SÜRESİ</h4>
+                            <div className="flex flex-col gap-3">
+                                {['0-1 Saat (350)', '1-3 Saat (1.1k)', '3-6 Saat (850)', '6-17 Saat (2.4k)', '17+ Saat (500)'].map((opt, i) => (
+                                    <label key={i} className="flex items-center gap-3 cursor-pointer group select-none relative">
+                                        <input type="checkbox" className="peer sr-only" />
+
+                                        {/* Custom Checkbox */}
+                                        <div className="w-6 h-6 border-2 border-gray-300 rounded-lg flex items-center justify-center peer-checked:border-sky-500 peer-checked:bg-sky-500 transition-all duration-200 group-hover:border-gray-400 group-hover:scale-105">
+                                            <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 stroke-[4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+
+                                        <span className="text-sm text-gray-600 font-bold group-hover:text-gray-900 peer-checked:text-gray-900 transition-colors">{opt}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
 
                         {/* Filter Group: Topic */}
-                        <div className="border-t border-gray-100 pt-4">
-                            <h4 className="font-bold text-gray-800 mb-3 text-sm">Konu</h4>
-                            <div className="flex flex-col gap-2">
-                                {['Python', 'Web Geliştirme', 'Makine Öğrenimi', 'İngilizce', 'Çizim', 'Mobil'].map((opt) => (
-                                    <label key={opt} className="flex items-center gap-3 cursor-pointer group">
-                                        <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-gray-800 focus:ring-gray-800" />
-                                        <span className="text-sm text-gray-600 group-hover:text-gray-900 font-medium">{opt}</span>
+                        <div className="border-t border-gray-100 pt-6">
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">KONU</h4>
+                            <div className="flex flex-col gap-3">
+                                {['Python', 'Web Geliştirme', 'Makine Öğrenimi', 'İngilizce', 'Çizim', 'Mobil'].map((opt, i) => (
+                                    <label key={i} className="flex items-center gap-3 cursor-pointer group select-none relative">
+                                        <input type="checkbox" className="peer sr-only" />
+                                        {/* Custom Checkbox (Using different active color for variety if needed, or stick to theme) */}
+                                        <div className="w-6 h-6 border-2 border-gray-300 rounded-lg flex items-center justify-center peer-checked:border-indigo-500 peer-checked:bg-indigo-500 transition-all duration-200 group-hover:border-gray-400 group-hover:scale-105">
+                                            <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 stroke-[4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-sm text-gray-600 font-bold group-hover:text-gray-900 peer-checked:text-gray-900 transition-colors">{opt}</span>
                                     </label>
                                 ))}
                             </div>
                         </div>
                     </div>
+
 
                     {/* RIGHT COURSE LIST */}
                     <div className="flex-1">
@@ -315,9 +347,9 @@ const CoursesPage: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
+                </div >
+            </div >
+        </div >
     );
 };
 
