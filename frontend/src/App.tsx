@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import HomePage from './components/HomePage';
+import CoursesPage from './components/CoursesPage';
 
 function App() {
   const [activePage, setActivePage] = useState('Ana Sayfa');
@@ -12,6 +13,8 @@ function App() {
       <div className="flex-1 overflow-auto">
         {activePage === 'Ana Sayfa' ? (
           <HomePage />
+        ) : activePage === 'Kurslar' ? (
+          <CoursesPage />
         ) : (
           <div className="p-8">
             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
