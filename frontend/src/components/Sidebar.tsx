@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 // Import sprites
 import MufiLogo from '../assets/sprites/MufiLogo.png';
@@ -53,13 +54,13 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
-
+    const navigate = useNavigate();
     const navItems = [
-        { label: 'Ana Sayfa', icon: HomeIcon },
-        { label: 'Kurslar', icon: ShopIcon },
-        { label: 'Profilim', icon: ProfileIcon },
-        { label: 'İçerik', icon: BooksIcon },
-        { label: 'Soru Sor!', icon: ChatIcon },
+        { label: 'Ana Sayfa', icon: HomeIcon ,path: "/"},
+        { label: 'Kurslar', icon: ShopIcon ,path:"/courses"},
+        { label: 'Profilim', icon: ProfileIcon ,path:"/profile"},
+        { label: 'İçerik', icon: BooksIcon ,path:"/content"},
+        { label: 'Soru Sor!', icon: ChatIcon ,},
     ];
 
     return (
@@ -88,7 +89,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
             {/* Navigation */}
             <div className="flex-1 px-4 overflow-y-auto">
                 {navItems.map((item) => (
-                    <div key={item.label} onClick={() => onNavigate(item.label)}>
+                    <div key={item.label} onClick={() =>{
+                        onNavigate(item.label);
+                        navigate(item.path || "/");
+                    }}>
                         <NavItem
                             icon={item.icon}
                             label={item.label}
