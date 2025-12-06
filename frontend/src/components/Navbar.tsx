@@ -8,7 +8,7 @@ import ShopIcon from '../assets/sprites/ShopIcon.png';
 import ProfileIcon from '../assets/sprites/ProfileIcon.png';
 import BooksIcon from '../assets/sprites/BooksIcon.png';
 import ChatIcon from '../assets/sprites/ChatIcon.png';
-import MufiSleep from '../assets/sprites/MufiSleep.png';
+
 
 interface NavItemProps {
     icon: string;
@@ -84,17 +84,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate }) => {
                     👨‍🏫
                 </div>
             </div>
-            {/* Sleeping Cat Widget - Positioned on the line */}
-            <div className="hidden lg:block absolute bottom-[-55px] right-[140px] z-50 pointer-events-none hover:scale-105 transition-transform origin-bottom">
-                <div className="relative">
-                    <div className="absolute top-2 right-10 z-20 flex flex-col">
-                        <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-xl font-black text-sky-400/80 animate-zzz font-display absolute -top-3 -right-3" style={{ animationDelay: '1s' }}>z</span>
-                        <span className="text-lg font-black text-sky-400/60 animate-zzz font-display absolute -top-6 -right-5" style={{ animationDelay: '2s' }}>z</span>
-                    </div>
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-36 animate-breathe drop-shadow-md relative z-10" />
-                </div>
-            </div>
+            {/* Sleeping Cat Widget Removed */}
         </div>
     );
 };

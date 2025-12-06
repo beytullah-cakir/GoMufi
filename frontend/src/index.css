@@ -94,4 +94,37 @@
             transform: scale(1.05);
         }
     }
+
+    @keyframes slideUpFade {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.98);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    @keyframes ping-once {
+        0% {
+            transform: scale(1);
+            opacity: 1;
+        }
+
+        75%,
+        100% {
+            transform: scale(2);
+            opacity: 0;
+        }
+    }
+
+    /* Custom Utilities inside theme layer or outside? Tailwind v4 puts animations in theme. */
+    --animate-ping-once: ping-once 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+
+}
+
+.animate-overlay-enter {
+    animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
