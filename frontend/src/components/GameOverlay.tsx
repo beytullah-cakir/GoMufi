@@ -6,9 +6,10 @@ interface GameOverlayProps {
     level: number | null;
     lessonTitle?: string;
     onClose: () => void;
+    onComplete: (stars: number) => void;
 }
 
-const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, onClose }) => {
+const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, onClose, onComplete }) => {
     if (!isOpen || level === null) return null;
 
     return (
@@ -18,6 +19,7 @@ const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, o
                 level={level}
                 lessonTitle={lessonTitle || ''}
                 onClose={onClose}
+                onComplete={onComplete}
             />
         </div>
     );

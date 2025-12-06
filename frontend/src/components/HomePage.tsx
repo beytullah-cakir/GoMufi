@@ -80,80 +80,82 @@ const HomePage: React.FC = () => {
         };
     }
 
-    const pythonNodes: PathNode[] = [
-        { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
-        { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
-        { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
-        { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Hayvanlar Alemi' },
-        { id: 5, type: 'paw', button: ButtonGreen, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Doğa Gezisi' },
-        { id: 6, type: 'paw', button: ButtonCyan, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Seyahat' },
-        { id: 7, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'down', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Sürpriz Ödül' },
-        { id: 8, type: 'paw', button: ButtonPurple, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Hobiler' },
-        { id: 9, type: 'paw', button: ButtonYellow, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Yiyecekler' },
-        { id: 10, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'up', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Aile Üyeleri' },
-        { id: 11, type: 'paw', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Alışveriş' },
-        { id: 12, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus' },
-        { id: 13, type: 'paw', button: ButtonPurple, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Okul' },
-        { id: 14, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Meslekler' },
-        { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
-    ];
+    const [courses, setCourses] = useState<Record<string, CourseData>>(() => {
+        const pythonNodes: PathNode[] = [
+            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
+            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
+            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
+            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Hayvanlar Alemi' },
+            { id: 5, type: 'paw', button: ButtonGreen, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Doğa Gezisi' },
+            { id: 6, type: 'paw', button: ButtonCyan, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Seyahat' },
+            { id: 7, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'down', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Sürpriz Ödül' },
+            { id: 8, type: 'paw', button: ButtonPurple, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Hobiler' },
+            { id: 9, type: 'paw', button: ButtonYellow, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Yiyecekler' },
+            { id: 10, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'up', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Aile Üyeleri' },
+            { id: 11, type: 'paw', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Alışveriş' },
+            { id: 12, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus' },
+            { id: 13, type: 'paw', button: ButtonPurple, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Okul' },
+            { id: 14, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Meslekler' },
+            { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
+        ];
 
-    const mathNodes: PathNode[] = [
-        { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Matematiğe Giriş', stars: 3 },
-        { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus Ödül' },
-        { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Toplama İşlemi', isLocked: true },
-        { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Çıkarma İşlemi', isLocked: true },
-        { id: 5, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Final Sınavı', isLocked: true },
-    ];
+        const mathNodes: PathNode[] = [
+            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Matematiğe Giriş', stars: 3 },
+            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus Ödül' },
+            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Toplama İşlemi', isLocked: true },
+            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Çıkarma İşlemi', isLocked: true },
+            { id: 5, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Final Sınavı', isLocked: true },
+        ];
 
-    const courses: Record<string, CourseData> = {
-        'Python': {
-            id: 'Python',
-            title: 'PYTHON',
-            icon: '🐍',
-            themeColor: '#58cc02',
-            nodes: pythonNodes,
-            instructor: {
-                name: 'Mufi Hoca',
-                avatar: '👨‍🏫',
-                status: 'Çevrimiçi',
-                isOnline: true
+        return {
+            'Python': {
+                id: 'Python',
+                title: 'PYTHON',
+                icon: '🐍',
+                themeColor: '#58cc02',
+                nodes: pythonNodes,
+                instructor: {
+                    name: 'Mufi Hoca',
+                    avatar: '👨‍🏫',
+                    status: 'Çevrimiçi',
+                    isOnline: true
+                },
+                stats: {
+                    league: 'Bronz Lig',
+                    xp: '120 XP',
+                    streak: 8,
+                    gems: 500
+                },
+                defaultHeader: {
+                    title: 'İngilizce temellerini at',
+                    subtitle: 'BÖLÜM 1, ÜNİTE 1'
+                }
             },
-            stats: {
-                league: 'Bronz Lig',
-                xp: '120 XP',
-                streak: 8,
-                gems: 500
-            },
-            defaultHeader: {
-                title: 'İngilizce temellerini at',
-                subtitle: 'BÖLÜM 1, ÜNİTE 1'
+            'Matematik': {
+                id: 'Matematik',
+                title: 'MATEMATİK',
+                icon: '📐',
+                themeColor: '#3b82f6',
+                nodes: mathNodes,
+                instructor: {
+                    name: 'Mufi Bilgin',
+                    avatar: '👩‍🏫',
+                    status: 'Meşgul',
+                    isOnline: false
+                },
+                stats: {
+                    league: 'Gümüş Lig',
+                    xp: '2400 XP',
+                    streak: 12,
+                    gems: 1200
+                },
+                defaultHeader: {
+                    title: 'Sayılarla Dans Et',
+                    subtitle: 'BÖLÜM 1, TEMEL ARİTMETİK'
+                }
             }
-        },
-        'Matematik': {
-            id: 'Matematik',
-            title: 'MATEMATİK',
-            icon: '📐',
-            themeColor: '#3b82f6',
-            nodes: mathNodes,
-            instructor: {
-                name: 'Mufi Bilgin',
-                avatar: '👩‍🏫',
-                status: 'Meşgul',
-                isOnline: false
-            },
-            stats: {
-                league: 'Gümüş Lig',
-                xp: '2400 XP',
-                streak: 12,
-                gems: 1200
-            },
-            defaultHeader: {
-                title: 'Sayılarla Dans Et',
-                subtitle: 'BÖLÜM 1, TEMEL ARİTMETİK'
-            }
-        }
-    };
+        };
+    });
 
     const handleNodeClick = (node: PathNode) => {
         if (activeNodeId === node.id) {
@@ -198,6 +200,31 @@ const HomePage: React.FC = () => {
     const handleCloseGame = () => {
         setShowGameOverlay(false);
         setGameLevel(null);
+    };
+
+    const handleGameComplete = (stars: number) => {
+        if (gameLevel === null) return;
+
+        setCourses(prev => {
+            const currentCourseData = prev[activeCourseId];
+            if (!currentCourseData) return prev; // Safety
+
+            const updatedNodes = currentCourseData.nodes.map(node => {
+                if (node.id === gameLevel) {
+                    return { ...node, stars: stars };
+                }
+                return node;
+            });
+
+            return {
+                ...prev,
+                [activeCourseId]: {
+                    ...currentCourseData,
+                    nodes: updatedNodes
+                }
+            };
+        });
+        handleCloseGame();
     };
 
     const currentCourse = courses[activeCourseId];
@@ -456,15 +483,16 @@ const HomePage: React.FC = () => {
                                             onClick={() => !node.isLocked && handleNodeClick(node)}
                                         >
                                             {/* Stars Rendering */}
-                                            {node.stars && (
+                                            {node.stars !== undefined && (
                                                 <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-end">
-                                                    {[...Array(node.stars)].map((_, i) => (
+                                                    {[0, 1, 2].map((i) => (
                                                         <svg
                                                             key={i}
                                                             xmlns="http://www.w3.org/2000/svg"
                                                             viewBox="0 0 24 24"
                                                             fill="currentColor"
-                                                            className={`w-8 h-8 text-yellow-400 drop-shadow-md transition-transform 
+                                                            className={`w-8 h-8 drop-shadow-md transition-transform 
+                                                                ${i < (node.stars || 0) ? 'text-yellow-400' : 'text-gray-300'}
                                                                 ${i === 0 ? '-rotate-12 translate-y-1' : ''} 
                                                                 ${i === 1 ? '-translate-y-2 scale-110' : ''} 
                                                                 ${i === 2 ? 'rotate-12 translate-y-1' : ''}
@@ -624,6 +652,7 @@ const HomePage: React.FC = () => {
                 level={gameLevel}
                 lessonTitle={currentCourse.nodes.find(n => n.id === gameLevel)?.title}
                 onClose={handleCloseGame}
+                onComplete={handleGameComplete}
             />
 
         </div>
