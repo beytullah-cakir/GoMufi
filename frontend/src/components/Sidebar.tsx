@@ -47,13 +47,11 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, isCollapsed })
     );
 };
 
-interface SidebarProps {
-    activePage: string;
-    onNavigate: (page: string) => void;
-}
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
+
+const Sidebar: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const [activePage, setActivePage] = useState("Ana Sayfa");
     const navigate = useNavigate();
     const navItems = [
         { label: 'Ana Sayfa', icon: HomeIcon ,path: "/"},
@@ -90,7 +88,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
             <div className="flex-1 px-4 overflow-y-auto">
                 {navItems.map((item) => (
                     <div key={item.label} onClick={() =>{
-                        onNavigate(item.label);
+                        setActivePage(item.label);
                         navigate(item.path || "/");
                     }}>
                         <NavItem

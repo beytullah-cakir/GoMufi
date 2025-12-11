@@ -1,7 +1,26 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import MufiFace from '../assets/sprites/MufiSleep.png'; // Using sleep mufi as avatar for now, or just an emoji
-
+import api from "../api";
 const ProfilePage: React.FC = () => {
+
+    const [username, setUsername] = useState("");
+    const [email, setEmail] = useState("");
+
+    const fetchProfile = async () => {
+    try {
+      const user = await api.get('/profile');
+      setUsername(user.data.username);
+      setEmail(user.data.email);
+    } catch (error) {
+      console.error("Error fetching profile", error);
+    }
+  };
+
+    useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  
     return (
         <div className="w-full min-h-screen bg-white pb-20">
             {/* STICKY HEADER */}
@@ -31,8 +50,8 @@ const ProfilePage: React.FC = () => {
 
                     {/* Info */}
                     <div className="flex-1 text-center md:text-left">
-                        <h2 className="text-4xl font-black text-gray-800 font-display mb-1">Kadir</h2>
-                        <p className="text-gray-400 font-bold text-lg mb-6 tracking-wide">@kadir_codera • Aralık 2025'te katıldı</p>
+                        <h2 className="text-4xl font-black text-gray-800 font-display mb-1">{username}</h2>
+                        <p className="text-gray-400 font-bold text-lg mb-6 tracking-wide">@{email} • Aralık 2025'te katıldı</p>
 
                         <div className="flex justify-center md:justify-start gap-4">
                             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border-2 border-green-100 border-b-4 cursor-pointer hover:bg-green-100 transition-colors">

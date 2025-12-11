@@ -1,8 +1,8 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = "postgresql+asyncpg://postgres:241120@localhost:5432/gomufi_db"
-
+#DATABASE_URL = "postgresql+asyncpg://postgres:241120@localhost:5432/gomufi_db"
+DATABASE_URL = "postgresql+asyncpg://postgres:241120@db:5432/gomufi_db"
 engine = create_async_engine(DATABASE_URL, echo=True)
 
 SessionLocal = sessionmaker(

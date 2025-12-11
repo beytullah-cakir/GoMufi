@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
@@ -8,35 +9,26 @@ import AuthPage from './components/AuthPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activePage, setActivePage] = useState('Ana Sayfa');
+
 
   if (!isAuthenticated) {
-    return(
-      <AuthPage onLogin={() => setIsAuthenticated(true)} />     
-    )
+    return <AuthPage onLogin={() => setIsAuthenticated(true)} />;
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-      <Sidebar activePage={activePage} onNavigate={setActivePage} />
+      <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+        <Sidebar/>
 
-      <div className="flex-1 overflow-auto">
-        {activePage === 'Ana Sayfa' ? (
-          <HomePage />
-        ) : activePage === 'Kurslar' ? (
-          <CoursesPage />
-        ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
-          <ProfilePage />
-        ) : activePage === 'İÇERİK' || activePage === 'İçerik' ? (
-          <ContentPage />
-        ) : (
-          <div className="p-8">
-            <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
-            <p className="mt-4 text-gray-600">This page is under construction.</p>
-          </div>
-        )}
+        <div className="flex-1 overflow-auto">
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/courses" element={<CoursesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/content" element={<ContentPage />} />
+          </Routes>
+        </div>
       </div>
-    </div>
+    
   );
 }
 
