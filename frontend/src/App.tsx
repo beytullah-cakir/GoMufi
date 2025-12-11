@@ -4,6 +4,7 @@ import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
 import ProfilePage from './components/ProfilePage';
 import ContentPage from './components/ContentPage';
+import AuthPage from './components/AuthPage';
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);

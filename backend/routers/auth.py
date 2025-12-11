@@ -1,5 +1,10 @@
-from fastapi import APIRouter
-from models.user_models import RegisterRequest, LoginRequest
+from fastapi import APIRouter, Depends
+from models.auth_request import RegisterRequest, LoginRequest
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from connect_db import get_db
+from models.user import User
+
 
 router = APIRouter()
 
@@ -8,30 +13,32 @@ current_user = None
 
 
 @router.post("/register")
-def register_user(data: RegisterRequest):
+async def register_user(data: RegisterRequest,db:AsyncSession = Depends(get_db)):
     global current_user
 
-    new_user = {
-        "username": data.name,
-        "email": data.email,
-        "password": data.password
-    }
+    new_user = User(
+        username=data.name,
+        email=data.email,
+        password=data.password
+    )
 
-    users.append(new_user)
+    db.add(new_user)
+    await db.commit()
     current_user = new_user
 
     return {"status": "registered"}
 
 
 @router.post("/login")
-def login_user(data: LoginRequest):
+async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db)):
     global current_user
 
-    for user in users:
-        if user["email"] == data.email and user["password"] == data.password:
-            current_user = user
-            return {"status": "logged_in"}
-
+    result = await db.execute(
+        select(User).where(User.email == data.email, User.password == data.password)
+    )
+    user = result.scalars().first()
+    if user:
+        return {"status": "logged_in", "username": user.username}
     return {"error": "Invalid credentials"}
 
 def get_current_user():
