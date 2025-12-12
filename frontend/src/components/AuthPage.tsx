@@ -221,22 +221,45 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                                     </div>
                                                     <div className="flex gap-4">
                                                         <div className="group flex-1">
-                                                            <input
-                                                                type="text"
-                                                                value={gradeLevel}
-                                                                onChange={(e) => setGradeLevel(e.target.value)}
-                                                                className={getInputClass()}
-                                                                placeholder="Sınıf"
-                                                            />
+                                                            <div className="relative">
+                                                                <select
+                                                                    value={educationLevel}
+                                                                    onChange={(e) => setEducationLevel(e.target.value)}
+                                                                    className={`${getInputClass()} appearance-none cursor-pointer`}
+                                                                >
+                                                                    <option value="" disabled>Okul Seviyesi</option>
+                                                                    <option value="ilkokul">İlkokul</option>
+                                                                    <option value="ortaokul">Ortaokul</option>
+                                                                    <option value="lise">Lise</option>
+                                                                    <option value="universite">Üniversite</option>
+                                                                </select>
+                                                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                                                                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                         <div className="group flex-1">
-                                                            <input
-                                                                type="text"
-                                                                value={educationLevel}
-                                                                onChange={(e) => setEducationLevel(e.target.value)}
-                                                                className={getInputClass()}
-                                                                placeholder="Seviye"
-                                                            />
+                                                            <div className="relative">
+                                                                <select
+                                                                    value={gradeLevel}
+                                                                    onChange={(e) => setGradeLevel(e.target.value)}
+                                                                    className={`${getInputClass()} appearance-none cursor-pointer`}
+                                                                >
+                                                                    <option value="" disabled>Sınıf</option>
+                                                                    {[...Array(12)].map((_, i) => (
+                                                                        <option key={i} value={`${i + 1}. Sınıf`}>{i + 1}. Sınıf</option>
+                                                                    ))}
+                                                                    <option value="hazirlik">Hazırlık</option>
+                                                                    <option value="mezun">Mezun</option>
+                                                                </select>
+                                                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                                                    <svg className="w-4 h-4 fill-current" viewBox="0 0 20 20">
+                                                                        <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                                                                    </svg>
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 </>
