@@ -14,12 +14,13 @@ class TeacherRegisterRequest(BaseModel):
     first_name: str
     last_name: str
     email: str
-    department: str
+    #department: str
     password: str
 
 class LoginRequest(BaseModel):
     email: str
     password: str
 
-
+class TokenResponse(BaseModel):
+    message: str
 

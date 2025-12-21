@@ -3,7 +3,9 @@ import { Music, Star, Award } from 'lucide-react';
 
 import LogoText from '../assets/sprites/LogoText.png';
 import Paw from '../assets/sprites/Paw.png';
-import api from "../api";import MufiMascot from '../assets/sprites/MufiMascot.png';
+import api from "../api";
+import MufiMascot from '../assets/sprites/MufiMascot.png';
+import { useNavigate } from "react-router-dom";
 
 interface AuthPageProps {
     onLogin: () => void;
@@ -15,28 +17,53 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [surname, setSurname] = useState('');
     const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+    const navigate = useNavigate();
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
+
+ const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!role) return;
+
+    const basePath = role === "student" ? "/student" : "/teacher";
+
+    try {
         if (isLogin) {
-            await api.post("/login", { email, password });
-        } else {
-            await api.post("/register", { name, email, password });
-        }
+            // LOGIN
+            await api.post(`${basePath}/login`, {
+                email,
+                password,
+            });
 
-        onLogin(); // başarı olursa yönlendirme
+            onLogin(); // login başarılı
+        } else {
+            // REGISTER
+            await api.post(`${basePath}/register`, {
+                first_name: name,
+                last_name: surname,
+                email,
+                password,
+            });
+
+            // ✅ Kayıt sonrası login ekranına geç
+            setIsLogin(true);
+
+            // (opsiyonel) şifre kalsın, email kalsın
+            // kullanıcı direkt giriş yapsın
+        }
     } catch (err) {
         console.error("Auth error:", err);
     }
-        
-    };
+};
+
+
 
     const handleRoleSelect = (selectedRole: 'student' | 'instructor') => {
-        setRole(selectedRole);
-        setIsLogin(true); // Reset to login view when switching roles
-    };
+    setRole(selectedRole);
+    setIsLogin(true);
+};
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center p-4 relative overflow-hidden font-display selection:bg-indigo-200">
@@ -158,7 +185,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                             <div className="animate-fade-in">
                                 <div className="mb-8 relative pl-2">
                                     <button
-                                        onClick={() => setRole(null)}
+                                        onClick={
+                                            () => { setRole(null); navigate("/"); }
+                                        }
                                         className="absolute -top-3 -left-4 p-3 hover:bg-gray-100/50 rounded-full text-gray-400 hover:text-gray-700 transition-colors group"
                                         title="Geri Dön"
                                     >
@@ -181,15 +210,34 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                                 type="text"
                                                 value={name}
                                                 onChange={(e) => setName(e.target.value)}
-                                                className="w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold focus:outline-none focus:bg-white focus:ring-4 focus:ring-opacity-20 transition-all duration-300 placeholder-gray-400 text-base"
+                                                className={`w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold focus:outline-none focus:bg-white focus:ring-4 transition-all duration-300 placeholder-gray-400 text-base focus:border-opacity-0 ${role === 'student' ? 'focus:ring-green-100' : 'focus:ring-cyan-100'}`}
                                                 style={{
                                                     borderColor: role === 'student' ? (name ? '#4ade80' : '') : (name ? '#22d3ee' : ''),
                                                     boxShadow: 'none'
                                                 }}
-                                                placeholder="İsim Soyisim"
-                                            />
+                                                placeholder="İsim"
+                                            />                                           
+                                            
+                                        </div>                                    )}
+                                    {!isLogin && (
+                                        <div className="group">
+                                            <input
+                                                type="text"
+                                                value={surname}
+                                                onChange={(e) => setSurname(e.target.value)}
+                                                className={`w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold focus:outline-none focus:bg-white focus:ring-4 transition-all duration-300 placeholder-gray-400 text-base focus:border-opacity-0 ${role === 'student' ? 'focus:ring-green-100' : 'focus:ring-cyan-100'}`}
+                                                style={{
+                                                    borderColor: role === 'student' ? (surname ? '#4ade80' : '') : (surname ? '#22d3ee' : ''),
+                                                    boxShadow: 'none'
+                                                }}
+                                                placeholder="Soyisim"
+                                            />                                          
+                                            
                                         </div>
                                     )}
+                                    
+
+                                    
 
                                     <div className="group">
                                         <input

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from connect_db import SessionLocal, engine, Base
 import asyncio
-from routers import profile, courses
+from routers import profile, courses, student_auth,teacher_auth
 import uvicorn
 from seeds.course_seed import add_sample_courses
 
@@ -23,15 +23,24 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Normal geliştirme adresi
+    "http://127.0.0.1:5173",  # Localhost'un IP karşılığı
+    "http://0.0.0.0:5173",    # Bazen konteyner içinden gelenler için
+    # Eğer tarayıcınızda başka bir adres görüyorsanız onu da ekleyin (örn: IP adresi)
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
+app.include_router(student_auth.router)
+app.include_router(teacher_auth.router)
 app.include_router(profile.router)
 app.include_router(courses.router)
 

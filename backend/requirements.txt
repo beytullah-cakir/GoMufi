@@ -3,3 +3,6 @@ uvicorn
 sqlalchemy
 asyncpg
 SQLAlchemy[asyncio]
+dotenv
+PyJWT
+passlib[bcrypt]

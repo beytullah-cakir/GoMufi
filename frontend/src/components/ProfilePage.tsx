@@ -9,7 +9,7 @@ const ProfilePage: React.FC = () => {
     const fetchProfile = async () => {
     try {
       const user = await api.get('/profile');
-      setUsername(user.data.username);
+      setUsername(user.data.first_name);
       setEmail(user.data.email);
     } catch (error) {
       console.error("Error fetching profile", error);
@@ -51,7 +51,7 @@ const ProfilePage: React.FC = () => {
                     {/* Info */}
                     <div className="flex-1 text-center md:text-left">
                         <h2 className="text-4xl font-black text-gray-800 font-display mb-1">{username}</h2>
-                        <p className="text-gray-400 font-bold text-lg mb-6 tracking-wide">@{email} • Aralık 2025'te katıldı</p>
+                        <p className="text-gray-400 font-bold text-lg mb-6 tracking-wide">{email} • Aralık 2025'te katıldı</p>
 
                         <div className="flex justify-center md:justify-start gap-4">
                             <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-50 border-2 border-green-100 border-b-4 cursor-pointer hover:bg-green-100 transition-colors">

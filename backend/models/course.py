@@ -14,8 +14,6 @@ class Course(Base):
     progress = Column(Integer, default=0)
 
 
-
-
     teacher = relationship("Teacher", back_populates="courses")
     enrollments = relationship("Enrollment", back_populates="course")
     students = relationship("Student", secondary="enrollments", back_populates="courses")
