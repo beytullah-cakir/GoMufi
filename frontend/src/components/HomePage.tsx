@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import MufiSleep from '../assets/sprites/MufiSleep.png';
+
 import FireIcon from '../assets/sprites/Fire.png';
 
 import ChestIcon from '../assets/sprites/Chest.png';
@@ -11,14 +11,22 @@ import ButtonYellow from '../assets/sprites/ButtonYellow.png';
 import ButtonGreen from '../assets/sprites/ButtonGreen.png';
 import TextBubble from '../assets/sprites/TextBubble.png';
 import GrassIcon from '../assets/sprites/grass.png';
+import MufiSleep from '../assets/sprites/MufiSleep.png';
+import GameOverlay from './GameOverlay';
 
 const HomePage: React.FC = () => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
+    const [activeCourseId, setActiveCourseId] = useState<string>('Python');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
     // Dynamic Header State
     const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
     const [headerTitle, setHeaderTitle] = useState<string>('İngilizce temellerini at');
     const [headerSubtitle, setHeaderSubtitle] = useState<string>('BÖLÜM 1, ÜNİTE 1');
+
+    // Game Overlay State
+    const [showGameOverlay, setShowGameOverlay] = useState(false);
+    const [gameLevel, setGameLevel] = useState<number | null>(null);
 
     // --- Data Structures & Helpers ---
 
@@ -40,25 +48,114 @@ const HomePage: React.FC = () => {
         strokeColor: string; // Used for text stroke and button accents
         baseColor: string; // Used for dynamic header
         title: string; // Used for dynamic header
+        stars?: number; // ADDED: visual stars above node
+        isLocked?: boolean; // ADDED: locked state (gray)
     }
 
-    const nodes: PathNode[] = [
-        { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
-        { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
-        { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
-        { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Hayvanlar Alemi' },
-        { id: 5, type: 'paw', button: ButtonGreen, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Doğa Gezisi' },
-        { id: 6, type: 'paw', button: ButtonCyan, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Seyahat' },
-        { id: 7, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'down', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Sürpriz Ödül' },
-        { id: 8, type: 'paw', button: ButtonPurple, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Hobiler' },
-        { id: 9, type: 'paw', button: ButtonYellow, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Yiyecekler' },
-        { id: 10, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'up', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Aile Üyeleri' },
-        { id: 11, type: 'paw', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Alışveriş' },
-        { id: 12, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus' },
-        { id: 13, type: 'paw', button: ButtonPurple, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Okul' },
-        { id: 14, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Meslekler' },
-        { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
-    ];
+    interface Instructor {
+        name: string;
+        avatar: string;
+        status: string;
+        isOnline: boolean;
+    }
+
+    interface CourseStats {
+        league: string;
+        xp: string;
+        streak: number;
+        gems: number;
+    }
+
+    interface CourseData {
+        id: string;
+        title: string;
+        icon: string;
+        themeColor: string;
+        nodes: PathNode[];
+        instructor: Instructor;
+        stats: CourseStats;
+        defaultHeader: {
+            title: string;
+            subtitle: string;
+        };
+    }
+
+    const [courses, setCourses] = useState<Record<string, CourseData>>(() => {
+        const pythonNodes: PathNode[] = [
+            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
+            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
+            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
+            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Hayvanlar Alemi' },
+            { id: 5, type: 'paw', button: ButtonGreen, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Doğa Gezisi' },
+            { id: 6, type: 'paw', button: ButtonCyan, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Seyahat' },
+            { id: 7, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'down', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Sürpriz Ödül' },
+            { id: 8, type: 'paw', button: ButtonPurple, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Hobiler' },
+            { id: 9, type: 'paw', button: ButtonYellow, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Yiyecekler' },
+            { id: 10, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'up', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Aile Üyeleri' },
+            { id: 11, type: 'paw', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Alışveriş' },
+            { id: 12, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus' },
+            { id: 13, type: 'paw', button: ButtonPurple, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Okul' },
+            { id: 14, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Meslekler' },
+            { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
+        ];
+
+        const mathNodes: PathNode[] = [
+            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Matematiğe Giriş', stars: 3 },
+            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus Ödül' },
+            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Toplama İşlemi', isLocked: true },
+            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Çıkarma İşlemi', isLocked: true },
+            { id: 5, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Final Sınavı', isLocked: true },
+        ];
+
+        return {
+            'Python': {
+                id: 'Python',
+                title: 'PYTHON',
+                icon: '🐍',
+                themeColor: '#58cc02',
+                nodes: pythonNodes,
+                instructor: {
+                    name: 'Mufi Hoca',
+                    avatar: '👨‍🏫',
+                    status: 'Çevrimiçi',
+                    isOnline: true
+                },
+                stats: {
+                    league: 'Bronz Lig',
+                    xp: '120 XP',
+                    streak: 8,
+                    gems: 500
+                },
+                defaultHeader: {
+                    title: 'İngilizce temellerini at',
+                    subtitle: 'BÖLÜM 1, ÜNİTE 1'
+                }
+            },
+            'Matematik': {
+                id: 'Matematik',
+                title: 'MATEMATİK',
+                icon: '📐',
+                themeColor: '#3b82f6',
+                nodes: mathNodes,
+                instructor: {
+                    name: 'Mufi Bilgin',
+                    avatar: '👩‍🏫',
+                    status: 'Meşgul',
+                    isOnline: false
+                },
+                stats: {
+                    league: 'Gümüş Lig',
+                    xp: '2400 XP',
+                    streak: 12,
+                    gems: 1200
+                },
+                defaultHeader: {
+                    title: 'Sayılarla Dans Et',
+                    subtitle: 'BÖLÜM 1, TEMEL ARİTMETİK'
+                }
+            }
+        };
+    });
 
     const handleNodeClick = (node: PathNode) => {
         if (activeNodeId === node.id) {
@@ -71,25 +168,118 @@ const HomePage: React.FC = () => {
         }
     };
 
+    const handleCourseChange = (courseId: string) => {
+        setActiveCourseId(courseId);
+        setIsDropdownOpen(false);
+        setActiveNodeId(null); // Reset active node on change
+
+        const newCourse = courses[courseId];
+
+        // Find the last unlocked node (highest ID that is not locked)
+        // Since we want the "latest available", we look for the last one in the list that isn't locked
+        const reversedNodes = [...newCourse.nodes].reverse();
+        const lastUnlockedNode = reversedNodes.find(node => !node.isLocked);
+
+        if (lastUnlockedNode) {
+            setHeaderColor(lastUnlockedNode.baseColor);
+            setHeaderTitle(lastUnlockedNode.title);
+            setHeaderSubtitle(`BÖLÜM 1, DERS ${lastUnlockedNode.id}`);
+        } else {
+            // Fallback (if everything is locked or empty, which shouldn't happen usually)
+            setHeaderColor(newCourse.themeColor);
+            setHeaderTitle(newCourse.defaultHeader.title);
+            setHeaderSubtitle(newCourse.defaultHeader.subtitle);
+        }
+    };
+
+    const handleStartGame = (levelId: number) => {
+        setGameLevel(levelId);
+        setShowGameOverlay(true);
+    };
+
+    const handleCloseGame = () => {
+        setShowGameOverlay(false);
+        setGameLevel(null);
+    };
+
+    const handleGameComplete = (stars: number) => {
+        if (gameLevel === null) return;
+
+        setCourses(prev => {
+            const currentCourseData = prev[activeCourseId];
+            if (!currentCourseData) return prev; // Safety
+
+            const updatedNodes = currentCourseData.nodes.map(node => {
+                if (node.id === gameLevel) {
+                    return { ...node, stars: stars };
+                }
+                return node;
+            });
+
+            return {
+                ...prev,
+                [activeCourseId]: {
+                    ...currentCourseData,
+                    nodes: updatedNodes
+                }
+            };
+        });
+        handleCloseGame();
+    };
+
+    const currentCourse = courses[activeCourseId];
+
     // Calculate dynamic styles for the Course Box to match the header
     const courseBoxStyle = {
-        borderColor: headerColor,
-        color: headerColor
+        borderColor: currentCourse.themeColor,
+        color: currentCourse.themeColor
     };
 
     return (
-        <div className="w-full h-screen bg-white flex flex-col items-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
             {/* WIDENED CONTAINER: Removed max-w-7xl, increased px to push to edges but keep safe area */}
             <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
                 <div className="flex items-center gap-4">
-                    {/* Course Info Box (New) - ENLARGED to h-28 w-28 */}
-                    <div className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-colors duration-500 hover:-translate-y-1 hover:shadow-md cursor-pointer"
-                        style={courseBoxStyle}>
-                        <span className="text-4xl mb-1">🐍</span>
-                        <span className="font-black text-sm uppercase tracking-wider font-display">Python</span>
+                    {/* Course Info Box (New) - Dropdown Enabled */}
+                    <div className="relative">
+                        <div
+                            className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+                            style={courseBoxStyle}
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                            <span className="text-4xl mb-1">{currentCourse.icon}</span>
+                            <span className="font-black text-sm uppercase tracking-wider font-display">{currentCourse.title}</span>
+                            {/* Dropdown Indicator */}
+                            <div className="absolute top-2 right-2 opacity-50">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M6 9l6 6 6-6" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* DROPDOWN MENU */}
+                        {isDropdownOpen && (
+                            <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {Object.values(courses).map((course) => (
+                                    <div
+                                        key={course.id}
+                                        className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
+                                        onClick={() => handleCourseChange(course.id)}
+                                    >
+                                        <span className="text-2xl">{course.icon}</span>
+                                        <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
+                                            {course.title}
+                                        </span>
+                                        {activeCourseId === course.id && (
+                                            <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* Unit Header (Left) - ENLARGED to h-28 */}
@@ -115,19 +305,21 @@ const HomePage: React.FC = () => {
                         {/* Avatar */}
                         <div className="relative">
                             <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
-                                👨‍🏫
+                                {currentCourse.instructor.avatar}
                             </div>
                             {/* Online Status Dot */}
-                            <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+                            {currentCourse.instructor.isOnline && (
+                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+                            )}
                         </div>
 
                         {/* Info */}
                         <div className="flex flex-col justify-center">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Eğitmen</span>
-                            <span className="text-lg font-black text-gray-800 font-display leading-none mb-1">Mufi Hoca</span>
-                            <span className="text-xs font-bold text-green-500 flex items-center gap-1 bg-green-50 px-2 py-0.5 rounded-full w-fit">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                Çevrimiçi
+                            <span className="text-lg font-black text-gray-800 font-display leading-none mb-1">{currentCourse.instructor.name}</span>
+                            <span className={`text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
+                                {currentCourse.instructor.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
+                                {currentCourse.instructor.status}
                             </span>
                         </div>
 
@@ -150,20 +342,23 @@ const HomePage: React.FC = () => {
 
                             <div className="flex items-center gap-3 relative z-10">
                                 {/* Rank Icon / Badge */}
-                                <div className="w-9 h-9 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform">
+                                <div
+                                    className="w-9 h-9 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform"
+                                    style={{ backgroundColor: currentCourse.themeColor === '#3b82f6' ? '#60a5fa' : '#facc15', borderColor: currentCourse.themeColor === '#3b82f6' ? '#3b82f6' : '#eab308', boxShadow: `0 2px 0 ${currentCourse.themeColor === '#3b82f6' ? '#2563eb' : '#ca8a04'}` }}
+                                >
                                     <span className="text-sm font-black text-white">III</span>
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Bronz Lig</span>
-                                    <span className="text-sm font-black text-gray-700 font-display">120 XP</span>
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">{currentCourse.stats.league}</span>
+                                    <span className="text-sm font-black text-gray-700 font-display">{currentCourse.stats.xp}</span>
                                 </div>
                             </div>
 
                             {/* Segmented Bar */}
                             <div className="flex gap-1 relative z-10">
-                                <div className="w-2 h-6 rounded-sm bg-yellow-400"></div>
-                                <div className="w-2 h-6 rounded-sm bg-yellow-400"></div>
-                                <div className="w-2 h-6 rounded-sm bg-yellow-400"></div>
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
                                 <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
                                 <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
                             </div>
@@ -173,7 +368,7 @@ const HomePage: React.FC = () => {
                         <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl px-3 py-2 flex items-center justify-between shadow-sm">
                             {/* Flags / Lang */}
                             <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0">
-                                <span className="text-xl">🇬🇧</span>
+                                <span className="text-xl">{currentCourse.id === 'Matematik' ? '📐' : '🇬🇧'}</span>
                             </div>
 
                             {/* Separator */}
@@ -184,13 +379,13 @@ const HomePage: React.FC = () => {
                                 {/* Fire */}
                                 <div className="flex items-center gap-1 group cursor-pointer">
                                     <img src={FireIcon} alt="Streak" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-black text-orange-500 font-display">8</span>
+                                    <span className="text-sm font-black text-orange-500 font-display">{currentCourse.stats.streak}</span>
                                 </div>
 
                                 {/* Gems */}
                                 <div className="flex items-center gap-1 group cursor-pointer">
                                     <span className="text-sm group-hover:scale-110 transition-transform block">💎</span>
-                                    <span className="text-sm font-black text-sky-500 font-display">500</span>
+                                    <span className="text-sm font-black text-sky-500 font-display">{currentCourse.stats.gems}</span>
                                 </div>
 
                                 {/* Hearts */}
@@ -247,7 +442,7 @@ const HomePage: React.FC = () => {
             </div>
 
             {/* Middle Section: Horizontal Path (Vertically Centered) */}
-            <div className="w-full h-full flex items-center justify-center relative z-20">
+            <div className="w-full flex-1 flex items-center justify-center relative z-20">
                 {/* Horizontal Gamified Path */}
                 {/* Added 'no-scrollbar' class (make sure to have it in CSS or use inline styling for hiding scrollbar) */}
                 <style>{`
@@ -258,13 +453,24 @@ const HomePage: React.FC = () => {
                         -ms-overflow-style: none;
                         scrollbar-width: none;
                     }
+                    @keyframes slideDownFade {
+                        from { opacity: 0; transform: translateY(-30px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+                    .animate-course-change {
+                        animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+                    }
                 `}</style>
                 {/* INCREASED PADDING TOP (p-80) TO FIX CLIPPING - Extra space for bubbles */}
                 <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-80 pb-40 select-none">
-                    <div className="flex items-center min-w-max relative pl-20 pr-20">
+                    <div
+                        key={activeCourseId}
+                        className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
+                    >
                         {(() => {
                             let levelCounter = 0;
-                            return nodes.map((node, index) => {
+                            const currentNodes = courses[activeCourseId].nodes;
+                            return currentNodes.map((node, index) => {
                                 const isLevel = node.type === 'start' || node.type === 'paw';
                                 if (isLevel) levelCounter++;
 
@@ -272,13 +478,35 @@ const HomePage: React.FC = () => {
                                     <React.Fragment key={node.id}>
                                         {/* Node Container */}
                                         <div
-                                            className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'}`}
+                                            className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'} ${node.isLocked ? 'grayscale opacity-75 pointer-events-none' : ''}`}
                                             // style={index === 0 ? { marginTop: '0' } : {}}
-                                            onClick={() => handleNodeClick(node)}
+                                            onClick={() => !node.isLocked && handleNodeClick(node)}
                                         >
+                                            {/* Stars Rendering */}
+                                            {node.stars !== undefined && (
+                                                <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-end">
+                                                    {[0, 1, 2].map((i) => (
+                                                        <svg
+                                                            key={i}
+                                                            xmlns="http://www.w3.org/2000/svg"
+                                                            viewBox="0 0 24 24"
+                                                            fill="currentColor"
+                                                            className={`w-8 h-8 drop-shadow-md transition-transform 
+                                                                ${i < (node.stars || 0) ? 'text-yellow-400' : 'text-gray-300'}
+                                                                ${i === 0 ? '-rotate-12 translate-y-1' : ''} 
+                                                                ${i === 1 ? '-translate-y-2 scale-110' : ''} 
+                                                                ${i === 2 ? 'rotate-12 translate-y-1' : ''}
+                                                            `}
+                                                        >
+                                                            <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
+                                                        </svg>
+                                                    ))}
+                                                </div>
+                                            )}
+
                                             {/* Text Bubble - SQUASHED HEIGHT (scale-y-90) */}
                                             <div
-                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] w-64 origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id
+                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] w-64 origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id && !node.isLocked
                                                     ? 'opacity-100 scale-100 scale-y-90 translate-y-[-20px] mb-12'
                                                     : 'opacity-0 scale-50 translate-y-4 mb-16 pointer-events-none'
                                                     }`}
@@ -287,7 +515,13 @@ const HomePage: React.FC = () => {
                                                     <img src={TextBubble} alt="Bubble" className="w-full drop-shadow-lg" />
                                                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[75%] flex items-center gap-3">
                                                         {/* 3D Play Button */}
-                                                        <div className="relative w-12 h-12 group/btn cursor-pointer transition-transform active:scale-95">
+                                                        <div
+                                                            className="relative w-12 h-12 group/btn cursor-pointer transition-transform active:scale-95"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleStartGame(node.id);
+                                                            }}
+                                                        >
                                                             <div className="absolute inset-x-0 bottom-0 h-12 rounded-full" style={{ backgroundColor: node.strokeColor, filter: 'brightness(0.6)' }}></div>
                                                             <div className="absolute inset-x-0 bottom-2 h-12 rounded-full flex items-center justify-center transition-all group-active/btn:bottom-0" style={{ backgroundColor: node.strokeColor }}>
                                                                 <svg viewBox="0 0 24 24" className="w-6 h-6 text-white fill-current ml-1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
@@ -295,7 +529,13 @@ const HomePage: React.FC = () => {
                                                                 </svg>
                                                             </div>
                                                         </div>
-                                                        <span className="text-gray-500 font-black font-display text-xl whitespace-nowrap">
+                                                        <span
+                                                            className="text-gray-500 font-black font-display text-xl whitespace-nowrap cursor-pointer hover:text-gray-700 transition-colors"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleStartGame(node.id);
+                                                            }}
+                                                        >
                                                             Teste Başla !
                                                         </span>
                                                     </div>
@@ -303,7 +543,7 @@ const HomePage: React.FC = () => {
                                             </div>
 
                                             {/* Hover Ring Effect */}
-                                            <div className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${node.ringColor}`}></div>
+                                            <div className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${node.ringColor} ${node.isLocked ? 'hidden' : ''}`}></div>
 
                                             {/* Shadow */}
                                             <div className="w-36 h-12 bg-black opacity-20 rounded-[100%] absolute top-14 left-2 blur-md"></div>
@@ -343,7 +583,7 @@ const HomePage: React.FC = () => {
                                         </div>
 
                                         {/* Connector (if not last node) */}
-                                        {index < nodes.length - 1 && (
+                                        {index < currentNodes.length - 1 && (
                                             <div className="w-32 h-24 -mx-6 relative z-0 flex items-center justify-center">
                                                 <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                     <path
@@ -393,34 +633,27 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
             </div>
-
-            {/* Sleeping Cat (Absolute Bottom Right) - LOWERED POSITION (translate-y-16) */}
-            <div className="fixed bottom-4 right-4 z-50 pointer-events-none md:block hidden">
-                <div className="relative translate-y-16">
-                    {/* Zzz Animation with Tailwind */}
-                    <style>{`
-                         @keyframes floatZ {
-                             0% { opacity: 0; transform: translate(0, 0) scale(0.5); }
-                             25% { opacity: 1; }
-                             100% { opacity: 0; transform: translate(20px, -40px) scale(1.2); }
-                         }
-                         .animate-zzz {
-                             animation: floatZ 2.5s infinite ease-out;
-                         }
-                         .delay-1000 { animation-delay: 1s; }
-                         .delay-2000 { animation-delay: 2s; }
-                     `}</style>
-                    <div className="absolute top-20 right-16 z-20 flex flex-col">
+            {/* Sleeping User Widget (Bottom Right) */}
+            <div className="absolute bottom-[-40px] right-4 z-50 pointer-events-none hover:scale-105 transition-transform origin-bottom">
+                <div className="relative">
+                    <div className="absolute top-2 right-10 z-20 flex flex-col">
                         <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-xl font-black text-sky-400/80 animate-zzz delay-1000 font-display absolute -top-3 -right-3">z</span>
-                        <span className="text-lg font-black text-sky-400/60 animate-zzz delay-2000 font-display absolute -top-6 -right-6">z</span>
+                        <span className="text-xl font-black text-sky-400/80 animate-zzz font-display absolute -top-3 -right-3" style={{ animationDelay: '1s' }}>z</span>
+                        <span className="text-lg font-black text-sky-400/60 animate-zzz font-display absolute -top-6 -right-5" style={{ animationDelay: '2s' }}>z</span>
                     </div>
-
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-40 animate-breathe drop-shadow-xl relative z-10" />
-                    {/* Cat Shadow - SOLID GRAY CIRCLE - SUBTLE ANIMATION - RAISED TO bottom-24 */}
-                    <div className="absolute bottom-20 left-8 w-24 h-4 bg-gray-400 rounded-[100%] animate-shadow-breathe z-0"></div>
+                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-48 animate-breathe drop-shadow-2xl relative z-10" />
                 </div>
             </div>
+
+            {/* GAME PAGE OVERLAY */}
+            {/* GAME PAGE OVERLAY */}
+            <GameOverlay
+                isOpen={showGameOverlay}
+                level={gameLevel}
+                lessonTitle={currentCourse.nodes.find(n => n.id === gameLevel)?.title}
+                onClose={handleCloseGame}
+                onComplete={handleGameComplete}
+            />
 
         </div>
     );

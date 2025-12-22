@@ -1,5 +1,6 @@
 import React from 'react';
 import { Flame, Trophy, Star, Target } from 'lucide-react';
+import HouseIcon from '../assets/sprites/House.png';
 
 const Dashboard: React.FC = () => {
     return (
@@ -71,7 +72,7 @@ const Dashboard: React.FC = () => {
             </h2>
             <div className="bg-white rounded-3xl shadow-sm border-b-4 border-gray-100 p-8 text-center">
                 <div className="inline-block p-4 bg-gray-50 rounded-full mb-4">
-                    <img src="/src/assets/sprites/House.png" alt="House" className="w-24 h-24 object-contain opacity-50 grayscale" />
+                    <img src={HouseIcon} alt="House" className="w-24 h-24 object-contain opacity-50 grayscale" />
                 </div>
                 <h3 className="text-lg font-bold text-gray-400">Map Locked</h3>
                 <p className="text-gray-400">Complete more quests to unlock the world map!</p>
