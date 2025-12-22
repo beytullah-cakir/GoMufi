@@ -43,8 +43,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
             await api.post(`${basePath}/register`, {
                 first_name: name,
                 last_name: surname,
-                email,
-                password,
+                email: email,
+                password: password,
             });
 
             // ✅ Kayıt sonrası login ekranına geç

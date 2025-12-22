@@ -3,6 +3,7 @@ uvicorn
 sqlalchemy
 asyncpg
 SQLAlchemy[asyncio]
-dotenv
+python-dotenv
 PyJWT
 passlib[bcrypt]
+bcrypt==4.0.1

@@ -4,6 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
 from models.teacher import Teacher
+from models.student import Student
+
 
 router = APIRouter()
 
@@ -38,19 +40,22 @@ async def get_profile(
             # Add more fields as needed
         }
     
-    # TODO: Add student profile logic when Student model is ready
-    # elif role == "student":
-    #     result = await db.execute(
-    #         select(Student).where(Student.id == int(user_id))
-    #     )
-    #     student = result.scalars().first()
-    #     if not student:
-    #         raise HTTPException(status_code=404, detail="Student not found")
-    #     return {
-    #         "user_id": student.id,
-    #         "role": "student",
-    #         "first_name": student.first_name,
-    #         ...
-    #     }
+    elif role == "student":
+        # Fetch student from database
+        result = await db.execute(
+            select(Student).where(Student.id == int(user_id))
+        )
+        student = result.scalars().first()
+        
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+        
+        return {
+            "user_id": student.id,
+            "role": "student",
+            "first_name": student.first_name,
+            "last_name": student.last_name,
+            "email": student.email,
+        }
     
     raise HTTPException(status_code=400, detail="Invalid user role")

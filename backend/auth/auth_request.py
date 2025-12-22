@@ -5,9 +5,9 @@ class StudentRegisterRequest(BaseModel):
     last_name: str
     email: str
     password: str
-    nickname:str
-    grade_level: str
-    education_level: str
+    #nickname:str
+    #grade_level: str
+    #education_level: str
 
 
 class TeacherRegisterRequest(BaseModel):

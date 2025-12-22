@@ -18,19 +18,21 @@ async def register_user(
     data: StudentRegisterRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    new_student = Student(
-        first_name=data.first_name,
-        last_name=data.last_name,
-        email=data.email,
-        password=hash_password(data.password),
-        nickname=data.nickname,
-        grade_level=data.grade_level,
-        education_level=data.education_level
-    )
+    try:
+        new_student = Student(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            password=hash_password(data.password),
+        )
 
-    db.add(new_student)
-    await db.commit()
-    return {"status": "registered"}
+        db.add(new_student)
+        await db.commit()
+        return {"status": "registered"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # @router.post("/student/login")
