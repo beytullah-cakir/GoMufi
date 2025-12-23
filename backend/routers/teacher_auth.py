@@ -16,17 +16,22 @@ async def register_user(
     data: TeacherRegisterRequest,
     db: AsyncSession = Depends(get_db)
 ):
-    new_teacher = Teacher(
-        first_name=data.first_name,
-        last_name=data.last_name,
-        email=data.email,
-        #department=data.department,
-        password=hash_password(data.password)
-    )
+    try:
+        new_teacher = Teacher(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            department=data.department if hasattr(data, 'department') else None,
+            password=hash_password(data.password)
+        )
 
-    db.add(new_teacher)
-    await db.commit()
-    return {"status": "registered"}
+        db.add(new_teacher)
+        await db.commit()
+        return {"status": "registered"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("/teacher/login")
@@ -41,10 +46,9 @@ async def login_user(
     teacher = result.scalars().first()
 
     if not teacher or not verify_password(data.password, teacher.password):
-
         raise HTTPException(status_code=401, detail="Invalid email or password.") 
 
-    access_token = create_access_token(str(teacher.id), "teacher")
+    access_token = create_access_token(str(teacher.id), role="teacher")
 
     response.set_cookie(
         key="access_token",
@@ -55,7 +59,16 @@ async def login_user(
         path="/"
     )
 
-    return {"status": "logged_in"}
+    return {
+        "status": "logged_in",
+        "role": "teacher"
+    }
+
+
+@router.post("/teacher/logout")
+async def logout_user(response: Response):
+    response.delete_cookie(key="access_token", path="/")
+    return {"status": "logged_out"}
 
 
 

@@ -16,4 +16,4 @@ class Course(Base):
 
     teacher = relationship("Teacher", back_populates="courses")
     enrollments = relationship("Enrollment", back_populates="course")
-    students = relationship("Student", secondary="enrollments", back_populates="courses")
+    students = relationship("Student", secondary="enrollments", back_populates="courses", overlaps="enrollments")

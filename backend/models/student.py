@@ -9,12 +9,11 @@ class Student(Base):
     first_name = Column(String)
     last_name = Column(String)
     email = Column(String)
-    #nickname = Column(String)
+    nickname = Column(String)
     created_at = Column(DateTime, server_default=func.now())
-    #grade_level = Column(String)
-    #education_level = Column(String)
+    grade_level = Column(String)
+    education_level = Column(String)
     password = Column(String)
 
     enrollments = relationship("Enrollment", back_populates="student")
-    courses = relationship("Course", secondary="enrollments", back_populates="students")
-
+    courses = relationship("Course", secondary="enrollments", back_populates="students", overlaps="enrollments")

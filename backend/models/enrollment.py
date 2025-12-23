@@ -10,5 +10,5 @@ class Enrollment(Base):
     course_id = Column(Integer, ForeignKey("courses.id"))
     enrolled_at = Column(DateTime, server_default=func.now())
 
-    student = relationship("Student", back_populates="enrollments")
-    course = relationship("Course", back_populates="enrollments")
+    student = relationship("Student", back_populates="enrollments", overlaps="courses,students")
+    course = relationship("Course", back_populates="enrollments", overlaps="courses,students")

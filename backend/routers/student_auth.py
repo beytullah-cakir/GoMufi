@@ -23,6 +23,9 @@ async def register_user(
             first_name=data.first_name,
             last_name=data.last_name,
             email=data.email,
+            nickname=data.nickname,
+            grade_level=data.grade_level,
+            education_level=data.education_level,
             password=hash_password(data.password),
         )
 
@@ -78,7 +81,12 @@ async def login_user(
         "role": "student"
     }
 
-    
+
+@router.post("/student/logout")
+async def logout_user(response: Response):
+    response.delete_cookie(key="access_token", path="/")
+    return {"status": "logged_out"}
+
 
 def get_current_student():
     return current_student

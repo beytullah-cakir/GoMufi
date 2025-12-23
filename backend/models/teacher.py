@@ -9,8 +9,8 @@ class Teacher(Base):
     first_name = Column(String)
     last_name = Column(String)
     email = Column(String)
-    # department = Column(String)
-    # created_at = Column(DateTime, server_default=func.now())
+    department = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
     password = Column(String)
 
     courses = relationship("Course", back_populates="teacher")

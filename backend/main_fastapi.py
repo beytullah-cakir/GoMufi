@@ -11,11 +11,15 @@ from seeds.course_seed import add_sample_courses
 async def lifespan(app: FastAPI):
     # Startup: Tabloları oluştur ve seed data ekle
     async with engine.begin() as conn:
+        # DİKKAT: Geliştirme aşamasında şema değişikliklerini (yeni sütun ekleme vb.) 
+        # yansıtmak için önce mevcut tabloları siliyoruz.
+        # Prodüksiyonda bunu yapmayın!
+        await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     
     # Sample kursları ekle
-    # async with SessionLocal() as db:
-    #     await add_sample_courses(db)    
+    async with SessionLocal() as db:
+        await add_sample_courses(db)    
     yield
 
     pass
