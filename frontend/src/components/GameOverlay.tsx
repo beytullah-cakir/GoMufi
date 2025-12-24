@@ -1,5 +1,6 @@
 import React from 'react';
 import MatchingGame from './games/MatchingGame';
+import MonsterBattleGame from './games/MonsterBattleGame';
 
 interface GameOverlayProps {
     isOpen: boolean;
@@ -14,13 +15,20 @@ const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, o
 
     return (
         <div className="fixed inset-0 z-[100] bg-white animate-overlay-enter flex items-center justify-center">
-            {/* The Matching Game now handles its own display logic (Intro -> Countdown -> Game) */}
-            <MatchingGame
-                level={level}
-                lessonTitle={lessonTitle || ''}
-                onClose={onClose}
-                onComplete={onComplete}
-            />
+            {level === 2 ? (
+                <MonsterBattleGame
+                    level={level}
+                    onClose={onClose}
+                    onComplete={onComplete}
+                />
+            ) : (
+                <MatchingGame
+                    level={level}
+                    lessonTitle={lessonTitle || ''}
+                    onClose={onClose}
+                    onComplete={onComplete}
+                />
+            )}
         </div>
     );
 };
