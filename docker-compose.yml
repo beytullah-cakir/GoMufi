@@ -4,8 +4,6 @@ services:
     container_name: my-backend
     ports:
       - "8000:8000"
-    env_file:
-      - ./backend/.env
     environment:
       DATABASE_URL: "postgresql+asyncpg://postgres:241120@db:5432/gomufi_db"
     depends_on:

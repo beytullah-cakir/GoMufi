@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Routes, Route } from "react-router-dom";
+import { Routes, Route, Navigate, Outlet } from "react-router-dom";
 import Sidebar from "./components/Sidebar";
 import HomePage from "./components/HomePage";
 import CoursesPage from "./components/CoursesPage";
@@ -8,7 +8,7 @@ import ContentPage from "./components/ContentPage";
 import AuthPage from "./components/AuthPage";
 import CompleteProfilePage from "./components/CompleteProfilePage";
 import api from "./api";
-import LandingPage from './components/LandingPage';
+import LandingPage from "./components/LandingPage";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -30,48 +30,69 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Yükleniyor...
+      <div className="screen-center flex items-center justify-center min-h-screen">
+        <div className="animate-pulse font-black text-2xl text-sky-500">
+          Mufi Yükleniyor...
+        </div>
       </div>
     );
   }
 
-  // Dashboard Layout Implementation
+  // Dashboard Layout with Outlet for nested routes
   const DashboardLayout = () => {
     if (!isAuthenticated) {
       return <Navigate to="/auth" replace />;
     }
 
     return (
-      <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
-        <Sidebar activePage={activePage} onNavigate={setActivePage} />
-        <div className="flex-1 overflow-auto">
-          {activePage === 'Ana Sayfa' ? (
-            <HomePage />
-          ) : (
-            <div className="p-8">
-              <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
-              <p className="mt-4 text-gray-600">This page is under construction.</p>
-            </div>
-          )}
-        </div>
+      <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
+        <Sidebar />
+        <main className="flex-1 overflow-y-auto relative bg-white">
+          <Outlet />
+        </main>
       </div>
     );
   };
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<LandingPage />} />
-        <Route
-          path="/auth"
-          element={
-            isAuthenticated ? <Navigate to="/dashboard" replace /> : <AuthPage onLogin={() => setIsAuthenticated(true)} />
-          }
-        />
-        <Route path="/dashboard" element={<DashboardLayout />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      {/* Public Landing Page at root / (only for guests) */}
+      <Route
+        path="/"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <LandingPage />
+          )
+        }
+      />
+
+      {/* Auth Page handling */}
+      <Route
+        path="/auth"
+        element={
+          isAuthenticated ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <AuthPage onLogin={() => setIsAuthenticated(true)} />
+          )
+        }
+      />
+
+      {/* Protected Dashboard Routes */}
+      <Route element={<DashboardLayout />}>
+        {/* We use /dashboard as the entry point to avoid collision with the landing page / */}
+        <Route path="/dashboard" element={<HomePage />} />
+        <Route path="/courses" element={<CoursesPage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/content" element={<ContentPage />} />
+        <Route path="/complete-profile" element={<CompleteProfilePage />} />
+      </Route>
+
+      {/* Fallback redirect to / */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
