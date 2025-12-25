@@ -38,18 +38,6 @@ async def register_user(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# @router.post("/student/login")
-# async def login_user(data: LoginRequest, db: AsyncSession = Depends(get_db),response=Response):
-#     global current_student
-
-#     result = await db.execute(
-#         select(Student).where(Student.email == data.email, Student.password == data.password)
-#     )
-#     user = result.scalars().first()
-#     if user:
-#         return {"status": "logged_in", "username": user.username}
-#     return {"error": "Invalid credentials"}
-
 
 @router.post("/student/login")
 async def login_user(

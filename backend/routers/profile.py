@@ -21,10 +21,6 @@ async def get_profile(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get complete user profile information based on JWT token.
-    Returns different data based on user role (teacher/student).
-    """
     user_id = user["user_id"]
     role = user["role"]
     
@@ -44,7 +40,7 @@ async def get_profile(
             "first_name": teacher.first_name,
             "last_name": teacher.last_name,
             "email": teacher.email,
-            # Add more fields as needed
+            
         }
     
     elif role == "student":
