@@ -4,7 +4,8 @@ import api from "../api";
 import LogoText from "../assets/sprites/LogoText.png";
 import Paw from "../assets/sprites/Paw.png";
 import MufiMascot from "../assets/sprites/MufiMascot.png";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from 'react-router-dom';
+
 
 interface AuthPageProps {
   onLogin: () => void;
