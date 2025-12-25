@@ -29,7 +29,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     // Instructor specific
     const [department, setDepartment] = useState('');
 
-    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,7 +45,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     };
 
     // Helper for input styles
-    const getInputClass = (isFocused: boolean = false) => `
+    const getInputClass = () => `
         w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold 
         focus:outline-none focus:bg-white focus:ring-4 transition-all duration-300 placeholder-gray-400 text-base 
         focus:border-opacity-0 ${role === 'student' ? 'focus:ring-green-100' : 'focus:ring-cyan-100'}
@@ -88,14 +88,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                         <img
                             src={MufiMascot}
                             alt="Mufi Mascot"
-                            className={`w-48 md:w-72 lg:w-96 object-contain drop-shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] 
-                                ${isPasswordFocused ? 'rotate-180 scale-95 blur-[2px] opacity-80' : 'animate-wave hover:scale-105'}
-                            `}
+                            className="w-48 md:w-72 lg:w-96 object-contain drop-shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] animate-wave hover:scale-105"
                             style={{ filter: 'drop-shadow(0 25px 50px rgba(0,0,0,0.25))' }}
                         />
 
                         {/* Speech Bubble - Dynamic */}
-                        <div className={`absolute -top-4 -right-12 transition-all duration-500 transform ${isPasswordFocused ? 'opacity-0 scale-75 translate-y-4' : 'opacity-100 rotate-6 animate-float animation-delay-1000'}`}>
+                        <div className="absolute -top-4 -right-12 transition-all duration-500 transform opacity-100 rotate-6 animate-float animation-delay-1000">
                             <div className="bg-white/90 backdrop-blur-md px-8 py-4 rounded-3xl rounded-bl-sm shadow-xl border border-white/50">
                                 <p className="font-extrabold text-gray-800 whitespace-nowrap text-sm md:text-lg tracking-tight">
                                     {!role ? "Karakterini Seç! 👉" : (role === 'student' ? "Hazır mısın? 🔥" : "Hoşgeldiniz Hocam ✨")}
@@ -103,14 +101,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                             </div>
                         </div>
 
-                        {/* Privacy Mode Bubble */}
-                        <div className={`absolute top-0 right-0 transition-all duration-500 transform ${!isPasswordFocused ? 'opacity-0 scale-75 translate-y-4 pointer-events-none' : 'opacity-100 -rotate-3'}`}>
-                            <div className="bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-2xl rounded-bl-none shadow-2xl border border-gray-700">
-                                <p className="font-bold text-white whitespace-nowrap text-sm">
-                                    🙈 Bakmıyorum!
-                                </p>
-                            </div>
-                        </div>
+
 
                     </div>
                 </div>
@@ -297,8 +288,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                             type="password"
                                             value={password}
                                             onChange={(e) => setPassword(e.target.value)}
-                                            onFocus={() => setIsPasswordFocused(true)}
-                                            onBlur={() => setIsPasswordFocused(false)}
+
                                             className={getInputClass()}
                                             placeholder="Şifre"
                                         />
