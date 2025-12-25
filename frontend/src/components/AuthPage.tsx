@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Music, Star, Award } from 'lucide-react';
 
 import LogoText from '../assets/sprites/LogoText.png';
@@ -10,6 +11,7 @@ interface AuthPageProps {
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
+    const navigate = useNavigate();
     const [role, setRole] = useState<'student' | 'instructor' | null>(null);
     const [isLogin, setIsLogin] = useState(true);
 
@@ -34,6 +36,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         // Here you would gather all the data based on `role` and `isLogin`
         // For now, demo success
         onLogin();
+        navigate('/dashboard');
     };
 
     const handleRoleSelect = (selectedRole: 'student' | 'instructor') => {
