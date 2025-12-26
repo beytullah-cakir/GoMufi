@@ -65,39 +65,29 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
     return (
         <div className="w-full bg-white border-b-2 border-gray-200 px-8 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
 
-            {/* LEFT SECTION: Profile Dropdown + Stats */}
-            <div className="flex items-center gap-6">
-
-                {/* Profile Dropdown Container */}
-                <div className="relative">
-                    <button
-                        className="w-12 h-12 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-2xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
-                        onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    >
-                        👨‍🏫
-                    </button>
-
-                    {/* Profile Dropdown Menu */}
-                    {isProfileDropdownOpen && (
-                        <div className="absolute top-[120%] left-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                            <div className="p-4 border-b border-gray-100 bg-gray-50">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Oturum Açıldı</span>
-                                <span className="text-lg font-black text-gray-800 font-display">Mufi Öğrenci</span>
-                            </div>
-                            <div className="flex flex-col p-2">
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" onClick={() => onNavigate('Profilim')}>
-                                    <span>👤</span> Profilim
-                                </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
-                                    <span>⚙️</span> Ayarlar
-                                </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
-                                    <span>🚪</span> Çıkış Yap
-                                </button>
-                            </div>
-                        </div>
-                    )}
+            {/* LEFT SECTION: Logo */}
+            <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0" onClick={() => onNavigate('Ana Sayfa')}>
+                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm overflow-hidden relative z-10">
+                    <img src={MufiLogo} alt="GoMufi" className="w-full h-full object-cover scale-110" />
                 </div>
+                <img src={LogoText} alt="GoMufi Text" className="h-28 scale-150 object-contain hidden lg:block origin-left relative z-0" />
+            </div>
+
+            {/* CENTER SECTION: Navigation Items */}
+            <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-1">
+                {navItems.map((item) => (
+                    <NavItem
+                        key={item.label}
+                        icon={item.icon}
+                        label={item.label}
+                        isActive={activePage === item.label}
+                        onClick={() => onNavigate(item.label)}
+                    />
+                ))}
+            </div>
+
+            {/* RIGHT SECTION: Profile Dropdown + Stats */}
+            <div className="flex items-center gap-6">
 
                 {/* Stats Row */}
                 {currentCourse && (
@@ -122,28 +112,37 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
                     </div>
                 )}
 
-            </div>
+                {/* Profile Dropdown Container */}
+                <div className="relative">
+                    <button
+                        className="w-12 h-12 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-2xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
+                        onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                    >
+                        👨‍🏫
+                    </button>
 
-
-            {/* CENTER SECTION: Navigation Items */}
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-1">
-                {navItems.map((item) => (
-                    <NavItem
-                        key={item.label}
-                        icon={item.icon}
-                        label={item.label}
-                        isActive={activePage === item.label}
-                        onClick={() => onNavigate(item.label)}
-                    />
-                ))}
-            </div>
-
-            {/* RIGHT SECTION: Logo */}
-            <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0" onClick={() => onNavigate('Ana Sayfa')}>
-                <img src={LogoText} alt="GoMufi Text" className="h-28 scale-150 object-contain hidden lg:block origin-right relative z-0" />
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm overflow-hidden relative z-10">
-                    <img src={MufiLogo} alt="GoMufi" className="w-full h-full object-cover scale-110" />
+                    {/* Profile Dropdown Menu */}
+                    {isProfileDropdownOpen && (
+                        <div className="absolute top-[120%] right-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
+                            <div className="p-4 border-b border-gray-100 bg-gray-50">
+                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Oturum Açıldı</span>
+                                <span className="text-lg font-black text-gray-800 font-display">Mufi Öğrenci</span>
+                            </div>
+                            <div className="flex flex-col p-2">
+                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" onClick={() => onNavigate('Profilim')}>
+                                    <span>👤</span> Profilim
+                                </button>
+                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
+                                    <span>⚙️</span> Ayarlar
+                                </button>
+                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
+                                    <span>🚪</span> Çıkış Yap
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
+
             </div>
 
         </div>

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 
-import FireIcon from '../assets/sprites/Fire.png';
+
 import TextBubble from '../assets/sprites/TextBubble.png';
 import GrassIcon from '../assets/sprites/grass.png';
-import MufiSleep from '../assets/sprites/MufiSleep.png';
+
 
 import GameOverlay from './GameOverlay';
 import type { CourseData, PathNode } from '../types';
@@ -240,42 +240,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             </div>
                         </div>
 
-                        {/* UNIFIED STATS BAR */}
-                        <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl px-3 py-2 flex items-center justify-between shadow-sm">
-                            {/* Flags / Lang */}
-                            <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0">
-                                <span className="text-xl">{currentCourse.id === 'Matematik' ? '📐' : '🇬🇧'}</span>
-                            </div>
 
-                            {/* Separator */}
-                            <div className="w-0.5 h-6 bg-gray-200 rounded-full"></div>
-
-                            {/* Icons Group */}
-                            <div className="flex items-center gap-4">
-                                {/* Fire */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <img src={FireIcon} alt="Streak" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-black text-orange-500 font-display">{currentCourse.stats.streak}</span>
-                                </div>
-
-                                {/* Gems */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <span className="text-sm group-hover:scale-110 transition-transform block">💎</span>
-                                    <span className="text-sm font-black text-sky-500 font-display">{currentCourse.stats.gems}</span>
-                                </div>
-
-                                {/* Hearts */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <span className="text-sm group-hover:scale-110 transition-transform block">❤️</span>
-                                    <span className="text-sm font-black text-red-500 font-display">5</span>
-                                </div>
-                            </div>
-
-                            {/* Profile Tab */}
-                            <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0 text-gray-400 hover:text-gray-600">
-                                <span className="text-xl">👤</span>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Right Sidebar Widgets */}
@@ -335,7 +300,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                     }
                 `}</style>
-                <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-40 pb-40 select-none">
+                <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-64 pb-40 select-none">
                     <div
                         key={activeCourseId}
                         className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
@@ -459,7 +424,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                     // PREMIUM LESSON DIVIDER (Vertical Style)
                                                     <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
                                                         {/* Vertical Dashed Line */}
-                                                        <div className="absolute top-0 bottom-0 left-1/2 -translate-x-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-full -z-10 opacity-50" />
+                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
 
                                                         {/* Main Divider Body */}
                                                         <div className="relative w-full flex flex-col items-center">
@@ -506,17 +471,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
                 </div>
             </div>
-            {/* Sleeping User Widget (Fixed Corner) */}
-            <div className="fixed bottom-0 right-0 z-[100] pointer-events-none hover:scale-105 transition-transform origin-bottom">
-                <div className="relative">
-                    <div className="absolute top-2 right-10 z-20 flex flex-col">
-                        <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-xl font-black text-sky-400/80 animate-zzz font-display absolute -top-3 -right-3" style={{ animationDelay: '1s' }}>z</span>
-                        <span className="text-lg font-black text-sky-400/60 animate-zzz font-display absolute -top-6 -right-5" style={{ animationDelay: '2s' }}>z</span>
-                    </div>
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-48 animate-breathe drop-shadow-2xl relative z-10" />
-                </div>
-            </div>
+
 
             {/* GAME PAGE OVERLAY */}
             <GameOverlay

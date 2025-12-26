@@ -27,7 +27,7 @@ function App() {
   const [activeCourseId, setActiveCourseId] = useState<string>('Python');
 
   // --- Helper to Generate Lesson Nodes ---
-  const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string): PathNode[] => {
+  const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean): PathNode[] => {
     const baseId = startId;
     const isLessonLocked = isLockedStart;
 
@@ -48,7 +48,7 @@ function App() {
         strokeColor: '#c026d3', // fuchsia-600
         baseColor: '#d946ef', // fuchsia-500
         title: 'ANLA: Konuyu Kavra',
-        stars: isLessonLocked ? 0 : 3,
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
         isLocked: isLessonLocked,
         lessonNumber: lessonNum,
         lessonTopic: lessonTopic
@@ -69,7 +69,7 @@ function App() {
         strokeColor: '#0891b2', // cyan-600
         baseColor: '#06b6d4', // cyan-500
         title: 'UYGULA: Alıştırma Yap',
-        stars: isLessonLocked ? 0 : 2,
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
         isLocked: isLessonLocked,
         lessonNumber: lessonNum,
         lessonTopic: lessonTopic
@@ -90,7 +90,7 @@ function App() {
         strokeColor: '#16a34a', // green-600
         baseColor: '#22c55e', // green-500
         title: 'BİRLEŞTİR: Parçaları Tamamla',
-        stars: isLessonLocked ? 0 : 1,
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
         isLocked: isLessonLocked,
         lessonNumber: lessonNum,
         lessonTopic: lessonTopic
@@ -111,7 +111,7 @@ function App() {
         strokeColor: '#ca8a04', // yellow-600
         baseColor: '#eab308', // yellow-500
         title: 'ÜRET: Kendini Göster',
-        stars: isLessonLocked ? 0 : 0, // Usually reward node
+        stars: undefined, // Usually reward node, no stars
         isLocked: isLessonLocked,
         lessonNumber: lessonNum,
         lessonTopic: lessonTopic
@@ -128,15 +128,16 @@ function App() {
     let currentId = 1;
 
     topics.forEach((topic, index) => {
-      const isLocked = index > 2; // Lock from 4th lesson onwards for demo
-      const lessonNodes = generateLessonNodes(currentId, index + 1, isLocked, topic);
+      const isLocked = index > 0; // Lock from 2nd lesson onwards (Index 1+)
+      const showStars = index === 0; // Show stars only for first lesson (Index 0)
+      const lessonNodes = generateLessonNodes(currentId, index + 1, isLocked, topic, showStars);
       pythonNodes.push(...lessonNodes);
       currentId += 4;
     });
 
     const mathNodes: PathNode[] = [];
     // Just generate one Math lesson for now
-    mathNodes.push(...generateLessonNodes(1, 1, false, 'Temel Aritmetik'));
+    mathNodes.push(...generateLessonNodes(1, 1, false, 'Temel Aritmetik', true));
 
     return {
       'Python': {
