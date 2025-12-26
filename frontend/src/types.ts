@@ -1,4 +1,4 @@
-export type NodeType = 'start' | 'chest' | 'house' | 'paw';
+export type NodeType = 'start' | 'chest' | 'house' | 'paw' | 'step';
 export type CurveType = 'up' | 'down';
 
 export interface PathNode {
@@ -7,7 +7,7 @@ export interface PathNode {
     button: string;
     icon?: string;
     curve: CurveType;
-    iconSize: string;
+    iconSize?: string;
     iconOffset?: string;
     ringColor: string;
     numberGradient: string;
@@ -20,6 +20,7 @@ export interface PathNode {
     isLocked?: boolean;
     lessonNumber?: number;
     lessonTopic?: string;
+    lastInLesson?: boolean;
 }
 
 export interface Instructor {

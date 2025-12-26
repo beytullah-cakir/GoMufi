@@ -34,20 +34,16 @@ function App() {
     return [
       {
         id: baseId,
-        type: 'start', // Start of lesson
-        button: ButtonPurple, // ANLA (Purple/Pink Base)
-        icon: BrainIcon,
-        curve: 'down',
-        iconSize: 'w-20 h-20',
-        iconOffset: '-mt-16',
-        // Pink/Purple Scheme for ANLA
+        type: 'step', // Number Node 1
+        button: ButtonPurple,
+        curve: 'up',
         ringColor: 'border-fuchsia-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-        pastelColor: '#fae8ff', // fuchsia-100
+        pastelColor: '#fae8ff',
         glowColor: 'rgba(232, 121, 249, 0.4)',
-        strokeColor: '#c026d3', // fuchsia-600
-        baseColor: '#d946ef', // fuchsia-500
-        title: 'ANLA: Konuyu Kavra',
+        strokeColor: '#c026d3',
+        baseColor: '#d946ef',
+        title: 'BÖLÜM 1',
         stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
         isLocked: isLessonLocked,
         lessonNumber: lessonNum,
@@ -55,19 +51,55 @@ function App() {
       },
       {
         id: baseId + 1,
-        type: 'paw', // Step 2
-        button: ButtonCyan, // UYGULA (Cyan Base)
-        icon: PencilIcon,
+        type: 'start', // BRAIN
+        button: ButtonPurple,
+        icon: BrainIcon,
+        curve: 'down',
+        iconSize: 'w-24 h-24',
+        iconOffset: '-mt-16',
+        ringColor: 'border-fuchsia-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
+        pastelColor: '#fae8ff',
+        glowColor: 'rgba(232, 121, 249, 0.4)',
+        strokeColor: '#c026d3',
+        baseColor: '#d946ef',
+        title: 'ANLA: Konuyu Kavra',
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 2,
+        type: 'step', // Number Node 2
+        button: ButtonCyan,
         curve: 'up',
-        iconSize: 'w-16 h-16',
-        iconOffset: '-mt-12',
-        // Cyan Scheme for UYGULA
         ringColor: 'border-cyan-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-        pastelColor: '#cffafe', // cyan-100
+        pastelColor: '#cffafe',
         glowColor: 'rgba(34, 211, 238, 0.4)',
-        strokeColor: '#0891b2', // cyan-600
-        baseColor: '#06b6d4', // cyan-500
+        strokeColor: '#0891b2',
+        baseColor: '#06b6d4',
+        title: 'BÖLÜM 2',
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 3,
+        type: 'paw', // PENCIL
+        button: ButtonCyan,
+        icon: PencilIcon,
+        curve: 'down',
+        iconSize: 'w-28 h-28',
+        iconOffset: '-mt-12',
+        ringColor: 'border-cyan-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
+        pastelColor: '#cffafe',
+        glowColor: 'rgba(34, 211, 238, 0.4)',
+        strokeColor: '#0891b2',
+        baseColor: '#06b6d4',
         title: 'UYGULA: Alıştırma Yap',
         stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
         isLocked: isLessonLocked,
@@ -75,20 +107,36 @@ function App() {
         lessonTopic: lessonTopic
       },
       {
-        id: baseId + 2,
-        type: 'paw', // Step 3
-        button: ButtonGreen, // BİRLEŞTİR (Green Base)
-        icon: PuzzleIcon,
-        curve: 'down',
-        iconSize: 'w-18 h-18',
-        iconOffset: '-mt-14',
-        // Green Scheme for BİRLEŞTİR
+        id: baseId + 4,
+        type: 'step', // Number Node 3
+        button: ButtonGreen,
+        curve: 'up',
         ringColor: 'border-green-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-        pastelColor: '#dcfce7', // green-100
+        pastelColor: '#dcfce7',
         glowColor: 'rgba(74, 222, 128, 0.4)',
-        strokeColor: '#16a34a', // green-600
-        baseColor: '#22c55e', // green-500
+        strokeColor: '#16a34a',
+        baseColor: '#22c55e',
+        title: 'BÖLÜM 3',
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 5,
+        type: 'paw', // PUZZLE
+        button: ButtonGreen,
+        icon: PuzzleIcon,
+        curve: 'down',
+        iconSize: 'w-22 h-22',
+        iconOffset: '-mt-14',
+        ringColor: 'border-green-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
+        pastelColor: '#dcfce7',
+        glowColor: 'rgba(74, 222, 128, 0.4)',
+        strokeColor: '#16a34a',
+        baseColor: '#22c55e',
         title: 'BİRLEŞTİR: Parçaları Tamamla',
         stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
         isLocked: isLessonLocked,
@@ -96,23 +144,24 @@ function App() {
         lessonTopic: lessonTopic
       },
       {
-        id: baseId + 3,
-        type: 'chest', // End of lesson (Reward)
-        button: ButtonYellow, // ÜRET (Yellow Base)
+        id: baseId + 6,
+        type: 'chest', // TROPHY
+        button: ButtonYellow,
         icon: TrophyIcon,
         curve: 'up',
-        iconSize: 'w-20 h-20',
+        iconSize: 'w-24 h-24',
         iconOffset: '-mt-16',
-        // Yellow Scheme for ÜRET
+        // Yellow Scheme
         ringColor: 'border-yellow-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400',
-        pastelColor: '#fef9c3', // yellow-100
+        pastelColor: '#fef9c3',
         glowColor: 'rgba(250, 204, 21, 0.4)',
-        strokeColor: '#ca8a04', // yellow-600
-        baseColor: '#eab308', // yellow-500
+        strokeColor: '#ca8a04',
+        baseColor: '#eab308',
         title: 'ÜRET: Kendini Göster',
-        stars: undefined, // Usually reward node, no stars
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
         isLocked: isLessonLocked,
+        lastInLesson: true,
         lessonNumber: lessonNum,
         lessonTopic: lessonTopic
       }
@@ -132,7 +181,7 @@ function App() {
       const showStars = index === 0; // Show stars only for first lesson (Index 0)
       const lessonNodes = generateLessonNodes(currentId, index + 1, isLocked, topic, showStars);
       pythonNodes.push(...lessonNodes);
-      currentId += 4;
+      currentId += 7;
     });
 
     const mathNodes: PathNode[] = [];

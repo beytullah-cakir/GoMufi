@@ -309,8 +309,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             let levelCounter = 0;
                             const currentNodes = courses[activeCourseId].nodes;
                             return currentNodes.map((node, index) => {
-                                const isLevel = node.type === 'start' || node.type === 'paw';
-                                if (isLevel) levelCounter++;
+                                const levelCounter = index + 1;
 
                                 return (
                                     <React.Fragment key={node.id}>
@@ -385,10 +384,47 @@ const HomePage: React.FC<HomePageProps> = ({
                                             {/* Button Sprite */}
                                             <img src={node.button} alt="Button" className="w-40 relative z-10" />
 
+                                            {/* Ground Shadow - Independent from floating icon */}
+                                            {node.icon && (
+                                                <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
+                                                    <div
+                                                        className="w-20 h-5 bg-black/40 rounded-[100%] blur-md animate-shadow-pulse"
+                                                        style={{
+                                                            animationDelay: `${index * 0.5 * -1}s`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            )}
+
                                             {/* Icon/Number Container */}
                                             <div className={`absolute inset-0 flex items-center justify-center z-20 ${node.iconOffset || ''}`}>
                                                 {node.icon ? (
-                                                    <img src={node.icon} alt={node.type} className={`${node.iconSize}`} />
+                                                    <>
+                                                        {/* Back Glow Effect - Double Layer */}
+                                                        <div
+                                                            className="absolute w-36 h-36 rounded-full blur-3xl opacity-100 animate-pulse"
+                                                            style={{
+                                                                backgroundColor: node.pastelColor,
+                                                                animationDelay: `${index * 0.5 * -1}s`
+                                                            }}
+                                                        ></div>
+                                                        <div
+                                                            className="absolute w-16 h-16 bg-white rounded-full blur-2xl opacity-80 animate-pulse"
+                                                            style={{
+                                                                animationDelay: `${index * 0.5 * -1}s`
+                                                            }}
+                                                        ></div>
+
+                                                        <img
+                                                            src={node.icon}
+                                                            alt={node.type}
+                                                            className={`${node.iconSize} animate-float relative z-10`}
+                                                            style={{
+                                                                filter: `drop-shadow(0 0 5px ${node.pastelColor})`,
+                                                                animationDelay: `${index * 0.5 * -1}s`
+                                                            }}
+                                                        />
+                                                    </>
                                                 ) : (
                                                     <div className="relative flex items-center justify-center">
                                                         {/* Shadow (White Base) */}
