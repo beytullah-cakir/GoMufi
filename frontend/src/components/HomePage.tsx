@@ -424,31 +424,28 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                 animationDelay: `${index * 0.5 * -1}s`
                                                             }}
                                                         />
-                                                    </>
-                                                ) : (
-                                                    <div className="relative flex items-center justify-center">
-                                                        {/* Shadow (White Base) */}
-                                                        <div className="absolute bottom-2 w-16 h-5 bg-white rounded-[100%] blur-[4px] animate-shadow-breathe shadow-[0_0_10px_rgba(255,255,255,0.8)]"></div>
 
-                                                        {/* Number */}
-                                                        <span
-                                                            className="text-6xl font-black select-none animate-float relative z-10 -translate-y-8"
-                                                            style={{
-                                                                fontFamily: "'Fredoka', sans-serif",
-                                                                color: 'white',
-                                                                WebkitTextStroke: `3px ${node.strokeColor}`,
-                                                                paintOrder: 'stroke fill',
-                                                                filter: `drop-shadow(0 0 8px ${node.pastelColor})`,
-                                                                textShadow: `
-                                                                    2px 2px 0px ${node.strokeColor},
-                                                                    4px 4px 0px ${node.strokeColor}
-                                                                `,
-                                                            }}
+                                                        {/* Level Number Underneath */}
+                                                        <div
+                                                            className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                                                            style={{ animationDelay: `${index * 0.5 * -1}s` }}
                                                         >
-                                                            {levelCounter}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                            <span
+                                                                className="text-2xl font-black tracking-wider select-none"
+                                                                style={{
+                                                                    fontFamily: "'Fredoka', sans-serif",
+                                                                    color: 'white',
+                                                                    WebkitTextStroke: `1.5px ${node.strokeColor}`,
+                                                                    paintOrder: 'stroke fill',
+                                                                    filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
+                                                                    textShadow: `2px 2px 0px ${node.strokeColor}`
+                                                                }}
+                                                            >
+                                                                LEVEL {levelCounter}
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                             </div>
                                         </div>
 

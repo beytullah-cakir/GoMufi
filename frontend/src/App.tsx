@@ -34,9 +34,12 @@ function App() {
     return [
       {
         id: baseId,
-        type: 'step', // Number Node 1
+        type: 'step', // Number Node 1 -> Brain
         button: ButtonPurple,
+        icon: BrainIcon,
         curve: 'up',
+        iconSize: 'w-20 h-20', // Slightly smaller than main
+        iconOffset: '-mt-14',
         ringColor: 'border-fuchsia-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
         pastelColor: '#fae8ff',
@@ -71,9 +74,12 @@ function App() {
       },
       {
         id: baseId + 2,
-        type: 'step', // Number Node 2
+        type: 'step', // Number Node 2 -> Pencil
         button: ButtonCyan,
+        icon: PencilIcon,
         curve: 'up',
+        iconSize: 'w-24 h-24', // Slightly smaller
+        iconOffset: '-mt-12',
         ringColor: 'border-cyan-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
         pastelColor: '#cffafe',
@@ -108,9 +114,12 @@ function App() {
       },
       {
         id: baseId + 4,
-        type: 'step', // Number Node 3
+        type: 'step', // Number Node 3 -> Puzzle
         button: ButtonGreen,
+        icon: PuzzleIcon,
         curve: 'up',
+        iconSize: 'w-20 h-20',
+        iconOffset: '-mt-12',
         ringColor: 'border-green-400 bg-white',
         numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
         pastelColor: '#dcfce7',
