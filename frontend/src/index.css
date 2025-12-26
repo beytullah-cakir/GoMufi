@@ -133,3 +133,39 @@
 .animate-lunge-right {
     animation: lunge-right 0.3s ease-out;
 }
+
+@keyframes breathe {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.03);
+    }
+}
+
+@keyframes zzz {
+    0% {
+        opacity: 0;
+        transform: translateX(0) translateY(0) scale(0.5);
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(20px) translateY(-30px) scale(1.2);
+    }
+}
+
+.animate-breathe {
+    animation: breathe 5s ease-in-out infinite;
+}
+
+.animate-zzz {
+    animation: zzz 3s ease-out infinite;
+}
