@@ -306,7 +306,6 @@ const HomePage: React.FC<HomePageProps> = ({
                         className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
                     >
                         {(() => {
-                            let levelCounter = 0;
                             const currentNodes = courses[activeCourseId].nodes;
                             return currentNodes.map((node, index) => {
                                 const levelCounter = index + 1;
@@ -388,7 +387,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             {node.icon && (
                                                 <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
                                                     <div
-                                                        className="w-20 h-5 bg-black/40 rounded-[100%] blur-md animate-shadow-pulse"
+                                                        className="w-14 h-4 bg-gray-300 rounded-[100%] animate-shadow-pulse -mt-10"
                                                         style={{
                                                             animationDelay: `${index * 0.5 * -1}s`
                                                         }}
