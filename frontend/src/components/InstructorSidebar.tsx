@@ -1,17 +1,12 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LayoutDashboard, BookOpen, Users, BarChart3, Settings } from 'lucide-react';
 
-// Import sprites
+// Import sprites (reusing some for consistency, using Lucide for others where sprites might not exist)
 import MufiLogo from '../assets/sprites/MufiLogo.png';
 import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
-import HomeIcon from '../assets/sprites/HomeIcon.png';
-import ShopIcon from '../assets/sprites/ShopIcon.png';
-import ProfileIcon from '../assets/sprites/ProfileIcon.png';
-import BooksIcon from '../assets/sprites/BooksIcon.png';
-import ChatIcon from '../assets/sprites/ChatIcon.png';
 
 interface NavItemProps {
-    icon: string;
+    icon: React.ReactNode;
     label: string;
     isActive?: boolean;
     isCollapsed: boolean;
@@ -32,7 +27,10 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, isCollapsed })
                 className={`w-10 h-10 flex items-center justify-center flex-shrink-0 transition-transform duration-300 ${isActive ? 'scale-100' : 'group-hover:animate-wiggle'}`}
                 style={{ width: '32px', height: '32px' }}
             >
-                <img src={icon} alt={label} className="w-full h-full object-contain drop-shadow-sm" style={{ maxWidth: '100%', maxHeight: '100%' }} />
+                {/* Using Lucide icons directly for instructor panel to differentiate style slightly or until sprites are ready */}
+                <div className={`w-full h-full flex items-center justify-center ${isActive ? 'text-sky-500' : 'text-gray-400 group-hover:text-gray-600'}`}>
+                    {icon}
+                </div>
             </div>
 
             {!isCollapsed && (
@@ -46,20 +44,20 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, isCollapsed })
     );
 };
 
-interface SidebarProps {
+interface InstructorSidebarProps {
     activePage: string;
     onNavigate: (page: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
+const InstructorSidebar: React.FC<InstructorSidebarProps> = ({ activePage, onNavigate }) => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     const navItems = [
-        { label: 'Ana Sayfa', icon: HomeIcon },
-        { label: 'Kurslar', icon: ShopIcon },
-        { label: 'Profilim', icon: ProfileIcon },
-        { label: 'İçerik', icon: BooksIcon },
-        { label: 'Soru Sor!', icon: ChatIcon },
+        { label: 'Panel', icon: <LayoutDashboard size={24} strokeWidth={2.5} />, id: 'Dashboard' },
+        { label: 'Kurslarım', icon: <BookOpen size={24} strokeWidth={2.5} />, id: 'Courses' },
+        { label: 'Öğrenciler', icon: <Users size={24} strokeWidth={2.5} />, id: 'Students' },
+        { label: 'İstatistikler', icon: <BarChart3 size={24} strokeWidth={2.5} />, id: 'Analytics' },
+        { label: 'Ayarlar', icon: <Settings size={24} strokeWidth={2.5} />, id: 'Settings' },
     ];
 
     return (
@@ -72,7 +70,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
             {/* Logo Area */}
             <div className={`p-6 mb-2 flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
                 <div
-                    className="flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm transition-all duration-300"
+                    className="flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 border-sky-300 shadow-sm transition-all duration-300"
                     style={{
                         width: isCollapsed ? '56px' : '72px',
                         height: isCollapsed ? '56px' : '72px'
@@ -81,18 +79,21 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
                     <img src={MufiLogo} alt="GoMufi Logo" className="w-full h-full object-contain" style={{ maxWidth: '100%', maxHeight: '100%' }} />
                 </div>
                 {!isCollapsed && (
-                    <img src={LogoText} alt="GoMufi" className="ml-4 h-32 object-contain" />
+                    <div className="ml-4 flex flex-col justify-center">
+                        <img src={LogoText} alt="GoMufi" className="h-20 object-contain -ml-2" />
+                        <span className="text-xs font-black text-sky-500 uppercase tracking-widest bg-sky-100 px-2 py-1 rounded-md self-start -mt-4">Eğitmen</span>
+                    </div>
                 )}
             </div>
 
             {/* Navigation */}
             <div className="flex-1 px-4 overflow-y-auto">
                 {navItems.map((item) => (
-                    <div key={item.label} onClick={() => onNavigate(item.label)}>
+                    <div key={item.id} onClick={() => onNavigate(item.id)}>
                         <NavItem
                             icon={item.icon}
                             label={item.label}
-                            isActive={activePage === item.label}
+                            isActive={activePage === item.id}
                             isCollapsed={isCollapsed}
                         />
                     </div>
@@ -112,4 +113,4 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
     );
 };
 
-export default Sidebar;
+export default InstructorSidebar;

@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Music, Star, Award } from 'lucide-react';
 
-import LogoText from '../assets/sprites/LogoText.png';
+import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
 import Paw from '../assets/sprites/Paw.png';
 import MufiMascot from '../assets/sprites/MufiMascot.png';
 
 interface AuthPageProps {
-    onLogin: () => void;
+    onLogin: (role: 'student' | 'instructor') => void;
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-    const navigate = useNavigate();
     const [role, setRole] = useState<'student' | 'instructor' | null>(null);
     const [isLogin, setIsLogin] = useState(true);
 
@@ -35,8 +33,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         e.preventDefault();
         // Here you would gather all the data based on `role` and `isLogin`
         // For now, demo success
-        onLogin();
-        navigate('/dashboard');
+        if (role) {
+            onLogin(role);
+            // Navigation is now handled by App.tsx redirection logic based on state change
+            // navigate('/dashboard'); 
+        }
     };
 
     const handleRoleSelect = (selectedRole: 'student' | 'instructor') => {
@@ -48,31 +49,31 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     const getInputClass = () => `
         w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold 
         focus:outline-none focus:bg-white focus:ring-4 transition-all duration-300 placeholder-gray-400 text-base 
-        focus:border-opacity-0 ${role === 'student' ? 'focus:ring-green-100' : 'focus:ring-cyan-100'}
+        focus:border-opacity-0 ${role === 'student' ? 'focus:ring-green-100' : 'focus:ring-sky-100'}
     `;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex flex-col items-center justify-center p-4 relative overflow-hidden font-display selection:bg-indigo-200">
-            {/* Background Decoration - More Abstract/Modern */}
+        <div className="min-h-screen bg-[#F8F9FC] flex flex-col items-center justify-center p-4 relative overflow-hidden font-display selection:bg-green-200">
+            {/* Background Decoration - Soft & Clean */}
             <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-[-20%] left-[-20%] w-[50rem] h-[50rem] bg-indigo-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-blob"></div>
-                <div className="absolute top-[-10%] right-[-20%] w-[45rem] h-[45rem] bg-purple-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-blob animation-delay-2000"></div>
-                <div className="absolute bottom-[-20%] left-[10%] w-[55rem] h-[55rem] bg-pink-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-20 animate-blob animation-delay-4000"></div>
+                <div className="absolute top-[-20%] left-[-10%] w-[60rem] h-[60rem] bg-[#23c55e]/10 rounded-full mix-blend-multiply filter blur-[120px] opacity-100 animate-blob"></div>
+                <div className="absolute top-[-10%] right-[-20%] w-[50rem] h-[50rem] bg-sky-400/10 rounded-full mix-blend-multiply filter blur-[120px] opacity-100 animate-blob animation-delay-2000"></div>
+                <div className="absolute -bottom-[20%] left-[20%] w-[60rem] h-[60rem] bg-amber-300/10 rounded-full mix-blend-multiply filter blur-[120px] opacity-100 animate-blob animation-delay-4000"></div>
             </div>
 
             {/* Floating Environment Elements - Less "Toy", More "Graphic" */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
                 {/* Icons */}
-                <div className="absolute top-[15%] left-[10%] animate-float opacity-20 text-indigo-500 transform -rotate-12 blur-[1px]">
+                <div className="absolute top-[15%] left-[10%] animate-float opacity-20 text-[#23c55e] transform -rotate-12 blur-[1px]">
                     <Music className="w-16 h-16" strokeWidth={1} />
                 </div>
-                <div className="absolute bottom-[25%] left-[15%] animate-float animation-delay-2000 opacity-20 text-yellow-600 transform rotate-12 blur-[1px]">
+                <div className="absolute bottom-[25%] left-[15%] animate-float animation-delay-2000 opacity-20 text-yellow-500 transform rotate-12 blur-[1px]">
                     <Star className="w-12 h-12 fill-current" />
                 </div>
                 <div className="absolute top-[20%] right-[10%] animate-float animation-delay-4000 opacity-20 transform rotate-12 blur-[1px]">
                     <img src={Paw} alt="Paw" className="w-20 h-20 opacity-40 grayscale" />
                 </div>
-                <div className="absolute bottom-[15%] right-[20%] animate-float animation-delay-1000 opacity-20 text-purple-500 transform -rotate-12 blur-[1px]">
+                <div className="absolute bottom-[15%] right-[20%] animate-float animation-delay-1000 opacity-20 text-sky-500 transform -rotate-12 blur-[1px]">
                     <Award className="w-16 h-16" strokeWidth={1.5} />
                 </div>
             </div>
@@ -108,7 +109,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
 
                 {/* Login/Role Card (Right or Bottom) */}
                 <div className="w-full max-w-md perspective-1000">
-                    <div className="bg-white/70 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 shadow-2xl relative border border-white/60 box-border transition-all duration-500 hover:shadow-purple-200/50 hover:bg-white/80">
+                    <div className="bg-white/70 backdrop-blur-xl rounded-[3rem] p-8 md:p-12 shadow-2xl relative border border-white/60 box-border transition-all duration-500 hover:shadow-sky-200/50 hover:bg-white/80">
 
                         {/* Header Logo */}
                         <div className="flex justify-center mb-10">
@@ -123,36 +124,36 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                     <p className="text-gray-500 font-medium text-base">Yolculuğun nasıl başlayacak?</p>
                                 </div>
 
-                                <div className="grid grid-cols-1 gap-5">
+                                <div className="grid grid-cols-1 gap-4">
                                     <button
                                         onClick={() => handleRoleSelect('student')}
-                                        className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-green-300 hover:scale-[1.02] transition-all duration-300"
+                                        className="group relative flex items-center p-4 rounded-3xl bg-white border-2 border-transparent shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:border-green-200 hover:shadow-[0_20px_40px_-15px_rgba(35,197,94,0.15)] hover:scale-[1.01] transition-all duration-300"
                                     >
-                                        <div className="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-green-100 transition-colors">
+                                        <div className="w-16 h-16 rounded-2xl bg-green-50 text-[#23c55e] flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
                                             🎒
                                         </div>
                                         <div className="ml-5 text-left flex-1">
-                                            <h3 className="font-black text-gray-800 text-xl group-hover:text-green-600">Öğrenci</h3>
-                                            <p className="text-sm font-medium text-gray-400 group-hover:text-green-500/70">Öğren, oyna, kazan.</p>
+                                            <h3 className="font-black text-gray-800 text-xl group-hover:text-[#1ea54c] transition-colors">Öğrenci</h3>
+                                            <p className="text-sm font-bold text-gray-400 group-hover:text-gray-500 transition-colors">Öğren, oyna, kazan.</p>
                                         </div>
-                                        <div className="text-gray-200 group-hover:text-green-400 group-hover:translate-x-2 transition-all text-2xl font-bold">
-                                            →
+                                        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-[#23c55e] group-hover:text-white transition-all duration-300">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                                         </div>
                                     </button>
 
                                     <button
                                         onClick={() => handleRoleSelect('instructor')}
-                                        className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-cyan-300 hover:scale-[1.02] transition-all duration-300"
+                                        className="group relative flex items-center p-4 rounded-3xl bg-white border-2 border-transparent shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] hover:border-sky-200 hover:shadow-[0_20px_40px_-15px_rgba(14,165,233,0.15)] hover:scale-[1.01] transition-all duration-300"
                                     >
-                                        <div className="w-16 h-16 bg-cyan-50 text-cyan-500 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-cyan-100 transition-colors">
+                                        <div className="w-16 h-16 rounded-2xl bg-sky-50 text-sky-500 flex items-center justify-center text-3xl group-hover:scale-110 transition-transform duration-300">
                                             👨‍🏫
                                         </div>
                                         <div className="ml-5 text-left flex-1">
-                                            <h3 className="font-black text-gray-800 text-xl group-hover:text-cyan-600">Eğitmen</h3>
-                                            <p className="text-sm font-medium text-gray-400 group-hover:text-cyan-500/70">İçerik üret ve yönet.</p>
+                                            <h3 className="font-black text-gray-800 text-xl group-hover:text-sky-600 transition-colors">Eğitmen</h3>
+                                            <p className="text-sm font-bold text-gray-400 group-hover:text-gray-500 transition-colors">İçerik üret ve yönet.</p>
                                         </div>
-                                        <div className="text-gray-200 group-hover:text-cyan-400 group-hover:translate-x-2 transition-all text-2xl font-bold">
-                                            →
+                                        <div className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-300 group-hover:bg-sky-500 group-hover:text-white transition-all duration-300">
+                                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" /></svg>
                                         </div>
                                     </button>
                                 </div>
@@ -169,7 +170,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                         <span className="group-hover:-translate-x-1 inline-block transition-transform">←</span>
                                     </button>
                                     <div className="text-center pt-2">
-                                        <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-3 ${role === 'student' ? 'bg-green-100 text-green-600' : 'bg-cyan-100 text-cyan-600'}`}>
+                                        <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-3 ${role === 'student' ? 'bg-green-100 text-[#1ea54c]' : 'bg-sky-100 text-sky-600'}`}>
                                             {role === 'student' ? 'Öğrenci Girişi' : 'Eğitmen Paneli'}
                                         </div>
                                         <h2 className="text-3xl font-black text-gray-800 mb-1 tracking-tight">
@@ -299,8 +300,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                             type="submit"
                                             className={`w-full py-5 rounded-2xl font-black text-white text-xl shadow-xl active:scale-95 active:shadow-sm transition-all duration-200 tracking-wide 
                                                 ${role === 'student'
-                                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 shadow-green-200/50'
-                                                    : 'bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-200/50'
+                                                    ? 'bg-gradient-to-r from-[#23c55e] to-emerald-500 hover:from-[#1ea54c] hover:to-emerald-400 shadow-green-200/50'
+                                                    : 'bg-gradient-to-r from-sky-500 to-blue-500 hover:from-sky-400 hover:to-blue-400 shadow-sky-200/50'
                                                 }`}
                                         >
                                             {isLogin ? 'GİRİŞ YAP' : 'KAYIT OL'}
@@ -347,7 +348,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                         {isLogin ? 'Henüz hesabın yok mu?' : 'Zaten hesabın var mı?'}
                                         <button
                                             onClick={() => setIsLogin(!isLogin)}
-                                            className={`ml-2 hover:underline transition-colors ${role === 'student' ? 'text-green-600' : 'text-cyan-600'}`}
+                                            className={`ml-2 hover:underline transition-colors ${role === 'student' ? 'text-[#1ea54c]' : 'text-sky-600'}`}
                                         >
                                             {isLogin ? 'Hemen Oluştur' : 'Giriş Yap'}
                                         </button>
