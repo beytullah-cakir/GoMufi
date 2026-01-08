@@ -45,7 +45,7 @@ function App() {
     }
 
     return (
-      <div className="flex flex-col min-h-screen bg-gray-50 font-sans text-gray-900">
+      <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
         <Sidebar />
         <main className="flex-1 overflow-y-auto relative bg-white">
           <Outlet />
