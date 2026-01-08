@@ -8,7 +8,7 @@ class Student(Base):
     id = Column(Integer, primary_key=True)
     first_name = Column(String)
     last_name = Column(String)
-    email = Column(String)
+    email = Column(String, unique=True, index=True)
     nickname = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     grade_level = Column(String)

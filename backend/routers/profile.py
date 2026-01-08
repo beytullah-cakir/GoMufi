@@ -24,7 +24,10 @@ async def get_profile(
     user_id = user["user_id"]
     role = user["role"]
     
-    if role == "teacher":
+    if not str(user_id).isdigit():
+        raise HTTPException(status_code=400, detail="Invalid user ID format in token")
+    
+    if role in ["teacher", "instructor"]:
         # Fetch teacher from database
         result = await db.execute(
             select(Teacher).where(Teacher.id == int(user_id))

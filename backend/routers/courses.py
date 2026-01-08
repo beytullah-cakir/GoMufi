@@ -144,14 +144,23 @@ async def read_my_courses(
     courses = result.scalars().all()
     return courses
 
+class CreateCourseRequest(BaseModel):
+    title: str
+    description: Optional[str] = ""
+    category: str
+
 @router.post("/create_course")
-async def create_course(teacher_id: int, title: str, description: str, category: str,
-                        db: AsyncSession = Depends(get_db)):
+async def create_course(
+    course_data: CreateCourseRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
     new_course = Course(
         teacher_id=teacher_id,
-        title=title,
-        description=description,
-        category=category
+        title=course_data.title,
+        description=course_data.description,
+        category=course_data.category,
+        progress=0
     )
     db.add(new_course)
     await db.commit()

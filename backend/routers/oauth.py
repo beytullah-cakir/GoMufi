@@ -19,69 +19,87 @@ async def google_login(request: Request, role: str = "student"):
 @router.get("/auth/google/callback")
 async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_db)):
     try:
-        # Explicitly pass redirect_uri to match the one used in login
-        token = await oauth.google.authorize_access_token(request)
+        try:
+            # Explicitly pass redirect_uri to match the one used in login
+            token = await oauth.google.authorize_access_token(request)
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail=f"OAuth Token Error: {str(e)}")
+            
+        try:
+            user_info = token.get('userinfo')
+            if not user_info:
+                user_info = await oauth.google.userinfo(token=token)
+        except Exception as e:
+             raise HTTPException(status_code=500, detail=f"User Info Error: {str(e)}")
+            
+        email = user_info.get('email')
+        first_name = user_info.get('given_name', '')
+        last_name = user_info.get('family_name', '')
+        
+        # Get role from session and normalize it
+        role = request.session.get('role', 'student')
+        if role == 'instructor':
+            role = 'teacher'
+            
+        user_id = None
+        is_new_user = False
+        
+        print(f"DEBUG: Processing login for {email} with role {role}")
+        
+        if role == 'student':
+            result = await db.execute(select(Student).where(Student.email == email))
+            user = result.scalars().first()
+            
+            if not user:
+                is_new_user = True
+                user = Student(
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    nickname=first_name,
+                    password="",
+                    grade_level="Unknown",
+                    education_level="Unknown"
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            user_id = user.id
+            
+        elif role == 'teacher':
+            result = await db.execute(select(Teacher).where(Teacher.email == email))
+            user = result.scalars().first()
+            
+            if not user:
+                is_new_user = True
+                user = Teacher(
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    department="General",
+                    password=""
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            user_id = user.id
+        else:
+            raise HTTPException(status_code=400, detail=f"Invalid role in session: {role}")
+        
+        if user_id is None:
+            raise HTTPException(status_code=500, detail="User ID could not be determined")
+        
+        access_token = create_access_token(user_id=str(user_id), role=role)
+        
+        redirect_url = "http://localhost:5173/complete-profile" if is_new_user else "http://localhost:5173/"
+        response = RedirectResponse(url=redirect_url)
+        response.set_cookie(key="access_token", value=access_token, httponly=True)
+        return response
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"OAuth Token Error: {str(e)}")
-        
-    try:
-        user_info = token.get('userinfo')
-        if not user_info:
-            user_info = await oauth.google.userinfo(token=token)
-    except Exception as e:
-         raise HTTPException(status_code=500, detail=f"User Info Error: {str(e)}")
-        
-    email = user_info.get('email')
-    first_name = user_info.get('given_name', '')
-    last_name = user_info.get('family_name', '')
-    
-    role = request.session.get('role', 'student')
-    user_id = None
-    is_new_user = False
-    
-    if role == 'student':
-        result = await db.execute(select(Student).where(Student.email == email))
-        user = result.scalars().first()
-        
-        if not user:
-            is_new_user = True
-            user = Student(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                nickname=first_name,
-                password="",
-                grade_level="Unknown",
-                education_level="Unknown"
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-        user_id = user.id
-        
-    elif role == 'teacher':
-        result = await db.execute(select(Teacher).where(Teacher.email == email))
-        user = result.scalars().first()
-        
-        if not user:
-            is_new_user = True
-            user = Teacher(
-                first_name=first_name,
-                last_name=last_name,
-                email=email,
-                department="General",
-                password=""
-            )
-            db.add(user)
-            await db.commit()
-            await db.refresh(user)
-        user_id = user.id
-    
-    access_token = create_access_token(user_id=str(user_id), role=role)
-    
-    redirect_url = "http://localhost:5173/complete-profile" if is_new_user else "http://localhost:5173/"
-    response = RedirectResponse(url=redirect_url)
-    response.set_cookie(key="access_token", value=access_token, httponly=True)
-    return response
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail=f"Internal Callback Error: {str(e)}")

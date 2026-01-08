@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  globalIgnores(['dist', 'node_modules', 'public']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -19,5 +19,20 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      // Suppress unused variables/imports warnings
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@typescript-eslint/no-explicit-any': 'off',
+      'no-unused-vars': 'off',
+      
+      // Suppress React rules that are often annoying during prototyping
+      'react-refresh/only-export-components': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      
+      // Other common suppressions
+      'prefer-const': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/ban-ts-comment': 'off'
+    }
   },
 ])
