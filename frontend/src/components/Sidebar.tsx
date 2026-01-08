@@ -3,19 +3,24 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import sprites
-import MufiLogo from '../assets/sprites/MufiLogo.png';
-import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
-import HomeIcon from '../assets/sprites/HomeIcon.png';
-import ShopIcon from '../assets/sprites/ShopIcon.png';
-import ProfileIcon from '../assets/sprites/ProfileIcon.png';
-import BooksIcon from '../assets/sprites/BooksIcon.png';
-import ChatIcon from '../assets/sprites/ChatIcon.png';
+import MufiLogo from "../assets/sprites/MufiLogo.png";
+import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
+import HomeIcon from "../assets/sprites/HomeIcon.png";
+import ShopIcon from "../assets/sprites/ShopIcon.png";
+import ProfileIcon from "../assets/sprites/ProfileIcon.png";
+import BooksIcon from "../assets/sprites/BooksIcon.png";
+import ChatIcon from "../assets/sprites/ChatIcon.png";
 
 interface NavItemProps {
   icon: string;
   label: string;
   isActive?: boolean;
   isCollapsed: boolean;
+}
+
+interface SidebarProps {
+  activePage?: string;
+  onNavigate?: (page: string) => void;
 }
 
 const NavItem: React.FC<NavItemProps> = ({
@@ -66,18 +71,29 @@ const NavItem: React.FC<NavItemProps> = ({
   );
 };
 
-const Sidebar: React.FC = () => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [activePage, setActivePage] = useState("Ana Sayfa");
+  const [internalActivePage, setInternalActivePage] = useState("Ana Sayfa");
   const navigate = useNavigate();
 
+  const currentActivePage = activePage || internalActivePage;
+
   const navItems = [
-    { label: "Ana Sayfa", icon: HomeIcon, path: "/" },
+    { label: "Ana Sayfa", icon: HomeIcon, path: "/dashboard" },
     { label: "Kurslar", icon: ShopIcon, path: "/courses" },
     { label: "Profilim", icon: ProfileIcon, path: "/profile" },
     { label: "İçerik", icon: BooksIcon, path: "/content" },
     { label: "Soru Sor!", icon: ChatIcon, path: "/ask" },
   ];
+
+  const handleNavigate = (item: { label: string; path: string }) => {
+    if (onNavigate) {
+      onNavigate(item.label);
+    } else {
+      setInternalActivePage(item.label);
+    }
+    navigate(item.path);
+  };
 
   return (
     <div
@@ -118,17 +134,11 @@ const Sidebar: React.FC = () => {
       {/* Navigation */}
       <div className="flex-1 px-4 overflow-y-auto">
         {navItems.map((item) => (
-          <div
-            key={item.label}
-            onClick={() => {
-              setActivePage(item.label);
-              navigate(item.path || "/");
-            }}
-          >
+          <div key={item.label} onClick={() => handleNavigate(item as any)}>
             <NavItem
               icon={item.icon}
               label={item.label}
-              isActive={activePage === item.label}
+              isActive={currentActivePage === item.label}
               isCollapsed={isCollapsed}
             />
           </div>

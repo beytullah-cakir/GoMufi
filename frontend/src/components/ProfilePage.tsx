@@ -4,19 +4,32 @@ import api from "../api";
 const ProfilePage: React.FC = () => {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
-
-  const fetchProfile = async () => {
-    try {
-      const user = await api.get("/profile");
-      setUsername(user.data.first_name);
-      setEmail(user.data.email);
-    } catch (error) {
-      console.error("Error fetching profile", error);
-    }
-  };
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    let isMounted = true;
+
+    const fetchProfile = async () => {
+      try {
+        const response = await api.get("/profile");
+        if (isMounted) {
+          setUsername(response.data.first_name);
+          setEmail(response.data.email);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        if (isMounted) {
+          console.error("Error fetching profile", error);
+          setIsLoading(false);
+        }
+      }
+    };
+
     fetchProfile();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLogout = async () => {
