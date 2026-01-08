@@ -3,13 +3,13 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import sprites
-import MufiLogo from "../assets/sprites/MufiLogo.png";
-import LogoText from "../assets/sprites/LogoText.png";
-import HomeIcon from "../assets/sprites/HomeIcon.png";
-import ShopIcon from "../assets/sprites/ShopIcon.png";
-import ProfileIcon from "../assets/sprites/ProfileIcon.png";
-import BooksIcon from "../assets/sprites/BooksIcon.png";
-import ChatIcon from "../assets/sprites/ChatIcon.png";
+import MufiLogo from '../assets/sprites/MufiLogo.png';
+import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
+import HomeIcon from '../assets/sprites/HomeIcon.png';
+import ShopIcon from '../assets/sprites/ShopIcon.png';
+import ProfileIcon from '../assets/sprites/ProfileIcon.png';
+import BooksIcon from '../assets/sprites/BooksIcon.png';
+import ChatIcon from '../assets/sprites/ChatIcon.png';
 
 interface NavItemProps {
   icon: string;

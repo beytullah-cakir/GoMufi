@@ -39,6 +39,30 @@ function App() {
   }
 
   // Dashboard Layout with Outlet for nested routes
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { useState } from 'react';
+import Sidebar from './components/Sidebar';
+import HomePage from './components/HomePage';
+import AuthPage from './components/AuthPage';
+import LandingPage from './components/LandingPage';
+import InstructorLayout from './components/InstructorLayout';
+import InstructorDashboard from './components/InstructorDashboard';
+import InstructorCourses from './components/InstructorCourses';
+import InstructorContent from './components/InstructorContent';
+import InstructorStudents from './components/InstructorStudents';
+import InstructorInteractions from './components/InstructorInteractions';
+import InstructorAssessments from './components/InstructorAssessments';
+import InstructorCalendar from './components/InstructorCalendar';
+import InstructorRevenue from './components/InstructorRevenue';
+import InstructorSettings from './components/InstructorSettings';
+
+function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState<'student' | 'instructor' | null>(null);
+  const [activePage, setActivePage] = useState('Ana Sayfa');
+
+
+  // Dashboard Layout Implementation
   const DashboardLayout = () => {
     if (!isAuthenticated) {
       return <Navigate to="/auth" replace />;
@@ -51,6 +75,33 @@ function App() {
           <Outlet />
         </main>
       </div>
+    );
+  };
+
+  const InstructorPanelLayout = () => {
+    if (!isAuthenticated) {
+      return <Navigate to="/auth" replace />;
+    }
+
+    // Simple internal routing for the instructor panel demo
+    const [instructorPage, setInstructorPage] = useState('Dashboard');
+
+    return (
+      <InstructorLayout activePage={instructorPage} onNavigate={setInstructorPage}>
+        {instructorPage === 'Dashboard' ? <InstructorDashboard /> :
+          instructorPage === 'Courses' ? <InstructorCourses /> :
+            instructorPage === 'Content' ? <InstructorContent /> :
+              instructorPage === 'Students' ? <InstructorStudents /> :
+                instructorPage === 'Interactions' ? <InstructorInteractions /> :
+                  instructorPage === 'Assessments' ? <InstructorAssessments /> :
+                    instructorPage === 'Calendar' ? <InstructorCalendar /> :
+                      instructorPage === 'Revenue' ? <InstructorRevenue /> :
+                        instructorPage === 'Settings' ? <InstructorSettings /> : (
+                          <div className="flex items-center justify-center h-64 text-gray-400 font-bold text-lg">
+                            {instructorPage} İçeriği Hazırlanıyor...
+                          </div>
+                        )}
+      </InstructorLayout>
     );
   };
 
