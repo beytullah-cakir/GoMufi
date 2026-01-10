@@ -169,6 +169,21 @@ async def create_course(
 
 
 
-
-
+@router.delete("/delete_course/{course_id}")
+async def delete_course(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found or unauthorized")
+        
+    await db.delete(course)
+    await db.commit()
+    return {"message": "Course deleted successfully"}
 

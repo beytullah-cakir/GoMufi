@@ -3,9 +3,11 @@ import { User } from "lucide-react";
 import { useEffect, useState } from "react";
 import api from "../api";
 const InstructorSettings: React.FC = () => {
-  const [firstname, setFirsname] = useState("");
+  const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
   const [email, setEmail] = useState("");
+  const [bio, setBio] = useState("");
+  const [department, setDepartment] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -15,9 +17,11 @@ const InstructorSettings: React.FC = () => {
       try {
         const response = await api.get("/profile");
         if (isMounted) {
-          setFirsname(response.data.first_name);
+          setFirstname(response.data.first_name);
           setLastname(response.data.last_name);
           setEmail(response.data.email);
+          setBio(response.data.bio || "");
+          setDepartment(response.data.department || "");
           setIsLoading(false);
         }
       } catch (error) {
@@ -35,12 +39,19 @@ const InstructorSettings: React.FC = () => {
     };
   }, []);
 
-  const handleLogout = async () => {
+  const handleSave = async () => {
     try {
-      await api.post("/logout");
-      window.location.href = "/";
+      await api.put("/profile/update", {
+        first_name: firstname,
+        last_name: lastname,
+        bio: bio,
+        department: department,
+      });
+      alert("Profil başarıyla güncellendi!");
+      window.location.reload();
     } catch (error) {
-      console.error("Logout failed", error);
+      console.error("Profile update failed", error);
+      alert("Hata oluştu.");
     }
   };
 
@@ -83,7 +94,8 @@ const InstructorSettings: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      defaultValue={firstname}
+                      value={firstname}
+                      onChange={(e) => setFirstname(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
                     />
                   </div>
@@ -93,10 +105,22 @@ const InstructorSettings: React.FC = () => {
                     </label>
                     <input
                       type="text"
-                      defaultValue={lastname}
+                      value={lastname}
+                      onChange={(e) => setLastname(e.target.value)}
                       className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    E-posta Adresi
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    disabled
+                    className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-400 cursor-not-allowed"
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">
@@ -104,7 +128,8 @@ const InstructorSettings: React.FC = () => {
                   </label>
                   <input
                     type="text"
-                    defaultValue="Yazılım Eğitmeni"
+                    value={department}
+                    onChange={(e) => setDepartment(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
                   />
                 </div>
@@ -112,14 +137,21 @@ const InstructorSettings: React.FC = () => {
                   <label className="block text-xs font-bold text-gray-500 mb-1">
                     Hakkımda
                   </label>
-                  <textarea className="w-full h-32 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-200 resize-none"></textarea>
+                  <textarea
+                    value={bio}
+                    onChange={(e) => setBio(e.target.value)}
+                    className="w-full h-32 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-200 resize-none"
+                  ></textarea>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex justify-end pt-4 border-t border-gray-100">
-            <button className="bg-sky-500 hover:bg-sky-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-sky-200 transition-transform active:scale-95">
+            <button
+              onClick={handleSave}
+              className="bg-sky-500 hover:bg-sky-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-sky-200 transition-transform active:scale-95"
+            >
               Değişiklikleri Kaydet
             </button>
           </div>

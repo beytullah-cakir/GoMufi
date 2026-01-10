@@ -111,9 +111,15 @@ const InstructorCourses: React.FC = () => {
     }
   };
 
-  const handleDeleteCourse = (id: number) => {
+  const handleDeleteCourse = async (id: number) => {
     if (window.confirm("Bu kursu silmek istediğine emin misin?")) {
-      setCourses(courses.filter((c) => c.id !== id));
+      try {
+        await api.delete(`/delete_course/${id}`);
+        setCourses(courses.filter((c) => c.id !== id));
+      } catch (error) {
+        console.error("Kurs silinirken hata oluştu:", error);
+        alert("Kurs silinemedi.");
+      }
     }
     setOpenMenuId(null);
   };

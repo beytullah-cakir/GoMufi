@@ -12,5 +12,6 @@ class Teacher(Base):
     department = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     password = Column(String)
+    bio = Column(String, nullable=True)
 
     courses = relationship("Course", back_populates="teacher")

@@ -16,6 +16,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
 }) => {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
+  const [email, setEmail] = useState("");
 
   useEffect(() => {
     let isMounted = true;
@@ -25,6 +26,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
         if (isMounted) {
           setFirstname(response.data.first_name);
           setLastname(response.data.last_name);
+          setEmail(response.data.email);
         }
       } catch (error) {
         console.error("Error fetching profile", error);
@@ -92,9 +94,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
                 <p className="text-sm font-black text-gray-800">
                   {firstname} Hoca
                 </p>
-                <p className="text-xs font-bold text-gray-400">
-                  Yazılım Eğitmeni
-                </p>
+                <p className="text-xs font-bold text-gray-400">Yazılım Eğitmeni</p>
               </div>
               <div className="w-10 h-10 rounded-full bg-sky-100 border-2 border-sky-200 flex items-center justify-center text-sky-600 font-bold cursor-pointer hover:bg-sky-200 transition-colors">
                 {initials}
