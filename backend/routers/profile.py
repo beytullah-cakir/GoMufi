@@ -43,7 +43,7 @@ async def get_profile(
             "first_name": teacher.first_name,
             "last_name": teacher.last_name,
             "email": teacher.email,
-            
+            "bio": teacher.bio,
         }
     
     elif role == "student":
@@ -74,6 +74,9 @@ class ProfileUpdate(BaseModel):
     grade_level: Optional[str] = None
     education_level: Optional[str] = None
     department: Optional[str] = None
+    bio: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
 
 @router.put("/profile/update")
 async def update_profile(
@@ -100,14 +103,20 @@ async def update_profile(
         await db.commit()
         return {"message": "Profile updated"}
         
-    elif role == "teacher":
+    elif role in ["teacher", "instructor"]:
         result = await db.execute(select(Teacher).where(Teacher.id == int(user_id)))
         teacher = result.scalars().first()
         if not teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
             
-        if profile_data.department:
+        if profile_data.department is not None:
             teacher.department = profile_data.department
+        if profile_data.bio is not None:
+            teacher.bio = profile_data.bio
+        if profile_data.first_name is not None:
+            teacher.first_name = profile_data.first_name
+        if profile_data.last_name is not None:
+            teacher.last_name = profile_data.last_name
             
         await db.commit()
         return {"message": "Profile updated"}
