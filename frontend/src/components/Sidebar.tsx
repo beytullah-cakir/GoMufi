@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 // Import sprites
 import MufiLogo from "../assets/sprites/MufiLogo.png";
@@ -130,7 +131,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
           />
         )}
       </div>
-
       <div className="flex-1 px-4 overflow-y-auto">
         {navItems.map((item) => (
           <div key={item.label} onClick={() => handleNavigate(item as any)}>
@@ -143,16 +143,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
           </div>
         ))}
       </div>
-
       {/* Logout Button */}
       <div className="px-4 mb-6">
         <div
           onClick={async () => {
             try {
-              await fetch("http://localhost:8000/auth/logout", {
-                method: "POST",
-                credentials: "include",
-              });
+              await api.post("/auth/logout");
               window.location.href = "/";
             } catch (error) {
               console.error("Logout error:", error);
@@ -173,7 +169,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
           )}
         </div>
       </div>
-
       {/* Collapse Button */}
       <div className="absolute -right-5 top-1/2 transform -translate-y-1/2 z-30">
         <button
