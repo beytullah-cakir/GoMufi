@@ -1,5 +1,6 @@
 fastapi
 uvicorn
+psycopg2-binary
 sqlalchemy
 asyncpg
 SQLAlchemy[asyncio]
