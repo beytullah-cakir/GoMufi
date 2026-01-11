@@ -412,7 +412,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     type="button"
                     onClick={() => {
                       const targetRole = role || "student";
-                      window.location.href = `http://localhost:8000/auth/google/login?role=${targetRole}`;
+                      const apiBaseUrl =
+                        import.meta.env.VITE_API_URL || "http://localhost:8000";
+                      window.location.href = `${apiBaseUrl}/auth/google/login?role=${targetRole}`;
                     }}
                     className="w-full py-4 px-6 rounded-2xl border-2 border-gray-100 bg-white text-gray-700 font-bold text-lg hover:bg-gray-50 hover:border-gray-200 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3 shadow-sm"
                   >
