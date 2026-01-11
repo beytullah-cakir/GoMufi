@@ -109,7 +109,8 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             value=access_token, 
             httponly=True,
             secure=is_production, # True in production (HTTPS), False in dev (HTTP)
-            samesite='None' if is_production else 'Lax' # None for cross-site (prod), Lax for local
+            samesite='None' if is_production else 'Lax', # None for cross-site (prod), Lax for local
+            path="/"
         )
         return response
     except Exception as e:
