@@ -1,7 +1,10 @@
 import axios from "axios";
 
-// Production'da Railway URL, development'ta localhost kullan
+// API URL'ini environment variable'dan al
 const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+
+// API URL'ini global olarak export et (diğer componentlerde kullanmak için)
+export const getApiBaseUrl = () => API_BASE_URL;
 
 const api = axios.create({
   baseURL: API_BASE_URL,
