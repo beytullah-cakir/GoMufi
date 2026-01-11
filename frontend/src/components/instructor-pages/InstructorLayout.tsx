@@ -1,42 +1,25 @@
 import React, { useEffect, useState } from "react";
 import InstructorSidebar from "./InstructorSidebar";
 import { Search, Bell } from "lucide-react";
-import api from "../api";
+import api from "../../api";
 
 interface InstructorLayoutProps {
   activePage: string;
   onNavigate: (page: string) => void;
   children?: React.ReactNode;
+  userData: any;
 }
 
 const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   activePage,
   onNavigate,
   children,
+  userData,
 }) => {
-  const [firstname, setFirstname] = useState("");
-  const [lastname, setLastname] = useState("");
-  const [email, setEmail] = useState("");
-
-  useEffect(() => {
-    let isMounted = true;
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/profile");
-        if (isMounted) {
-          setFirstname(response.data.first_name);
-          setLastname(response.data.last_name);
-          setEmail(response.data.email);
-        }
-      } catch (error) {
-        console.error("Error fetching profile", error);
-      }
-    };
-    fetchProfile();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  if (!userData) return null;
+  const firstname = userData.first_name || "";
+  const lastname = userData.last_name || "";
+  const email = userData.email || "";
 
   const initials = (firstname.charAt(0) + lastname.charAt(0)).toUpperCase();
 
@@ -94,7 +77,9 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
                 <p className="text-sm font-black text-gray-800">
                   {firstname} Hoca
                 </p>
-                <p className="text-xs font-bold text-gray-400">Yazılım Eğitmeni</p>
+                <p className="text-xs font-bold text-gray-400">
+                  Yazılım Eğitmeni
+                </p>
               </div>
               <div className="w-10 h-10 rounded-full bg-sky-100 border-2 border-sky-200 flex items-center justify-center text-sky-600 font-bold cursor-pointer hover:bg-sky-200 transition-colors">
                 {initials}

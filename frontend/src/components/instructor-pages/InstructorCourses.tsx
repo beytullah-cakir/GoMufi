@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Search, Filter, MoreVertical, Plus, Users, Star } from "lucide-react";
 import AddCourseModal from "./AddCourseModal";
-import api from "../api";
+import api from "../../api";
 
 interface Course {
   id: number;
@@ -20,6 +20,7 @@ const InstructorCourses: React.FC = () => {
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
@@ -68,6 +69,7 @@ const InstructorCourses: React.FC = () => {
     category: string;
     color: string;
   }) => {
+    setIsSubmitting(true);
     try {
       if (editingCourse) {
         // Update existing course (UI only update for now)
@@ -108,6 +110,8 @@ const InstructorCourses: React.FC = () => {
     } catch (error) {
       console.error("Kurs kaydedilirken hata oluştu:", error);
       alert("Kurs kaydedilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -332,6 +336,7 @@ const InstructorCourses: React.FC = () => {
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveCourse}
+        isSubmitting={isSubmitting}
         initialData={
           editingCourse
             ? {

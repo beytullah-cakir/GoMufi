@@ -1,53 +1,37 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import api from "../api";
 
 const CompleteProfilePage: React.FC = () => {
   const navigate = useNavigate();
-  const [role, setRole] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { userData }: any = useOutletContext();
+
+  const role = userData?.role;
 
   // Form fields
-  const [nickname, setNickname] = useState("");
-  const [gradeLevel, setGradeLevel] = useState("");
-  const [educationLevel, setEducationLevel] = useState("");
-  const [department, setDepartment] = useState("");
+  const [nickname, setNickname] = useState(
+    role === "student" ? userData?.nickname || "" : ""
+  );
+  const [gradeLevel, setGradeLevel] = useState(
+    role === "student" && userData?.grade_level !== "Unknown"
+      ? userData?.grade_level
+      : ""
+  );
+  const [educationLevel, setEducationLevel] = useState(
+    role === "student" && userData?.education_level !== "Unknown"
+      ? userData?.education_level
+      : ""
+  );
+  const [department, setDepartment] = useState(
+    role === "teacher" && userData?.department !== "General"
+      ? userData?.department
+      : ""
+  );
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/profile");
-        setRole(response.data.role);
-        // Pre-fill if exists
-        if (response.data.role === "student") {
-          setNickname(response.data.nickname || "");
-          setGradeLevel(
-            response.data.grade_level !== "Unknown"
-              ? response.data.grade_level
-              : ""
-          );
-          setEducationLevel(
-            response.data.education_level !== "Unknown"
-              ? response.data.education_level
-              : ""
-          );
-        } else if (response.data.role === "teacher") {
-          setDepartment(
-            response.data.department !== "General"
-              ? response.data.department
-              : ""
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-        // navigate('/'); // Redirect if fails?
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchProfile();
-  }, [navigate]);
+  // Based on the instruction, userData is guaranteed to be available when this component renders.
+  // Thus, loading can be initialized to false directly, or the state can be removed if not used elsewhere.
+  // Keeping it as useState(false) for consistency, assuming userData is always present.
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

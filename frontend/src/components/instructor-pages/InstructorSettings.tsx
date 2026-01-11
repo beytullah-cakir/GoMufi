@@ -1,45 +1,25 @@
 import React from "react";
 import { User } from "lucide-react";
-import { useEffect, useState } from "react";
-import api from "../api";
-const InstructorSettings: React.FC = () => {
-  const [firstname, setFirstname] = useState("");
-  const [lastname, setLastname] = useState("");
-  const [email, setEmail] = useState("");
-  const [bio, setBio] = useState("");
-  const [department, setDepartment] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
+import { useState } from "react";
+import api from "../../api";
+interface InstructorSettingsProps {
+  userData?: any;
+}
 
-  useEffect(() => {
-    let isMounted = true;
+const InstructorSettings: React.FC<InstructorSettingsProps> = ({
+  userData,
+}) => {
+  const [firstname, setFirstname] = useState(userData?.first_name || "");
+  const [lastname, setLastname] = useState(userData?.last_name || "");
+  const [email, setEmail] = useState(userData?.email || "");
+  const [bio, setBio] = useState(userData?.bio || "");
+  const [department, setDepartment] = useState(userData?.department || "");
+  const [isLoading, setIsLoading] = useState(!userData);
 
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/profile");
-        if (isMounted) {
-          setFirstname(response.data.first_name);
-          setLastname(response.data.last_name);
-          setEmail(response.data.email);
-          setBio(response.data.bio || "");
-          setDepartment(response.data.department || "");
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error("Error fetching profile", error);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSave = async () => {
+    setIsSubmitting(true);
     try {
       await api.put("/profile/update", {
         first_name: firstname,
@@ -52,6 +32,8 @@ const InstructorSettings: React.FC = () => {
     } catch (error) {
       console.error("Profile update failed", error);
       alert("Hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -150,9 +132,19 @@ const InstructorSettings: React.FC = () => {
           <div className="flex justify-end pt-4 border-t border-gray-100">
             <button
               onClick={handleSave}
-              className="bg-sky-500 hover:bg-sky-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-sky-200 transition-transform active:scale-95"
+              disabled={isSubmitting}
+              className={`bg-sky-500 hover:bg-sky-600 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-sky-200 transition-transform active:scale-95 flex items-center gap-2 ${
+                isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+              }`}
             >
-              Değişiklikleri Kaydet
+              {isSubmitting ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <span>Güncelleniyor...</span>
+                </>
+              ) : (
+                "Değişiklikleri Kaydet"
+              )}
             </button>
           </div>
         </div>

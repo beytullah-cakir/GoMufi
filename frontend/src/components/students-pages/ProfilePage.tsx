@@ -1,43 +1,21 @@
-import React, { useEffect, useState } from "react";
-import MufiFace from "../assets/sprites/MufiSleep.png"; // Using sleep mufi as avatar for now, or just an emoji
-import api from "../api";
+import React from "react";
+import MufiFace from "../../assets/sprites/MufiSleep.png";
+import api from "../../api";
+import { useOutletContext } from "react-router-dom";
+
 const ProfilePage: React.FC = () => {
-  const [username, setUsername] = useState("");
-  const [email, setEmail] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/profile");
-        if (isMounted) {
-          setUsername(response.data.first_name);
-          setEmail(response.data.email);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        if (isMounted) {
-          console.error("Error fetching profile", error);
-          setIsLoading(false);
-        }
-      }
-    };
-
-    fetchProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const { userData }: any = useOutletContext();
+  const username = userData?.first_name || "";
+  const email = userData?.email || "";
+  const isLoading = !userData;
 
   const handleLogout = async () => {
     try {
-      await api.post("/logout");
+      await api.post("/auth/logout");
       window.location.href = "/";
     } catch (error) {
       console.error("Logout failed", error);
+      window.location.href = "/";
     }
   };
 

@@ -1,26 +1,27 @@
 import React, { useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  LayoutDashboard,
-  BookOpen,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut,
-} from "lucide-react";
-import api from "../api";
-
-// Import sprites (reusing some for consistency, using Lucide for others where sprites might not exist)
-import MufiLogo from "../assets/sprites/MufiLogo.png";
-import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import api from "../../api";
+
+// Import sprites
+import MufiLogo from "../../assets/sprites/MufiLogo.png";
+import LogoText from "../../assets/sprites/GoMufiLogo_Final.png";
+import HomeIcon from "../../assets/sprites/HomeIcon.png";
+import ShopIcon from "../../assets/sprites/ShopIcon.png";
+import ProfileIcon from "../../assets/sprites/ProfileIcon.png";
+import BooksIcon from "../../assets/sprites/BooksIcon.png";
+import ChatIcon from "../../assets/sprites/ChatIcon.png";
 
 interface NavItemProps {
-  icon: React.ReactNode;
+  icon: string;
   label: string;
   isActive?: boolean;
   isCollapsed: boolean;
+}
+
+interface SidebarProps {
+  activePage?: string;
+  onNavigate?: (page: string) => void;
 }
 
 const NavItem: React.FC<NavItemProps> = ({
@@ -46,16 +47,12 @@ const NavItem: React.FC<NavItemProps> = ({
         }`}
         style={{ width: "32px", height: "32px" }}
       >
-        {/* Using Lucide icons directly for instructor panel to differentiate style slightly or until sprites are ready */}
-        <div
-          className={`w-full h-full flex items-center justify-center ${
-            isActive
-              ? "text-sky-500"
-              : "text-gray-400 group-hover:text-gray-600"
-          }`}
-        >
-          {icon}
-        </div>
+        <img
+          src={icon}
+          alt={label}
+          className="w-full h-full object-contain drop-shadow-sm"
+          style={{ maxWidth: "100%", maxHeight: "100%" }}
+        />
       </div>
 
       {!isCollapsed && (
@@ -75,60 +72,29 @@ const NavItem: React.FC<NavItemProps> = ({
   );
 };
 
-interface InstructorSidebarProps {
-  activePage: string;
-  onNavigate: (page: string) => void;
-}
-
-const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
-  activePage,
-  onNavigate,
-}) => {
+const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [internalActivePage, setInternalActivePage] = useState("Ana Sayfa");
   const navigate = useNavigate();
 
+  const currentActivePage = activePage || internalActivePage;
+
   const navItems = [
-    {
-      label: "Panel",
-      icon: <LayoutDashboard size={24} strokeWidth={2.5} />,
-      id: "Dashboard",
-    },
-    {
-      label: "Kurslarım",
-      icon: <BookOpen size={24} strokeWidth={2.5} />,
-      id: "Courses",
-    },
-    {
-      label: "Öğrenciler",
-      icon: <Users size={24} strokeWidth={2.5} />,
-      id: "Students",
-    },
-    {
-      label: "İstatistikler",
-      icon: <BarChart3 size={24} strokeWidth={2.5} />,
-      id: "Analytics",
-    },
-    {
-      label: "Ayarlar",
-      icon: <Settings size={24} strokeWidth={2.5} />,
-      id: "Settings",
-    },
+    { label: "Ana Sayfa", icon: HomeIcon, path: "/dashboard" },
+    { label: "Kurslar", icon: ShopIcon, path: "/courses" },
+    { label: "Profilim", icon: ProfileIcon, path: "/profile" },
+    { label: "İçerik", icon: BooksIcon, path: "/content" },
+    { label: "Soru Sor!", icon: ChatIcon, path: "/ask" },
   ];
 
-  const handleLogout = async () => {
-  try {
-    // 1. Backend'e çıkış isteği gönder
-    await api.post("/auth/logout");
-    
-    // 2. Başarılıysa kullanıcıyı LandingPage veya Auth sayfasına yönlendir
-    // window.location.href kullanmak state'i sıfırlamak için en güvenli yoldur
-    window.location.href = "/"; 
-  } catch (error) {
-    console.error("Logout failed", error);
-    // Hata olsa bile kullanıcıyı ana sayfaya atmak iyi bir pratiktir
-    window.location.href = "/";
-  }
-};
+  const handleNavigate = (item: { label: string; path: string }) => {
+    if (onNavigate) {
+      onNavigate(item.label);
+    } else {
+      setInternalActivePage(item.label);
+    }
+    navigate(item.path);
+  };
 
   return (
     <div
@@ -144,7 +110,7 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
         }`}
       >
         <div
-          className="flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 border-sky-300 shadow-sm transition-all duration-300"
+          className="flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm transition-all duration-300"
           style={{
             width: isCollapsed ? "56px" : "72px",
             height: isCollapsed ? "56px" : "72px",
@@ -158,51 +124,51 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
           />
         </div>
         {!isCollapsed && (
-          <div className="ml-4 flex flex-col justify-center">
-            <img
-              src={LogoText}
-              alt="GoMufi"
-              className="h-20 object-contain -ml-2"
-            />
-            <span className="text-xs font-black text-sky-500 uppercase tracking-widest bg-sky-100 px-2 py-1 rounded-md self-start -mt-4">
-              Eğitmen
-            </span>
-          </div>
+          <img
+            src={LogoText}
+            alt="GoMufi"
+            className="ml-4 h-32 object-contain"
+          />
         )}
       </div>
-
-      {/* Navigation */}
       <div className="flex-1 px-4 overflow-y-auto">
         {navItems.map((item) => (
-          <div key={item.id} onClick={() => onNavigate(item.id)}>
+          <div key={item.label} onClick={() => handleNavigate(item as any)}>
             <NavItem
               icon={item.icon}
               label={item.label}
-              isActive={activePage === item.id}
+              isActive={currentActivePage === item.label}
               isCollapsed={isCollapsed}
             />
           </div>
         ))}
       </div>
-
       {/* Logout Button */}
-      <div className="px-4 pb-8">
+      <div className="px-4 mb-6">
         <div
-          onClick={handleLogout}
-          className={`group relative flex cursor-pointer items-center rounded-2xl border-2 border-transparent bg-red-50 px-4 py-3 transition-all duration-75 hover:border-red-200 hover:border-b-[4px] hover:bg-red-100 active:translate-y-[4px] active:border-b-[0px]
-                    ${isCollapsed ? "justify-center" : ""}`}
+          onClick={async () => {
+            try {
+              await api.post("/auth/logout");
+              window.location.href = "/";
+            } catch (error) {
+              console.error("Logout error:", error);
+              window.location.href = "/";
+            }
+          }}
+          className={`flex items-center px-4 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative select-none border-2 bg-transparent border-transparent hover:bg-red-50 hover:border-red-200 hover:border-b-[4px] active:translate-y-[4px] active:border-b-[0px] active:duration-0 ${
+            isCollapsed ? "justify-center" : ""
+          }`}
         >
-          <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center text-red-500">
-            <LogOut size={24} strokeWidth={2.5} />
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <LogOut size={24} className="text-red-500" />
           </div>
           {!isCollapsed && (
-            <span className="ml-4 font-sans text-sm font-black uppercase tracking-wider text-red-500">
+            <span className="ml-4 text-sm font-black tracking-wider uppercase font-sans text-red-500 transition-colors duration-200">
               Çıkış Yap
             </span>
           )}
         </div>
       </div>
-
       {/* Collapse Button */}
       <div className="absolute -right-5 top-1/2 transform -translate-y-1/2 z-30">
         <button
@@ -220,4 +186,4 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   );
 };
 
-export default InstructorSidebar;
+export default Sidebar;

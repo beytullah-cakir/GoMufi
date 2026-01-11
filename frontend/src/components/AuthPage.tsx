@@ -30,11 +30,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   // Instructor specific
   const [department, setDepartment] = useState("");
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!role) return;
+    if (!role || isLoading) return;
 
     const basePath = role === "student" ? "/student" : "/teacher";
+    setIsLoading(true);
 
     try {
       if (isLogin) {
@@ -78,6 +81,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       const errorMessage =
         err.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.";
       alert(errorMessage);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -401,14 +406,24 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                   <div className="pt-2">
                     <button
                       type="submit"
-                      className={`w-full py-5 rounded-2xl font-black text-white text-xl shadow-xl active:scale-95 active:shadow-sm transition-all duration-200 tracking-wide 
+                      disabled={isLoading}
+                      className={`w-full py-5 rounded-2xl font-black text-white text-xl shadow-xl active:scale-95 active:shadow-sm transition-all duration-200 tracking-wide flex items-center justify-center gap-3
                         ${
                           role === "student"
                             ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 shadow-green-200/50"
                             : "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-200/50"
-                        }`}
+                        } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
                     >
-                      {isLogin ? "GİRİŞ YAP" : "KAYIT OL"}
+                      {isLoading ? (
+                        <>
+                          <div className="w-6 h-6 border-4 border-white/30 border-t-white rounded-full animate-spin"></div>
+                          <span>BEKLEYİN...</span>
+                        </>
+                      ) : isLogin ? (
+                        "GİRİŞ YAP"
+                      ) : (
+                        "KAYIT OL"
+                      )}
                     </button>
                   </div>
 

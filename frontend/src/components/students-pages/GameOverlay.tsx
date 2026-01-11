@@ -1,6 +1,6 @@
 import React from 'react';
-import MatchingGame from './games/MatchingGame';
-import MonsterBattleGame from './games/MonsterBattleGame';
+import MatchingGame from '../games/MatchingGame';
+import MonsterBattleGame from '../games/MonsterBattleGame';
 
 interface GameOverlayProps {
     isOpen: boolean;

@@ -12,7 +12,7 @@ import ButtonGreen from '../assets/sprites/ButtonGreen.png';
 import TextBubble from '../assets/sprites/TextBubble.png';
 import GrassIcon from '../assets/sprites/grass.png';
 import MufiSleep from '../assets/sprites/MufiSleep.png';
-import GameOverlay from './GameOverlay';
+import GameOverlay from './students-pages/GameOverlay';
 
 const HomePage: React.FC = () => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);

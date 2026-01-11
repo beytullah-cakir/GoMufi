@@ -1,15 +1,15 @@
 import React from "react";
 import { Star, Zap } from "lucide-react";
-import api from "../api";
+import api from "../../api";
 
 // Import Icons
-import PythonIcon from "../assets/sprites/PythonIcon.png";
-import ReactIcon from "../assets/sprites/ReactIcon.png";
-import JsIcon from "../assets/sprites/JsIcon.png";
-import EnglishIcon from "../assets/sprites/EnglishIcon.png";
-import DataIcon from "../assets/sprites/DataIcon.png";
-import FlutterIcon from "../assets/sprites/FlutterIcon.png";
-import ChestIcon from "../assets/sprites/Chest.png";
+import PythonIcon from "../../assets/sprites/PythonIcon.png";
+import ReactIcon from "../../assets/sprites/ReactIcon.png";
+import JsIcon from "../../assets/sprites/JsIcon.png";
+import EnglishIcon from "../../assets/sprites/EnglishIcon.png";
+import DataIcon from "../../assets/sprites/DataIcon.png";
+import FlutterIcon from "../../assets/sprites/FlutterIcon.png";
+import ChestIcon from "../../assets/sprites/Chest.png";
 
 interface Course {
   id: number;
