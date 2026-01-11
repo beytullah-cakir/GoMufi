@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Music, Star, Award, ChevronRight, ArrowLeft } from "lucide-react";
-import api from "../api";
+import api, { getApiBaseUrl } from "../api";
 import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
 import Paw from "../assets/sprites/Paw.png";
 import MufiMascot from "../assets/sprites/MufiMascot.png";
@@ -412,7 +412,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     type="button"
                     onClick={() => {
                       const targetRole = role || "student";
-                      window.location.href = `http://localhost:8000/auth/google/login?role=${targetRole}`;
+                      window.location.href = `${getApiBaseUrl()}/auth/google/login?role=${targetRole}`;
                     }}
                     className="w-full py-4 px-6 rounded-2xl border-2 border-gray-100 bg-white text-gray-700 font-bold text-lg hover:bg-gray-50 hover:border-gray-200 active:scale-95 transition-all duration-200 flex items-center justify-center gap-3 shadow-sm"
                   >

@@ -8,6 +8,10 @@ from routers import profile, courses, student_auth, teacher_auth, oauth
 import uvicorn
 from seeds.course_seed import add_sample_courses
 
+# Modelleri import et - Bu, Base.metadata'ya tabloları kaydeder
+# create_all çağrılmadan önce modellerin yüklenmesi GEREKLİDİR
+from models import Student, Teacher, Course, Enrollment
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup: Tabloları oluştur ve seed data ekle
@@ -16,11 +20,8 @@ async def lifespan(app: FastAPI):
         # yansıtmak için önce mevcut tabloları siliyoruz.
         # Prodüksiyonda bunu yapmayın!
         # await conn.run_sync(Base.metadata.drop_all) # Disabled for persistence
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(Base.metadata.create_all)   
     
-    # Sample kursları ekle
-    async with SessionLocal() as db:
-        await add_sample_courses(db)    
     yield
 
     pass
@@ -34,9 +35,11 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
-        "http://127.0.0.1:5173"
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "https://go-mufi.vercel.app",
+        "https://*.vercel.app",
     ],
-
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

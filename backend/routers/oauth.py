@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request, HTTPException, Depends
 from fastapi.responses import RedirectResponse
 from core.oauth import oauth
@@ -10,9 +11,13 @@ from models.teacher import Teacher
 
 router = APIRouter()
 
+# Environment variables for OAuth URLs
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
 @router.get("/auth/google/login")
 async def google_login(request: Request, role: str = "student"):
-    redirect_uri = "http://localhost:8000/auth/google/callback"  # Hardcoded for local dev stability
+    redirect_uri = f"{BACKEND_URL}/auth/google/callback"
     request.session['role'] = role
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
@@ -93,7 +98,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         
         access_token = create_access_token(user_id=str(user_id), role=role)
         
-        redirect_url = "http://localhost:5173/complete-profile" if is_new_user else "http://localhost:5173/"
+        redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         response.set_cookie(key="access_token", value=access_token, httponly=True)
         return response
