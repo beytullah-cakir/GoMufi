@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 // Import sprites
@@ -131,7 +131,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
         )}
       </div>
 
-      {/* Navigation */}
       <div className="flex-1 px-4 overflow-y-auto">
         {navItems.map((item) => (
           <div key={item.label} onClick={() => handleNavigate(item as any)}>
@@ -143,6 +142,36 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate }) => {
             />
           </div>
         ))}
+      </div>
+
+      {/* Logout Button */}
+      <div className="px-4 mb-6">
+        <div
+          onClick={async () => {
+            try {
+              await fetch("http://localhost:8000/auth/logout", {
+                method: "POST",
+                credentials: "include",
+              });
+              window.location.href = "/";
+            } catch (error) {
+              console.error("Logout error:", error);
+              window.location.href = "/";
+            }
+          }}
+          className={`flex items-center px-4 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative select-none border-2 bg-transparent border-transparent hover:bg-red-50 hover:border-red-200 hover:border-b-[4px] active:translate-y-[4px] active:border-b-[0px] active:duration-0 ${
+            isCollapsed ? "justify-center" : ""
+          }`}
+        >
+          <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <LogOut size={24} className="text-red-500" />
+          </div>
+          {!isCollapsed && (
+            <span className="ml-4 text-sm font-black tracking-wider uppercase font-sans text-red-500 transition-colors duration-200">
+              Çıkış Yap
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Collapse Button */}

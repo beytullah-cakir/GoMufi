@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, Response
 from fastapi.responses import RedirectResponse
 from core.oauth import oauth
 from core.security import create_access_token
@@ -101,7 +101,6 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         
-        # Determine cookie settings based on environment
         is_production = "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
         
         response.set_cookie(
@@ -119,3 +118,15 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         if isinstance(e, HTTPException):
             raise e
         raise HTTPException(status_code=500, detail=f"Internal Callback Error: {str(e)}")
+
+@router.post("/auth/logout")
+async def logout(response: Response):
+    is_production = "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+    response.delete_cookie(
+        key="access_token",
+        path="/",
+        secure=is_production,
+        httponly=True,
+        samesite='None' if is_production else 'Lax'
+    )
+    return {"message": "Logged out successfully"}
