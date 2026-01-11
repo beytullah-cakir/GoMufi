@@ -14,6 +14,7 @@
 
     --animate-float: float 6s ease-in-out infinite;
     --animate-float-delayed: float 6s ease-in-out 3s infinite;
+    --animate-shadow-pulse: shadow-pulse 6s ease-in-out infinite;
     --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     --animate-ping-once: ping-once 1s cubic-bezier(0, 0, 0.2, 1) forwards;
     --animate-slide-up: slideUpBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -22,6 +23,25 @@
 /* Custom Utilities */
 .animate-overlay-enter {
     animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.animate-shadow-pulse {
+    animation: shadow-pulse 6s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes shadow-pulse {
+
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: scale(0.85);
+        opacity: 0.85;
+    }
 }
 
 /* Animations */
@@ -132,4 +152,40 @@
 
 .animate-lunge-right {
     animation: lunge-right 0.3s ease-out;
+}
+
+@keyframes breathe {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    50% {
+        transform: scale(1.03);
+    }
+}
+
+@keyframes zzz {
+    0% {
+        opacity: 0;
+        transform: translateX(0) translateY(0) scale(0.5);
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(20px) translateY(-30px) scale(1.2);
+    }
+}
+
+.animate-breathe {
+    animation: breathe 5s ease-in-out infinite;
+}
+
+.animate-zzz {
+    animation: zzz 3s ease-out infinite;
 }
