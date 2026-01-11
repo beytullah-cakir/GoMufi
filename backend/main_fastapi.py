@@ -6,6 +6,7 @@ import asyncio
 from starlette.middleware.sessions import SessionMiddleware
 from routers import profile, courses, student_auth, teacher_auth, oauth
 import uvicorn
+import os
 
 # Modelleri import et - Bu, Base.metadata'ya tabloları kaydeder
 # create_all çağrılmadan önce modellerin yüklenmesi GEREKLİDİR
@@ -24,13 +25,26 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-app.add_middleware(SessionMiddleware, secret_key="supersecretkey")
+
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+is_prod = "localhost" not in FRONTEND_URL
+
+app.add_middleware(
+    SessionMiddleware, 
+    secret_key="supersecretkey",
+    # Canlıda 'none' (HTTPS şart), lokalde 'lax' kullanır
+    same_site="none" if is_prod else "lax", 
+    # Canlıda sadece HTTPS üzerinden gönderir
+    https_only=is_prod 
+)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://go-mufi.vercel.app",
         "https://*.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
     ],
     allow_credentials=True,
     allow_methods=["*"],

@@ -18,17 +18,25 @@ async def register_user(
     db: AsyncSession = Depends(get_db)
 ):
     try:
+        # Check if email already exists
+        check_query = select(Teacher).where(Teacher.email == data.email)
+        res = await db.execute(check_query)
+        if res.scalars().first():
+            raise HTTPException(status_code=400, detail="Bu e-posta adresi ile zaten bir hesap mevcut.")
+
         new_teacher = Teacher(
             first_name=data.first_name,
             last_name=data.last_name,
             email=data.email,
-            department=data.department if hasattr(data, 'department') else None,
+            department=data.department,
             password=hash_password(data.password)
         )
 
         db.add(new_teacher)
         await db.commit()
         return {"status": "registered"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -51,8 +59,8 @@ async def login_user(
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 
-    frontend_url = os.getenv("FRONTEND_URL")
-    is_production = frontend_url is not None and "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    is_production ="localhost" not in FRONTEND_URL
 
     response.set_cookie(
         key="access_token",

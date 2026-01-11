@@ -12,8 +12,8 @@ from models.teacher import Teacher
 router = APIRouter()
 
 # Environment variables for OAuth URLs
-BACKEND_URL = os.getenv("BACKEND_URL")
-FRONTEND_URL = os.getenv("FRONTEND_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
 
 @router.get("/auth/google/login")
 async def google_login(request: Request, role: str):
@@ -43,7 +43,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         first_name = user_info.get('given_name', '')
         last_name = user_info.get('family_name', '')
         
-        # Get role from session and normalize it
+
         role = request.session.get('role')        
             
         user_id = None
@@ -99,7 +99,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         
-        is_production = FRONTEND_URL is not None and "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+        is_production = "localhost" not in FRONTEND_URL
         
         response.set_cookie(
             key="access_token", 
@@ -121,7 +121,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 @router.post("/auth/logout")
 async def logout(response: Response):
     try:
-        is_production = FRONTEND_URL is not None and "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+        is_production = "localhost" not in FRONTEND_URL
     
         response.delete_cookie(
             key="access_token",

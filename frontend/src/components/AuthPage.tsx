@@ -42,16 +42,26 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         onLogin();
         navigate("/");
       } else {
-        await api.post(`${basePath}/register`, {
-          first_name: firstName,
-          last_name: lastName,
-          email: email,
-          password: password,
-          nickname: nickname,
-          grade_level: gradeLevel,
-          education_level: educationLevel,
-          department: department, // Added department for instructor
-        });
+        const registerData =
+          role === "student"
+            ? {
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                password: password,
+                nickname: nickname,
+                grade_level: gradeLevel,
+                education_level: educationLevel,
+              }
+            : {
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                password: password,
+                department: department,
+              };
+
+        await api.post(`${basePath}/register`, registerData);
         setIsLogin(true);
         // Clear fields after successful registration
         setEmail("");
@@ -63,8 +73,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         setGradeLevel("");
         setEducationLevel("");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Auth error:", err);
+      const errorMessage =
+        err.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.";
+      alert(errorMessage);
     }
   };
 
