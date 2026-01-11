@@ -4,6 +4,15 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 
+# Railway'den gelen URL bazen 'postgresql://' ile başlar. 
+# Bunu asenkron sürücü olan 'postgresql+asyncpg://' ile değiştirmeliyiz.
+if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+# Eğer DATABASE_URL None ise (Local çalışma durumu için koruma)
+if not DATABASE_URL:
+    raise ValueError("DATABASE_URL ortam değişkeni ayarlanmamış!")
+
 engine = create_async_engine(DATABASE_URL, echo=True)
 
 SessionLocal = sessionmaker(
