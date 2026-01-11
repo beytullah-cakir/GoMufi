@@ -14,6 +14,7 @@ import api from "../api";
 // Import sprites (reusing some for consistency, using Lucide for others where sprites might not exist)
 import MufiLogo from "../assets/sprites/MufiLogo.png";
 import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
+import { useNavigate } from "react-router-dom";
 
 interface NavItemProps {
   icon: React.ReactNode;
@@ -84,6 +85,7 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   onNavigate,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const navigate = useNavigate();
 
   const navItems = [
     {
@@ -114,13 +116,19 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   ];
 
   const handleLogout = async () => {
-    try {
-      await api.post("/logout");
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-  };
+  try {
+    // 1. Backend'e çıkış isteği gönder
+    await api.post("/auth/logout");
+    
+    // 2. Başarılıysa kullanıcıyı LandingPage veya Auth sayfasına yönlendir
+    // window.location.href kullanmak state'i sıfırlamak için en güvenli yoldur
+    window.location.href = "/"; 
+  } catch (error) {
+    console.error("Logout failed", error);
+    // Hata olsa bile kullanıcıyı ana sayfaya atmak iyi bir pratiktir
+    window.location.href = "/";
+  }
+};
 
   return (
     <div

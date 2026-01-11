@@ -12,11 +12,11 @@ from models.teacher import Teacher
 router = APIRouter()
 
 # Environment variables for OAuth URLs
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+BACKEND_URL = os.getenv("BACKEND_URL")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 
 @router.get("/auth/google/login")
-async def google_login(request: Request, role: str = "student"):
+async def google_login(request: Request, role: str):
     redirect_uri = f"{BACKEND_URL}/auth/google/callback"
     request.session['role'] = role
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -44,9 +44,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         last_name = user_info.get('family_name', '')
         
         # Get role from session and normalize it
-        role = request.session.get('role', 'student')
-        if role == 'instructor':
-            role = 'teacher'
+        role = request.session.get('role')        
             
         user_id = None
         is_new_user = False
@@ -101,7 +99,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         
-        is_production = "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+        is_production = FRONTEND_URL is not None and "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
         
         response.set_cookie(
             key="access_token", 
@@ -119,14 +117,24 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             raise e
         raise HTTPException(status_code=500, detail=f"Internal Callback Error: {str(e)}")
 
+
 @router.post("/auth/logout")
 async def logout(response: Response):
-    is_production = "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
-    response.delete_cookie(
-        key="access_token",
-        path="/",
-        secure=is_production,
-        httponly=True,
-        samesite='None' if is_production else 'Lax'
-    )
-    return {"message": "Logged out successfully"}
+    try:
+        is_production = FRONTEND_URL is not None and "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+    
+        response.delete_cookie(
+            key="access_token",
+            path="/",
+            secure=is_production,
+            httponly=True,
+            samesite='None' if is_production else 'Lax'
+        )
+        
+        return {"message": "Successfully logged out"}
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Logout Error: {str(e)}")
+    
+

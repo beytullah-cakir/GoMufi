@@ -1,20 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
-
-
-router = APIRouter()
-
-@router.post("/logout")
-async def logout(response: Response):
-    response.delete_cookie(key="access_token")
-    return {"message": "Logged out"}
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from auth.dependencies import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
 from models.teacher import Teacher
 from models.student import Student
+from pydantic import BaseModel
+from typing import Optional
+
+router = APIRouter()
 
 
+
+
+
+import os
 
 @router.get("/profile")
 async def get_profile(
@@ -27,8 +27,8 @@ async def get_profile(
     if not str(user_id).isdigit():
         raise HTTPException(status_code=400, detail="Invalid user ID format in token")
     
-    if role in ["teacher", "instructor"]:
-        # Fetch teacher from database
+    if role =="teacher":
+        
         result = await db.execute(
             select(Teacher).where(Teacher.id == int(user_id))
         )
@@ -47,7 +47,6 @@ async def get_profile(
         }
     
     elif role == "student":
-        # Fetch student from database
         result = await db.execute(
             select(Student).where(Student.id == int(user_id))
         )
@@ -66,8 +65,6 @@ async def get_profile(
     
     raise HTTPException(status_code=400, detail="Invalid user role")
 
-from pydantic import BaseModel
-from typing import Optional
 
 class ProfileUpdate(BaseModel):
     nickname: Optional[str] = None

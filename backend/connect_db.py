@@ -5,8 +5,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # Railway 'DATABASE_URL' isminde bir değişkeni otomatik sağlar. 
 # Eğer o yoksa, Docker içindeki 'db:5432' adresini kullanır.
 # O da yoksa (local/docker dışı), localhost'u kullanır.
-DEFAULT_URL = "postgresql+asyncpg://postgres:241120@db:5432/gomufi_db"
-DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_URL)
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # ÖNEMLİ: Railway bazen url'i "postgres://" ile başlatır, 
 # ama SQLAlchemy "postgresql+asyncpg://" bekler. Bunu düzeltelim:

@@ -56,8 +56,8 @@ async def login_user(
 
     access_token = create_access_token(str(student.id), role="student")
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    is_production = "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
+    frontend_url = os.getenv("FRONTEND_URL")
+    is_production = frontend_url is not None and "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
 
     response.set_cookie(
         key="access_token",

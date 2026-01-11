@@ -51,8 +51,8 @@ async def login_user(
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    is_production = "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
+    frontend_url = os.getenv("FRONTEND_URL")
+    is_production = frontend_url is not None and "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
 
     response.set_cookie(
         key="access_token",
@@ -68,11 +68,6 @@ async def login_user(
         "role": "teacher"
     }
 
-
-@router.post("/teacher/logout")
-async def logout_user(response: Response):
-    response.delete_cookie(key="access_token", path="/")
-    return {"status": "logged_out"}
 
 
 
