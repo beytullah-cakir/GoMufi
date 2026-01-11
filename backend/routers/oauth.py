@@ -100,7 +100,17 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         
         redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
-        response.set_cookie(key="access_token", value=access_token, httponly=True)
+        
+        # Determine cookie settings based on environment
+        is_production = "localhost" not in FRONTEND_URL and "127.0.0.1" not in FRONTEND_URL
+        
+        response.set_cookie(
+            key="access_token", 
+            value=access_token, 
+            httponly=True,
+            secure=is_production, # True in production (HTTPS), False in dev (HTTP)
+            samesite='None' if is_production else 'Lax' # None for cross-site (prod), Lax for local
+        )
         return response
     except Exception as e:
         import traceback

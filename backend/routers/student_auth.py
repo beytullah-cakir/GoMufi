@@ -1,3 +1,4 @@
+import os 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from auth.auth_request import StudentRegisterRequest, LoginRequest
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,12 +56,15 @@ async def login_user(
 
     access_token = create_access_token(str(student.id), role="student")
 
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    is_production = "localhost" not in frontend_url and "127.0.0.1" not in frontend_url
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="None" if is_production else "lax",
+        secure=is_production,
         path="/"
     )
 
