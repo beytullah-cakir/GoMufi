@@ -9,7 +9,7 @@ class Teacher(Base):
     first_name = Column(String)
     last_name = Column(String)
     email = Column(String, unique=True, index=True)
-    department = Column(String)
+    expertises = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     password = Column(String)
     bio = Column(String, nullable=True)

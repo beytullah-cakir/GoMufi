@@ -333,6 +333,7 @@ const InstructorCourses: React.FC = () => {
       )}
 
       <AddCourseModal
+        key={editingCourse ? `edit-${editingCourse.id}` : "new-course"}
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
         onSave={handleSaveCourse}

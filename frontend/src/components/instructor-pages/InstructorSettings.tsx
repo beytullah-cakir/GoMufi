@@ -13,10 +13,36 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
   const [lastname, setLastname] = useState(userData?.last_name || "");
   const [email, setEmail] = useState(userData?.email || "");
   const [bio, setBio] = useState(userData?.bio || "");
-  const [department, setDepartment] = useState(userData?.department || "");
-  const [isLoading, setIsLoading] = useState(!userData);
-
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
+  );
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const response = await api.get("/profile/tags");
+        if (Array.isArray(response.data)) {
+          setAvailableTags(response.data.map((t: any) => t.name));
+        }
+      } catch (error) {
+        console.error("Tags could not be loaded", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchTags();
+  }, []);
+
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter((t) => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
 
   const handleSave = async () => {
     setIsSubmitting(true);
@@ -25,7 +51,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
         first_name: firstname,
         last_name: lastname,
         bio: bio,
-        department: department,
+        expertises: selectedTags.join(","),
       });
       alert("Profil başarıyla güncellendi!");
       window.location.reload();
@@ -68,7 +94,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
                   Fotoğraf Yükle
                 </span>
               </div>
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 space-y-6">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-gray-500 mb-1">
@@ -104,17 +130,28 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
                     className="w-full bg-gray-100 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-400 cursor-not-allowed"
                   />
                 </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">
-                    Unvan
+                  <label className="block text-xs font-bold text-gray-500 mb-2">
+                    Uzmanlık Alanları
                   </label>
-                  <input
-                    type="text"
-                    value={department}
-                    onChange={(e) => setDepartment(e.target.value)}
-                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                  />
+                  <div className="flex flex-wrap gap-2">
+                    {availableTags.map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => toggleTag(tag)}
+                        className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${
+                          selectedTags.includes(tag)
+                            ? "bg-sky-500 text-white shadow-md shadow-sky-100"
+                            : "bg-gray-50 text-gray-500 border border-gray-200 hover:border-sky-200 hover:bg-white"
+                        }`}
+                      >
+                        {tag}
+                      </button>
+                    ))}
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">
                     Hakkımda
@@ -122,6 +159,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
                   <textarea
                     value={bio}
                     onChange={(e) => setBio(e.target.value)}
+                    placeholder="Deneyimlerinizden ve uzmanlıklarınızdan bahsedin..."
                     className="w-full h-32 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2 font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-sky-200 resize-none"
                   ></textarea>
                 </div>

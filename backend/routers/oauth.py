@@ -81,7 +81,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
-                    department="",
+                    expertises="",
                     bio="",
                     password=""
                 )
@@ -101,7 +101,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             if user.grade_level == "Unknown" or user.education_level == "Unknown" or not user.nickname:
                 is_profile_incomplete = True
         elif role == 'teacher':
-             if not user.department or user.department == "General":
+             if not user.expertises or user.expertises == "General":
                 is_profile_incomplete = True
 
         access_token = create_access_token(user_id=str(user_id), role=role)

@@ -25,11 +25,34 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
       ? userData?.education_level
       : ""
   );
-  const [department, setDepartment] = useState(
-    role === "teacher" && userData?.department !== "General"
-      ? userData?.department
-      : ""
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
   );
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (role === "teacher") {
+      const fetchTags = async () => {
+        try {
+          const response = await api.get("/profile/tags");
+          if (Array.isArray(response.data)) {
+            setAvailableTags(response.data.map((t: any) => t.name));
+          }
+        } catch (error) {
+          console.error("Tags could not be loaded", error);
+        }
+      };
+      fetchTags();
+    }
+  }, [role]);
+
+  const toggleTag = (tag: string) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter((t) => t !== tag));
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+    }
+  };
 
   // Based on the instruction, userData is guaranteed to be available when this component renders.
   // Thus, loading can be initialized to false directly, or the state can be removed if not used elsewhere.
@@ -38,12 +61,18 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (role === "teacher" && selectedTags.length === 0) {
+      alert("Lütfen en az bir tane uzmanlık alanı seçiniz.");
+      return;
+    }
+
     try {
       await api.put("/profile/update", {
         nickname: nickname,
         grade_level: gradeLevel,
         education_level: educationLevel,
-        department: department,
+        expertises: selectedTags.join(","),
       });
       // Use window.location.href to force a full reload and update global user state in App.tsx
       window.location.href = "/";
@@ -63,14 +92,14 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
       <div className="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
-        <h2 className="text-3xl font-black text-gray-800 mb-6 text-center">
+        <h2 className="text-3xl font-black text-gray-800 mb-2 text-center">
           Profilini Tamamla
         </h2>
-        <p className="text-gray-500 mb-6 text-center">
-          Devam etmek için lütfen eksik bilgileri doldur.
+        <p className="text-gray-500 mb-8 text-center text-sm font-medium">
+          Harika bir başlangıç için birkaç detay...
         </p>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {role === "student" && (
             <>
               <div>
@@ -132,17 +161,28 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
 
           {role === "teacher" && (
             <div>
-              <label className="block text-sm font-bold text-gray-700 mb-1">
-                Branş / Bölüm
+              <label className="block text-sm font-bold text-gray-700 mb-4">
+                Uzmanlık Alanlarını Seç (Bir veya Birden Fazla)
               </label>
-              <input
-                type="text"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-cyan-400 font-bold text-gray-700"
-                placeholder="Örn: Matematik"
-                required
-              />
+              <div className="flex flex-wrap gap-2">
+                {availableTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`px-4 py-3 rounded-xl text-sm font-bold transition-all ${
+                      selectedTags.includes(tag)
+                        ? "bg-sky-500 text-white shadow-lg shadow-sky-100"
+                        : "bg-gray-50 text-gray-500 border border-gray-200 hover:border-sky-200 hover:bg-white"
+                    }`}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              {availableTags.length === 0 && (
+                <p className="text-xs text-gray-400">Taglar yükleniyor...</p>
+              )}
             </div>
           )}
 

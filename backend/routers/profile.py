@@ -5,6 +5,7 @@ from sqlalchemy.future import select
 from connect_db import get_db
 from models.teacher import Teacher
 from models.student import Student
+from models.tag import Tag
 from pydantic import BaseModel
 from typing import Optional
 
@@ -15,6 +16,20 @@ router = APIRouter()
 
 
 import os
+
+@router.get("/tags")
+async def get_tags(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Tag))
+    tags = result.scalars().all()
+    if not tags:
+        # Emergency seed if empty
+        default_tags = ["Web Geliştirme", "Oyun Geliştirme", "Python", "Veri Bilimi", "Mobil Uygulama", "UI/UX Tasarım", "Yapay Zeka", "Siber Güvenlik"]
+        for tag_name in default_tags:
+            db.add(Tag(name=tag_name))
+        await db.commit()
+        result = await db.execute(select(Tag))
+        tags = result.scalars().all()
+    return [{"id": t.id, "name": t.name} for t in tags]
 
 @router.get("/profile")
 async def get_profile(
@@ -44,7 +59,7 @@ async def get_profile(
             "last_name": teacher.last_name,
             "email": teacher.email,
             "bio": teacher.bio,
-            "department": teacher.department,
+            "expertises": teacher.expertises,
         }
     
     elif role == "student":
@@ -74,7 +89,7 @@ class ProfileUpdate(BaseModel):
     nickname: Optional[str] = None
     grade_level: Optional[str] = None
     education_level: Optional[str] = None
-    department: Optional[str] = None
+    expertises: Optional[str] = None
     bio: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -110,8 +125,8 @@ async def update_profile(
         if not teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
             
-        if profile_data.department:
-            teacher.department = profile_data.department
+        if profile_data.expertises:
+            teacher.expertises = profile_data.expertises
         if profile_data.bio:
             teacher.bio = profile_data.bio
         if profile_data.first_name:
