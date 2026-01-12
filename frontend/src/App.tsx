@@ -27,15 +27,24 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [activePage, setActivePage] = useState("Ana Sayfa");
   const [instructorPage, setInstructorPage] = useState("Dashboard");
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const location = useLocation();
 
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await api.get("/profile");
+        const [profileRes, tagsRes] = await Promise.all([
+          api.get("/profile"),
+          api.get("/profile/tags"),
+        ]);
+
         setIsAuthenticated(true);
-        setUserRole(response.data.role);
-        setUserData(response.data);
+        setUserRole(profileRes.data.role);
+        setUserData(profileRes.data);
+
+        if (Array.isArray(tagsRes.data)) {
+          setAvailableTags(tagsRes.data.map((t: any) => t.name));
+        }
       } catch (e) {
         setIsAuthenticated(false);
         setUserRole(null);
@@ -100,7 +109,10 @@ function App() {
         ) : instructorPage === "Revenue" ? (
           <InstructorRevenue />
         ) : instructorPage === "Settings" ? (
-          <InstructorSettings userData={userData} />
+          <InstructorSettings
+            userData={userData}
+            availableTags={availableTags}
+          />
         ) : (
           <div className="flex items-center justify-center h-64 text-gray-400 font-bold text-lg">
             {instructorPage} İçeriği Hazırlanıyor...
@@ -150,7 +162,10 @@ function App() {
         path="/complete-profile"
         element={
           isAuthenticated ? (
-            <CompleteProfilePage userData={userData} />
+            <CompleteProfilePage
+              userData={userData}
+              availableTags={availableTags}
+            />
           ) : (
             <Navigate to="/auth" replace />
           )

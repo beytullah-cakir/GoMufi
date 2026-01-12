@@ -76,10 +76,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
               <div className="text-right hidden md:block">
                 <p className="text-sm font-black text-gray-800">
                   {firstname} Hoca
-                </p>
-                <p className="text-xs font-bold text-gray-400">
-                  {userData.expertises || "Eğitmen"}
-                </p>
+                </p>                
               </div>
               <div className="w-10 h-10 rounded-full bg-sky-100 border-2 border-sky-200 flex items-center justify-center text-sky-600 font-bold cursor-pointer hover:bg-sky-200 transition-colors">
                 {initials}

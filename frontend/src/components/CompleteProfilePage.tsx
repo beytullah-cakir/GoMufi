@@ -2,9 +2,10 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import api from "../api";
 
-const CompleteProfilePage: React.FC<{ userData?: any }> = ({
-  userData: propUserData,
-}) => {
+const CompleteProfilePage: React.FC<{
+  userData?: any;
+  availableTags?: string[];
+}> = ({ userData: propUserData, availableTags: globalAvailableTags = [] }) => {
   const navigate = useNavigate();
   const { userData: outletUserData }: any = useOutletContext() || {};
   const userData = propUserData || outletUserData;
@@ -28,9 +29,14 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
   const [selectedTags, setSelectedTags] = useState<string[]>(
     userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
   );
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [availableTags, setAvailableTags] =
+    useState<string[]>(globalAvailableTags);
 
   useEffect(() => {
+    if (globalAvailableTags.length > 0) {
+      setAvailableTags(globalAvailableTags);
+      return;
+    }
     if (role === "teacher") {
       const fetchTags = async () => {
         try {
@@ -58,6 +64,7 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
   // Thus, loading can be initialized to false directly, or the state can be removed if not used elsewhere.
   // Keeping it as useState(false) for consistency, assuming userData is always present.
   const [loading, setLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,6 +74,7 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
       return;
     }
 
+    setIsSubmitting(true);
     try {
       await api.put("/profile/update", {
         nickname: nickname,
@@ -79,6 +87,8 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Profil güncellenirken bir hata oluştu.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -181,16 +191,29 @@ const CompleteProfilePage: React.FC<{ userData?: any }> = ({
                 ))}
               </div>
               {availableTags.length === 0 && (
-                <p className="text-xs text-gray-400">Taglar yükleniyor...</p>
+                <p className="text-xs text-gray-400 italic">
+                  Seçilebilecek uzmanlık alanı bulunamadı. Lütfen daha sonra
+                  tekrar deneyiniz.
+                </p>
               )}
             </div>
           )}
 
           <button
             type="submit"
-            className="w-full py-4 mt-4 rounded-xl font-black text-white text-lg shadow-lg active:scale-95 transition-all bg-gray-900 hover:bg-gray-800"
+            disabled={isSubmitting}
+            className={`w-full py-4 mt-4 rounded-xl font-black text-white text-lg shadow-lg active:scale-95 transition-all bg-gray-900 hover:bg-gray-800 flex items-center justify-center gap-2 ${
+              isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+            }`}
           >
-            Tamamla ve Başla
+            {isSubmitting ? (
+              <>
+                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span>Tamamlanıyor...</span>
+              </>
+            ) : (
+              "Tamamla ve Başla"
+            )}
           </button>
         </form>
       </div>

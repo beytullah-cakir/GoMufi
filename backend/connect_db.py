@@ -2,7 +2,7 @@ import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-DATABASE_URL = os.getenv("DATABASE_PUBLIC_URL")
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 # Railway'den gelen URL bazen 'postgresql://' ile başlar. 
 # Bunu asenkron sürücü olan 'postgresql+asyncpg://' ile değiştirmeliyiz.
@@ -13,7 +13,15 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL ortam değişkeni ayarlanmamış!")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+# connect_db.py (Güncellenmiş Kısım)
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,
+    connect_args={"statement_cache_size": 0}  # Required for Supabase/PgBouncer
+)
 
 SessionLocal = sessionmaker(
     bind=engine,

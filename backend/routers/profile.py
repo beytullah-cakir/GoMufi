@@ -17,19 +17,27 @@ router = APIRouter()
 
 import os
 
-@router.get("/tags")
+@router.get("/profile/tags")
 async def get_tags(db: AsyncSession = Depends(get_db)):
+    print("DEBUG: Fetching tags...")
     result = await db.execute(select(Tag))
     tags = result.scalars().all()
-    if not tags:
-        # Emergency seed if empty
-        default_tags = ["Web Geliştirme", "Oyun Geliştirme", "Python", "Veri Bilimi", "Mobil Uygulama", "UI/UX Tasarım", "Yapay Zeka", "Siber Güvenlik"]
-        for tag_name in default_tags:
-            db.add(Tag(name=tag_name))
-        await db.commit()
-        result = await db.execute(select(Tag))
-        tags = result.scalars().all()
     return [{"id": t.id, "name": t.name} for t in tags]
+
+class TagCreate(BaseModel):
+    name: str
+
+@router.post("/profile/tags")
+async def create_tag(tag_data: TagCreate, db: AsyncSession = Depends(get_db)):
+    # Check if tag already exists
+    existing = await db.execute(select(Tag).where(Tag.name == tag_data.name))
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Tag zaten mevcut")
+    
+    new_tag = Tag(name=tag_data.name)
+    db.add(new_tag)
+    await db.commit()
+    return {"message": "Tag başarıyla eklendi", "name": new_tag.name}
 
 @router.get("/profile")
 async def get_profile(

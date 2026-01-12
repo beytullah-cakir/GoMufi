@@ -20,10 +20,15 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # 2. SESSION MIDDLEWARE
+# main_fastapi.py (Düzenlenen Kısımlar)
+
+# 2. SESSION MIDDLEWARE kısmını şöyle değiştirin:
 app.add_middleware(
     SessionMiddleware, 
-    secret_key="supersecretkey" # Canlıda bunu os.getenv ile çekmeniz önerilir
+    secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar") # .env'den okur 
 )
+
+# lifespan bloğu kalsın; Supabase'e bağlandığında tabloları otomatik oluşturur.
 
 # 3. CORS
 app.add_middleware(
