@@ -2,9 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, useOutletContext } from "react-router-dom";
 import api from "../api";
 
-const CompleteProfilePage: React.FC = () => {
+const CompleteProfilePage: React.FC<{ userData?: any }> = ({
+  userData: propUserData,
+}) => {
   const navigate = useNavigate();
-  const { userData }: any = useOutletContext();
+  const { userData: outletUserData }: any = useOutletContext() || {};
+  const userData = propUserData || outletUserData;
 
   const role = userData?.role;
 
@@ -37,12 +40,13 @@ const CompleteProfilePage: React.FC = () => {
     e.preventDefault();
     try {
       await api.put("/profile/update", {
-        nickname,
+        nickname: nickname,
         grade_level: gradeLevel,
         education_level: educationLevel,
-        department,
+        department: department,
       });
-      navigate("/");
+      // Use window.location.href to force a full reload and update global user state in App.tsx
+      window.location.href = "/";
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Profil güncellenirken bir hata oluştu.");

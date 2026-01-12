@@ -140,7 +140,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
               className={`w-48 md:w-72 lg:w-96 object-contain drop-shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] 
                 ${
                   isPasswordFocused
-                    ? "rotate-180 scale-95 blur-[2px] opacity-80"
+                    ? "scale-105"
                     : "animate-wave hover:scale-105"
                 }`}
               style={{ filter: "drop-shadow(0 25px 50px rgba(0,0,0,0.25))" }}

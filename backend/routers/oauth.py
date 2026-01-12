@@ -81,7 +81,8 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
                     first_name=first_name,
                     last_name=last_name,
                     email=email,
-                    department="General",
+                    department="",
+                    bio="",
                     password=""
                 )
                 db.add(user)
@@ -94,9 +95,18 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         if user_id is None:
             raise HTTPException(status_code=500, detail="User ID could not be determined")
         
+        # Check for incomplete profile
+        is_profile_incomplete = False
+        if role == 'student':
+            if user.grade_level == "Unknown" or user.education_level == "Unknown" or not user.nickname:
+                is_profile_incomplete = True
+        elif role == 'teacher':
+             if not user.department or user.department == "General":
+                is_profile_incomplete = True
+
         access_token = create_access_token(user_id=str(user_id), role=role)
         
-        redirect_url = f"{FRONTEND_URL}/complete-profile" if is_new_user else f"{FRONTEND_URL}/"
+        redirect_url = f"{FRONTEND_URL}/complete-profile" if (is_new_user or is_profile_incomplete) else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         
         is_production = "localhost" not in FRONTEND_URL

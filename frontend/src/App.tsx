@@ -146,13 +146,23 @@ function App() {
         }
       />
 
+      <Route
+        path="/complete-profile"
+        element={
+          isAuthenticated ? (
+            <CompleteProfilePage userData={userData} />
+          ) : (
+            <Navigate to="/auth" replace />
+          )
+        }
+      />
+
       {/* Student Routes */}
       <Route element={<StudentLayout />}>
         <Route path="/dashboard" element={<HomePage />} />
         <Route path="/courses" element={<CoursesPage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/content" element={<ContentPage />} />
-        <Route path="/complete-profile" element={<CompleteProfilePage />} />
       </Route>
 
       {/* Instructor Routes */}

@@ -44,6 +44,7 @@ async def get_profile(
             "last_name": teacher.last_name,
             "email": teacher.email,
             "bio": teacher.bio,
+            "department": teacher.department,
         }
     
     elif role == "student":
@@ -61,6 +62,9 @@ async def get_profile(
             "first_name": student.first_name,
             "last_name": student.last_name,
             "email": student.email,
+            "nickname": student.nickname,
+            "grade_level": student.grade_level,
+            "education_level": student.education_level,
         }
     
     raise HTTPException(status_code=400, detail="Invalid user role")
@@ -100,19 +104,19 @@ async def update_profile(
         await db.commit()
         return {"message": "Profile updated"}
         
-    elif role in ["teacher", "instructor"]:
+    elif role =="teacher":
         result = await db.execute(select(Teacher).where(Teacher.id == int(user_id)))
         teacher = result.scalars().first()
         if not teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
             
-        if profile_data.department is not None:
+        if profile_data.department:
             teacher.department = profile_data.department
-        if profile_data.bio is not None:
+        if profile_data.bio:
             teacher.bio = profile_data.bio
-        if profile_data.first_name is not None:
+        if profile_data.first_name:
             teacher.first_name = profile_data.first_name
-        if profile_data.last_name is not None:
+        if profile_data.last_name:
             teacher.last_name = profile_data.last_name
             
         await db.commit()
