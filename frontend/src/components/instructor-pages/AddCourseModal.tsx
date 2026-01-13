@@ -34,6 +34,7 @@ export interface CourseData {
   learningOutcomes: string[];
   requirements: string[];
   curriculum: Section[];
+  price: number;
 }
 
 interface AddCourseModalProps {
@@ -63,6 +64,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const [description, setDescription] = useState(
     initialData?.description || ""
   );
+  const [price, setPrice] = useState<number | string>(initialData?.price ?? 0);
 
   // Details State
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(
@@ -220,9 +222,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       learningOutcomes: learningOutcomes.filter((i) => i.trim()),
       requirements: requirements.filter((i) => i.trim()),
       curriculum: sections,
+      price: Number(price) || 0,
     });
-
-    onClose();
   };
 
   return (
@@ -487,6 +488,38 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Pricing */}
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+                  <h4 className="text-lg font-black text-gray-800 mb-4 flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
+                      <span className="text-xl font-bold">₺</span>
+                    </div>
+                    Kurs Ücreti
+                  </h4>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Öğrencilerin bu kursa erişmek için ödeyeceği tutar (TL).
+                    Ücretsiz yapmak için 0 bırakın.
+                  </p>
+
+                  <div className="relative max-w-[200px]">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                      ₺
+                    </span>
+                    <input
+                      type="number"
+                      value={price}
+                      onChange={(e) =>
+                        setPrice(
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                      placeholder="0"
+                      min="0"
+                      className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -637,19 +670,32 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`px-8 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl shadow-lg shadow-sky-200 active:scale-95 transition-all ${
-                  isSubmitting ? "opacity-70 cursor-not-allowed" : ""
+                className={`group relative overflow-hidden px-8 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-sky-200/50 active:scale-[0.98] transition-all duration-300 flex items-center gap-3 ${
+                  isSubmitting ? "opacity-90 cursor-not-allowed pr-10" : ""
                 }`}
               >
                 {isSubmitting ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Kaydediliyor...
-                  </div>
-                ) : initialData ? (
-                  "Değişiklikleri Kaydet"
+                  <>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex items-center justify-center">
+                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                        <div className="absolute w-5 h-5 border-2 border-white/10 rounded-full" />
+                      </div>
+                      <span className="tracking-wide">Kaydediliyor...</span>
+                    </div>
+                    <div className="absolute right-0 top-0 h-full w-1 bg-white/20 animate-pulse" />
+                  </>
                 ) : (
-                  "Kursu Oluştur"
+                  <>
+                    <span>
+                      {initialData ? "Değişiklikleri Kaydet" : "Kursu Oluştur"}
+                    </span>
+                    {!initialData && (
+                      <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                        <Plus size={14} />
+                      </div>
+                    )}
+                  </>
                 )}
               </button>
             )}
