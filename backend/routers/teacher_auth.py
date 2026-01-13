@@ -19,7 +19,7 @@ async def register_user(
 ):
     try:
         # Check if email already exists
-        check_query = select(Teacher).where(Teacher.email == data.email)
+        check_query = select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
         res = await db.execute(check_query)
         if res.scalars().first():
             raise HTTPException(status_code=400, detail="Bu e-posta adresi ile zaten bir hesap mevcut.")
@@ -50,7 +50,7 @@ async def login_user(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Teacher).where(Teacher.email == data.email)
+        select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
     )
     teacher = result.scalars().first()
 

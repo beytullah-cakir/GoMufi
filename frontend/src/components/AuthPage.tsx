@@ -29,6 +29,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
 
   // Instructor specific
   const [department, setDepartment] = useState("");
+  const [expertises, setExpertises] = useState(""); // This is not used but added for future consistency
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -61,20 +62,19 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 last_name: lastName,
                 email: email,
                 password: password,
-                department: department,
+                expertises: department,
               };
 
         await api.post(`${basePath}/register`, registerData);
         setIsLogin(true);
-        // Clear fields after successful registration
-        setEmail("");
-        setPassword("");
+        // Do not clear email/password after registration so the user can just click login
         setFirstName("");
         setLastName("");
         setNickname("");
         setDepartment("");
         setGradeLevel("");
         setEducationLevel("");
+        alert("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
       }
     } catch (err: any) {
       console.error("Auth error:", err);
