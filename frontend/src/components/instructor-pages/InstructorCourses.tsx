@@ -6,12 +6,17 @@ import api from "../../api";
 interface Course {
   id: number;
   title: string;
+  description: string;
+  price: number;
   students: number;
   rating: number;
   progress: number;
   status: string;
   color: string;
   lastUpdated: string;
+  learning_outcomes?: string[];
+  requirements?: string[];
+  curriculum?: any[];
 }
 
 const InstructorCourses: React.FC = () => {
@@ -35,10 +40,15 @@ const InstructorCourses: React.FC = () => {
           const mappedCourses = response.data.map((c: any) => ({
             id: c.id,
             title: c.title,
-            students: c.student_count || 0, // Assuming extra fields or default
+            description: c.description || "",
+            price: c.price || 0,
+            students: c.student_count || 0,
             rating: c.avg_rating || 0,
             progress: c.progress || 0,
             status: c.status || "active",
+            learning_outcomes: c.learning_outcomes || [],
+            requirements: c.requirements || [],
+            curriculum: c.curriculum || [],
             color:
               c.category === "coding"
                 ? "blue"
@@ -64,21 +74,32 @@ const InstructorCourses: React.FC = () => {
     };
   }, []);
 
-  const handleSaveCourse = async (courseData: {
-    title: string;
-    category: string;
-    color: string;
-  }) => {
+  const handleSaveCourse = async (courseData: any) => {
     setIsSubmitting(true);
     try {
       if (editingCourse) {
-        // Update existing course (UI only update for now)
+        // Update existing course via API
+        await api.put(`/update_course/${editingCourse.id}`, {
+          title: courseData.title,
+          description: courseData.description,
+          category: courseData.category,
+          price: courseData.price,
+          learning_outcomes: courseData.learningOutcomes,
+          requirements: courseData.requirements,
+          curriculum: courseData.curriculum,
+        });
+
         setCourses(
           courses.map((c) =>
             c.id === editingCourse.id
               ? {
                   ...c,
                   title: courseData.title,
+                  description: courseData.description,
+                  price: courseData.price,
+                  learning_outcomes: courseData.learningOutcomes,
+                  requirements: courseData.requirements,
+                  curriculum: courseData.curriculum,
                   color: courseData.color,
                   lastUpdated: "Şimdi",
                 }
@@ -90,13 +111,22 @@ const InstructorCourses: React.FC = () => {
         // Add new course via API
         const response = await api.post("/create_course", {
           title: courseData.title,
-          description: "Yeni oluşturulan kurs dersi.",
+          description: courseData.description || "Yeni oluşturulan kurs dersi.",
           category: courseData.category,
+          price: courseData.price || 0,
+          learning_outcomes: courseData.learningOutcomes,
+          requirements: courseData.requirements,
+          curriculum: courseData.curriculum,
         });
 
         const newCourse: Course = {
           id: response.data.id,
           title: response.data.title,
+          description: response.data.description || "",
+          price: response.data.price || 0,
+          learning_outcomes: response.data.learning_outcomes || [],
+          requirements: response.data.requirements || [],
+          curriculum: response.data.curriculum || [],
           students: 0,
           rating: 0,
           progress: 0,
@@ -107,9 +137,12 @@ const InstructorCourses: React.FC = () => {
         setCourses([newCourse, ...courses]);
       }
       setIsAddModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Kurs kaydedilirken hata oluştu:", error);
-      alert("Kurs kaydedilemedi. Lütfen tekrar deneyin.");
+      const errorMsg =
+        error.response?.data?.detail ||
+        "Kurs kaydedilemedi. Lütfen tekrar deneyin.";
+      alert(`Hata: ${errorMsg}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -248,6 +281,15 @@ const InstructorCourses: React.FC = () => {
                   {/* Metrics */}
                   <div className="flex items-center gap-8 w-full md:w-auto justify-center md:justify-end">
                     <div className="text-center">
+                      <div className="flex items-center justify-center gap-1 text-gray-800 font-bold mb-1">
+                        <span className="text-lg">₺{course.price}</span>
+                      </div>
+                      <p className="text-[10px] uppercase font-black text-gray-300">
+                        Ücret
+                      </p>
+                    </div>
+
+                    <div className="text-center">
                       <div className="flex items-center justify-center gap-1 text-gray-500 font-bold mb-1">
                         <Users size={16} />
                         <span>{course.students}</span>
@@ -342,6 +384,11 @@ const InstructorCourses: React.FC = () => {
           editingCourse
             ? {
                 title: editingCourse.title,
+                description: editingCourse.description,
+                price: editingCourse.price,
+                learningOutcomes: editingCourse.learning_outcomes,
+                requirements: editingCourse.requirements,
+                curriculum: editingCourse.curriculum,
                 category:
                   editingCourse.color === "blue"
                     ? "coding"

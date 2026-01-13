@@ -40,6 +40,7 @@ interface BackendCourse {
   category: string;
   created_at: string;
   progress: number;
+  price: number;
   teacher?: {
     first_name: string;
     last_name: string;
@@ -76,8 +77,9 @@ const CoursesPage: React.FC = () => {
             hours: Math.floor(Math.random() * 50 + 10) + " saat",
             lectures: Math.floor(Math.random() * 100 + 20) + " ders",
             level: "Tüm Düzeyler",
-            price: "₺" + (Math.floor(Math.random() * 300) + 100) + ",99",
-            oldPrice: "₺" + (Math.floor(Math.random() * 200) + 400) + ",99",
+            price: course.price > 0 ? "₺" + course.price : "Ücretsiz",
+            oldPrice:
+              course.price > 0 ? "₺" + (course.price + 100) + ",99" : "",
             badge: Math.random() > 0.5 ? "Popüler" : "Yeni",
             badgeColor:
               Math.random() > 0.5
@@ -372,97 +374,105 @@ const CoursesPage: React.FC = () => {
 
             {/* List Items */}
             <div className="flex flex-col gap-4">
-              {courses.map((course) => (
-                <div
-                  key={course.id}
-                  className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden"
-                >
-                  {/* Image / Icon Section */}
-                  {/* Using a background color placeholder if icon is small to look like thumbnail */}
+              {courses.length > 0 ? (
+                courses.map((course) => (
                   <div
-                    className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden`}
+                    key={course.id}
+                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden"
                   >
-                    <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
-                    <img
-                      src={course.icon}
-                      alt={course.title}
-                      className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
-                    />
-                  </div>
-
-                  {/* Content Section */}
-                  <div className="flex-1 py-4 flex flex-col justify-between pr-4">
-                    <div>
-                      <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
-                        {course.title}
-                      </h3>
-                      <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
-                        {course.description}
-                      </p>
-                      <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
-                        {course.instructor}
-                      </div>
-
-                      {/* Stats Row */}
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-black text-yellow-600 text-sm">
-                          {course.rating}
-                        </span>
-                        <div className="flex text-yellow-400 text-xs">
-                          ⭐⭐⭐⭐⭐
-                        </div>
-                        <span className="text-xs text-gray-400 font-medium">
-                          ({course.ratingCount})
-                        </span>
-                      </div>
-
-                      <div className="text-xs text-gray-400 flex items-center gap-3">
-                        <span>{course.hours}</span>
-                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                        <span>{course.lectures}</span>
-                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                        <span>{course.level}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Price & Badge Section */}
-                  <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
-                    <div className="flex flex-col items-end w-full gap-2">
-                      <div className="flex flex-col items-end">
-                        <div className="flex items-baseline gap-1 whitespace-nowrap">
-                          <span className="text-2xl font-black text-gray-900 font-display">
-                            {course.price}
-                          </span>
-                          <span className="text-xs text-gray-400 font-bold">
-                            / ders
-                          </span>
-                        </div>
-                        {course.oldPrice && (
-                          <span className="text-sm text-gray-400 line-through decoration-gray-400">
-                            {course.oldPrice}
-                          </span>
-                        )}
-                      </div>
-
-                      <button
-                        onClick={(e) => handleEnroll(e, course.id)}
-                        className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-sm transition-colors shadow-md"
-                      >
-                        Satın Al
-                      </button>
+                    {/* Image / Icon Section */}
+                    {/* Using a background color placeholder if icon is small to look like thumbnail */}
+                    <div
+                      className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden`}
+                    >
+                      <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
+                      <img
+                        src={course.icon}
+                        alt={course.title}
+                        className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
+                      />
                     </div>
 
-                    {course.badge && (
-                      <span
-                        className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}
-                      >
-                        {course.badge}
-                      </span>
-                    )}
+                    {/* Content Section */}
+                    <div className="flex-1 py-4 flex flex-col justify-between pr-4">
+                      <div>
+                        <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
+                          {course.title}
+                        </h3>
+                        <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
+                          {course.description}
+                        </p>
+                        <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
+                          {course.instructor}
+                        </div>
+
+                        {/* Stats Row */}
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-black text-yellow-600 text-sm">
+                            {course.rating}
+                          </span>
+                          <div className="flex text-yellow-400 text-xs">
+                            ⭐⭐⭐⭐⭐
+                          </div>
+                          <span className="text-xs text-gray-400 font-medium">
+                            ({course.ratingCount})
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-gray-400 flex items-center gap-3">
+                          <span>{course.hours}</span>
+                          <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                          <span>{course.lectures}</span>
+                          <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                          <span>{course.level}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Price & Badge Section */}
+                    <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
+                      <div className="flex flex-col items-end w-full gap-2">
+                        <div className="flex flex-col items-end">
+                          <div className="flex items-baseline gap-1 whitespace-nowrap">
+                            <span className="text-2xl font-black text-gray-900 font-display">
+                              {course.price}
+                            </span>
+                            <span className="text-xs text-gray-400 font-bold">
+                              / ders
+                            </span>
+                          </div>
+                          {course.oldPrice && (
+                            <span className="text-sm text-gray-400 line-through decoration-gray-400">
+                              {course.oldPrice}
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          onClick={(e) => handleEnroll(e, course.id)}
+                          className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-lg text-sm transition-colors shadow-md"
+                        >
+                          Satın Al
+                        </button>
+                      </div>
+
+                      {course.badge && (
+                        <span
+                          className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}
+                        >
+                          {course.badge}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="text-center py-20 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                  <p className="text-gray-400 font-bold text-lg">
+                    Henüz kurs bulunmuyor.
+                  </p>
                 </div>
-              ))}
+              )}
             </div>
 
             {/* Pagination */}

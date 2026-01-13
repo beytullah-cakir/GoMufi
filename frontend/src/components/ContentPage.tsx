@@ -152,10 +152,10 @@ const ContentPage: React.FC = () => {
       <div className="p-8 pb-4 flex justify-between items-end border-b-2 border-gray-100 sticky top-0 bg-white/95 backdrop-blur-sm z-20">
         <div>
           <h1 className="text-4xl font-black text-gray-800 font-display">
-            İçerikler
+            Kayıtlı Kurslarım
           </h1>
           <p className="text-gray-500 font-bold mt-2 text-lg">
-            Oluşturduğun ve yönettiğin kurslar
+            Kayıt olduğun ve devam ettiğin kurslar
           </p>
         </div>
 
@@ -180,8 +180,8 @@ const ContentPage: React.FC = () => {
                     <span className="inline-block px-3 py-1 bg-white/20 rounded-full text-xs font-black backdrop-blur-md border border-white/30 tracking-wider">
                       EN POPÜLER
                     </span>
-                    <span className="inline-block px-3 py-1 bg-blue-800/30 rounded-full text-xs font-black backdrop-blur-md border border-white/10 tracking-wider text-blue-100">
-                      {courses[0].instructor}
+                    <span className="inline-block px-3 py-1 bg-blue-800/30 rounded-full text-xs font-black backdrop-blur-md border border-white/10 tracking-wider text-blue-100 uppercase">
+                      EĞİTMEN: {courses[0].instructor}
                     </span>
                   </div>
 
@@ -189,12 +189,12 @@ const ContentPage: React.FC = () => {
                     {courses[0].title}
                   </h2>
                   <p className="text-blue-100 font-medium text-xl mb-8 max-w-lg leading-relaxed">
-                    Öğrencileriniz bu kursu çok seviyor!
+                    Bu kursu bitirerek yeni yetenekler kazanabilirsin!
                   </p>
 
                   <div className="flex items-center gap-6">
                     <button className="bg-white text-blue-600 px-8 py-4 rounded-2xl font-black text-lg shadow-lg hover:bg-blue-50 transition-all flex items-center gap-3 group-hover:gap-5 duration-300">
-                      İstatistikleri Gör
+                      Derse Devam Et
                       <span className="text-2xl leading-none">→</span>
                     </button>
                   </div>
@@ -272,7 +272,7 @@ const ContentPage: React.FC = () => {
               <button
                 className={`w-full py-3 rounded-xl ${course.color} text-white font-black hover:opacity-90 transition-opacity shadow-md`}
               >
-                Düzenle
+                Derse Git
               </button>
             </div>
           </div>
@@ -284,10 +284,10 @@ const ContentPage: React.FC = () => {
             +
           </div>
           <h3 className="text-2xl font-bold text-gray-500 font-display group-hover:text-gray-600">
-            Yeni Kurs Oluştur
+            Yeni Kurs Keşfet
           </h3>
           <p className="text-gray-400 font-bold text-sm mt-2 uppercase tracking-wide">
-            Bilgini Paylaş
+            Kataloğa Git
           </p>
         </div>
       </div>

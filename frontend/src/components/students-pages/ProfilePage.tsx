@@ -30,15 +30,6 @@ const ProfilePage: React.FC = () => {
         </div>
 
         <div className="flex gap-2">
-          {/* Logout Button */}
-          <button
-            onClick={handleLogout}
-            className="h-12 px-4 rounded-2xl bg-red-50 border-2 border-red-200 border-b-4 hover:bg-red-100 flex items-center justify-center transition-all active:border-b-2 active:translate-y-[2px] font-bold text-red-500 gap-2"
-          >
-            <span>Çıkış Yap</span>
-            <span>🚪</span>
-          </button>
-
           {/* Right Action: Settings */}
           <button className="w-12 h-12 rounded-2xl bg-gray-50 border-2 border-gray-200 border-b-4 hover:bg-gray-100 flex items-center justify-center transition-all active:border-b-2 active:translate-y-[2px]">
             <span className="text-2xl text-gray-400">⚙️</span>
