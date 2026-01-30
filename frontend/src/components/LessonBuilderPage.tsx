@@ -18,6 +18,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [scale, setScale] = useState(1);
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
 
+    // -- Draw Tool State --
+    const [activeTool, setActiveTool] = useState<'select' | 'draw'>('select');
+    const [isDrawing, setIsDrawing] = useState(false);
+
+    const [currentPathPoints, setCurrentPathPoints] = useState<{ x: number, y: number }[]>([]);
+    const [brushColor, setBrushColor] = useState('#1f2937');
+    const [brushSize, setBrushSize] = useState(5);
+    const [brushType, setBrushType] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
+    const [brushOpacity, setBrushOpacity] = useState(1);
+
     // Drag/Transform State
     const [dragState, setDragState] = useState<{
         isDragging: boolean;
@@ -180,6 +190,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     // -- TRANSFORM LOGIC --
 
     const handleMouseDown = (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => {
+        if (activeTool === 'draw') {
+            if (brushType === 'eraser') {
+                e.stopPropagation();
+                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: s.elements.filter(el => el.id !== id) } : s));
+            }
+            return; // Don't select/drag when drawing/erasing
+        }
         if (editingElementId === id && action === 'drag') return;
 
         e.stopPropagation();
@@ -213,6 +230,31 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
+        if (!canvasRef.current) return;
+        const canvasRect = canvasRef.current.getBoundingClientRect();
+        const mouseX = (e.clientX - canvasRect.left) / scale;
+        const mouseY = (e.clientY - canvasRect.top) / scale;
+
+        // Drawing Logic
+        if (isDrawing && activeTool === 'draw') {
+            setCurrentPathPoints(prev => [...prev, { x: mouseX, y: mouseY }]);
+            return;
+        }
+
+        if (brushType === 'eraser' && activeTool === 'draw' && e.buttons === 1) {
+            // Eraser Logic: Delete elements on drag
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            const elementWrapper = target?.closest('[data-id]');
+            if (elementWrapper) {
+                const id = elementWrapper.getAttribute('data-id');
+                const type = elementWrapper.getAttribute('data-type');
+                if (id && type === 'draw') {
+                    setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: s.elements.filter(el => el.id !== id) } : s));
+                }
+            }
+            return;
+        }
+
         if (!dragState.elementId) return;
 
         const { isDragging, isResizing, isRotating, pendingDrag, startX, startY, initialX, initialY, initialWidth, initialHeight, centerX, centerY } = dragState;
@@ -296,6 +338,52 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     };
 
     const handleMouseUp = () => {
+        // Finalize Drawing
+        if (isDrawing && activeTool === 'draw') {
+            setIsDrawing(false);
+            if (currentPathPoints.length > 2) {
+                // Convert points to SVG Path
+                const d = `M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`;
+
+                // Calculate bounding box
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                currentPathPoints.forEach(p => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                });
+
+                const width = maxX - minX;
+                const height = maxY - minY;
+
+                // Add padding for stroke width so it doesn't get cropped
+                const padding = Math.ceil(brushSize / 2) + 4;
+                const finalMinX = minX - padding;
+                const finalMinY = minY - padding;
+                const finalWidth = width + (padding * 2);
+                const finalHeight = height + (padding * 2);
+
+                // Normalize path to new padded box
+                const normalizedD = `M ${currentPathPoints.map(p => `${p.x - finalMinX} ${p.y - finalMinY}`).join(' L ')}`;
+
+                const newEl: SlideElement = {
+                    id: Date.now().toString(),
+                    type: 'draw',
+                    x: finalMinX,
+                    y: finalMinY,
+                    width: Math.max(finalWidth, 20),
+                    height: Math.max(finalHeight, 20),
+                    rotation: 0,
+                    content: normalizedD, // Store path data here
+                    style: { borderColor: brushColor, borderWidth: brushSize, opacity: brushOpacity }
+                };
+
+                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: [...s.elements, newEl] } : s));
+            }
+            setCurrentPathPoints([]);
+        }
+
         setDragState(prev => ({ ...prev, isDragging: false, isResizing: false, isRotating: false, pendingDrag: false }));
     };
 
@@ -304,14 +392,34 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             className="w-full h-screen bg-[#f5f5f7] font-sans flex overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
             onMouseUp={handleMouseUp}
             onMouseMove={handleMouseMove}
-            onMouseDown={() => {
-                setSelectedElementId(null);
-                setEditingElementId(null);
-                setActiveColorPickerId(null);
+            onMouseDown={(e) => {
+                if (activeTool === 'draw') {
+                    if (brushType === 'eraser') return; // Prevent drawing with eraser (delete only)
+                    // Drawing logic moved to child (Canvas) or handled via propagation?
+                    // Actually, the main container handles the global mouse moves, but starting the drag 
+                    // usually happens on the canvas. 
+                    // Let's keep the start logic here for the 'empty space' clicks.
+                    if (!canvasRef.current) return;
+                    const canvasRect = canvasRef.current.getBoundingClientRect();
+                    const mouseX = (e.clientX - canvasRect.left) / scale;
+                    const mouseY = (e.clientY - canvasRect.top) / scale;
+                    setIsDrawing(true);
+                    setCurrentPathPoints([{ x: mouseX, y: mouseY }]);
+                    setSelectedElementId(null);
+                } else {
+                    setSelectedElementId(null);
+                    setEditingElementId(null);
+                    setActiveColorPickerId(null);
+                }
             }}
         >
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Fredoka:wght@300;400;500;600&family=Pacifico&family=Patrick+Hand&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
+                
+                /* Custom Eraser Cursor - base64 encoded SVG */
+                .cursor-eraser {
+                    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto;
+                }
             `}</style>
 
             {/* HEADER & ACTIONS */}
@@ -323,7 +431,30 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 <label className="flex items-center gap-2 px-4 py-3 bg-indigo-500 rounded-2xl border-2 border-b-4 border-indigo-700 hover:bg-indigo-600 text-white font-bold text-sm cursor-pointer transition-all shadow-indigo-200 shadow-lg"><Upload className="w-5 h-5" /><span>Yükle</span><input type="file" accept=".json" onChange={loadProject} className="hidden" ref={fileInputRef} /></label>
             </div>
 
-            <Toolbar onDragStart={handleToolbarDragStart} />
+            <Toolbar
+                onDragStart={handleToolbarDragStart}
+                activeTool={activeTool}
+                setTool={setActiveTool}
+                brushColor={brushColor}
+                setBrushColor={setBrushColor}
+                brushSize={brushSize}
+                setBrushSize={setBrushSize}
+                brushType={brushType}
+                setBrushType={(type) => {
+                    setBrushType(type);
+                    if (type === 'pen') {
+                        setBrushOpacity(1);
+                        if (brushColor === '#ffffff') setBrushColor('#1f2937'); // Reset if was eraser
+                    } else if (type === 'highlighter') {
+                        setBrushOpacity(0.5);
+                        setBrushSize(15);
+                        setBrushColor('#f59e0b'); // Yellow default
+                    } else if (type === 'eraser') {
+                        // Eraser now acts as a delete tool
+                        // We don't need to change color/opacity, just the mode
+                    }
+                }}
+            />
 
             {/* FLOATING CONTEXT MENU */}
             {selectedElementId && !dragState.isDragging && (
@@ -350,11 +481,42 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     ref={canvasRef}
                     onDrop={handleCanvasDrop}
                     onDragOver={(e) => e.preventDefault()}
-                    onMouseDown={(e) => { e.stopPropagation(); setSelectedElementId(null); setEditingElementId(null); setActiveColorPickerId(null); }}
-                    className="bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm"
+                    onDrop={handleCanvasDrop}
+                    onDragOver={(e) => e.preventDefault()}
+                    onMouseDown={(e) => {
+                        // If drawing, we want the event to bubble up to the main container or handle it here.
+                        // The main container has the generic handler. 
+                        // But we stopped propagation before.
+                        if (activeTool === 'draw') {
+                            // Don't stop propagation, let it bubble to container handler
+                            // But prevent default to stop text selection
+                            e.preventDefault();
+                        } else {
+                            e.stopPropagation();
+                            setSelectedElementId(null);
+                            setEditingElementId(null);
+                            setActiveColorPickerId(null);
+                        }
+                    }}
+                    className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''}`}
                     style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
                 >
                     <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
+
+                    {/* Active Drawing Preview */}
+                    {isDrawing && currentPathPoints.length > 1 && (
+                        <svg className="absolute inset-0 w-full h-full pointer-events-none z-[100]">
+                            <path
+                                d={`M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`}
+                                fill="none"
+                                stroke={brushColor}
+                                strokeWidth={brushSize}
+                                strokeOpacity={brushOpacity}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
+                    )}
 
                     {currentSlide.elements.map(el => (
                         <CanvasElement

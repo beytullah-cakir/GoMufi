@@ -11,11 +11,12 @@ export interface ElementStyle {
     borderRadius?: number;
     borderColor?: string;
     borderWidth?: number;
+    opacity?: number;
 }
 
 export interface SlideElement {
     id: string;
-    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape';
+    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw';
     shapeType?: 'rectangle' | 'circle';
     x: number;
     y: number;

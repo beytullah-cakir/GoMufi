@@ -60,9 +60,12 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 left: el.x || 0, top: el.y || 0,
                 width: el.width || 100, height: el.height || 100,
                 transform: `rotate(${el.rotation || 0}deg)`,
-                zIndex: isSelected ? 50 : 10
+                zIndex: isSelected ? 50 : 10,
+                pointerEvents: el.type === 'draw' ? 'none' : 'auto'
             }}
             onMouseDown={(e) => handleMouseDown(e, el.id, 'drag')}
+            data-id={el.id}
+            data-type={el.type}
         >
             {/* SELECTION OVERLAY */}
             {isSelected && !isEditing && (
@@ -89,7 +92,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
 
             {/* CONTENT */}
             <div
-                className="w-full h-full overflow-hidden"
+                className={`w-full h-full ${el.type === 'draw' ? '' : 'overflow-hidden'}`}
                 onDoubleClick={(e) => {
                     if (['text', 'sticky', 'code', 'video'].includes(el.type)) {
                         e.stopPropagation(); setEditingElementId(el.id);
@@ -109,8 +112,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                     <div
                         ref={contentRef}
                         className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
-                                el.style?.verticalAlign === 'bottom' ? 'items-end' :
-                                    'items-center'
+                            el.style?.verticalAlign === 'bottom' ? 'items-end' :
+                                'items-center'
                             } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
                                 el.style?.textAlign === 'right' ? 'justify-end text-right' :
                                     'justify-center text-center'
@@ -125,8 +128,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                     <div
                         ref={contentRef}
                         className={`w-full h-full shadow-lg p-4 flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
-                                el.style?.verticalAlign === 'bottom' ? 'items-end' :
-                                    'items-center'
+                            el.style?.verticalAlign === 'bottom' ? 'items-end' :
+                                'items-center'
                             } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
                                 el.style?.textAlign === 'right' ? 'justify-end text-right' :
                                     'justify-center text-center'
@@ -174,6 +177,22 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 <VideoIcon className="text-gray-500 w-10 h-10" />
                             )
                         )}
+                    </div>
+                )}
+                {el.type === 'draw' && (
+                    <div className="w-full h-full">
+                        <svg className="w-full h-full overflow-visible">
+                            <path
+                                className="pointer-events-auto cursor-pointer"
+                                d={el.content}
+                                fill="none"
+                                stroke={el.style?.borderColor || '#1f2937'}
+                                strokeWidth={el.style?.borderWidth || 3}
+                                strokeOpacity={el.style?.opacity ?? 1}
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                            />
+                        </svg>
                     </div>
                 )}
             </div>
