@@ -3,25 +3,13 @@ import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, A
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
-    id: string;
+    id: string; // ID of the representative element (or "multi")
     current?: string;
-    updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
+    onUpdate: (color: string) => void;
     setActiveColorPickerId: (id: string | null) => void;
-    elType: string;
 }
 
-const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementStyle, setActiveColorPickerId, elType }) => {
-    const isBorder = elType === 'border';
-    const updateColor = (color: string) => {
-        if (isBorder) {
-            updateElementStyle(id, { borderColor: color });
-        } else if (['shape', 'sticky'].includes(elType)) {
-            updateElementStyle(id, { backgroundColor: color });
-        } else {
-            updateElementStyle(id, { color });
-        }
-        setActiveColorPickerId(null);
-    };
+const ColorPicker: React.FC<ColorPickerProps> = ({ current, onUpdate, setActiveColorPickerId }) => {
     const colors = [
         '#1f2937', '#ffffff', '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4',
         '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#881337', '#78350f'
@@ -31,7 +19,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementSty
             {colors.map(c => (
                 <button
                     key={c}
-                    onClick={() => updateColor(c)}
+                    onClick={() => { onUpdate(c); setActiveColorPickerId(null); }}
                     className="w-5 h-5 rounded-full border border-gray-600 hover:scale-125 transition-transform"
                     style={{ backgroundColor: c }}
                     onMouseDown={(e) => e.stopPropagation()}
@@ -44,7 +32,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementSty
                 <input
                     type="color"
                     value={current || '#000000'}
-                    onChange={(e) => updateColor(e.target.value)}
+                    onChange={(e) => { onUpdate(e.target.value); setActiveColorPickerId(null); }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     onMouseDown={(e) => e.stopPropagation()}
                 />
@@ -54,7 +42,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementSty
 };
 
 interface ContextMenuProps {
-    el: SlideElement;
+    elements: SlideElement[];
     scale: number;
     canvasRect: DOMRect | null;
     activeColorPickerId: string | null;
@@ -64,19 +52,60 @@ interface ContextMenuProps {
     deleteElement: (id: string) => void;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement }) => {
 
-    if (!canvasRect) return null;
+    if (!canvasRect || elements.length === 0) return null;
 
-    const getElementScreenPos = () => {
-        return {
-            x: canvasRect.left + (el.x * scale) + (el.width * scale) / 2,
-            y: canvasRect.top + (el.y * scale)
-        };
+    // -- Helper: Bulk Updates --
+    const bulkUpdateStyle = (updates: Partial<ElementStyle>) => {
+        elements.forEach(el => updateElementStyle(el.id, updates));
     };
 
-    const pos = getElementScreenPos();
-    const isColorPickerOpen = activeColorPickerId === el.id;
+    const bulkUpdateColor = (color: string) => {
+        elements.forEach(el => {
+            // Smart Color Application:
+            // - Shape/Sticky -> backgroundColor
+            // - Text/Code -> color
+            if (['shape', 'sticky'].includes(el.type)) {
+                updateElementStyle(el.id, { backgroundColor: color });
+            } else {
+                updateElementStyle(el.id, { color: color });
+            }
+        });
+    };
+
+    const bulkUpdateBorderColor = (color: string) => {
+        elements.forEach(el => updateElementStyle(el.id, { borderColor: color }));
+    };
+
+    const bulkDelete = () => {
+        elements.forEach(el => deleteElement(el.id));
+    };
+
+    // -- Positioning --
+    // Calculate bounding box of all elements
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    elements.forEach(el => {
+        minX = Math.min(minX, el.x);
+        minY = Math.min(minY, el.y);
+        maxX = Math.max(maxX, el.x + el.width);
+        maxY = Math.max(maxY, el.y + el.height);
+    });
+
+    const centerX = canvasRect.left + (minX + (maxX - minX) / 2) * scale;
+    const topY = canvasRect.top + minY * scale;
+
+    // -- Determine Primary / Mixed Types --
+    const allText = elements.every(el => ['text', 'sticky', 'code'].includes(el.type));
+    const isSingle = elements.length === 1;
+    const hasMedia = elements.some(el => ['image', 'video'].includes(el.type));
+    const allBorders = elements.every(el => ['shape', 'image', 'video'].includes(el.type));
+
+    // Representative Element (for default values)
+    const firstEl = elements[0];
+    const isColorPickerOpen = activeColorPickerId === 'multi-color';
+
+    // Menus
     const [isBorderMenuOpen, setIsBorderMenuOpen] = useState(false);
     const [isAlignMenuOpen, setIsAlignMenuOpen] = useState(false);
 
@@ -84,8 +113,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
         <div
             className="fixed z-[1000] flex flex-col gap-2 animate-in fade-in zoom-in-95"
             style={{
-                left: pos.x,
-                top: pos.y - 80, // Fixed offset above element
+                left: centerX,
+                top: topY - 80, // Fixed offset above group
                 transform: 'translateX(-50%)',
                 transformOrigin: 'bottom center'
             }}
@@ -94,12 +123,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
             onPointerDown={(e) => e.stopPropagation()}
         >
             <div className="bg-gray-900 text-white p-2 rounded-xl shadow-2xl flex items-center gap-2 border border-gray-700 select-none">
-                {/* Font Family */}
-                {['text', 'sticky', 'code'].includes(el.type) && (
+
+                {/* Font Family (Only if all are text-ish) */}
+                {allText && (
                     <select
                         className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 outline-none cursor-pointer hover:bg-gray-700 transition-colors"
-                        value={el.style?.fontFamily || 'Fredoka'}
-                        onChange={(e) => updateElementStyle(el.id, { fontFamily: e.target.value as any })}
+                        value={firstEl.style?.fontFamily || 'Fredoka'}
+                        onChange={(e) => bulkUpdateStyle({ fontFamily: e.target.value as any })}
                         onMouseDown={(e) => e.stopPropagation()}
                     >
                         <option value="Fredoka">Fredoka</option>
@@ -113,47 +143,46 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                 )}
 
                 {/* Font Size */}
-                {['text', 'sticky', 'code'].includes(el.type) && (
+                {allText && (
                     <div className="flex items-center bg-gray-800 rounded border border-gray-600">
-                        <button onMouseDown={(e) => { e.stopPropagation(); updateElementStyle(el.id, { fontSize: (el.style?.fontSize || 24) - 2 }) }} className="w-6 h-8 hover:bg-gray-700 flex items-center justify-center">-</button>
-                        <span className="w-8 text-center text-xs tabular-nums">{el.style?.fontSize || 24}</span>
-                        <button onMouseDown={(e) => { e.stopPropagation(); updateElementStyle(el.id, { fontSize: (el.style?.fontSize || 24) + 2 }) }} className="w-6 h-8 hover:bg-gray-700 flex items-center justify-center">+</button>
+                        <button onMouseDown={(e) => { e.stopPropagation(); elements.forEach(el => updateElementStyle(el.id, { fontSize: Math.max(8, (el.style?.fontSize || 24) - 2) })) }} className="w-6 h-8 hover:bg-gray-700 flex items-center justify-center">-</button>
+                        <span className="w-8 text-center text-xs tabular-nums">{firstEl.style?.fontSize || 24}</span>
+                        <button onMouseDown={(e) => { e.stopPropagation(); elements.forEach(el => updateElementStyle(el.id, { fontSize: (el.style?.fontSize || 24) + 2 })) }} className="w-6 h-8 hover:bg-gray-700 flex items-center justify-center">+</button>
                     </div>
                 )}
 
                 {/* B/I/U */}
-                {['text', 'sticky'].includes(el.type) && (
+                {allText && (
                     <div className="flex gap-0.5">
-                        <button onMouseDown={(e) => { e.stopPropagation(); updateElementStyle(el.id, { bold: !el.style?.bold }) }} className={`p-1.5 rounded hover:bg-gray-700 ${el.style?.bold ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Bold className="w-4 h-4" /></button>
-                        <button onMouseDown={(e) => { e.stopPropagation(); updateElementStyle(el.id, { italic: !el.style?.italic }) }} className={`p-1.5 rounded hover:bg-gray-700 ${el.style?.italic ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Italic className="w-4 h-4" /></button>
-                        <button onMouseDown={(e) => { e.stopPropagation(); updateElementStyle(el.id, { underline: !el.style?.underline }) }} className={`p-1.5 rounded hover:bg-gray-700 ${el.style?.underline ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Underline className="w-4 h-4" /></button>
+                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ bold: !firstEl.style?.bold }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.bold ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Bold className="w-4 h-4" /></button>
+                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ italic: !firstEl.style?.italic }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.italic ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Italic className="w-4 h-4" /></button>
+                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ underline: !firstEl.style?.underline }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.underline ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Underline className="w-4 h-4" /></button>
                     </div>
                 )}
 
-                {/* Color Trigger (Toggle Mode) */}
+                {/* Color Trigger (Smart Bulk) - Always Show */}
                 <div className="relative">
                     <button
-                        onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : el.id); }}
+                        onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : 'multi-color'); }}
                         className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
-                        style={{ backgroundColor: (['shape', 'sticky'].includes(el.type) ? el.style?.backgroundColor : el.style?.color) || 'white' }}
+                        style={{ backgroundColor: (['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color) || 'white' }}
                     />
 
                     {/* Dropdown */}
                     {isColorPickerOpen && (
                         <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
                             <ColorPicker
-                                id={el.id}
-                                current={(['shape', 'sticky'].includes(el.type) ? el.style?.backgroundColor : el.style?.color)}
-                                updateElementStyle={updateElementStyle}
+                                id="multi-color"
+                                current={(['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color)}
+                                onUpdate={bulkUpdateColor}
                                 setActiveColorPickerId={setActiveColorPickerId}
-                                elType={el.type}
                             />
                         </div>
                     )}
                 </div>
 
-                {/* Alignment (Text/Sticky only) */}
-                {['text', 'sticky'].includes(el.type) && (
+                {/* Alignment */}
+                {allText && (
                     <>
                         <div className="w-[1px] h-6 bg-gray-700 mx-1" />
                         <div className="relative">
@@ -166,18 +195,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                             {isAlignMenuOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
                                     <div className="bg-gray-900 p-2 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-2 w-32" onMouseDown={(e) => e.stopPropagation()}>
-                                        {/* Horizontal */}
                                         <div className="flex justify-between bg-gray-800 rounded p-1">
-                                            <button onClick={() => updateElementStyle(el.id, { textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${el.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignLeft className="w-4 h-4" /></button>
-                                            <button onClick={() => updateElementStyle(el.id, { textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!el.style?.textAlign || el.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`}><AlignCenter className="w-4 h-4" /></button>
-                                            <button onClick={() => updateElementStyle(el.id, { textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${el.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignRight className="w-4 h-4" /></button>
-                                        </div>
-                                        <div className="h-[1px] bg-gray-700" />
-                                        {/* Vertical */}
-                                        <div className="flex justify-between bg-gray-800 rounded p-1">
-                                            <button onClick={() => updateElementStyle(el.id, { verticalAlign: 'top' })} className={`p-1 rounded hover:bg-gray-700 ${el.style?.verticalAlign === 'top' ? 'text-indigo-400' : 'text-gray-400'}`}><ArrowUpToLine className="w-4 h-4" /></button>
-                                            <button onClick={() => updateElementStyle(el.id, { verticalAlign: 'middle' })} className={`p-1 rounded hover:bg-gray-700 ${(!el.style?.verticalAlign || el.style?.verticalAlign === 'middle') ? 'text-indigo-400' : 'text-gray-400'}`}><FoldVertical className="w-4 h-4" /></button>
-                                            <button onClick={() => updateElementStyle(el.id, { verticalAlign: 'bottom' })} className={`p-1 rounded hover:bg-gray-700 ${el.style?.verticalAlign === 'bottom' ? 'text-indigo-400' : 'text-gray-400'}`}><ArrowDownToLine className="w-4 h-4" /></button>
+                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignLeft className="w-4 h-4" /></button>
+                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.textAlign || firstEl.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`}><AlignCenter className="w-4 h-4" /></button>
+                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignRight className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 </div>
@@ -186,9 +207,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                     </>
                 )}
 
-                {/* Border Settings (Radius, Width, Color) - for Shapes, Images, Videos */}
-                {/* Border Settings Menu Trigger */}
-                {['shape', 'image', 'video'].includes(el.type) && (
+                {/* Border Settings (Radius, Width, Color) */}
+                {allBorders && (
                     <>
                         <div className="w-[1px] h-6 bg-gray-700 mx-1" />
                         <div className="relative">
@@ -199,7 +219,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                                 <Frame className="w-4 h-4" />
                             </button>
 
-                            {/* Border Settings Popup */}
                             {isBorderMenuOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
                                     <div className="bg-gray-900 p-3 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-3 w-52" onMouseDown={(e) => e.stopPropagation()}>
@@ -209,12 +228,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                                         <div className="flex flex-col gap-1">
                                             <div className="flex justify-between text-[10px] text-gray-400">
                                                 <span>Roundness</span>
-                                                <span>{el.style?.borderRadius ?? 0}px</span>
+                                                <span>{firstEl.style?.borderRadius ?? 0}px</span>
                                             </div>
                                             <input
                                                 type="range" min="0" max="50"
-                                                value={el.style?.borderRadius ?? (el.type === 'shape' && el.shapeType === 'circle' ? 50 : 0)}
-                                                onChange={(e) => updateElementStyle(el.id, { borderRadius: parseInt(e.target.value) })}
+                                                value={firstEl.style?.borderRadius ?? (firstEl.type === 'shape' && firstEl.shapeType === 'circle' ? 50 : 0)}
+                                                onChange={(e) => bulkUpdateStyle({ borderRadius: parseInt(e.target.value) })}
                                                 className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                                             />
                                         </div>
@@ -223,12 +242,12 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                                         <div className="flex flex-col gap-1">
                                             <div className="flex justify-between text-[10px] text-gray-400">
                                                 <span>Thickness</span>
-                                                <span>{el.style?.borderWidth ?? 0}px</span>
+                                                <span>{firstEl.style?.borderWidth ?? 0}px</span>
                                             </div>
                                             <input
                                                 type="range" min="0" max="20"
-                                                value={el.style?.borderWidth ?? 0}
-                                                onChange={(e) => updateElementStyle(el.id, { borderWidth: parseInt(e.target.value) })}
+                                                value={firstEl.style?.borderWidth ?? 0}
+                                                onChange={(e) => bulkUpdateStyle({ borderWidth: parseInt(e.target.value) })}
                                                 className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                                             />
                                         </div>
@@ -238,18 +257,17 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                                             <span className="text-[10px] text-gray-400">Color</span>
                                             <div className="relative">
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === `border-${el.id}` ? null : `border-${el.id}`); }}
-                                                    className={`w-6 h-6 rounded border-2 transition-colors block ${activeColorPickerId === `border-${el.id}` ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
-                                                    style={{ backgroundColor: el.style?.borderColor || 'transparent' }}
+                                                    onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === 'multi-border' ? null : 'multi-border'); }}
+                                                    className={`w-6 h-6 rounded border-2 transition-colors block ${activeColorPickerId === 'multi-border' ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
+                                                    style={{ backgroundColor: firstEl.style?.borderColor || 'transparent' }}
                                                 />
-                                                {activeColorPickerId === `border-${el.id}` && (
+                                                {activeColorPickerId === 'multi-border' && (
                                                     <div className="absolute top-full right-0 pt-2 z-[1002]">
                                                         <ColorPicker
-                                                            id={el.id}
-                                                            current={el.style?.borderColor}
-                                                            updateElementStyle={updateElementStyle}
+                                                            id="multi-border"
+                                                            current={firstEl.style?.borderColor}
+                                                            onUpdate={bulkUpdateBorderColor}
                                                             setActiveColorPickerId={setActiveColorPickerId}
-                                                            elType="border"
                                                         />
                                                     </div>
                                                 )}
@@ -262,23 +280,23 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                     </>
                 )}
 
-                {/* Image/Video URL Input */}
-                {['image', 'video'].includes(el.type) && (
+                {/* URL Input (Single Item Only) */}
+                {isSingle && hasMedia && (
                     <input
                         type="text"
                         placeholder="https://..."
                         className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 w-40 outline-none text-white focus:border-indigo-500 transition-colors"
-                        value={el.src || ''}
-                        onChange={(e) => updateElement(el.id, { src: e.target.value })}
+                        value={firstEl.src || ''}
+                        onChange={(e) => updateElement(firstEl.id, { src: e.target.value })}
                         onMouseDown={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()} // Prevent triggering shortcuts
+                        onKeyDown={(e) => e.stopPropagation()}
                     />
                 )}
 
                 {/* Divider & Delete */}
                 <div className="w-[1px] h-6 bg-gray-700 mx-1" />
                 <button
-                    onMouseDown={(e) => { e.stopPropagation(); deleteElement(el.id); }}
+                    onMouseDown={(e) => { e.stopPropagation(); bulkDelete(); }}
                     className="text-red-400 hover:bg-red-900/40 p-1.5 rounded transition-colors"
                 >
                     <Trash2 className="w-4 h-4" />
