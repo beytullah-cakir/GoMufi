@@ -7,6 +7,7 @@ export interface ElementStyle {
     fontFamily?: 'Patrick Hand' | 'Inter' | 'Fira Code' | 'Fredoka' | 'Comic Neue' | 'Bangers' | 'Pacifico';
     backgroundColor?: string;
     textAlign?: 'left' | 'center' | 'right';
+    verticalAlign?: 'top' | 'middle' | 'bottom';
     borderRadius?: number;
     borderColor?: string;
     borderWidth?: number;

@@ -108,7 +108,13 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 {el.type === 'text' && (
                     <div
                         ref={contentRef}
-                        className={`w-full h-full flex items-center justify-center outline-none cursor-text select-text`}
+                        className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
+                                el.style?.verticalAlign === 'bottom' ? 'items-end' :
+                                    'items-center'
+                            } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
+                                el.style?.textAlign === 'right' ? 'justify-end text-right' :
+                                    'justify-center text-center'
+                            } outline-none cursor-text select-text`}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
                         onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}
@@ -118,7 +124,13 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 {el.type === 'sticky' && (
                     <div
                         ref={contentRef}
-                        className={`w-full h-full shadow-lg p-4 flex items-center justify-center outline-none cursor-text select-text`}
+                        className={`w-full h-full shadow-lg p-4 flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
+                                el.style?.verticalAlign === 'bottom' ? 'items-end' :
+                                    'items-center'
+                            } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
+                                el.style?.textAlign === 'right' ? 'justify-end text-right' :
+                                    'justify-center text-center'
+                            } outline-none cursor-text select-text`}
                         style={{ backgroundColor: el.style?.backgroundColor, ...commonStyle(el) }}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
