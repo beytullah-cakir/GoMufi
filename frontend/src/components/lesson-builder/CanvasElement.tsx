@@ -33,7 +33,10 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         }
     }, [isEditing]);
 
-    const commonStyle = (el: SlideElement): React.CSSProperties => ({
+    const htmlContent = React.useMemo(() => ({ __html: el.content }), [el.content]);
+
+    // Move commonStyle definition outside or useMemo
+    const style = React.useMemo(() => ({
         fontWeight: el.style?.bold ? 'bold' : 'normal',
         fontStyle: el.style?.italic ? 'italic' : 'normal',
         textDecoration: el.style?.underline ? 'underline' : 'none',
@@ -46,8 +49,10 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         el.style?.fontFamily === 'Pacifico' ? '"Pacifico", cursive' :
                             el.style?.fontFamily === 'Fira Code' ? '"Fira Code", monospace' :
                                 '"Patrick Hand", cursive',
-        textAlign: el.style?.textAlign || 'center'
-    });
+        textAlign: el.style?.textAlign || 'center',
+        // For sticky specifics, we can merge later or here?
+        // Let's keep it general here as it was commonStyle
+    } as React.CSSProperties), [el.style]);
 
     const getYoutubeId = (url: string) => {
         const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
@@ -65,20 +70,26 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 zIndex: isSelected ? 50 : 10,
                 pointerEvents: el.type === 'draw' ? 'none' : 'auto'
             }}
-            onMouseDown={(e) => handleMouseDown(e, el.id, 'drag')}
+            onMouseDown={(e) => {
+                if (isEditing) {
+                    e.stopPropagation();
+                    return;
+                }
+                handleMouseDown(e, el.id, 'drag');
+            }}
             data-id={el.id}
             data-type={el.type}
         >
             {/* SELECTION OVERLAY */}
             {isSelected && !isEditing && (
                 <div className={`absolute -inset-1 border-2 border-indigo-500 pointer-events-none z-50 ${!showHandles ? 'opacity-50 border-dashed' : ''}`}>
-                    {/* Rotate Handle (Moved to Bottom) - Only show if showHandles is true */}
+                    {/* Rotate Handle */}
                     {showHandles && (
                         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm" onMouseDown={(e) => handleMouseDown(e, el.id, 'rotate')}>
                             <RefreshCw className="w-3 h-3 text-indigo-600" />
                         </div>
                     )}
-                    {/* Resize Handles - Only show if showHandles is true */}
+                    {/* Resize Handles */}
                     {showHandles && ['nw', 'ne', 'sw', 'se'].map(pos => (
                         <div
                             key={pos}
@@ -113,36 +124,51 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         }}></div>
                 )}
                 {el.type === 'text' && (
-                    <div
-                        ref={contentRef}
-                        className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
-                            el.style?.verticalAlign === 'bottom' ? 'items-end' :
-                                'items-center'
-                            } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
-                                el.style?.textAlign === 'right' ? 'justify-end text-right' :
-                                    'justify-center text-center'
-                            } outline-none cursor-text select-text`}
-                        contentEditable={isEditing}
-                        suppressContentEditableWarning
-                        onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}
-                        style={commonStyle(el)}
-                    >{el.content}</div>
+                    <div className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
+                        el.style?.verticalAlign === 'bottom' ? 'items-end' :
+                            'items-center'
+                        }`}>
+                        <div
+                            ref={contentRef}
+                            className={`w-full outline-none cursor-text select-text ${el.style?.textAlign === 'left' ? 'text-left' :
+                                el.style?.textAlign === 'right' ? 'text-right' :
+                                    'text-center'
+                                }`}
+                            contentEditable={isEditing}
+                            suppressContentEditableWarning
+                            onMouseDown={(e) => {
+                                if (isEditing) e.stopPropagation();
+                            }}
+                            onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerHTML }); setEditingElementId(null); }}
+                            style={style}
+                            dangerouslySetInnerHTML={htmlContent}
+                        />
+                    </div>
                 )}
                 {el.type === 'sticky' && (
                     <div
-                        ref={contentRef}
                         className={`w-full h-full shadow-lg p-4 flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
                             el.style?.verticalAlign === 'bottom' ? 'items-end' :
                                 'items-center'
-                            } ${el.style?.textAlign === 'left' ? 'justify-start text-left' :
-                                el.style?.textAlign === 'right' ? 'justify-end text-right' :
-                                    'justify-center text-center'
-                            } outline-none cursor-text select-text`}
-                        style={{ backgroundColor: el.style?.backgroundColor, ...commonStyle(el) }}
-                        contentEditable={isEditing}
-                        suppressContentEditableWarning
-                        onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}
-                    >{el.content}</div>
+                            }`}
+                        style={{ backgroundColor: el.style?.backgroundColor }}
+                    >
+                        <div
+                            ref={contentRef}
+                            className={`w-full outline-none cursor-text select-text ${el.style?.textAlign === 'left' ? 'text-left' :
+                                el.style?.textAlign === 'right' ? 'text-right' :
+                                    'text-center'
+                                }`}
+                            contentEditable={isEditing}
+                            suppressContentEditableWarning
+                            onMouseDown={(e) => {
+                                if (isEditing) e.stopPropagation();
+                            }}
+                            onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerHTML }); setEditingElementId(null); }}
+                            style={style}
+                            dangerouslySetInnerHTML={htmlContent}
+                        />
+                    </div>
                 )}
                 {el.type === 'code' && (
                     <div className="w-full h-full bg-[#1e1e1e] rounded-xl flex flex-col font-mono text-sm border-4 border-gray-800 overflow-hidden">

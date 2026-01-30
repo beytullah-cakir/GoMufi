@@ -22,7 +22,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ current, onUpdate, setActiveC
                     onClick={() => { onUpdate(c); setActiveColorPickerId(null); }}
                     className="w-5 h-5 rounded-full border border-gray-600 hover:scale-125 transition-transform"
                     style={{ backgroundColor: c }}
-                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                 />
             ))}
             <div className="w-full h-[1px] bg-gray-700 my-1" />
@@ -50,9 +50,10 @@ interface ContextMenuProps {
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
     deleteElement: (id: string) => void;
+    editingElementId: string | null;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement, editingElementId }) => {
 
     if (!canvasRect || elements.length === 0) return null;
 
@@ -69,7 +70,50 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
             if (['shape', 'sticky'].includes(el.type)) {
                 updateElementStyle(el.id, { backgroundColor: color });
             } else {
-                updateElementStyle(el.id, { color: color });
+                // If we are currently editing THIS element, use execCommand for partial color
+                if (editingElementId === el.id) {
+                    document.execCommand('foreColor', false, color);
+                } else {
+                    // Object Mode: Apply color globally AND strip existing color formatting from content
+                    // This ensures the global color change overrides specific previous colors
+                    let newContent = el.content;
+                    if (el.type === 'text' || el.type === 'sticky') {
+                        const div = document.createElement('div');
+                        div.innerHTML = el.content;
+                        const styledEls = div.querySelectorAll('*');
+                        styledEls.forEach((node) => {
+                            if (node instanceof HTMLElement) {
+                                // Remove inline color style
+                                node.style.removeProperty('color');
+                                // Remove deprecated font color attribute
+                                if (node.getAttribute('color')) {
+                                    node.removeAttribute('color');
+                                }
+                                // If style is empty after removal, clean it up
+                                if (!node.getAttribute('style')) {
+                                    node.removeAttribute('style');
+                                }
+                            }
+                        });
+                        // Unwrap <font> tags if they are empty of attributes (optional, but cleaner)
+                        div.querySelectorAll('font').forEach(font => {
+                            if (!font.hasAttributes()) {
+                                const parent = font.parentNode;
+                                if (parent) {
+                                    while (font.firstChild) parent.insertBefore(font.firstChild, font);
+                                    parent.removeChild(font);
+                                }
+                            }
+                        });
+                        newContent = div.innerHTML;
+                    }
+
+                    // Update both style and content
+                    updateElement(el.id, {
+                        content: newContent,
+                        style: { ...el.style, color: color }
+                    });
+                }
             }
         });
     };
@@ -154,9 +198,35 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                 {/* B/I/U */}
                 {allText && (
                     <div className="flex gap-0.5">
-                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ bold: !firstEl.style?.bold }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.bold ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Bold className="w-4 h-4" /></button>
-                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ italic: !firstEl.style?.italic }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.italic ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Italic className="w-4 h-4" /></button>
-                        <button onMouseDown={(e) => { e.stopPropagation(); bulkUpdateStyle({ underline: !firstEl.style?.underline }) }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.underline ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Underline className="w-4 h-4" /></button>
+                        <button onMouseDown={(e) => {
+                            e.preventDefault(); // Prevent losing focus
+                            e.stopPropagation();
+                            if (editingElementId === firstEl.id) {
+                                document.execCommand('bold');
+                            } else {
+                                bulkUpdateStyle({ bold: !firstEl.style?.bold });
+                            }
+                        }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.bold ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Bold className="w-4 h-4" /></button>
+
+                        <button onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (editingElementId === firstEl.id) {
+                                document.execCommand('italic');
+                            } else {
+                                bulkUpdateStyle({ italic: !firstEl.style?.italic });
+                            }
+                        }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.italic ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Italic className="w-4 h-4" /></button>
+
+                        <button onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (editingElementId === firstEl.id) {
+                                document.execCommand('underline');
+                            } else {
+                                bulkUpdateStyle({ underline: !firstEl.style?.underline });
+                            }
+                        }} className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.style?.underline ? 'text-yellow-400 bg-gray-800' : 'text-gray-300'}`}><Underline className="w-4 h-4" /></button>
                     </div>
                 )}
 
@@ -164,6 +234,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                 <div className="relative">
                     <button
                         onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : 'multi-color'); }}
+                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                         className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
                         style={{ backgroundColor: (['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color) || 'white' }}
                     />
@@ -188,17 +259,18 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                         <div className="relative">
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsAlignMenuOpen(!isAlignMenuOpen); setActiveColorPickerId(null); }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 className={`p-1.5 rounded hover:bg-gray-700 ${isAlignMenuOpen ? 'text-indigo-400 bg-gray-800' : 'text-gray-300'}`}
                             >
                                 <AlignLeft className="w-4 h-4" />
                             </button>
                             {isAlignMenuOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
-                                    <div className="bg-gray-900 p-2 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-2 w-32" onMouseDown={(e) => e.stopPropagation()}>
+                                    <div className="bg-gray-900 p-2 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-2 w-32" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
                                         <div className="flex justify-between bg-gray-800 rounded p-1">
-                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignLeft className="w-4 h-4" /></button>
-                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.textAlign || firstEl.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`}><AlignCenter className="w-4 h-4" /></button>
-                                            <button onClick={() => bulkUpdateStyle({ textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignRight className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignLeft className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.textAlign || firstEl.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`}><AlignCenter className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignRight className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 </div>
@@ -214,6 +286,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                         <div className="relative">
                             <button
                                 onClick={(e) => { e.stopPropagation(); setIsBorderMenuOpen(!isBorderMenuOpen); setActiveColorPickerId(null); }}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
                                 className={`p-1.5 rounded hover:bg-gray-700 ${isBorderMenuOpen ? 'text-indigo-400 bg-gray-800' : 'text-gray-300'}`}
                             >
                                 <Frame className="w-4 h-4" />

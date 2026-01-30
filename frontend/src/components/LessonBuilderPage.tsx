@@ -633,7 +633,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     if (!e.shiftKey) setSelectedElementIds([]);
                     setSelectionBox({ startX: mouseX, startY: mouseY, currentX: mouseX, currentY: mouseY });
 
-                    setEditingElementId(null);
                     setActiveColorPickerId(null);
                 }
             }}
@@ -687,6 +686,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             updateElementStyle={updateElementStyle}
                             updateElement={updateElement}
                             deleteElement={deleteElement}
+                            editingElementId={editingElementId}
                         />
                     ) : null;
                 })()
