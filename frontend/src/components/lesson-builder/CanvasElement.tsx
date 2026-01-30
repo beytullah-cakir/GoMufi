@@ -1,5 +1,5 @@
-import React from 'react';
-import { RefreshCw, Image as ImageIcon, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef } from 'react';
+import { RefreshCw, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface CanvasElementProps {
@@ -15,8 +15,21 @@ interface CanvasElementProps {
 
 const CanvasElement: React.FC<CanvasElementProps> = ({
     el, isSelected, isEditing,
-    setEditingElementId, updateElement, updateElementStyle, deleteElement, handleMouseDown
+    setEditingElementId, updateElement, handleMouseDown
 }) => {
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (isEditing && contentRef.current) {
+            contentRef.current.focus();
+            // Optional: Select all text or place cursor at end
+            const range = document.createRange();
+            range.selectNodeContents(contentRef.current);
+            const sel = window.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+        }
+    }, [isEditing]);
 
     const commonStyle = (el: SlideElement): React.CSSProperties => ({
         fontWeight: el.style?.bold ? 'bold' : 'normal',
@@ -33,6 +46,12 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 '"Patrick Hand", cursive',
         textAlign: el.style?.textAlign || 'center'
     });
+
+    const getYoutubeId = (url: string) => {
+        const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
+        const match = url.match(regExp);
+        return (match && match[2].length === 11) ? match[2] : null;
+    };
 
     return (
         <div
@@ -65,26 +84,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                             onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', pos)}
                         />
                     ))}
-
-                    {/* Quick Tools (Delete & Color for Shapes) - Moved to Top */}
-                    <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-white rounded-lg shadow-xl border border-gray-200 p-1 flex items-center gap-1 pointer-events-auto">
-
-                        {/* BG Color for Shapes/Sticky */}
-                        {['sticky', 'shape'].includes(el.type) && (
-                            <div className="w-6 h-6 rounded overflow-hidden relative border border-gray-600 cursor-pointer hover:border-white">
-                                <input
-                                    type="color"
-                                    className="absolute inset-0 w-[150%] h-[150%] -left-1/4 -top-1/4 p-0 cursor-pointer"
-                                    value={el.style?.backgroundColor || '#ffffff'}
-                                    onChange={(e) => updateElementStyle(el.id, { backgroundColor: e.target.value })}
-                                    onMouseDown={(e) => e.stopPropagation()}
-                                />
-                            </div>
-                        )}
-
-                        <div className="w-[1px] h-6 bg-gray-700 mx-1" />
-                        <button onMouseDown={(e) => { e.stopPropagation(); deleteElement(el.id); }} className="text-red-400 hover:bg-red-900/40 p-1.5 rounded"><Trash2 className="w-4 h-4" /></button>
-                    </div>
                 </div>
             )}
 
@@ -92,17 +91,24 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             <div
                 className="w-full h-full overflow-hidden"
                 onDoubleClick={(e) => {
-                    if (['text', 'sticky', 'code'].includes(el.type)) {
+                    if (['text', 'sticky', 'code', 'video'].includes(el.type)) {
                         e.stopPropagation(); setEditingElementId(el.id);
                     }
                 }}
             >
                 {el.type === 'shape' && (
-                    <div className={`w-full h-full border-4 border-gray-800 ${el.shapeType === 'circle' ? 'rounded-full' : 'rounded-2xl'}`} style={{ backgroundColor: el.style?.backgroundColor }}></div>
+                    <div className={`w-full h-full ${el.shapeType === 'circle' ? 'rounded-full' : ''}`}
+                        style={{
+                            backgroundColor: el.style?.backgroundColor,
+                            borderRadius: el.style?.borderRadius ? `${el.style.borderRadius}px` : undefined,
+                            borderWidth: el.style?.borderWidth ? `${el.style.borderWidth}px` : '4px',
+                            borderColor: el.style?.borderColor || '#1f2937'
+                        }}></div>
                 )}
                 {el.type === 'text' && (
                     <div
-                        className={`w-full h-full flex items-center justify-center outline-none ${!isEditing && 'pointer-events-none'}`}
+                        ref={contentRef}
+                        className={`w-full h-full flex items-center justify-center outline-none cursor-text select-text`}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
                         onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}
@@ -111,7 +117,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 )}
                 {el.type === 'sticky' && (
                     <div
-                        className={`w-full h-full shadow-lg p-4 flex items-center justify-center outline-none ${!isEditing && 'pointer-events-none'}`}
+                        ref={contentRef}
+                        className={`w-full h-full shadow-lg p-4 flex items-center justify-center outline-none cursor-text select-text`}
                         style={{ backgroundColor: el.style?.backgroundColor, ...commonStyle(el) }}
                         contentEditable={isEditing}
                         suppressContentEditableWarning
@@ -121,12 +128,40 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 {el.type === 'code' && (
                     <div className="w-full h-full bg-[#1e1e1e] rounded-xl flex flex-col font-mono text-sm border-4 border-gray-800 overflow-hidden">
                         <div className="bg-[#252526] px-2 py-1 flex gap-1"><div className="w-2 h-2 rounded bg-red-500" /><div className="w-2 h-2 rounded bg-yellow-500" /></div>
-                        <div contentEditable={isEditing} suppressContentEditableWarning className={`p-2 flex-1 text-gray-100 outline-none ${!isEditing && 'pointer-events-none'}`} onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}>{el.content}</div>
+                        <div ref={contentRef} contentEditable={isEditing} suppressContentEditableWarning className={`p-2 flex-1 text-gray-100 outline-none select-text ${!isEditing && 'pointer-events-none'}`} onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}>{el.content}</div>
                     </div>
                 )}
                 {(el.type === 'image' || el.type === 'video') && (
-                    <div className="w-full h-full bg-gray-100 rounded-2xl border-2 border-dashed border-gray-300 flex items-center justify-center">
-                        {el.src ? <img src={el.src} className="w-full h-full object-cover pointer-events-none" /> : <ImageIcon className="text-gray-300 w-10 h-10" />}
+                    <div className="w-full h-full bg-gray-100 flex items-center justify-center overflow-hidden"
+                        style={{
+                            borderRadius: el.style?.borderRadius ? `${el.style.borderRadius}px` : '16px',
+                            borderWidth: (el.style?.borderWidth !== undefined) ? `${el.style.borderWidth}px` : (el.type === 'image' ? '2px' : '2px'),
+                            borderColor: el.style?.borderColor || '#d1d5db',
+                            borderStyle: el.src ? 'solid' : 'dashed'
+                        }}
+                    >
+                        {el.type === 'image' ? (
+                            el.src ? <img src={el.src} className="w-full h-full object-cover pointer-events-none" /> : <ImageIcon className="text-gray-300 w-10 h-10" />
+                        ) : (
+                            el.src ? (
+                                getYoutubeId(el.src) ? (
+                                    <iframe
+                                        width="100%"
+                                        height="100%"
+                                        src={`https://www.youtube.com/embed/${getYoutubeId(el.src)}`}
+                                        title="YouTube video player"
+                                        frameBorder="0"
+                                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                        allowFullScreen
+                                        className={isEditing ? "pointer-events-auto" : "pointer-events-none"}
+                                    />
+                                ) : (
+                                    <video src={el.src} controls className={`w-full h-full object-cover ${isEditing ? "pointer-events-auto" : "pointer-events-none"}`} />
+                                )
+                            ) : (
+                                <VideoIcon className="text-gray-500 w-10 h-10" />
+                            )
+                        )}
                     </div>
                 )}
             </div>

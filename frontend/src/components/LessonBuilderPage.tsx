@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, Home, Minus, Plus as PlusIcon } from 'lucide-react';
+import { Download, Upload, Home, Minus, Plus as PlusIcon, Trash2, Plus } from 'lucide-react';
 import type { Slide, SlideElement, ElementStyle } from './lesson-builder/types';
 import Toolbar from './lesson-builder/Toolbar';
 import ContextMenu from './lesson-builder/ContextMenu';
@@ -102,6 +102,25 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSelectedElementId(null);
     };
 
+    const addSlide = () => {
+        const newId = (slides[slides.length - 1]?.id || 0) + 1;
+        setSlides(prev => [...prev, { id: newId, elements: [] }]);
+        setCurrentSlideId(newId);
+    };
+
+    const deleteSlide = (e: React.MouseEvent, id: number) => {
+        e.stopPropagation();
+        if (slides.length <= 1) {
+            alert("Cannot delete the only slide!");
+            return;
+        }
+        const newSlides = slides.filter(s => s.id !== id);
+        setSlides(newSlides);
+        if (currentSlideId === id) {
+            setCurrentSlideId(newSlides[0].id);
+        }
+    };
+
     // -- Handlers --
 
     const handleToolbarDragStart = (e: React.DragEvent, type: string, extraData: any = {}) => {
@@ -132,10 +151,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             };
 
             const size = sizes[type] || { w: 100, h: 100 };
-            const props = {
+            const props: Partial<SlideElement> = {
                 'text': { content: 'Double click to edit', style: baseStyle },
-                'code': { content: 'print("Hello")', style: { ...baseStyle, fontFamily: 'Fira Code', fontSize: 14 } },
-                'sticky': { content: 'Note...', style: { ...baseStyle, backgroundColor: '#fef3c7', fontFamily: 'Patrick Hand' } },
+                'code': { content: 'print("Hello")', style: { ...baseStyle, fontFamily: 'Fira Code' as const, fontSize: 14 } },
+                'sticky': { content: 'Note...', style: { ...baseStyle, backgroundColor: '#fef3c7', fontFamily: 'Patrick Hand' as const } },
                 'shape': { content: '', shapeType: extraData.shapeType || 'rectangle', style: { backgroundColor: '#e2e8f0' } },
                 'image': { content: '' },
                 'video': { content: '' }
@@ -149,6 +168,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 width: size.w,
                 height: size.h,
                 rotation: 0,
+                content: '',
                 ...props
             };
 
@@ -163,7 +183,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         if (editingElementId === id && action === 'drag') return;
 
         e.stopPropagation();
-        e.preventDefault();
+        // e.preventDefault(); // Removed to allow dblclick and focus
         setSelectedElementId(id);
         if (action !== 'rotate') setActiveColorPickerId(null);
 
@@ -248,7 +268,25 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             const angle = Math.atan2(e.clientY - currentCy, e.clientX - currentCx);
             const degree = angle * (180 / Math.PI);
 
-            let finalRotation = degree + 90;
+            // Calculate the new rotation based on the difference from the start
+            // We need to know the angle at the START of the drag to apply the delta
+            // But here we are setting absolute rotation based on mouse position relative to center
+            // To fix "flipping", we should probably set the rotation to (currentAngle - initialMouseAngle + initialElementRotation)
+
+            // However, a simpler standard approach for rotation handles (which are usually at the bottom or top)
+            // is to treat the handle position as the anchor.
+            // If the handle is at the bottom (90 deg), and we click it, the mouse is at 90 deg.
+            // If the element is 0 deg, the handle is at 90 deg.
+            // If the element is 180 deg, the handle is at 270 deg (-90).
+
+            // Let's use the delta approach for smoother non-snapping rotation
+            // We need `startAngle` in state. Let's add it to `handleMouseDown` logic first.
+            // actually, let's keep it simple: 
+            // The handle is at the BOTTOM. So the mouse angle relative to center should correspond to the element rotation + 90.
+            // So Element Rotation = Mouse Angle - 90.
+
+            let finalRotation = degree - 90; // Correction for handle being at bottom (90 degrees)
+
             if (e.shiftKey) {
                 finalRotation = Math.round(finalRotation / 45) * 45;
             }
@@ -299,6 +337,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             activeColorPickerId={activeColorPickerId}
                             setActiveColorPickerId={setActiveColorPickerId}
                             updateElementStyle={updateElementStyle}
+                            updateElement={updateElement}
+                            deleteElement={deleteElement}
                         />
                     ) : null;
                 })()
@@ -337,6 +377,44 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><Minus className="w-5 h-5" /></button>
                 <span className="text-xs font-black w-12 text-center text-gray-800">{Math.round(scale * 100)}%</span>
                 <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><PlusIcon className="w-5 h-5" /></button>
+            </div>
+
+            {/* SLIDE STRIP - Restored */}
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]">
+                {slides.map((s, idx) => (
+                    <div
+                        key={s.id}
+                        onClick={() => setCurrentSlideId(s.id)}
+                        className={`
+                            w-32 h-20 rounded-xl border-2 cursor-pointer relative group transition-all shrink-0
+                            ${currentSlideId === s.id ? 'border-indigo-500 shadow-indigo-200 shadow-lg scale-105 z-10' : 'border-gray-200 hover:border-gray-300 hover:scale-102'}
+                            bg-white flex items-center justify-center overflow-hidden
+                        `}
+                    >
+                        <span className={`text-2xl font-black ${currentSlideId === s.id ? 'text-indigo-100' : 'text-gray-100'}`}>{idx + 1}</span>
+                        {/* Mini Preview (Simulated with element count) */}
+                        <div className="absolute inset-0 flex flex-wrap gap-0.5 p-1 content-start opacity-30">
+                            {s.elements.slice(0, 5).map(e => (
+                                <div key={e.id} className="w-2 h-2 rounded-full bg-gray-400" />
+                            ))}
+                        </div>
+
+                        {/* Delete Slide Button */}
+                        <button
+                            onClick={(e) => deleteSlide(e, s.id)}
+                            className="absolute top-1 right-1 p-1 bg-red-100 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                        >
+                            <Trash2 className="w-3 h-3" />
+                        </button>
+                    </div>
+                ))}
+                <button
+                    onClick={addSlide}
+                    className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-all shrink-0"
+                >
+                    <Plus className="w-6 h-6" />
+                    <span className="text-xs font-bold">New</span>
+                </button>
             </div>
         </div>
     );

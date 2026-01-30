@@ -7,6 +7,9 @@ export interface ElementStyle {
     fontFamily?: 'Patrick Hand' | 'Inter' | 'Fira Code' | 'Fredoka' | 'Comic Neue' | 'Bangers' | 'Pacifico';
     backgroundColor?: string;
     textAlign?: 'left' | 'center' | 'right';
+    borderRadius?: number;
+    borderColor?: string;
+    borderWidth?: number;
 }
 
 export interface SlideElement {

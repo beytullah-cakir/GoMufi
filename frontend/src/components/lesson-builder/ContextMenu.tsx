@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bold, Italic, Underline, Grid } from 'lucide-react';
+import { Bold, Italic, Underline, Grid, Trash2 } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
@@ -7,9 +7,21 @@ interface ColorPickerProps {
     current?: string;
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
     setActiveColorPickerId: (id: string | null) => void;
+    elType: string;
 }
 
-const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementStyle, setActiveColorPickerId }) => {
+const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementStyle, setActiveColorPickerId, elType }) => {
+    const isBorder = elType === 'border';
+    const updateColor = (color: string) => {
+        if (isBorder) {
+            updateElementStyle(id, { borderColor: color });
+        } else if (['shape', 'sticky'].includes(elType)) {
+            updateElementStyle(id, { backgroundColor: color });
+        } else {
+            updateElementStyle(id, { color });
+        }
+        setActiveColorPickerId(null);
+    };
     const colors = [
         '#1f2937', '#ffffff', '#ef4444', '#f97316', '#f59e0b', '#84cc16', '#10b981', '#06b6d4',
         '#3b82f6', '#6366f1', '#8b5cf6', '#d946ef', '#f43f5e', '#881337', '#78350f'
@@ -19,7 +31,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementSty
             {colors.map(c => (
                 <button
                     key={c}
-                    onClick={() => { updateElementStyle(id, { color: c }); setActiveColorPickerId(null); }}
+                    onClick={() => updateColor(c)}
                     className="w-5 h-5 rounded-full border border-gray-600 hover:scale-125 transition-transform"
                     style={{ backgroundColor: c }}
                     onMouseDown={(e) => e.stopPropagation()}
@@ -32,7 +44,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ id, current, updateElementSty
                 <input
                     type="color"
                     value={current || '#000000'}
-                    onChange={(e) => updateElementStyle(id, { color: e.target.value })}
+                    onChange={(e) => updateColor(e.target.value)}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     onMouseDown={(e) => e.stopPropagation()}
                 />
@@ -48,9 +60,11 @@ interface ContextMenuProps {
     activeColorPickerId: string | null;
     setActiveColorPickerId: (id: string | null) => void;
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
+    updateElement: (id: string, updates: Partial<SlideElement>) => void;
+    deleteElement: (id: string) => void;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement }) => {
 
     if (!canvasRect) return null;
 
@@ -119,16 +133,95 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ el, scale, canvasRect, active
                     <button
                         onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : el.id); }}
                         className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
-                        style={{ backgroundColor: el.style?.color || 'white' }}
+                        style={{ backgroundColor: (['shape', 'sticky'].includes(el.type) ? el.style?.backgroundColor : el.style?.color) || 'white' }}
                     />
 
                     {/* Dropdown */}
                     {isColorPickerOpen && (
                         <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
-                            <ColorPicker id={el.id} current={el.style?.color} updateElementStyle={updateElementStyle} setActiveColorPickerId={setActiveColorPickerId} />
+                            <ColorPicker
+                                id={el.id}
+                                current={(['shape', 'sticky'].includes(el.type) ? el.style?.backgroundColor : el.style?.color)}
+                                updateElementStyle={updateElementStyle}
+                                setActiveColorPickerId={setActiveColorPickerId}
+                                elType={el.type}
+                            />
                         </div>
                     )}
                 </div>
+
+                {/* Border Settings (Radius, Width, Color) - for Shapes, Images, Videos */}
+                {['shape', 'image', 'video'].includes(el.type) && (
+                    <>
+                        <div className="w-[1px] h-6 bg-gray-700 mx-1" />
+
+                        {/* Radius */}
+                        <div className="flex flex-col gap-1 w-16">
+                            <span className="text-[10px] text-gray-400">Round</span>
+                            <input
+                                type="range" min="0" max="50"
+                                value={el.style?.borderRadius ?? (el.type === 'shape' && el.shapeType === 'circle' ? 50 : 0)}
+                                onChange={(e) => updateElementStyle(el.id, { borderRadius: parseInt(e.target.value) })}
+                                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                onMouseDown={(e) => e.stopPropagation()}
+                            />
+                        </div>
+
+                        {/* Border Width */}
+                        <div className="flex flex-col gap-1 w-16">
+                            <span className="text-[10px] text-gray-400">Border</span>
+                            <input
+                                type="range" min="0" max="20"
+                                value={el.style?.borderWidth ?? 0}
+                                onChange={(e) => updateElementStyle(el.id, { borderWidth: parseInt(e.target.value) })}
+                                className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer"
+                                onMouseDown={(e) => e.stopPropagation()}
+                            />
+                        </div>
+
+                        {/* Border Color */}
+                        <div className="relative">
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === `border-${el.id}` ? null : `border-${el.id}`); }}
+                                className={`w-6 h-6 rounded border-2 transition-colors block ${activeColorPickerId === `border-${el.id}` ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
+                                style={{ backgroundColor: el.style?.borderColor || 'transparent' }}
+                            />
+                            {activeColorPickerId === `border-${el.id}` && (
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
+                                    <ColorPicker
+                                        id={el.id}
+                                        current={el.style?.borderColor}
+                                        updateElementStyle={updateElementStyle}
+                                        setActiveColorPickerId={setActiveColorPickerId}
+                                        elType="border"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+
+                {/* Image/Video URL Input */}
+                {['image', 'video'].includes(el.type) && (
+                    <input
+                        type="text"
+                        placeholder="https://..."
+                        className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 w-40 outline-none text-white focus:border-indigo-500 transition-colors"
+                        value={el.src || ''}
+                        onChange={(e) => updateElement(el.id, { src: e.target.value })}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()} // Prevent triggering shortcuts
+                    />
+                )}
+
+                {/* Divider & Delete */}
+                <div className="w-[1px] h-6 bg-gray-700 mx-1" />
+                <button
+                    onMouseDown={(e) => { e.stopPropagation(); deleteElement(el.id); }}
+                    className="text-red-400 hover:bg-red-900/40 p-1.5 rounded transition-colors"
+                >
+                    <Trash2 className="w-4 h-4" />
+                </button>
             </div>
         </div>
     );
