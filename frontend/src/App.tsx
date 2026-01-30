@@ -4,6 +4,7 @@ import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
 import ProfilePage from './components/ProfilePage';
 import ContentPage from './components/ContentPage';
+import LessonBuilderPage from './components/LessonBuilderPage';
 import MufiSleep from './assets/sprites/MufiSleep.png';
 
 // Import Types
@@ -256,14 +257,16 @@ function App() {
   return (
     <>
       <div className="flex flex-col h-screen bg-white font-sans text-gray-900 overflow-hidden">
-        <Navbar
-          activePage={activePage}
-          onNavigate={setActivePage}
-          currentCourse={currentCourse}
-          activeCourseId={activeCourseId}
-          courses={courses}
-          onCourseChange={handleCourseChange}
-        />
+        {activePage !== 'Builder' && (
+          <Navbar
+            activePage={activePage}
+            onNavigate={setActivePage}
+            currentCourse={currentCourse}
+            activeCourseId={activeCourseId}
+            courses={courses}
+            onCourseChange={handleCourseChange}
+          />
+        )}
 
         <div className="flex-1 overflow-hidden relative w-full">
           {activePage === 'Ana Sayfa' ? (
@@ -280,6 +283,8 @@ function App() {
             <ProfilePage />
           ) : activePage === 'İÇERİK' || activePage === 'İçerik' ? (
             <ContentPage />
+          ) : activePage === 'Builder' ? (
+            <LessonBuilderPage onExit={() => setActivePage('Ana Sayfa')} />
           ) : (
             <div className="p-8">
               <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
@@ -291,7 +296,7 @@ function App() {
 
       {/* Sleeping User Widget (Global Fixed - Outside App Layout) */}
       {activePage === 'Ana Sayfa' && (
-        <div className="fixed bottom-0 right-0 z-[99999] pointer-events-none origin-bottom-right m-0 p-0">
+        <div className="fixed bottom-0 right-0 z-[90] pointer-events-none origin-bottom-right m-0 p-0">
           <div className="relative">
             <div className="absolute top-2 right-12 z-20 flex flex-col items-center">
               <span className="text-3xl font-black text-sky-400 animate-zzz font-display leading-none">Z</span>

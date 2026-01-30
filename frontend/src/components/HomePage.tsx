@@ -6,6 +6,7 @@ import GrassIcon from '../assets/sprites/grass.png';
 
 
 import GameOverlay from './GameOverlay';
+import LessonSlide from './LessonSlide';
 import type { CourseData, PathNode } from '../types';
 
 interface HomePageProps {
@@ -34,6 +35,10 @@ const HomePage: React.FC<HomePageProps> = ({
     // Game Overlay State
     const [showGameOverlay, setShowGameOverlay] = useState(false);
     const [gameLevel, setGameLevel] = useState<number | null>(null);
+
+    // Lesson Slide State
+    const [showLessonSlide, setShowLessonSlide] = useState(false);
+    const [lessonLevel, setLessonLevel] = useState<number | null>(null);
 
     // Initialize/Update Header when currentCourse changes
     useEffect(() => {
@@ -76,9 +81,26 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowGameOverlay(true);
     };
 
+    const handleOpenLesson = (levelId: number) => {
+        setLessonLevel(levelId);
+        setShowLessonSlide(true);
+    };
+
+    const handleLessonComplete = () => {
+        setShowLessonSlide(false);
+        if (lessonLevel !== null) {
+            handleStartGame(lessonLevel);
+        }
+    };
+
     const handleCloseGame = () => {
         setShowGameOverlay(false);
         setGameLevel(null);
+    };
+
+    const handleCloseLesson = () => {
+        setShowLessonSlide(false);
+        setLessonLevel(null);
     };
 
     const handleGameComplete = (stars: number) => {
@@ -354,7 +376,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             className="relative w-12 h-12 group/btn cursor-pointer transition-transform active:scale-95"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleStartGame(node.id);
+                                                                handleOpenLesson(node.id);
                                                             }}
                                                         >
                                                             <div className="absolute inset-x-0 bottom-0 h-12 rounded-full" style={{ backgroundColor: node.strokeColor, filter: 'brightness(0.6)' }}></div>
@@ -368,7 +390,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             className="text-gray-500 font-black font-display text-xl whitespace-nowrap cursor-pointer hover:text-gray-700 transition-colors"
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
-                                                                handleStartGame(node.id);
+                                                                handleOpenLesson(node.id);
                                                             }}
                                                         >
                                                             Teste Başla !
@@ -504,6 +526,14 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
             </div>
 
+
+            {/* LESSON SLIDE OVERLAY */}
+            <LessonSlide
+                isOpen={showLessonSlide}
+                lessonTitle={currentCourse.nodes.find(n => n.id === lessonLevel)?.title}
+                onClose={handleCloseLesson}
+                onComplete={handleLessonComplete}
+            />
 
             {/* GAME PAGE OVERLAY */}
             <GameOverlay
