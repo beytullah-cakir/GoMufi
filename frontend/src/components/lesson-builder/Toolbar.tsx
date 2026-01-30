@@ -24,7 +24,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
     brushType, setBrushType
 }) => {
     return (
-        <div className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 bg-white p-3 rounded-3xl shadow-xl border-2 border-gray-100">
+        <div
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 bg-white p-3 rounded-3xl shadow-xl border-2 border-gray-100"
+        >
             {/* Tools */}
             <div className="flex flex-col gap-2 mb-2 pb-2 border-b-2 border-gray-100">
                 <button

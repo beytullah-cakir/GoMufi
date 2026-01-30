@@ -46,6 +46,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         initialRotation: number;
         centerX?: number;
         centerY?: number;
+        // Group Rotation
+        initialGroupState?: { id: string, x: number, y: number, width: number, height: number, rotation: number, centerX: number, centerY: number }[];
+        groupCenter?: { x: number, y: number };
+        startAngle?: number;
     }>({
         isDragging: false, isResizing: false, isRotating: false, pendingDrag: false,
         startX: 0, startY: 0, initialX: 0, initialY: 0,
@@ -132,6 +136,49 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         }
     };
 
+    // Helper to get corners of a rotated rectangle
+    const getRotatedCorners = (x: number, y: number, w: number, h: number, rotation: number) => {
+        const cx = x + w / 2;
+        const cy = y + h / 2;
+        const rad = rotation * (Math.PI / 180);
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+
+        const corners = [
+            { x: x, y: y },         // TL
+            { x: x + w, y: y },     // TR
+            { x: x + w, y: y + h }, // BR
+            { x: x, y: y + h }      // BL
+        ];
+
+        return corners.map(p => ({
+            x: cx + (p.x - cx) * cos - (p.y - cy) * sin,
+            y: cy + (p.x - cx) * sin + (p.y - cy) * cos
+        }));
+    };
+
+    // Calculate AABB of selected elements (accounting for rotation)
+    const getSelectionBounds = () => {
+        if (selectedElementIds.length === 0) return null;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+
+        const selectedEls = currentSlide.elements.filter(e => selectedElementIds.includes(e.id));
+        if (selectedEls.length === 0) return null;
+
+        selectedEls.forEach(el => {
+            const corners = getRotatedCorners(el.x, el.y, el.width, el.height, el.rotation || 0);
+            corners.forEach(p => {
+                minX = Math.min(minX, p.x);
+                minY = Math.min(minY, p.y);
+                maxX = Math.max(maxX, p.x);
+                maxY = Math.max(maxY, p.y);
+            });
+        });
+
+        return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY, centerX: minX + (maxX - minX) / 2, centerY: minY + (maxY - minY) / 2 };
+    };
+
     // -- Handlers --
 
     const handleToolbarDragStart = (e: React.DragEvent, type: string, extraData: any = {}) => {
@@ -196,11 +243,47 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 e.stopPropagation();
                 setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: s.elements.filter(el => el.id !== id) } : s));
             }
-            return; // Don't select/drag when drawing/erasing
+            return;
         }
         if (editingElementId === id && action === 'drag') return;
 
         e.stopPropagation();
+
+        // Check if we are interacting with the Group Handle (id === 'group')
+        if (id === 'group') {
+            // Group Rotate Initiation
+            const selectedEls = currentSlide.elements.filter(el => selectedElementIds.includes(el.id));
+            if (selectedEls.length === 0) return;
+
+            const bounds = getSelectionBounds();
+            if (!bounds) return;
+
+            const canvasRect = canvasRef.current?.getBoundingClientRect();
+            if (!canvasRect) return;
+
+            const currentCx = canvasRect.left + (bounds.centerX * scale);
+            const currentCy = canvasRect.top + (bounds.centerY * scale);
+            const startAngle = Math.atan2(e.clientY - currentCy, e.clientX - currentCx) * (180 / Math.PI);
+
+            setDragState({
+                isDragging: false, isResizing: false, isRotating: true, pendingDrag: false,
+                elementId: 'group',
+                startX: e.clientX, startY: e.clientY,
+                initialX: 0, initialY: 0, initialWidth: 0, initialHeight: 0, initialRotation: 0,
+
+                groupCenter: { x: bounds.centerX, y: bounds.centerY },
+                startAngle: startAngle,
+                initialGroupState: selectedEls.map(el => ({
+                    id: el.id,
+                    x: el.x, y: el.y,
+                    width: el.width, height: el.height,
+                    rotation: el.rotation || 0,
+                    centerX: el.x + el.width / 2,
+                    centerY: el.y + el.height / 2
+                }))
+            });
+            return;
+        }
 
         // Multi-Selection Logic
         if (e.shiftKey) {
@@ -387,40 +470,87 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             updateElement(dragState.elementId, { x: newX, y: newY, width: newW, height: newH });
         }
 
-        if (isRotating && centerX !== undefined && centerY !== undefined) {
-            const canvasRect = canvasRef.current?.getBoundingClientRect();
-            if (!canvasRect) return;
+        if (isRotating) {
+            if (dragState.elementId === 'group') {
+                // -- GROUP ROTATION --
+                if (!dragState.groupCenter || dragState.startAngle === undefined || !dragState.initialGroupState) return;
 
-            const currentCx = canvasRect.left + (centerX * scale);
-            const currentCy = canvasRect.top + (centerY * scale);
+                const canvasRect = canvasRef.current?.getBoundingClientRect();
+                if (!canvasRect) return;
 
-            const angle = Math.atan2(e.clientY - currentCy, e.clientX - currentCx);
-            const degree = angle * (180 / Math.PI);
+                const currentCx = canvasRect.left + (dragState.groupCenter.x * scale);
+                const currentCy = canvasRect.top + (dragState.groupCenter.y * scale);
+                const currentAngle = Math.atan2(e.clientY - currentCy, e.clientX - currentCx) * (180 / Math.PI);
 
-            // Calculate the new rotation based on the difference from the start
-            // We need to know the angle at the START of the drag to apply the delta
-            // But here we are setting absolute rotation based on mouse position relative to center
-            // To fix "flipping", we should probably set the rotation to (currentAngle - initialMouseAngle + initialElementRotation)
+                let angleDelta = currentAngle - dragState.startAngle;
 
-            // However, a simpler standard approach for rotation handles (which are usually at the bottom or top)
-            // is to treat the handle position as the anchor.
-            // If the handle is at the bottom (90 deg), and we click it, the mouse is at 90 deg.
-            // If the element is 0 deg, the handle is at 90 deg.
-            // If the element is 180 deg, the handle is at 270 deg (-90).
+                if (e.shiftKey) {
+                    // Snapping for group
+                    angleDelta = Math.round(angleDelta / 15) * 15;
+                }
 
-            // Let's use the delta approach for smoother non-snapping rotation
-            // We need `startAngle` in state. Let's add it to `handleMouseDown` logic first.
-            // actually, let's keep it simple: 
-            // The handle is at the BOTTOM. So the mouse angle relative to center should correspond to the element rotation + 90.
-            // So Element Rotation = Mouse Angle - 90.
+                const rad = angleDelta * (Math.PI / 180);
+                const cos = Math.cos(rad);
+                const sin = Math.sin(rad);
 
-            let finalRotation = degree - 90; // Correction for handle being at bottom (90 degrees)
+                const { x: gx, y: gy } = dragState.groupCenter;
 
-            if (e.shiftKey) {
-                finalRotation = Math.round(finalRotation / 45) * 45;
+                setSlides(prev => prev.map(s => {
+                    if (s.id === currentSlideId) {
+                        return {
+                            ...s,
+                            elements: s.elements.map(el => {
+                                const initialState = dragState.initialGroupState?.find(is => is.id === el.id);
+                                if (initialState) {
+                                    // Rotate CENTER
+                                    // relX = cx - gx
+                                    const relX = initialState.centerX - gx;
+                                    const relY = initialState.centerY - gy;
+
+                                    // Rotated Relative
+                                    const newRelX = relX * cos - relY * sin;
+                                    const newRelY = relX * sin + relY * cos;
+
+                                    // New Absolute Center
+                                    const newCx = gx + newRelX;
+                                    const newCy = gy + newRelY;
+
+                                    // New Top-Left
+                                    const newX = newCx - initialState.width / 2;
+                                    const newY = newCy - initialState.height / 2;
+
+                                    const newRot = (initialState.rotation + angleDelta) % 360;
+
+                                    return {
+                                        ...el,
+                                        x: newX,
+                                        y: newY,
+                                        rotation: newRot
+                                    };
+                                }
+                                return el;
+                            })
+                        };
+                    }
+                    return s;
+                }));
+
+            } else {
+                // -- SINGLE ELEMENT ROTATION --
+                if (centerX !== undefined && centerY !== undefined) {
+                    const canvasRect = canvasRef.current?.getBoundingClientRect();
+                    if (!canvasRect) return;
+
+                    const currentCx = canvasRect.left + (centerX * scale);
+                    const currentCy = canvasRect.top + (centerY * scale);
+                    const angle = Math.atan2(e.clientY - currentCy, e.clientX - currentCx);
+                    const degree = angle * (180 / Math.PI);
+
+                    let finalRotation = degree - 90;
+                    if (e.shiftKey) finalRotation = Math.round(finalRotation / 45) * 45;
+                    updateElement(dragState.elementId, { rotation: finalRotation });
+                }
             }
-
-            updateElement(dragState.elementId, { rotation: finalRotation });
         }
     };
 
@@ -472,6 +602,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSelectionBox(null);
     };
 
+    const bounds = getSelectionBounds(); // For Group Overlay
+
     return (
         <div
             className="w-full h-screen bg-[#f5f5f7] font-sans flex overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
@@ -506,20 +638,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 }
             }}
         >
+            {/* STYLES */}
             <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Fredoka:wght@300;400;500;600&family=Pacifico&family=Patrick+Hand&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
-                
-                /* Custom Eraser Cursor - base64 encoded SVG */
-                .cursor-eraser {
-                    cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto;
-                }
+                .cursor-eraser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto; }
             `}</style>
 
             {/* HEADER & ACTIONS */}
-            <div className="absolute top-4 left-4 z-50 flex items-center gap-4">
+            <div className="absolute top-4 left-4 z-50 flex items-center gap-4" onMouseDown={(e) => e.stopPropagation()}>
                 <button onClick={onExit} className="w-12 h-12 bg-white rounded-2xl border-2 border-b-4 border-gray-200 hover:border-gray-300 text-gray-600 flex items-center justify-center transition-all"><Home className="w-6 h-6" /></button>
             </div>
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <div className="absolute top-4 right-4 z-50 flex items-center gap-2" onMouseDown={(e) => e.stopPropagation()}>
                 <button onClick={saveProject} className="flex items-center gap-2 px-4 py-3 bg-white rounded-2xl border-2 border-b-4 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-sm transition-all"><Download className="w-5 h-5" /><span>Kaydet</span></button>
                 <label className="flex items-center gap-2 px-4 py-3 bg-indigo-500 rounded-2xl border-2 border-b-4 border-indigo-700 hover:bg-indigo-600 text-white font-bold text-sm cursor-pointer transition-all shadow-indigo-200 shadow-lg"><Upload className="w-5 h-5" /><span>Yükle</span><input type="file" accept=".json" onChange={loadProject} className="hidden" ref={fileInputRef} /></label>
             </div>
@@ -535,14 +664,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 brushType={brushType}
                 setBrushType={(type) => {
                     setBrushType(type);
-                    if (type === 'pen') {
-                        setBrushOpacity(1);
-                        if (brushColor === '#ffffff') setBrushColor('#1f2937'); // Reset if was eraser
-                    } else if (type === 'highlighter') {
-                        setBrushOpacity(0.5);
-                        setBrushSize(15);
-                        setBrushColor('#f59e0b'); // Yellow default
-                    } else if (type === 'eraser') {
+                    if (type === 'pen') { setBrushOpacity(1); if (brushColor === '#ffffff') setBrushColor('#1f2937'); }
+                    else if (type === 'highlighter') { setBrushOpacity(0.5); setBrushSize(15); setBrushColor('#f59e0b'); }
+                    else if (type === 'eraser') {
                         // Eraser now acts as a delete tool
                         // We don't need to change color/opacity, just the mode
                     }
@@ -594,15 +718,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     {/* Active Drawing Preview */}
                     {isDrawing && currentPathPoints.length > 1 && (
                         <svg className="absolute inset-0 w-full h-full pointer-events-none z-[100]">
-                            <path
-                                d={`M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`}
-                                fill="none"
-                                stroke={brushColor}
-                                strokeWidth={brushSize}
-                                strokeOpacity={brushOpacity}
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                            />
+                            <path d={`M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`} fill="none" stroke={brushColor} strokeWidth={brushSize} strokeOpacity={brushOpacity} strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                     )}
 
@@ -610,13 +726,28 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     {selectionBox && (
                         <div
                             className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-[100]"
-                            style={{
-                                left: Math.min(selectionBox.startX, selectionBox.currentX),
-                                top: Math.min(selectionBox.startY, selectionBox.currentY),
-                                width: Math.abs(selectionBox.currentX - selectionBox.startX),
-                                height: Math.abs(selectionBox.currentY - selectionBox.startY)
-                            }}
+                            style={{ left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY) }}
                         />
+                    )}
+
+                    {/* Group Selection Overlay */}
+                    {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
+                        <div className="absolute border-2 border-indigo-500 z-40 pointer-events-none"
+                            style={{
+                                left: bounds.minX,
+                                top: bounds.minY,
+                                width: bounds.width,
+                                height: bounds.height
+                            }}
+                        >
+                            {/* Group Rotation Handle */}
+                            <div
+                                className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm"
+                                onMouseDown={(e) => handleMouseDown(e, 'group', 'rotate')}
+                            >
+                                <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                            </div>
+                        </div>
                     )}
 
                     {currentSlide.elements.map(el => (
@@ -630,20 +761,27 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             updateElementStyle={updateElementStyle}
                             deleteElement={deleteElement}
                             handleMouseDown={handleMouseDown}
+                            showHandles={selectedElementIds.length === 1} // Hide individual handles if multi-selected
                         />
                     ))}
                 </div>
             </div>
 
             {/* ZOOM Buttons */}
-            <div className="absolute bottom-4 right-4 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2">
+            <div
+                onMouseDown={(e) => e.stopPropagation()}
+                className="absolute bottom-4 right-4 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2"
+            >
                 <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><Minus className="w-5 h-5" /></button>
                 <span className="text-xs font-black w-12 text-center text-gray-800">{Math.round(scale * 100)}%</span>
                 <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><PlusIcon className="w-5 h-5" /></button>
             </div>
 
             {/* SLIDE STRIP - Restored */}
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]">
+            <div
+                onMouseDown={(e) => e.stopPropagation()}
+                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]"
+            >
                 {slides.map((s, idx) => (
                     <div
                         key={s.id}

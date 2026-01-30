@@ -11,11 +11,13 @@ interface CanvasElementProps {
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
     deleteElement: (id: string) => void;
     handleMouseDown: (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => void;
+    showHandles?: boolean;
 }
 
 const CanvasElement: React.FC<CanvasElementProps> = ({
     el, isSelected, isEditing,
-    setEditingElementId, updateElement, handleMouseDown
+    setEditingElementId, updateElement, handleMouseDown,
+    showHandles = true
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -69,13 +71,15 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         >
             {/* SELECTION OVERLAY */}
             {isSelected && !isEditing && (
-                <div className="absolute -inset-1 border-2 border-indigo-500 pointer-events-none z-50">
-                    {/* Rotate Handle (Moved to Bottom) */}
-                    <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm" onMouseDown={(e) => handleMouseDown(e, el.id, 'rotate')}>
-                        <RefreshCw className="w-3 h-3 text-indigo-600" />
-                    </div>
-                    {/* Resize Handles */}
-                    {['nw', 'ne', 'sw', 'se'].map(pos => (
+                <div className={`absolute -inset-1 border-2 border-indigo-500 pointer-events-none z-50 ${!showHandles ? 'opacity-50 border-dashed' : ''}`}>
+                    {/* Rotate Handle (Moved to Bottom) - Only show if showHandles is true */}
+                    {showHandles && (
+                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm" onMouseDown={(e) => handleMouseDown(e, el.id, 'rotate')}>
+                            <RefreshCw className="w-3 h-3 text-indigo-600" />
+                        </div>
+                    )}
+                    {/* Resize Handles - Only show if showHandles is true */}
+                    {showHandles && ['nw', 'ne', 'sw', 'se'].map(pos => (
                         <div
                             key={pos}
                             className={`absolute w-3 h-3 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto z-50
