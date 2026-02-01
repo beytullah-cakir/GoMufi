@@ -14,7 +14,7 @@ import type { CourseData, PathNode } from './types';
 import ChestIcon from './assets/sprites/Chest.png';
 import HouseIcon from './assets/sprites/House.png';
 import ButtonCyan from './assets/sprites/ButtonCyan.png';
-import ButtonRed from './assets/sprites/ButtonRed.png';
+// import ButtonRed from './assets/sprites/ButtonRed.png';
 import ButtonPurple from './assets/sprites/ButtonPurple.png';
 import ButtonYellow from './assets/sprites/ButtonYellow.png';
 import ButtonGreen from './assets/sprites/ButtonGreen.png';
@@ -268,7 +268,7 @@ function App() {
           />
         )}
 
-        <div className="flex-1 overflow-hidden relative w-full">
+        <div className="flex-1 overflow-y-auto relative w-full">
           {activePage === 'Ana Sayfa' ? (
             <HomePage
               currentCourse={currentCourse}
