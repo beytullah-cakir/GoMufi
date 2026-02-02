@@ -11,8 +11,8 @@ import MufiSleep from './assets/sprites/MufiSleep.png';
 import type { CourseData, PathNode } from './types';
 
 // Import Assets for Course Data
-import ChestIcon from './assets/sprites/Chest.png';
-import HouseIcon from './assets/sprites/House.png';
+// import ChestIcon from './assets/sprites/Chest.png';
+// import HouseIcon from './assets/sprites/House.png';
 import ButtonCyan from './assets/sprites/ButtonCyan.png';
 // import ButtonRed from './assets/sprites/ButtonRed.png';
 import ButtonPurple from './assets/sprites/ButtonPurple.png';
@@ -281,7 +281,7 @@ function App() {
             <CoursesPage />
           ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
             <ProfilePage />
-          ) : activePage === 'İÇERİK' || activePage === 'İçerik' ? (
+          ) : activePage === 'Kurslarım' ? (
             <ContentPage />
           ) : activePage === 'Builder' ? (
             <LessonBuilderPage onExit={() => setActivePage('Ana Sayfa')} />

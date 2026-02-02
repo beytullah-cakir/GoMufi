@@ -58,7 +58,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
         { label: 'Ana Sayfa', icon: HomeIcon },
         { label: 'Kurslar', icon: ShopIcon },
         { label: 'Profilim', icon: ProfileIcon },
-        { label: 'İçerik', icon: BooksIcon },
+        { label: 'Kurslarım', icon: BooksIcon },
         { label: 'Soru Sor!', icon: ChatIcon },
     ];
 
