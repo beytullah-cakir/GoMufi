@@ -50,7 +50,7 @@ const ProfilePage: React.FC = () => {
                 </div>
 
                 {/* Character Avatar - STATIC & PINNED */}
-                <div className="absolute bottom-[-100px] left-1/2 transform -translate-x-1/2 flex flex-col items-center z-10 w-full">
+                <div className="absolute bottom-[-10px] left-1/2 transform -translate-x-1/2 flex flex-col items-center z-10 w-full">
                     <div className="relative">
                         {/* Status Bubble */}
                         <div className="absolute -top-4 -right-8 bg-white border-2 border-gray-100 px-4 py-2 rounded-2xl rounded-bl-none shadow-lg transform rotate-12 z-20 animate-bounce">
@@ -159,59 +159,7 @@ const ProfilePage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* SQUAD / TEAM BANNER - MOVED TO TOP OF OVERVIEW */}
-                <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden mb-8">
-                    {/* Background Pattern */}
-                    <Swords className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[4]" />
 
-                    <div className="flex flex-col md:flex-row items-center justify-between relative z-10 gap-6">
-                        {/* Team Info */}
-                        <div className="flex items-center gap-4">
-                            <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shadow-md border-4 border-indigo-200">
-                                🚀
-                            </div>
-                            <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                    <h3 className="text-2xl font-black font-display">Kod Korsanları</h3>
-                                    <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider backdrop-blur-sm">Lvl 5 Klan</span>
-                                </div>
-                                <p className="text-white/80 font-medium text-sm flex items-center gap-2">
-                                    <Users size={14} /> Takım: Alphateam
-                                </p>
-                            </div>
-                        </div>
-
-                        {/* Role & Stats */}
-                        <div className="flex items-center gap-8">
-                            <div className="text-center">
-                                <div className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">Takım Rolü</div>
-                                <div className="font-black text-lg flex items-center justify-center gap-1.5 bg-white/10 px-3 py-1 rounded-lg">
-                                    <Shield size={16} className="text-yellow-300" />
-                                    Hata Avcısı
-                                </div>
-                            </div>
-                            <div className="text-center">
-                                <div className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">Klan Skoru</div>
-                                <div className="font-black text-2xl text-yellow-300">
-                                    24.5k
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Squad Members */}
-                    <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
-                        <span className="text-xs font-bold text-indigo-100 uppercase tracking-widest">Squad Üyeleri</span>
-                        <div className="flex -space-x-3">
-                            {[1, 2, 3, 4].map((i) => (
-                                <div key={i} className="w-10 h-10 rounded-full border-2 border-indigo-600 bg-indigo-800 flex items-center justify-center text-xs font-bold relative group cursor-pointer hover:z-10 hover:scale-110 transition-all">
-                                    <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${i * 123}`} alt="Member" className="w-full h-full rounded-full" />
-                                    {i === 1 && <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-indigo-800"></div>}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
 
 
                 {/* TAB NAVIGATION */}
@@ -480,31 +428,48 @@ const ProfilePage: React.FC = () => {
                             </p>
                         </div>
 
-                        {/* Interactive Skill Tree Container */}
-                        <div className="relative w-full h-[700px] bg-slate-50 rounded-3xl overflow-hidden border-2 border-gray-200 shadow-inner group select-none flex justify-center">
+                        {/* Interactive Skill Tree Container - ASPHALT ROAD THEME */}
+                        <div className="relative w-full h-[700px] bg-[#1e1e24] rounded-3xl overflow-hidden border-4 border-gray-800 shadow-2xl group select-none flex justify-center">
 
-                            {/* 1. Grid Pattern (Subtle) */}
-                            <div className="absolute inset-0 opacity-[0.05]"
+                            {/* 1. Asphalt Texture & Grass Borders */}
+                            <div className="absolute inset-0 opacity-20"
                                 style={{
-                                    backgroundImage: `radial-gradient(#4b5563 1.5px, transparent 1.5px)`,
-                                    backgroundSize: '24px 24px'
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
                                 }}>
                             </div>
+                            {/* Road Borders / Sidewalks */}
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-dashed-border-left"></div>
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-dashed-border-right"></div>
 
                             {/* 2. SVG Connections Layer - FIXED VIEWBOX */}
-                            {/* We use a fixed viewBox 0 0 800 700 to ensure coordinates work perfectly */}
                             <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 800 700" preserveAspectRatio="xMidYMid meet">
+                                <defs>
+                                    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="2" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
 
-                                {/* Path: Root (Top) -> Algo (Middle) */}
-                                {/* Start (400, 150) -> End (400, 310) */}
+                                {/* Vertical Main Road Background */}
                                 <path
-                                    d="M400 150 L 400 310"
-                                    stroke="#cbd5e1"
-                                    strokeWidth="8"
-                                    strokeLinecap="round"
+                                    d="M400 120 L 400 350"
+                                    stroke="#333"
+                                    strokeWidth="120"
+                                    strokeLinecap="square"
                                     fill="none"
                                 />
-                                {/* Active Progress Line (Green) */}
+
+                                {/* Dashed Center Line */}
+                                <path
+                                    d="M400 120 L 400 350"
+                                    stroke="#fbbf24" // Amber yellow
+                                    strokeWidth="4"
+                                    strokeDasharray="20 20"
+                                    strokeLinecap="butt"
+                                    fill="none"
+                                />
+
+                                {/* Active GPS Progress Line */}
                                 <path
                                     d="M400 150 L 400 310"
                                     stroke="#22c55e"
@@ -512,113 +477,117 @@ const ProfilePage: React.FC = () => {
                                     strokeLinecap="round"
                                     fill="none"
                                     className="animate-[pulse_3s_infinite]"
+                                    filter="url(#glow)"
+                                    opacity="0.8"
                                 />
 
-                                {/* Path: Algo (Middle) -> Web (Bottom Left) */}
-                                {/* Start (400, 410) -> End (280, 560) */}
+                                {/* Branching Roads Background */}
                                 <path
-                                    d="M400 410 C 400 500, 280 480, 280 560"
-                                    stroke="#e2e8f0"
-                                    strokeWidth="6"
-                                    strokeDasharray="12 12"
-                                    strokeLinecap="round"
+                                    d="M400 410 C 400 500, 280 480, 280 600"
+                                    stroke="#333"
+                                    strokeWidth="100"
+                                    fill="none"
+                                />
+                                <path
+                                    d="M400 410 C 400 500, 520 480, 520 600"
+                                    stroke="#333"
+                                    strokeWidth="100"
                                     fill="none"
                                 />
 
-                                {/* Path: Algo (Middle) -> Game (Bottom Right) */}
-                                {/* Start (400, 410) -> End (520, 560) */}
+                                {/* Branching Lane Markings */}
                                 <path
-                                    d="M400 410 C 400 500, 520 480, 520 560"
-                                    stroke="#e2e8f0"
-                                    strokeWidth="6"
-                                    strokeDasharray="12 12"
-                                    strokeLinecap="round"
+                                    d="M400 410 C 400 500, 280 480, 280 600"
+                                    stroke="#e4e4e7" // White/Zinc
+                                    strokeWidth="2"
+                                    strokeDasharray="15 15"
                                     fill="none"
+                                    opacity="0.6"
+                                />
+                                <path
+                                    d="M400 410 C 400 500, 520 480, 520 600"
+                                    stroke="#e4e4e7" // White/Zinc
+                                    strokeWidth="2"
+                                    strokeDasharray="15 15"
+                                    fill="none"
+                                    opacity="0.6"
                                 />
                             </svg>
 
-                            {/* 3. Nodes Layer - Centered via Absolute % that match viewBox */}
+                            {/* 3. Nodes Layer */}
 
-                            {/* NODE 1: ROOT (Top Center) - x=400 (50%), y=100 (approx 15%) */}
+                            {/* NODE 1: START LINE (Top) */}
                             <div className="absolute top-[8%] flex flex-col items-center group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
-                                {/* Connector Dot Bottom */}
-                                <div className="absolute bottom-[-10px] w-4 h-4 bg-green-500 rounded-full border-4 border-slate-50 z-20"></div>
-
-                                <div className="relative w-24 h-24 bg-white rounded-3xl border-b-8 border-r-8 border-green-200 group-hover:border-green-300 shadow-sm flex items-center justify-center transition-colors">
-                                    <div className="absolute inset-0 bg-green-50 rounded-2xl m-1 flex items-center justify-center">
-                                        <Code size={40} className="text-green-500" />
-                                    </div>
-                                    <div className="absolute -top-3 -right-3 bg-yellow-400 text-white p-1.5 rounded-xl shadow-sm rotate-12 group-hover:rotate-0 transition-transform">
-                                        <Star size={16} fill="currentColor" />
-                                    </div>
-                                </div>
-                                <div className="mt-4 bg-white px-4 py-2 rounded-xl border-2 border-green-100 shadow-sm text-center">
-                                    <h3 className="font-black text-gray-800 text-sm">Python Temelleri</h3>
-                                </div>
-                            </div>
-
-                            {/* NODE 2: CURRENT (Middle Center) - x=400 (50%), y=350 (approx 50%) */}
-                            <div className="absolute top-[42%] flex flex-col items-center group cursor-pointer hover:-translate-y-2 transition-transform duration-300 z-10">
-                                {/* Connector Dot Top */}
-                                <div className="absolute top-[-10px] w-4 h-4 bg-green-500 rounded-full border-4 border-slate-50 z-20"></div>
-                                {/* Connector Dot Bottom */}
-                                <div className="absolute bottom-[-10px] w-4 h-4 bg-blue-100 rounded-full border-4 border-slate-50 z-20"></div>
-
-                                <div className="relative w-28 h-28 bg-white rounded-full border-4 border-blue-500 shadow-xl flex items-center justify-center">
-                                    {/* Inner Pulse */}
-                                    <div className="absolute inset-0 bg-blue-50 rounded-full animate-pulse"></div>
-
-                                    <GitBranch size={42} className="text-blue-600 relative z-10" />
-
-                                    {/* Progress Ring SVG */}
-                                    <svg className="absolute inset-0 w-full h-full -rotate-90 scale-110 pointer-events-none">
-                                        <circle cx="50%" cy="50%" r="48%" stroke="#eff6ff" strokeWidth="4" fill="none" />
-                                        <circle cx="50%" cy="50%" r="48%" stroke="#3b82f6" strokeWidth="4" fill="none" strokeDasharray="251" strokeDashoffset="100" strokeLinecap="round" />
-                                    </svg>
-                                </div>
-
-                                {/* Info Card */}
-                                <div className="mt-5 bg-white px-6 py-3 rounded-2xl border-b-4 border-blue-100 shadow-md text-center">
-                                    <h3 className="font-black text-gray-800 text-lg">Algoritmalar</h3>
-                                    <div className="flex items-center gap-2 mt-1">
-                                        <span className="text-xs font-bold text-blue-500 bg-blue-50 px-2 py-0.5 rounded">Lvl 12</span>
-                                        <div className="w-20 bg-gray-100 h-2 rounded-full overflow-hidden">
-                                            <div className="bg-blue-500 w-[60%] h-full rounded-full"></div>
+                                {/* Pit Stop Sign */}
+                                <div className="relative overflow-visible">
+                                    <div className="w-32 bg-zinc-800 text-white rounded-lg border-2 border-zinc-600 shadow-xl p-3 flex flex-col items-center relative z-10">
+                                        <div className="absolute -top-3 bg-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide border border-black transform -rotate-2">
+                                            HEADQUARTERS
                                         </div>
-                                        <span className="text-[10px] font-bold text-gray-400">%60</span>
+                                        <Code size={32} className="text-green-400 mb-1" />
+                                        <span className="text-sm font-black font-display text-zinc-200">BASIC_PY</span>
+                                    </div>
+                                    {/* Pole */}
+                                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-8 bg-zinc-700"></div>
+                                    <div className="absolute top-full left-1/4 -translate-x-1/2 w-1 h-8 bg-zinc-700"></div>
+                                    <div className="absolute top-full right-1/4 translate-x-1/2 w-1 h-8 bg-zinc-700"></div>
+                                </div>
+                            </div>
+
+                            {/* NODE 2: CHECKPOINT (Middle) */}
+                            <div className="absolute top-[42%] flex flex-col items-center group cursor-pointer hover:-translate-y-2 transition-transform duration-300 z-10">
+
+                                {/* Road Sign Style Node */}
+                                <div className="relative w-32 h-32 bg-blue-600 rounded-full border-4 border-white shadow-[0_0_20px_rgba(37,99,235,0.5)] flex items-center justify-center">
+                                    {/* Spinners */}
+                                    <div className="absolute inset-0 border-4 border-dashed border-white/30 rounded-full animate-[spin_10s_linear_infinite]"></div>
+
+                                    <GitBranch size={48} className="text-white relative z-10" />
+
+                                    <div className="absolute -bottom-4 bg-white text-blue-900 border-2 border-blue-600 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
+                                        CHECKPOINT
+                                    </div>
+                                </div>
+
+                                {/* Info Box */}
+                                <div className="mt-6 bg-zinc-900/90 backdrop-blur-sm border border-zinc-700 p-3 rounded-xl shadow-2xl text-center max-w-[150px]">
+                                    <h3 className="font-black text-white text-md">ALGORITHMS</h3>
+                                    <div className="flex items-center gap-2 mt-2 justify-center">
+                                        <div className="w-16 bg-zinc-700 h-2 rounded-full overflow-hidden">
+                                            <div className="bg-green-500 w-[60%] h-full rounded-full animate-pulse"></div>
+                                        </div>
+                                        <span className="text-[10px] font-bold text-zinc-400">%60</span>
                                     </div>
                                 </div>
                             </div>
 
-                            {/* NODE 3: LEFT (Bottom Left) - x=280 (35%), y=600 (approx 85%) */}
-                            <div className="absolute top-[78%] left-[35%] -translate-x-1/2 flex flex-col items-center group cursor-not-allowed hover:opacity-100 opacity-60 transition-all duration-300">
-                                <div className="absolute top-[-10px] w-4 h-4 bg-gray-200 rounded-full border-4 border-slate-50 z-20"></div>
-
-                                <div className="relative w-20 h-20 bg-gray-100 rounded-2xl border-4 border-dashed border-gray-300 flex items-center justify-center group-hover:bg-white group-hover:border-purple-300 transition-colors">
-                                    <Cpu size={32} className="text-gray-400 group-hover:text-purple-500 transition-colors" />
-                                    <div className="absolute -top-3 -left-3 bg-gray-200 text-gray-500 p-1.5 rounded-lg border-2 border-white">
-                                        <Lock size={14} />
+                            {/* NODE 3: CONSTRUCTION (Bottom Left) */}
+                            <div className="absolute top-[78%] left-[35%] -translate-x-1/2 flex flex-col items-center group opacity-80 hover:opacity-100 transition-all">
+                                <div className="relative w-24 h-24 bg-zinc-800 rounded-xl border-4 border-yellow-500/50 flex items-center justify-center shadow-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)]">
+                                    <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+                                    <div className="relative z-10 bg-zinc-900 p-3 rounded-full border border-zinc-700">
+                                        <Lock size={24} className="text-zinc-500" />
                                     </div>
+                                    {/* Cone */}
+                                    <div className="absolute -top-3 -right-3 text-2xl">🚧</div>
                                 </div>
-                                <div className="mt-3 text-center">
-                                    <h3 className="font-bold text-gray-500 text-sm group-hover:text-purple-600 transition-colors">Web Geliştirme</h3>
-                                    <span className="text-[10px] font-black text-gray-300 bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">LVL 15</span>
+                                <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
+                                    WEB_ZONE
                                 </div>
                             </div>
 
-                            {/* NODE 4: RIGHT (Bottom Right) - x=520 (65%), y=600 (approx 85%) */}
-                            <div className="absolute top-[78%] left-[65%] -translate-x-1/2 flex flex-col items-center group cursor-not-allowed hover:opacity-100 opacity-60 transition-all duration-300">
-                                <div className="absolute top-[-10px] w-4 h-4 bg-gray-200 rounded-full border-4 border-slate-50 z-20"></div>
-
-                                <div className="relative w-20 h-20 bg-gray-100 rounded-2xl border-4 border-dashed border-gray-300 flex items-center justify-center group-hover:bg-white group-hover:border-orange-300 transition-colors">
-                                    <Gamepad2 size={32} className="text-gray-400 group-hover:text-orange-500 transition-colors" />
-                                    <div className="absolute -top-3 -left-3 bg-gray-200 text-gray-500 p-1.5 rounded-lg border-2 border-white">
-                                        <Lock size={14} />
+                            {/* NODE 4: CONSTRUCTION (Bottom Right) */}
+                            <div className="absolute top-[78%] left-[65%] -translate-x-1/2 flex flex-col items-center group opacity-80 hover:opacity-100 transition-all">
+                                <div className="relative w-24 h-24 bg-zinc-800 rounded-xl border-4 border-yellow-500/50 flex items-center justify-center shadow-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)]">
+                                    <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
+                                    <div className="relative z-10 bg-zinc-900 p-3 rounded-full border border-zinc-700">
+                                        <Lock size={24} className="text-zinc-500" />
                                     </div>
+                                    {/* Cone */}
+                                    <div className="absolute -top-3 -left-3 text-2xl">🚧</div>
                                 </div>
-                                <div className="mt-3 text-center">
-                                    <h3 className="font-bold text-gray-500 text-sm group-hover:text-orange-600 transition-colors">Oyun Kodlama</h3>
-                                    <span className="text-[10px] font-black text-gray-300 bg-gray-100 px-2 py-0.5 rounded mt-1 inline-block">LVL 15</span>
+                                <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
+                                    GAME_LAB
                                 </div>
                             </div>
 
