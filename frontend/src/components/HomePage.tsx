@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 
-import TextBubble from '../assets/sprites/TextBubble.png';
+
 import GrassIcon from '../assets/sprites/grass.png';
 
 
@@ -341,7 +341,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                         >
                                             {/* Stars Rendering */}
                                             {node.stars !== undefined && (
-                                                <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-end">
+                                                <div className="absolute top-35 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
                                                     {[0, 1, 2].map((i) => (
                                                         <svg
                                                             key={i}
@@ -350,9 +350,9 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             fill="currentColor"
                                                             className={`w-8 h-8 drop-shadow-md transition-transform
                                                                 ${i < (node.stars || 0) ? 'text-yellow-400' : 'text-gray-300'}
-                                                                ${i === 0 ? '-rotate-12 translate-y-1' : ''}
-                                                                ${i === 1 ? '-translate-y-2 scale-110' : ''}
-                                                                ${i === 2 ? 'rotate-12 translate-y-1' : ''}
+                                                                ${i === 0 ? 'rotate-6' : ''}
+                                                                ${i === 1 ? 'translate-y-1 scale-110' : ''}
+                                                                ${i === 2 ? '-rotate-6' : ''}
                                                             `}
                                                         >
                                                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -363,38 +363,42 @@ const HomePage: React.FC<HomePageProps> = ({
 
                                             {/* Text Bubble */}
                                             <div
-                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] w-64 origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id && !node.isLocked
-                                                    ? 'opacity-100 scale-100 scale-y-90 translate-y-[-20px] mb-12'
-                                                    : 'opacity-0 scale-50 translate-y-4 mb-16 pointer-events-none'
+                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id && !node.isLocked
+                                                    ? 'opacity-100 scale-100 translate-y-[-80px]'
+                                                    : 'opacity-0 scale-50 translate-y-4 pointer-events-none'
                                                     }`}
                                             >
-                                                <div className="relative flex items-center justify-center">
-                                                    <img src={TextBubble} alt="Bubble" className="w-full drop-shadow-lg" />
-                                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[75%] flex items-center gap-3">
-                                                        {/* 3D Play Button */}
-                                                        <div
-                                                            className="relative w-12 h-12 group/btn cursor-pointer transition-transform active:scale-95"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleOpenLesson(node.id);
-                                                            }}
-                                                        >
-                                                            <div className="absolute inset-x-0 bottom-0 h-12 rounded-full" style={{ backgroundColor: node.strokeColor, filter: 'brightness(0.6)' }}></div>
-                                                            <div className="absolute inset-x-0 bottom-2 h-12 rounded-full flex items-center justify-center transition-all group-active/btn:bottom-0" style={{ backgroundColor: node.strokeColor }}>
-                                                                <svg viewBox="0 0 24 24" className="w-6 h-6 text-white fill-current ml-1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <path d="M8 5v14l11-7z" />
-                                                                </svg>
-                                                            </div>
-                                                        </div>
-                                                        <span
-                                                            className="text-gray-500 font-black font-display text-xl whitespace-nowrap cursor-pointer hover:text-gray-700 transition-colors"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleOpenLesson(node.id);
-                                                            }}
-                                                        >
-                                                            Teste Başla !
+                                                {/* DYNAMIC CARD BUBBLE */}
+                                                <div className="relative min-w-[280px] transform hover:-translate-y-1 transition-transform duration-300 group/bubble cursor-default">
+                                                    {/* Glow/Background Container */}
+                                                    <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-xl border-x-2 border-t-2 border-b-[6px]" style={{ backgroundColor: node.baseColor, borderColor: node.strokeColor || 'rgba(0,0,0,0.1)' }}>
+                                                        {/* Glow Shapes */}
+                                                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl"></div>
+                                                        <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                                                        <div className="absolute top-4 right-6 text-white/30 text-2xl animate-pulse">✨</div>
+                                                    </div>
+
+                                                    {/* Tail */}
+                                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 rounded-sm" style={{ backgroundColor: node.baseColor }}></div>
+
+                                                    {/* Content */}
+                                                    <div className="relative z-10 p-5 flex flex-col items-start text-left">
+                                                        <h3 className="text-white font-black font-display text-xl leading-snug mb-1 drop-shadow-md pr-6">
+                                                            {node.title || "Ders Başlığı"}
+                                                        </h3>
+                                                        <span className="text-white/90 font-bold text-xs uppercase tracking-widest mb-4">
+                                                            DERS: {index + 1}/9
                                                         </span>
+
+                                                        <button
+                                                            className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenLesson(node.id);
+                                                            }}
+                                                        >
+                                                            <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 PUAN</span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
