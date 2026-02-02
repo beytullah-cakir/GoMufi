@@ -2,11 +2,59 @@
 import React, { useState } from 'react';
 import { Settings, Share2, Award, Trophy, ChevronRight, Lock, BookOpen, Clock, Target, Calendar, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, Swords, Users, Video, Play, CheckCircle, GitBranch, Shield, Cpu, Gamepad2, Medal } from 'lucide-react';
 // Import the new character avatar
-import CharacterAvatar from '../assets/sprites/CharacterProfile.png';
+import CharacterBody from '../sprites/CharacterProfile2.png';
+import CharacterEyes from '../sprites/eyes.png';
 import PythonIcon from '../assets/sprites/PythonIcon.png';
 
 const ProfilePage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'portfolio'>('overview');
+    const [isBlinking, setIsBlinking] = useState(false);
+    const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
+
+    // Blinking effect logic
+    React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const triggerBlink = () => {
+            setIsBlinking(true);
+            setTimeout(() => {
+                setIsBlinking(false);
+                // Random interval between 2 and 5 seconds for the next blink
+                timeoutId = setTimeout(triggerBlink, Math.random() * 3000 + 2000);
+            }, 150);
+        };
+
+        timeoutId = setTimeout(triggerBlink, 2000);
+        return () => clearTimeout(timeoutId);
+    }, []);
+
+    // Looking around effect logic
+    React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
+
+        const moveEyes = () => {
+            // Randomly decide to move or center
+            const shouldMove = Math.random() > 0.3; // 70% chance to look somewhere
+
+            if (shouldMove) {
+                // Limit movement range (pixels)
+                // x: -3 to 3 (left/right) - Reduced
+                // y: 0 (no vertical movement)
+                const x = (Math.random() - 0.5) * 6;
+                const y = 0;
+                setEyePosition({ x, y });
+            } else {
+                // Return to center
+                setEyePosition({ x: 0, y: 0 });
+            }
+
+            // Next movement in 1 to 4 seconds
+            timeoutId = setTimeout(moveEyes, Math.random() * 3000 + 1000);
+        };
+
+        timeoutId = setTimeout(moveEyes, 1000);
+        return () => clearTimeout(timeoutId);
+    }, []);
 
     return (
         <div className="w-full min-h-screen bg-gray-50 pb-24">
@@ -58,11 +106,23 @@ const ProfilePage: React.FC = () => {
                         </div>
 
                         {/* Avatar Image */}
-                        <div className="w-96 h-96 filter drop-shadow-xl cursor-default">
+                        {/* Avatar Image - Layered for Animation */}
+                        <div className="w-96 h-96 filter drop-shadow-xl cursor-default relative">
+                            {/* Base Body Layer */}
                             <img
-                                src={CharacterAvatar}
-                                alt="My Character"
-                                className="w-full h-full object-contain"
+                                src={CharacterBody}
+                                alt="My Character Body"
+                                className="absolute inset-0 w-full h-full object-contain z-10"
+                            />
+                            {/* Eyes Layer - Animated */}
+                            <img
+                                src={CharacterEyes}
+                                alt="My Character Eyes"
+                                className="absolute inset-0 w-full h-full object-contain z-20 transition-transform duration-200 ease-in-out"
+                                style={{
+                                    transformOrigin: '50% 48%',
+                                    transform: `translate(${eyePosition.x}px, ${eyePosition.y}px) scaleY(${isBlinking ? 0.1 : 1})`
+                                }}
                             />
                         </div>
 
