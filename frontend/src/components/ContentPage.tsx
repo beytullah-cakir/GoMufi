@@ -16,19 +16,15 @@ import {
     Layout,
     TrendingUp,
     Award,
-    Bell,
-    Search,
-    Filter,
     ChevronRight,
     ChevronDown,
     Gem,
+    Target,
     Cloud,
     Circle,
     Triangle,
     Hexagon,
-    Sparkles,
-    BookOpen,
-    Target
+    Sparkles
 } from 'lucide-react';
 
 // Import Assets (Reusing existing or placeholders if needed)
@@ -161,57 +157,76 @@ const ContentPage: React.FC = () => {
     return (
         <div className="w-full min-h-screen bg-[#F3F4F6] p-6 font-sans text-gray-800 overflow-hidden flex flex-col">
 
-            {/* --- DASHBOARD HEADER (Redesigned) --- */}
-            <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 rounded-[3rem] p-8 mb-8 overflow-hidden min-h-[220px] flex flex-col justify-center shadow-xl border-b-8 border-indigo-800">
-                {/* Decorative Background Elements */}
+            {/* --- DASHBOARD HEADER (Restored Style + Builder Content + Heatmap) --- */}
+            <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 rounded-[3rem] p-6 mb-6 overflow-hidden min-h-[180px] flex flex-col justify-center shadow-xl border-b-8 border-indigo-800">
+                {/* Decorative Background Elements (Restored) */}
                 <div className="absolute inset-0 pointer-events-none">
-                    <Cloud className="absolute top-8 left-12 text-white/10 transform -rotate-12" size={120} />
-                    <Cloud className="absolute -bottom-8 right-20 text-white/10 transform rotate-12" size={100} />
-                    <Sparkles className="absolute top-12 right-1/4 text-yellow-300/40 animate-pulse" size={40} />
-                    <Circle className="absolute top-1/2 left-1/4 text-white/5" size={24} />
-                    <Triangle className="absolute bottom-12 left-20 text-white/10 transform rotate-45" size={32} />
-                    <Hexagon className="absolute top-10 right-10 text-white/10" size={64} />
+                    <Cloud className="absolute top-8 left-12 text-white/10 transform -rotate-12" size={100} />
+                    <Cloud className="absolute -bottom-8 right-20 text-white/10 transform rotate-12" size={80} />
+                    <Sparkles className="absolute top-8 right-1/4 text-yellow-300/40 animate-pulse" size={32} />
+                    <Circle className="absolute top-1/2 left-1/4 text-white/5" size={20} />
+                    <Triangle className="absolute bottom-10 left-20 text-white/10 transform rotate-45" size={24} />
+                    <Hexagon className="absolute top-6 right-10 text-white/10" size={48} />
 
                     {/* Decorative Dots */}
                     <div className="absolute top-20 left-1/3 w-2 h-2 bg-white/30 rounded-full"></div>
                     <div className="absolute bottom-10 right-1/3 w-3 h-3 bg-white/20 rounded-full"></div>
                 </div>
 
-                {/* Content */}
-                <div className="relative z-10 flex flex-col md:flex-row justify-between items-end gap-6">
-                    {/* Left: Title & Intro */}
-                    <div className="text-white">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="bg-white/20 p-2 rounded-xl backdrop-blur-md border border-white/10 shadow-lg">
-                                <BookOpen size={20} className="text-white" />
-                            </div>
-                            <span className="font-black tracking-wider opacity-80 uppercase text-xs">Eğitim Paneli</span>
-                        </div>
-                        <h1 className="text-5xl font-black font-display mb-3 tracking-tight drop-shadow-sm">
-                            Kurslarım
+                {/* Content Container */}
+                <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 text-white">
+
+                    {/* Left: Prompt & Motivation */}
+                    <div className="flex-1 text-center lg:text-left">
+                        <h1 className="text-4xl md:text-5xl font-black font-display tracking-tight mb-2 drop-shadow-md">
+                            Bugün Ne İnşa Ediyorsun?
                         </h1>
-                        <p className="text-indigo-100 font-bold max-w-md text-base leading-relaxed opacity-90">
-                            Yeteneklerini geliştirmeye ve yeni şeyler öğrenmeye devam et! 🚀
+                        <p className="text-indigo-100 text-lg md:text-xl font-bold tracking-wide opacity-90">
+                            Planın hazır. Squad’ın seni bekliyor.
                         </p>
                     </div>
 
-                    {/* Right: Actions (Search, etc.) */}
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                        <div className="bg-white/10 flex items-center px-4 py-3 rounded-2xl border border-white/20 backdrop-blur-md flex-1 md:flex-none focus-within:bg-white/20 transition-all">
-                            <Search size={20} className="text-indigo-200 mr-2" />
-                            <input
-                                type="text"
-                                placeholder="Ders ara..."
-                                className="bg-transparent outline-none text-sm font-bold text-white placeholder-indigo-200/70 w-full md:w-48"
-                            />
+                    {/* Right: Weekly Heatmap Widget (Mini Calendar) */}
+                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 shadow-lg relative overflow-hidden min-w-[300px] group/heatmap hover:bg-white/15 transition-all">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-white font-black text-xs uppercase tracking-wider opacity-90">Üretim Zinciri</h3>
+                                <p className="text-[10px] font-bold text-indigo-200 opacity-80">Son 7 Gün</p>
+                            </div>
+                            <div className="flex items-center gap-1 bg-white/10 px-2 py-1.5 rounded-lg border border-white/5">
+                                <span className="text-xs">🔥</span>
+                                <span className="font-black text-white text-[10px]">12 Gün</span>
+                            </div>
                         </div>
-                        <button className="bg-white/10 p-3 rounded-2xl border border-white/20 text-white hover:bg-white/20 transition-all backdrop-blur-md">
-                            <Filter size={20} />
-                        </button>
-                        <button className="bg-white/10 p-3 rounded-2xl border border-white/20 text-white hover:bg-white/20 transition-all backdrop-blur-md relative">
-                            <Bell size={20} />
-                            <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-indigo-900"></span>
-                        </button>
+
+                        {/* Calendar Grid */}
+                        <div className="flex justify-between items-end gap-3">
+                            {[
+                                { day: 'Pzt', level: 1 },
+                                { day: 'Sal', level: 3 },
+                                { day: 'Çar', level: 0 },
+                                { day: 'Per', level: 2 },
+                                { day: 'Cum', level: 3 },
+                                { day: 'Cmt', level: 1 },
+                                { day: 'Paz', level: 0 }
+                            ].map((item, i) => (
+                                <div key={i} className="flex flex-col items-center gap-1.5 group/day cursor-pointer">
+                                    <div className="relative">
+                                        {/* Tooltip */}
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover/day:opacity-100 transition-opacity bg-gray-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none">
+                                            {item.level === 0 ? 'Boş' : `${item.level} Saat`}
+                                        </div>
+                                        {/* Heatmap Block */}
+                                        <div className={`w-7 h-7 rounded-md border-2 border-white/10 transition-all duration-300 hover:scale-110
+                                            ${item.level === 0 ? 'bg-white/5' :
+                                                item.level === 1 ? 'bg-indigo-400/60' :
+                                                    item.level === 2 ? 'bg-indigo-300' : 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]'}
+                                        `}></div>
+                                    </div>
+                                    <span className={`text-[9px] font-bold uppercase transition-colors ${item.day === 'Cum' ? 'text-white' : 'text-indigo-200/70 group-hover/day:text-white'}`}>{item.day}</span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

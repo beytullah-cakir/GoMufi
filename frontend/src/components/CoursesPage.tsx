@@ -128,7 +128,7 @@ const CoursesPage: React.FC = () => {
     return (
         <div className="w-full bg-white pb-20">
             {/* Header / Top Bar */}
-            <div className="p-8 pb-4 border-b border-gray-100 bg-white sticky top-0 z-30">
+            <div className="px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
                 <div className="max-w-7xl mx-auto">
                     {/* Search Bar (Mobile/Tablet visible, Desktop larger) */}
                     <div className="flex gap-4 items-center">
@@ -136,9 +136,9 @@ const CoursesPage: React.FC = () => {
                             <input
                                 type="text"
                                 placeholder="Ne öğrenmek istiyorsun?"
-                                className="w-full bg-gray-50 border-2 border-gray-200 focus:border-gray-800 focus:bg-white rounded-full px-6 py-3 font-bold text-gray-700 outline-none transition-all placeholder:text-gray-400"
+                                className="w-full bg-gray-50 border-2 border-gray-200 focus:border-gray-800 focus:bg-white rounded-full px-5 py-2 font-bold text-gray-700 outline-none transition-all placeholder:text-gray-400 text-sm"
                             />
-                            <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl text-gray-400">🔍</span>
+                            <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg text-gray-400">🔍</span>
                         </div>
                         <div className="hidden md:flex gap-2 text-sm font-bold text-gray-500 cursor-pointer hover:text-gray-800">
                             <span>Kategoriler</span>
@@ -152,13 +152,13 @@ const CoursesPage: React.FC = () => {
             <div className="max-w-7xl mx-auto p-8 pt-6">
 
                 {/* HERO BANNER - Compact Udemy Style */}
-                <div className="w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-8 mb-10 overflow-hidden shadow-lg flex items-center justify-between relative">
+                <div className="w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-6 overflow-hidden shadow-lg flex items-center justify-between relative">
                     <div className="relative z-10 text-white max-w-xl">
-                        <h2 className="text-3xl font-black font-display mb-3 tracking-tight">Öğrenme Festivali Başladı! 🚀</h2>
-                        <p className="text-gray-300 font-medium text-lg mb-6 leading-relaxed">
+                        <h2 className="text-2xl font-black font-display mb-2 tracking-tight">Öğrenme Festivali Başladı! 🚀</h2>
+                        <p className="text-gray-300 font-medium text-base mb-4 leading-relaxed">
                             Yeteneklerine yatırım yapmanın tam zamanı. 24 saat boyunca geçerli indirimleri kaçırma.
                         </p>
-                        <button className="bg-white text-gray-900 px-6 py-3 rounded-xl font-black shadow-md hover:bg-gray-100 transition-colors">
+                        <button className="bg-white text-gray-900 px-5 py-2 rounded-xl font-black shadow-md hover:bg-gray-100 transition-colors text-sm">
                             Fırsatları İncele
                         </button>
                     </div>
@@ -167,7 +167,7 @@ const CoursesPage: React.FC = () => {
                         <img
                             src={ChestIcon}
                             alt="Chest"
-                            className="w-48 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transform rotate-[-12deg]"
+                            className="w-32 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)] transform rotate-[-12deg]"
                         />
                     </div>
                 </div>
