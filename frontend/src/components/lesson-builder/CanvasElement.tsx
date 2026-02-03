@@ -155,10 +155,43 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 // Note: This matches the user's "Kıvrımlı" which is a smooth horizontal S-curve usually
                                 d = `M ${s.x} ${s.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${e.x} ${e.y}`;
                             } else if (el.arrowConfig.arrowStyle === 'elbow') {
-                                // Elbow Logic: Go horizontal then vertical then horizontal
-                                // Simple Manhattan routing: Midpoint X
-                                const midX = (s.x + e.x) / 2;
-                                d = `M ${s.x} ${s.y} L ${midX} ${s.y} L ${midX} ${e.y} L ${e.x} ${e.y}`;
+                                // Elbow Logic with Standoffs (Margins)
+                                const startSide = el.arrowConfig.startSide;
+                                const endSide = el.arrowConfig.endSide;
+
+                                const margin = 30; // Distance to go out before turning
+
+                                // Calculate Start Standoff (p1)
+                                let p1 = { ...s };
+                                if (startSide === 'top') p1.y -= margin;
+                                else if (startSide === 'bottom') p1.y += margin;
+                                else if (startSide === 'left') p1.x -= margin;
+                                else if (startSide === 'right') p1.x += margin;
+
+                                // Calculate End Standoff (p2)
+                                let p2 = { ...e };
+                                if (endSide === 'top') p2.y -= margin;
+                                else if (endSide === 'bottom') p2.y += margin;
+                                else if (endSide === 'left') p2.x -= margin;
+                                else if (endSide === 'right') p2.x += margin;
+
+                                // Routing between p1 and p2
+                                let midPath = '';
+                                const isStartVertical = startSide === 'top' || startSide === 'bottom';
+
+                                if (isStartVertical) {
+                                    // Vertical Exit -> Horizontal -> Vertical Entry (Z-shape-ish)
+                                    // M s -> L p1 -> L p1.x midY -> L p2.x midY -> L p2 -> L e
+                                    const midY = (p1.y + p2.y) / 2;
+                                    midPath = `L ${p1.x} ${midY} L ${p2.x} ${midY}`;
+                                } else {
+                                    // Horizontal Exit -> Vertical -> Horizontal Entry (Z-shape-ish) - Default
+                                    // M s -> L p1 -> L midX p1.y -> L midX p2.y -> L p2 -> L e
+                                    const midX = (p1.x + p2.x) / 2;
+                                    midPath = `L ${midX} ${p1.y} L ${midX} ${p2.y}`;
+                                }
+
+                                d = `M ${s.x} ${s.y} L ${p1.x} ${p1.y} ${midPath} L ${p2.x} ${p2.y} L ${e.x} ${e.y}`;
                             }
 
                             return (

@@ -40,6 +40,8 @@ export interface SlideElement {
         end: { x: number, y: number };
         startConnectedElementId?: string;
         endConnectedElementId?: string;
+        startSide?: 'top' | 'bottom' | 'left' | 'right';
+        endSide?: 'top' | 'bottom' | 'left' | 'right';
         arrowStyle?: 'straight' | 'curved' | 'elbow';
     };
 }

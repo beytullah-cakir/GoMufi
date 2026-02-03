@@ -518,6 +518,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     let newX = mouseX;
                     let newY = mouseY;
                     let connectedId: string | undefined = undefined;
+                    let side: 'top' | 'bottom' | 'left' | 'right' | undefined = undefined;
 
                     // --- SNAP LOGIC START ---
                     // Check for snap targets
@@ -548,10 +549,26 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                         // Only snap if within 20px threshold
                         if (min < 20) {
-                            if (min === dl) { newX = tx; newY = Math.max(ty, Math.min(ty + th, mouseY)); }
-                            else if (min === dr) { newX = tx + tw; newY = Math.max(ty, Math.min(ty + th, mouseY)); }
-                            else if (min === dt) { newY = ty; newX = Math.max(tx, Math.min(tx + tw, mouseX)); }
-                            else if (min === db) { newY = ty + th; newX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+                            if (min === dl) {
+                                newX = tx;
+                                newY = Math.max(ty, Math.min(ty + th, mouseY));
+                                side = 'left';
+                            }
+                            else if (min === dr) {
+                                newX = tx + tw;
+                                newY = Math.max(ty, Math.min(ty + th, mouseY));
+                                side = 'right';
+                            }
+                            else if (min === dt) {
+                                newY = ty;
+                                newX = Math.max(tx, Math.min(tx + tw, mouseX));
+                                side = 'top';
+                            }
+                            else if (min === db) {
+                                newY = ty + th;
+                                newX = Math.max(tx, Math.min(tx + tw, mouseX));
+                                side = 'bottom';
+                            }
 
                             connectedId = target.id;
                         } else {
@@ -569,9 +586,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     if (dragState.handle === 'start') {
                         newConfig.start = { x: relX, y: relY };
                         newConfig.startConnectedElementId = connectedId;
+                        newConfig.startSide = connectedId ? side : undefined;
                     } else {
                         newConfig.end = { x: relX, y: relY };
                         newConfig.endConnectedElementId = connectedId;
+                        newConfig.endSide = connectedId ? side : undefined;
                     }
                     updateElement(dragState.elementId, { arrowConfig: newConfig });
                     return;
@@ -722,29 +741,34 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                     const min = Math.min(dl, dr, dt, db);
 
-                    if (min < 20) {
-                        let snapX = mouseX;
-                        let snapY = mouseY;
+                    let snapX = mouseX;
+                    let snapY = mouseY;
+                    let side: 'top' | 'bottom' | 'left' | 'right' | undefined;
 
-                        if (min === dl) { snapX = tx; snapY = Math.max(ty, Math.min(ty + th, mouseY)); }
-                        else if (min === dr) { snapX = tx + tw; snapY = Math.max(ty, Math.min(ty + th, mouseY)); }
-                        else if (min === dt) { snapY = ty; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); }
-                        else if (min === db) { snapY = ty + th; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+                    if (min < 20) {
+                        if (min === dl) { snapX = tx; snapY = Math.max(ty, Math.min(ty + th, mouseY)); side = 'left'; }
+                        else if (min === dr) { snapX = tx + tw; snapY = Math.max(ty, Math.min(ty + th, mouseY)); side = 'right'; }
+                        else if (min === dt) { snapY = ty; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); side = 'top'; }
+                        else if (min === db) { snapY = ty + th; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); side = 'bottom'; }
 
                         // Update Config
                         if (dragState.handle === 'start') {
                             newConfig.startConnectedElementId = target.id;
+                            newConfig.startSide = side;
                             newConfig.start = { x: snapX - el.x, y: snapY - el.y };
                         } else {
                             newConfig.endConnectedElementId = target.id;
+                            newConfig.endSide = side;
                             newConfig.end = { x: snapX - el.x, y: snapY - el.y };
                         }
                     } else {
                         // Not close enough to snap -> DISCONNECT if it was connected
                         if (dragState.handle === 'start') {
                             newConfig.startConnectedElementId = undefined;
+                            newConfig.startSide = undefined;
                         } else {
                             newConfig.endConnectedElementId = undefined;
+                            newConfig.endSide = undefined;
                         }
                     }
                     updateElement(el.id, { arrowConfig: newConfig });
