@@ -160,6 +160,63 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
         if (e.ctrlKey && e.key === ' ') {
             e.preventDefault();
             triggerAutocomplete();
+            return;
+        }
+
+        // Smart Indentation
+        if (e.key === 'Enter') {
+            if (!textareaRef.current) return;
+            const textarea = textareaRef.current;
+            const cursor = textarea.selectionStart;
+            const text = localCode;
+
+            // Get current line up to cursor
+            const lastNewLine = text.lastIndexOf('\n', cursor - 1);
+            const currentLine = text.substring(lastNewLine + 1, cursor);
+
+            // Check previous indentation
+            const match = currentLine.match(/^(\s*)/);
+            const currentIndent = match ? match[1] : '';
+
+            // Check if line ends with colon (ignoring trailing whitespace)
+            const endsWithColon = currentLine.trimEnd().endsWith(':');
+
+            e.preventDefault();
+
+            let newIndent = currentIndent;
+            if (endsWithColon) {
+                newIndent += '    '; // Add 4 spaces
+            }
+
+            const insertion = '\n' + newIndent;
+            const newText = text.substring(0, cursor) + insertion + text.substring(textarea.selectionEnd);
+
+            setLocalCode(newText);
+
+            // Move cursor
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = cursor + insertion.length;
+                // Scroll to cursor if needed (simple check)
+                textarea.blur();
+                textarea.focus();
+            }, 0);
+        }
+
+        // Tab key for indentation (insert 4 spaces)
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            if (!textareaRef.current) return;
+            const textarea = textareaRef.current;
+            const cursor = textarea.selectionStart;
+            const text = localCode;
+
+            const insertion = '    ';
+            const newText = text.substring(0, cursor) + insertion + text.substring(textarea.selectionEnd);
+            setLocalCode(newText);
+
+            setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = cursor + 4;
+            }, 0);
         }
     };
 
@@ -246,7 +303,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     // Calculate Position
                     // Ideally we need to wait for render or use the current ref content which might not be updated yet?
                     // Actually textarea value is controlled by state, but ref.current.value might lag?
-                    // React 18: ref sync. But we updated state (setLocalCode) just now. 
+                    // React 18: ref sync. But we updated state (setLocalCode) just now.
                     // Safe way: we pass textarea to helper or helper uses ref which is still old value?
                     // Helper uses ref.current. With controlled component, ref.current.value usually updates.
                     // Let's try calling it directly.
@@ -284,8 +341,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
 
     // Shared Editor Styles for perfect alignment
     const EDITOR_STYLES: React.CSSProperties = {
-        fontFamily: '"Menlo", "Monaco", "Courier New", monospace',
+        fontFamily: el.style?.fontFamily || '"Menlo", "Monaco", "Courier New", monospace', // Use custom font or fallback
         fontSize: el.style?.fontSize ? `${el.style.fontSize}px` : '14px',
+        fontWeight: el.style?.bold ? 'bold' : 'normal', // Bold support
         lineHeight: '1.5',
         padding: '16px', // Matches p-4
         margin: 0,

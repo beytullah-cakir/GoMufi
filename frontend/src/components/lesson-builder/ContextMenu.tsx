@@ -189,21 +189,29 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                     </div>
                 )}
 
-                {/* Font Family (Only if all are text, NOT code) */}
-                {allText && (
+                {/* Font Family (Text & Code) */}
+                {(allText || allCode) && (
                     <select
                         className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 outline-none cursor-pointer hover:bg-gray-700 transition-colors"
-                        value={firstEl.style?.fontFamily || 'Fredoka'}
+                        value={firstEl.style?.fontFamily || (allCode ? 'Menlo' : 'Fredoka')}
                         onChange={(e) => bulkUpdateStyle({ fontFamily: e.target.value as any })}
                         onMouseDown={(e) => e.stopPropagation()}
                     >
-                        <option value="Fredoka">Fredoka</option>
-                        <option value="Patrick Hand">El Yazısı</option>
-                        <option value="Comic Neue">Komik</option>
-                        <option value="Bangers">Bangers</option>
-                        <option value="Pacifico">İtalik</option>
-                        <option value="Inter">Modern</option>
-                        <option value="Fira Code">Kod</option>
+                        {!allCode && (
+                            <>
+                                <option value="Fredoka">Fredoka</option>
+                                <option value="Patrick Hand">El Yazısı</option>
+                                <option value="Comic Neue">Komik</option>
+                                <option value="Bangers">Bangers</option>
+                                <option value="Pacifico">İtalik</option>
+                                <option value="Inter">Modern</option>
+                            </>
+                        )}
+                        <option value="Fira Code">Fira Code</option>
+                        <option value="Menlo">Menlo</option>
+                        <option value="Monaco">Monaco</option>
+                        <option value="'Courier New'">Courier New</option>
+                        <option value="monospace">Monospace</option>
                     </select>
                 )}
 
@@ -217,12 +225,15 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                 )}
 
                 {/* B/I/U */}
-                {allText && (
+                {(allText || allCode) && (
                     <div className="flex gap-0.5">
                         <button onMouseDown={(e) => {
                             e.preventDefault(); // Prevent losing focus
                             e.stopPropagation();
-                            if (editingElementId === firstEl.id) {
+                            /* Code widgets handle their own bold via style prop, not execCommand */
+                            if (allCode) {
+                                bulkUpdateStyle({ bold: !firstEl.style?.bold });
+                            } else if (editingElementId === firstEl.id) {
                                 document.execCommand('bold');
                             } else {
                                 bulkUpdateStyle({ bold: !firstEl.style?.bold });
@@ -251,27 +262,29 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                     </div>
                 )}
 
-                {/* Color Trigger (Smart Bulk) - Always Show */}
-                <div className="relative">
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : 'multi-color'); }}
-                        onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                        className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
-                        style={{ backgroundColor: (['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color) || 'white' }}
-                    />
+                {/* Color Trigger (Smart Bulk) - Hide for Code */}
+                {!allCode && (
+                    <div className="relative">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : 'multi-color'); }}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
+                            style={{ backgroundColor: (['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color) || 'white' }}
+                        />
 
-                    {/* Dropdown */}
-                    {isColorPickerOpen && (
-                        <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
-                            <ColorPicker
-                                id="multi-color"
-                                current={(['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color)}
-                                onUpdate={bulkUpdateColor}
-                                setActiveColorPickerId={setActiveColorPickerId}
-                            />
-                        </div>
-                    )}
-                </div>
+                        {/* Dropdown */}
+                        {isColorPickerOpen && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
+                                <ColorPicker
+                                    id="multi-color"
+                                    current={(['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color)}
+                                    onUpdate={bulkUpdateColor}
+                                    setActiveColorPickerId={setActiveColorPickerId}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
 
                 {/* Alignment */}
                 {allText && (
