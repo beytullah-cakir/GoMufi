@@ -155,40 +155,68 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 // Note: This matches the user's "Kıvrımlı" which is a smooth horizontal S-curve usually
                                 d = `M ${s.x} ${s.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${e.x} ${e.y}`;
                             } else if (el.arrowConfig.arrowStyle === 'elbow') {
-                                // Elbow Logic with Standoffs (Margins)
+                                // Elbow Logic with Standoffs & Smart Routing
                                 const startSide = el.arrowConfig.startSide;
                                 const endSide = el.arrowConfig.endSide;
 
-                                const margin = 30; // Distance to go out before turning
+                                const margin = 30;
 
-                                // Calculate Start Standoff (p1)
+                                // 1. Calculate Standoff Points (p1, p2)
                                 let p1 = { ...s };
                                 if (startSide === 'top') p1.y -= margin;
                                 else if (startSide === 'bottom') p1.y += margin;
                                 else if (startSide === 'left') p1.x -= margin;
                                 else if (startSide === 'right') p1.x += margin;
 
-                                // Calculate End Standoff (p2)
                                 let p2 = { ...e };
                                 if (endSide === 'top') p2.y -= margin;
                                 else if (endSide === 'bottom') p2.y += margin;
                                 else if (endSide === 'left') p2.x -= margin;
                                 else if (endSide === 'right') p2.x += margin;
 
-                                // Routing between p1 and p2
-                                let midPath = '';
+                                // 2. Determine Axis
                                 const isStartVertical = startSide === 'top' || startSide === 'bottom';
+                                const isEndVertical = endSide === 'top' || endSide === 'bottom';
 
-                                if (isStartVertical) {
-                                    // Vertical Exit -> Horizontal -> Vertical Entry (Z-shape-ish)
-                                    // M s -> L p1 -> L p1.x midY -> L p2.x midY -> L p2 -> L e
-                                    const midY = (p1.y + p2.y) / 2;
-                                    midPath = `L ${p1.x} ${midY} L ${p2.x} ${midY}`;
+                                let midPath = '';
+
+                                if (isStartVertical === isEndVertical) {
+                                    // Same Axis (V-V or H-H)
+                                    if (startSide === endSide) {
+                                        // Same Direction (U-Turn case, e.g. Right -> Right)
+                                        // Extend out further to avoid crossing
+                                        if (isStartVertical) {
+                                            // V-V Same (Top-Top or Bottom-Bottom) -> Use Horizontal Channel at limit
+                                            const channelY = startSide === 'top' ? Math.min(p1.y, p2.y) - margin : Math.max(p1.y, p2.y) + margin;
+                                            midPath = `L ${p1.x} ${channelY} L ${p2.x} ${channelY}`;
+                                        } else {
+                                            // H-H Same (Right-Right or Left-Left) -> Use Vertical Channel at limit
+                                            const channelX = startSide === 'left' ? Math.min(p1.x, p2.x) - margin : Math.max(p1.x, p2.x) + margin;
+                                            midPath = `L ${channelX} ${p1.y} L ${channelX} ${p2.y}`;
+                                        }
+                                    } else {
+                                        // Opposite Direction (Z-Shape case, e.g. Right -> Left)
+                                        // Use Midpoint
+                                        if (isStartVertical) {
+                                            const midY = (p1.y + p2.y) / 2;
+                                            midPath = `L ${p1.x} ${midY} L ${p2.x} ${midY}`;
+                                        } else {
+                                            const midX = (p1.x + p2.x) / 2;
+                                            midPath = `L ${midX} ${p1.y} L ${midX} ${p2.y}`;
+                                        }
+                                    }
                                 } else {
-                                    // Horizontal Exit -> Vertical -> Horizontal Entry (Z-shape-ish) - Default
-                                    // M s -> L p1 -> L midX p1.y -> L midX p2.y -> L p2 -> L e
-                                    const midX = (p1.x + p2.x) / 2;
-                                    midPath = `L ${midX} ${p1.y} L ${midX} ${p2.y}`;
+                                    // Orthogonal (V-H or H-V) -> L-Shape case
+                                    // Intersection Corner
+                                    // If Start V (Vertical Line from p1) and End H (Horizontal Line from p2)
+                                    // Intersection is (p1.x, p2.y)
+                                    if (isStartVertical) {
+                                        midPath = `L ${p1.x} ${p2.y}`;
+                                    } else {
+                                        // Start H (Horizontal Line from p1) and End V (Vertical Line from p2)
+                                        // Intersection is (p2.x, p1.y)
+                                        midPath = `L ${p2.x} ${p1.y}`;
+                                    }
                                 }
 
                                 d = `M ${s.x} ${s.y} L ${p1.x} ${p1.y} ${midPath} L ${p2.x} ${p2.y} L ${e.x} ${e.y}`;
