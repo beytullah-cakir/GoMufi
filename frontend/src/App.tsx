@@ -4,6 +4,7 @@ import HomePage from './components/HomePage';
 import CoursesPage from './components/CoursesPage';
 import ProfilePage from './components/ProfilePage';
 import ContentPage from './components/ContentPage';
+import AskQuestionPage from './components/AskQuestionPage';
 import LessonBuilderPage from './components/LessonBuilderPage';
 import MufiSleep from './assets/sprites/MufiSleep.png';
 
@@ -283,6 +284,8 @@ function App() {
             <ProfilePage />
           ) : activePage === 'Kurslarım' ? (
             <ContentPage />
+          ) : activePage === 'Soru Sor!' ? (
+            <AskQuestionPage />
           ) : activePage === 'Builder' ? (
             <LessonBuilderPage onExit={() => setActivePage('Ana Sayfa')} />
           ) : (

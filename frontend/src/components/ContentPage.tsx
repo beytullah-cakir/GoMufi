@@ -247,44 +247,65 @@ const ContentPage: React.FC = () => {
                                 key={course.id}
                                 onClick={() => setSelectedCourse(course.id)}
                                 className={`
-                                    relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-200 group
+                                    relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 group overflow-hidden
                                     ${selectedCourse === course.id
-                                        ? 'bg-white border-indigo-500 shadow-md ring-2 ring-indigo-100 scale-[1.02]'
-                                        : 'bg-white border-gray-100 hover:border-gray-300 hover:scale-[1.01]'
+                                        ? 'bg-white border-indigo-500 border-b-4 shadow-md -translate-y-1'
+                                        : 'bg-white border-gray-100 border-b-4 hover:border-indigo-300 hover:-translate-y-1 hover:shadow-sm'
                                     }
                                 `}
                             >
-                                {/* Selection Indicator */}
+                                {/* Active State Glow Background (Subtle) */}
                                 {selectedCourse === course.id && (
-                                    <div className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-1/2 w-1.5 h-12 bg-indigo-500 rounded-r-full"></div>
+                                    <div className="absolute inset-0 bg-indigo-50/30 pointer-events-none"></div>
                                 )}
 
-                                <div className="flex items-center gap-4 mb-3">
-                                    <div className={`w-12 h-12 rounded-xl ${course.lightColor} border ${course.borderColor} flex items-center justify-center p-2`}>
+                                <div className="flex items-center gap-4 mb-3 relative z-10">
+                                    <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform`}>
                                         <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
                                     </div>
                                     <div>
-                                        <h3 className="font-black text-gray-800 text-sm leading-tight">{course.title}</h3>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide">{course.level}</span>
+                                        <h3 className={`font-black text-sm leading-tight mb-0.5 ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`}>
+                                            {course.title}
+                                        </h3>
+                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
+                                            {course.level}
+                                        </span>
                                     </div>
                                 </div>
 
                                 {/* Progress */}
-                                <div className="space-y-1">
+                                <div className="space-y-1 relative z-10">
                                     <div className="flex justify-between text-[10px] font-bold text-gray-400">
                                         <span>İlerleme</span>
-                                        <span>%{course.progress}</span>
+                                        <span className={selectedCourse === course.id ? 'text-indigo-600' : ''}>%{course.progress}</span>
                                     </div>
-                                    <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-                                        <div className={`h-full ${course.color} rounded-full`} style={{ width: `${course.progress}%` }}></div>
+                                    <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                        <div
+                                            className={`h-full rounded-full transition-all duration-500 ${course.color} relative overflow-hidden`}
+                                            style={{ width: `${course.progress}%` }}
+                                        >
+                                            {/* Striped Pattern Overlay */}
+                                            <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"
+                                                style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,0.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.15) 50%,rgba(255,255,255,0.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem' }}
+                                            ></div>
+                                        </div>
                                     </div>
                                 </div>
+
+                                {/* Selected Checkmark (Optional visual reinforcement) */}
+                                {selectedCourse === course.id && (
+                                    <div className="absolute top-2 right-2 text-indigo-500">
+                                        <CheckCircle size={16} fill="currentColor" className="text-white" />
+                                    </div>
+                                )}
                             </div>
                         ))}
 
                         {/* Add New Course Button */}
-                        <button className="w-full py-3 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50 transition-all flex items-center justify-center gap-2">
-                            <span className="text-xl leading-none">+</span>
+                        <button className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group">
+                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                                <span className="text-xl leading-none mb-0.5">+</span>
+                            </div>
                             Yeni Kurs Ekle
                         </button>
                     </div>
