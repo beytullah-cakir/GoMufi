@@ -90,7 +90,33 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                             <RefreshCw className="w-3 h-3 text-indigo-600" />
                         </div>
                     )}
-                    {/* Resize Handles */}
+                    {/* Edge Resize Handles (Invisible Bars) */}
+                    {showHandles && (
+                        <>
+                            {/* N - Top Edge */}
+                            <div
+                                className="absolute left-0 -top-1 w-full h-2 cursor-n-resize z-50 pointer-events-auto"
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'n')}
+                            />
+                            {/* S - Bottom Edge */}
+                            <div
+                                className="absolute left-0 -bottom-1 w-full h-2 cursor-s-resize z-50 pointer-events-auto"
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 's')}
+                            />
+                            {/* W - Left Edge */}
+                            <div
+                                className="absolute -left-1 top-0 w-2 h-full cursor-w-resize z-50 pointer-events-auto"
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'w')}
+                            />
+                            {/* E - Right Edge */}
+                            <div
+                                className="absolute -right-1 top-0 w-2 h-full cursor-e-resize z-50 pointer-events-auto"
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'e')}
+                            />
+                        </>
+                    )}
+
+                    {/* Corner Resize Handles (Visible Circles) */}
                     {showHandles && ['nw', 'ne', 'sw', 'se'].map(pos => (
                         <div
                             key={pos}
