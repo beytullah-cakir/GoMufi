@@ -69,6 +69,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
             // - Text/Code -> color
             if (['shape', 'sticky'].includes(el.type)) {
                 updateElementStyle(el.id, { backgroundColor: color });
+            } else if (el.type === 'code') {
+                updateElementStyle(el.id, { color: color });
             } else {
                 // If we are currently editing THIS element, use execCommand for partial color
                 if (editingElementId === el.id) {
@@ -140,7 +142,8 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
     const topY = canvasRect.top + minY * scale;
 
     // -- Determine Primary / Mixed Types --
-    const allText = elements.every(el => ['text', 'sticky', 'code'].includes(el.type));
+    const allCode = elements.every(el => el.type === 'code');
+    const allText = elements.every(el => ['text', 'sticky'].includes(el.type)); // Removed code from here
     const isSingle = elements.length === 1;
     const hasMedia = elements.some(el => ['image', 'video'].includes(el.type));
     const allBorders = elements.every(el => ['shape', 'image', 'video'].includes(el.type));
@@ -168,7 +171,25 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
         >
             <div className="bg-gray-900 text-white p-2 rounded-xl shadow-2xl flex items-center gap-2 border border-gray-700 select-none">
 
-                {/* Font Family (Only if all are text-ish) */}
+                {/* Theme Selector (Code Only) */}
+                {allCode && (
+                    <div className="flex bg-gray-800 rounded border border-gray-600 p-0.5">
+                        <button
+                            onClick={() => updateElement(firstEl.id, { codeConfig: { ...firstEl.codeConfig, theme: 'dark' } })}
+                            className={`p-1 rounded ${(!firstEl.codeConfig?.theme || firstEl.codeConfig.theme === 'dark') ? 'bg-gray-600 text-white' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <div className="w-4 h-4 rounded-full bg-gray-900 border border-gray-500" />
+                        </button>
+                        <button
+                            onClick={() => updateElement(firstEl.id, { codeConfig: { ...firstEl.codeConfig, theme: 'light' } })}
+                            className={`p-1 rounded ${firstEl.codeConfig?.theme === 'light' ? 'bg-gray-200 text-gray-900' : 'text-gray-400 hover:text-white'}`}
+                        >
+                            <div className="w-4 h-4 rounded-full bg-white border border-gray-300" />
+                        </button>
+                    </div>
+                )}
+
+                {/* Font Family (Only if all are text, NOT code) */}
                 {allText && (
                     <select
                         className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 outline-none cursor-pointer hover:bg-gray-700 transition-colors"
@@ -187,7 +208,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                 )}
 
                 {/* Font Size */}
-                {allText && (
+                {(allText || allCode) && (
                     <div className="flex items-center bg-gray-800 rounded border border-gray-600">
                         <button onMouseDown={(e) => { e.stopPropagation(); elements.forEach(el => updateElementStyle(el.id, { fontSize: Math.max(8, (el.style?.fontSize || 24) - 2) })) }} className="w-6 h-8 hover:bg-gray-700 flex items-center justify-center">-</button>
                         <span className="w-8 text-center text-xs tabular-nums">{firstEl.style?.fontSize || 24}</span>

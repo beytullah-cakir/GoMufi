@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { RefreshCw, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
+import CodeWidget from './CodeWidget';
 import type { SlideElement, ElementStyle } from './types';
 
 interface CanvasElementProps {
@@ -171,10 +172,13 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                     </div>
                 )}
                 {el.type === 'code' && (
-                    <div className="w-full h-full bg-[#1e1e1e] rounded-xl flex flex-col font-mono text-sm border-4 border-gray-800 overflow-hidden">
-                        <div className="bg-[#252526] px-2 py-1 flex gap-1"><div className="w-2 h-2 rounded bg-red-500" /><div className="w-2 h-2 rounded bg-yellow-500" /></div>
-                        <div ref={contentRef} contentEditable={isEditing} suppressContentEditableWarning className={`p-2 flex-1 text-gray-100 outline-none select-text ${!isEditing && 'pointer-events-none'}`} onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerText }); setEditingElementId(null); }}>{el.content}</div>
-                    </div>
+                    <CodeWidget
+                        el={el}
+                        isEditing={isEditing}
+                        updateElement={updateElement}
+                        setEditingElementId={setEditingElementId}
+                        handleMouseDown={handleMouseDown}
+                    />
                 )}
                 {(el.type === 'image' || el.type === 'video') && (
                     <div className="w-full h-full bg-gray-100 flex items-center justify-center overflow-hidden"

@@ -26,7 +26,14 @@ export interface SlideElement {
     content: string;
     src?: string;
     style?: ElementStyle;
-    expectedOutput?: string;
+    // New Config for Widgets
+    codeConfig?: {
+        language?: 'python' | 'javascript' | 'typescript' | 'cpp';
+        expectedOutput?: string;
+        hint?: string;
+        runnable?: boolean;
+        theme?: 'dark' | 'light';
+    };
 }
 
 export interface Slide {
