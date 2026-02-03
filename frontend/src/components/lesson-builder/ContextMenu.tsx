@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical } from 'lucide-react';
+import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
@@ -402,6 +402,37 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
 
                 {/* Divider & Delete */}
                 <div className="w-[1px] h-6 bg-gray-700 mx-1" />
+
+                {/* Arrow Styles */}
+                {elements.every(el => el.type === 'arrow') && (
+                    <>
+                        <div className="flex gap-0.5">
+                            <button
+                                onClick={() => elements.forEach(el => updateElement(el.id, { arrowConfig: { ...el.arrowConfig!, arrowStyle: 'straight' } }))}
+                                className={`p-1.5 rounded hover:bg-gray-700 ${(!firstEl.arrowConfig?.arrowStyle || firstEl.arrowConfig.arrowStyle === 'straight') ? 'text-indigo-400 bg-gray-800' : 'text-gray-300'}`}
+                                title="Straight"
+                            >
+                                <Minus className="w-4 h-4 rotate-45" />
+                            </button>
+                            <button
+                                onClick={() => elements.forEach(el => updateElement(el.id, { arrowConfig: { ...el.arrowConfig!, arrowStyle: 'curved' } }))}
+                                className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.arrowConfig?.arrowStyle === 'curved' ? 'text-indigo-400 bg-gray-800' : 'text-gray-300'}`}
+                                title="Curved"
+                            >
+                                <Spline className="w-4 h-4" />
+                            </button>
+                            <button
+                                onClick={() => elements.forEach(el => updateElement(el.id, { arrowConfig: { ...el.arrowConfig!, arrowStyle: 'elbow' } }))}
+                                className={`p-1.5 rounded hover:bg-gray-700 ${firstEl.arrowConfig?.arrowStyle === 'elbow' ? 'text-indigo-400 bg-gray-800' : 'text-gray-300'}`}
+                                title="Elbow"
+                            >
+                                <CornerDownRight className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="w-[1px] h-6 bg-gray-700 mx-1" />
+                    </>
+                )}
+
                 <button
                     onMouseDown={(e) => { e.stopPropagation(); bulkDelete(); }}
                     className="text-red-400 hover:bg-red-900/40 p-1.5 rounded transition-colors"

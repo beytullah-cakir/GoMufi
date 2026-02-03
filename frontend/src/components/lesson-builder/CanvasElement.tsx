@@ -82,7 +82,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             data-type={el.type}
         >
             {/* SELECTION OVERLAY */}
-            {isSelected && !isEditing && (
+            {isSelected && !isEditing && el.type !== 'arrow' && (
                 <div className={`absolute -inset-1 border-2 border-indigo-500 pointer-events-none z-50 ${!showHandles ? 'opacity-50 border-dashed' : ''}`}>
                     {/* Rotate Handle */}
                     {showHandles && (
@@ -132,9 +132,73 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 </div>
             )}
 
+            {/* ARROW ELEMENT */}
+            {el.type === 'arrow' && el.arrowConfig && (
+                <div className="w-full h-full pointer-events-none">
+                    <svg className="w-full h-full overflow-visible pointer-events-none">
+                        <defs>
+                            <marker id={`arrowhead-${el.id}`} markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                                <polygon points="0 0, 10 3.5, 0 7" fill={el.style?.color || '#374151'} />
+                            </marker>
+                        </defs>
+                        {(() => {
+                            const s = el.arrowConfig.start;
+                            const e = el.arrowConfig.end;
+                            let d = `M ${s.x} ${s.y} L ${e.x} ${e.y}`; // Default Straight
+
+                            if (el.arrowConfig.arrowStyle === 'curved') {
+                                // S-Curve Logic
+                                const dist = Math.abs(e.x - s.x);
+                                const cp1 = { x: s.x + dist * 0.5, y: s.y };
+                                const cp2 = { x: e.x - dist * 0.5, y: e.y };
+
+                                // Note: This matches the user's "Kıvrımlı" which is a smooth horizontal S-curve usually
+                                d = `M ${s.x} ${s.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${e.x} ${e.y}`;
+                            } else if (el.arrowConfig.arrowStyle === 'elbow') {
+                                // Elbow Logic: Go horizontal then vertical then horizontal
+                                // Simple Manhattan routing: Midpoint X
+                                const midX = (s.x + e.x) / 2;
+                                d = `M ${s.x} ${s.y} L ${midX} ${s.y} L ${midX} ${e.y} L ${e.x} ${e.y}`;
+                            }
+
+                            return (
+                                <path
+                                    d={d}
+                                    stroke={el.style?.color || '#374151'}
+                                    strokeWidth={el.style?.borderWidth || 4}
+                                    fill="none"
+                                    markerEnd={`url(#arrowhead-${el.id})`}
+                                    className="pointer-events-auto cursor-pointer"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                />
+                            );
+                        })()}
+                    </svg>
+
+                    {/* Arrow Handles */}
+                    {isSelected && !isEditing && (
+                        <>
+                            {/* Start Handle */}
+                            <div
+                                className="absolute w-4 h-4 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto cursor-move z-50 shadow-sm"
+                                style={{ left: el.arrowConfig.start.x - 8, top: el.arrowConfig.start.y - 8 }}
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'start')}
+                            />
+                            {/* End Handle */}
+                            <div
+                                className="absolute w-4 h-4 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto cursor-move z-50 shadow-sm"
+                                style={{ left: el.arrowConfig.end.x - 8, top: el.arrowConfig.end.y - 8 }}
+                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'end')}
+                            />
+                        </>
+                    )}
+                </div>
+            )}
+
             {/* CONTENT */}
             <div
-                className={`w-full h-full ${el.type === 'draw' ? '' : 'overflow-hidden'}`}
+                className={`w-full h-full ${el.type === 'draw' || el.type === 'arrow' ? '' : 'overflow-hidden'}`}
                 onDoubleClick={(e) => {
                     if (['text', 'sticky', 'code', 'video'].includes(el.type)) {
                         e.stopPropagation(); setEditingElementId(el.id);

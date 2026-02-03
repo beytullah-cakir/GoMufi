@@ -4,6 +4,7 @@ import type { Slide, SlideElement, ElementStyle } from './lesson-builder/types';
 import Toolbar from './lesson-builder/Toolbar';
 import ContextMenu from './lesson-builder/ContextMenu';
 import CanvasElement from './lesson-builder/CanvasElement';
+import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -11,7 +12,7 @@ interface LessonBuilderProps {
 
 const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     // -- State --
-    const [slides, setSlides] = useState<Slide[]>([{ id: 1, elements: [] }]);
+    const [slides, setSlides] = useState<Slide[]>([{ id: 1, elements: [], connections: [] }]);
     const [currentSlideId, setCurrentSlideId] = useState<number>(1);
     const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
     const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
@@ -19,9 +20,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [scale, setScale] = useState(1);
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
 
-    // -- Draw Tool State --
-    const [activeTool, setActiveTool] = useState<'select' | 'draw'>('select');
+    // -- Draw/Connect Tool State --
+    const [activeTool, setActiveTool] = useState<'select' | 'draw' | 'connect'>('select');
     const [isDrawing, setIsDrawing] = useState(false);
+    const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
 
     const [currentPathPoints, setCurrentPathPoints] = useState<{ x: number, y: number }[]>([]);
     const [brushColor, setBrushColor] = useState('#1f2937');
@@ -205,7 +207,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'shape': { w: 150, h: 150 },
                 'code': { w: 400, h: 300 },
                 'image': { w: 300, h: 200 },
-                'video': { w: 400, h: 225 }
+                'video': { w: 400, h: 225 },
+                'arrow': { w: 200, h: 100 }
             };
 
             const size = sizes[type] || { w: 100, h: 100 };
@@ -215,7 +218,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'sticky': { content: 'Note...', style: { ...baseStyle, backgroundColor: '#fef3c7', fontFamily: 'Patrick Hand' as const } },
                 'shape': { content: '', shapeType: extraData.shapeType || 'rectangle', style: { backgroundColor: '#e2e8f0' } },
                 'image': { content: '' },
-                'video': { content: '' }
+                'video': { content: '' },
+                'arrow': {
+                    content: '',
+                    arrowConfig: {
+                        start: { x: 0, y: 50 },
+                        end: { x: 200, y: 50 }
+                    }
+                }
             }[type] || {};
 
             const newElement: SlideElement = {
@@ -237,7 +247,37 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
     // -- TRANSFORM LOGIC --
 
-    const handleMouseDown = (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => {
+    const handleMouseDown = (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate' = 'drag', handle?: string) => {
+        e.stopPropagation(); // Stop canvas pan
+
+        // Connect Tool Logic
+        if (activeTool === 'connect') {
+            if (connectionStartId === null) {
+                setConnectionStartId(id);
+                // Maybe show toast or highlight?
+            } else {
+                if (connectionStartId !== id) {
+                    // Create Connection
+                    const newConn: any = {
+                        id: Date.now().toString(),
+                        startElementId: connectionStartId,
+                        endElementId: id
+                    };
+
+                    setSlides(prev => prev.map(s => s.id === currentSlideId ? {
+                        ...s,
+                        connections: [...(s.connections || []), newConn]
+                    } : s));
+
+                    setConnectionStartId(null);
+                    setActiveTool('select'); // Auto switch back or stay? User usually wants 1 arrow.
+                } else {
+                    setConnectionStartId(null); // Cancel if clicked same
+                }
+            }
+            return;
+        }
+
         if (activeTool === 'draw') {
             if (brushType === 'eraser') {
                 e.stopPropagation();
@@ -246,8 +286,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             return;
         }
         if (editingElementId === id && action === 'drag') return;
-
-        e.stopPropagation();
 
         // Check if we are interacting with the Group Handle (id === 'group')
         if (id === 'group') {
@@ -397,46 +435,62 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             // Move ALL selected elements
             setSlides(prev => prev.map(s => {
                 if (s.id === currentSlideId) {
+                    const newElements = s.elements.map(el => {
+                        if (selectedElementIds.includes(el.id)) {
+                            return {
+                                ...el,
+                                x: el.x + (e.movementX / scale),
+                                y: el.y + (e.movementY / scale)
+                            };
+                        }
+                        return el;
+                    });
+
+                    // Update Arrows that are attached to moving elements
+                    const movingElementIds = selectedElementIds;
+                    const updatedElementsWithArrows = newElements.map(el => {
+                        if (el.type === 'arrow' && el.arrowConfig) {
+                            let newConfig = { ...el.arrowConfig };
+                            let changed = false;
+
+                            // Check start connection
+                            if (el.arrowConfig.startConnectedElementId) {
+                                if (movingElementIds.includes(el.arrowConfig.startConnectedElementId)) {
+                                    // Target moved. Apply same delta to arrow point to stay attached at same relative spot.
+                                    newConfig.start = {
+                                        x: el.arrowConfig.start.x + (e.movementX / scale),
+                                        y: el.arrowConfig.start.y + (e.movementY / scale)
+                                    };
+                                    changed = true;
+                                } else if (movingElementIds.includes(el.id)) {
+                                    // Arrow moved, target didn't -> Disconnect
+                                    newConfig.startConnectedElementId = undefined;
+                                    changed = true;
+                                }
+                            }
+
+                            // Check end connection
+                            if (el.arrowConfig.endConnectedElementId) {
+                                if (movingElementIds.includes(el.arrowConfig.endConnectedElementId)) {
+                                    newConfig.end = {
+                                        x: el.arrowConfig.end.x + (e.movementX / scale),
+                                        y: el.arrowConfig.end.y + (e.movementY / scale)
+                                    };
+                                    changed = true;
+                                } else if (movingElementIds.includes(el.id)) {
+                                    newConfig.endConnectedElementId = undefined;
+                                    changed = true;
+                                }
+                            }
+
+                            if (changed) return { ...el, arrowConfig: newConfig };
+                        }
+                        return el;
+                    });
+
                     return {
                         ...s,
-                        elements: s.elements.map(el => {
-                            if (selectedElementIds.includes(el.id)) {
-                                // We need to store initial positions for ALL elements to prevent drift
-                                // But since we don't have that in simple state, we use delta from LAST frame? 
-                                // No, using delta from start is better but we don't have initial for all.
-                                // Simplified approach: We need to know the initial position of THIS element relative to the drag start?
-                                // Actually, simpler: we can just add (dx - prevDx) if we tracked prevDx.
-                                // OR: We just update x/y by movement.
-                                // ISSUE: `updateElement` uses setSlides inside. calling it multiple times in a loop is BAD.
-                                // We must update ALL elements in one go here.
-                                return {
-                                    ...el,
-                                    // This is tricky without "initial positions" for everyone. 
-                                    // Let's use the delta approach:
-                                    // But React state updates are async/batched.
-                                    // If we use functional update, we can't easily use "initial".
-                                    // SOLUTION: We need to capture initial positions of ALL selected items on DragStart.
-                                    // For now, let's just use the `dx` applied to the `initialX` of the PRIMARY element, 
-                                    // and for others, we might drift if we just add delta to current.
-                                    // WAIT: `updateElement` helper re-maps state. 
-
-                                    // CORRECT WAY:
-                                    // We need to calculate the NEW position based on the OLD (at start of drag).
-                                    // But we only stored `initialX` for the `elementId`.
-
-                                    // Let's change strategy:
-                                    // We will blindly apply the delta (e.movementX) to the current state? No, floating point and rounding errors.
-
-                                    // Let's defer to a simpler method: 
-                                    // We'll iterate and apply `e.movementX/scale` to `el.x`.
-                                    // Ideally, `DragState` should hold a map of initial positions.
-                                    // MVP: Just add `e.movementX / scale` to current position.
-                                    x: el.x + (e.movementX / scale),
-                                    y: el.y + (e.movementY / scale)
-                                };
-                            }
-                            return el;
-                        })
+                        elements: updatedElementsWithArrows
                     };
                 }
                 return s;
@@ -453,6 +507,76 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             let newH = initialHeight;
             let newX = initialX;
             let newY = initialY;
+
+            if (dragState.handle === 'start' || dragState.handle === 'end') {
+                // Arrow Endpoint Dragging
+                const el = currentSlide.elements.find(e => e.id === dragState.elementId);
+                if (el && el.type === 'arrow' && el.arrowConfig) {
+                    const mouseX = (e.clientX - canvasRef.current!.getBoundingClientRect().left) / scale;
+                    const mouseY = (e.clientY - canvasRef.current!.getBoundingClientRect().top) / scale;
+
+                    let newX = mouseX;
+                    let newY = mouseY;
+                    let connectedId: string | undefined = undefined;
+
+                    // --- SNAP LOGIC START ---
+                    // Check for snap targets
+                    const target = [...currentSlide.elements].reverse().find(candidate => {
+                        if (candidate.id === el.id) return false;
+                        if (candidate.type === 'arrow') return false;
+                        return (
+                            mouseX >= candidate.x - 15 && // Add tolerance
+                            mouseX <= candidate.x + candidate.width + 15 &&
+                            mouseY >= candidate.y - 15 &&
+                            mouseY <= candidate.height + candidate.y + 15
+                        );
+                    });
+
+                    if (target) {
+                        const tx = target.x;
+                        const ty = target.y;
+                        const tw = target.width;
+                        const th = target.height;
+
+                        // Calculate raw distances to edges
+                        const dl = Math.abs(mouseX - tx);
+                        const dr = Math.abs(mouseX - (tx + tw));
+                        const dt = Math.abs(mouseY - ty);
+                        const db = Math.abs(mouseY - (ty + th));
+
+                        const min = Math.min(dl, dr, dt, db);
+
+                        // Only snap if within 20px threshold
+                        if (min < 20) {
+                            if (min === dl) { newX = tx; newY = Math.max(ty, Math.min(ty + th, mouseY)); }
+                            else if (min === dr) { newX = tx + tw; newY = Math.max(ty, Math.min(ty + th, mouseY)); }
+                            else if (min === dt) { newY = ty; newX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+                            else if (min === db) { newY = ty + th; newX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+
+                            connectedId = target.id;
+                        } else {
+                            // If we are deep inside (or just barely outside tolerance but 'find' caught it),
+                            // we do NOT set connectedId, allowing free movement inside.
+                            connectedId = undefined;
+                        }
+                    }
+                    // --- SNAP LOGIC END ---
+
+                    const relX = newX - el.x;
+                    const relY = newY - el.y;
+
+                    const newConfig = { ...el.arrowConfig };
+                    if (dragState.handle === 'start') {
+                        newConfig.start = { x: relX, y: relY };
+                        newConfig.startConnectedElementId = connectedId;
+                    } else {
+                        newConfig.end = { x: relX, y: relY };
+                        newConfig.endConnectedElementId = connectedId;
+                    }
+                    updateElement(dragState.elementId, { arrowConfig: newConfig });
+                    return;
+                }
+            }
 
             if (dragState.handle.includes('e')) newW = Math.max(20, initialWidth + dx);
             if (dragState.handle.includes('s')) newH = Math.max(20, initialHeight + dy);
@@ -554,7 +678,89 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e?: React.MouseEvent) => {
+        // Check for Arrow Snap
+        if ((dragState.handle === 'start' || dragState.handle === 'end') && dragState.elementId) {
+            const el = currentSlide.elements.find(el => el.id === dragState.elementId);
+            if (el && el.type === 'arrow' && el.arrowConfig && e && canvasRef.current) {
+                // Find element under mouse
+                // We can't use e.target directly because it might be the handle itself or the canvas overlay.
+                // We need to check coordinates.
+                const canvasRect = canvasRef.current.getBoundingClientRect();
+                const mouseX = (e.clientX - canvasRect.left) / scale;
+                const mouseY = (e.clientY - canvasRect.top) / scale;
+
+                // Simple point-in-rect check for all OTHER elements
+                // Reverse to find top-most
+                const target = [...currentSlide.elements].reverse().find(candidate => {
+                    if (candidate.id === el.id) return false; // Don't snap to self
+                    if (candidate.type === 'arrow') return false; // Don't snap to other arrows (yet)
+
+                    return (
+                        mouseX >= candidate.x &&
+                        mouseX <= candidate.x + candidate.width &&
+                        mouseY >= candidate.y &&
+                        mouseY <= candidate.y + candidate.height
+                    );
+                });
+
+                if (target) {
+                    // Snap to Closest Edge!
+                    const newConfig = { ...el.arrowConfig };
+
+                    // Math for closest point on AABB perimeter
+                    const tx = target.x;
+                    const ty = target.y;
+                    const tw = target.width;
+                    const th = target.height;
+
+                    // Calculate raw distances to edges
+                    const dl = Math.abs(mouseX - tx);
+                    const dr = Math.abs(mouseX - (tx + tw));
+                    const dt = Math.abs(mouseY - ty);
+                    const db = Math.abs(mouseY - (ty + th));
+
+                    const min = Math.min(dl, dr, dt, db);
+
+                    if (min < 20) {
+                        let snapX = mouseX;
+                        let snapY = mouseY;
+
+                        if (min === dl) { snapX = tx; snapY = Math.max(ty, Math.min(ty + th, mouseY)); }
+                        else if (min === dr) { snapX = tx + tw; snapY = Math.max(ty, Math.min(ty + th, mouseY)); }
+                        else if (min === dt) { snapY = ty; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+                        else if (min === db) { snapY = ty + th; snapX = Math.max(tx, Math.min(tx + tw, mouseX)); }
+
+                        // Update Config
+                        if (dragState.handle === 'start') {
+                            newConfig.startConnectedElementId = target.id;
+                            newConfig.start = { x: snapX - el.x, y: snapY - el.y };
+                        } else {
+                            newConfig.endConnectedElementId = target.id;
+                            newConfig.end = { x: snapX - el.x, y: snapY - el.y };
+                        }
+                    } else {
+                        // Not close enough to snap -> DISCONNECT if it was connected
+                        if (dragState.handle === 'start') {
+                            newConfig.startConnectedElementId = undefined;
+                        } else {
+                            newConfig.endConnectedElementId = undefined;
+                        }
+                    }
+                    updateElement(el.id, { arrowConfig: newConfig });
+                } else {
+                    // Disconnect if dropped on empty space
+                    const newConfig = { ...el.arrowConfig };
+                    if (dragState.handle === 'start') {
+                        newConfig.startConnectedElementId = undefined;
+                    } else {
+                        newConfig.endConnectedElementId = undefined;
+                    }
+                    updateElement(el.id, { arrowConfig: newConfig });
+                }
+            }
+        }
+
         // Finalize Drawing
         if (isDrawing && activeTool === 'draw') {
             setIsDrawing(false);
@@ -607,15 +813,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     return (
         <div
             className="w-full h-screen bg-[#f5f5f7] font-sans flex overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
-            onMouseUp={handleMouseUp}
+            onMouseUp={(e) => handleMouseUp(e)}
             onMouseMove={handleMouseMove}
             onMouseDown={(e) => {
                 if (activeTool === 'draw') {
-                    if (brushType === 'eraser') return; // Prevent drawing with eraser (delete only)
-                    // Drawing logic moved to child (Canvas) or handled via propagation?
-                    // Actually, the main container handles the global mouse moves, but starting the drag 
-                    // usually happens on the canvas. 
-                    // Let's keep the start logic here for the 'empty space' clicks.
+                    // Don't stop propagation, let it bubble to container handler
+                    // But prevent default to stop text selection
+                    e.preventDefault();
                     if (!canvasRef.current) return;
                     const canvasRect = canvasRef.current.getBoundingClientRect();
                     const mouseX = (e.clientX - canvasRect.left) / scale;
@@ -623,7 +827,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     setIsDrawing(true);
                     setCurrentPathPoints([{ x: mouseX, y: mouseY }]);
                     setSelectedElementIds([]);
-                } else {
+                } else if (activeTool === 'select') {
                     // Start Box Selection
                     if (!canvasRef.current) return;
                     const canvasRect = canvasRef.current.getBoundingClientRect();
@@ -635,6 +839,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                     setActiveColorPickerId(null);
                 }
+                // If activeTool is 'connect', do nothing on canvas background click
             }}
         >
             {/* STYLES */}
@@ -700,7 +905,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     onDragOver={(e) => e.preventDefault()}
                     onMouseDown={(e) => {
                         // If drawing, we want the event to bubble up to the main container or handle it here.
-                        // The main container has the generic handler. 
+                        // The main container has the generic handler.
                         // But we stopped propagation before.
                         if (activeTool === 'draw') {
                             // Don't stop propagation, let it bubble to container handler
@@ -710,7 +915,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             // Allow bubbling to trigger Box Selection in parent
                         }
                     }}
-                    className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''}`}
+                    className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''}`}
                     style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
                 >
                     <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
@@ -750,6 +955,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         </div>
                     )}
 
+                    {/* CONNECTOR LAYER */}
+                    <ConnectorRenderer
+                        connections={currentSlide.connections || []}
+                        elements={currentSlide.elements}
+                    />
+
                     {currentSlide.elements.map(el => (
                         <CanvasElement
                             key={el.id}
@@ -761,7 +972,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             updateElementStyle={updateElementStyle}
                             deleteElement={deleteElement}
                             handleMouseDown={handleMouseDown}
-                            showHandles={selectedElementIds.length === 1} // Hide individual handles if multi-selected
+                            showHandles={selectedElementIds.length === 1}
                         />
                     ))}
                 </div>

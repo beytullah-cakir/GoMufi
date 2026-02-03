@@ -16,7 +16,7 @@ export interface ElementStyle {
 
 export interface SlideElement {
     id: string;
-    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw';
+    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow';
     shapeType?: 'rectangle' | 'circle';
     x: number;
     y: number;
@@ -35,9 +35,25 @@ export interface SlideElement {
         theme?: 'dark' | 'light';
         enableAutocomplete?: boolean;
     };
+    arrowConfig?: {
+        start: { x: number, y: number };
+        end: { x: number, y: number };
+        startConnectedElementId?: string;
+        endConnectedElementId?: string;
+        arrowStyle?: 'straight' | 'curved' | 'elbow';
+    };
+}
+
+export interface SlideConnection {
+    id: string;
+    startElementId: string;
+    endElementId: string;
+    color?: string;
+    width?: number;
 }
 
 export interface Slide {
     id: number;
     elements: SlideElement[];
+    connections?: SlideConnection[];
 }

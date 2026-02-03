@@ -1,12 +1,12 @@
 import React from 'react';
 import {
-    MousePointer2, Pencil, Type, FileText, Square, Circle, Code, Image as ImageIcon, Video, Upload,
-    PenTool, Highlighter, Eraser, StickyNote, Circle as CircleIcon
+    MousePointer2, Pencil, Type, Square, Code, Image as ImageIcon, Video,
+    PenTool, Highlighter, Eraser, StickyNote, CircleIcon, Link as LinkIcon, ArrowRight
 } from 'lucide-react';
 
 interface ToolbarProps {
-    activeTool: 'select' | 'draw';
-    setTool: (t: 'select' | 'draw') => void;
+    activeTool: 'select' | 'draw' | 'connect';
+    setTool: (t: 'select' | 'draw' | 'connect') => void;
     onDragStart: (e: React.DragEvent, type: string, extraData?: any) => void;
     brushColor: string;
     setBrushColor: (c: string) => void;
@@ -32,15 +32,24 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <div className="flex flex-col gap-2 mb-2 pb-2 border-b-2 border-gray-100">
                 <button
                     onClick={() => setTool('select')}
+                    title="Select"
                     className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all ${activeTool === 'select' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100'}`}
                 >
                     <MousePointer2 className="w-6 h-6" />
                 </button>
                 <button
                     onClick={() => setTool('draw')}
+                    title="Draw"
                     className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all ${activeTool === 'draw' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                     <Pencil className="w-6 h-6" />
+                </button>
+                <button
+                    onClick={() => setTool('connect')}
+                    title="Connect Objects"
+                    className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all ${activeTool === 'connect' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                >
+                    <LinkIcon className="w-6 h-6" />
                 </button>
             </div>
 
@@ -48,6 +57,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             {[
                 { id: 'text', icon: Type }, { id: 'sticky', icon: StickyNote },
                 { id: 'shape', icon: Square, extra: { shapeType: 'rectangle' } }, { id: 'circle', icon: CircleIcon, typeOverride: 'shape', extra: { shapeType: 'circle' } },
+                { id: 'arrow', icon: ArrowRight },
                 { id: 'code', icon: Code }, { id: 'image', icon: ImageIcon }, { id: 'video', icon: Video }
             ].map(tool => (
                 <div key={tool.id} draggable onDragStart={(e) => onDragStart(e, tool.typeOverride || tool.id, tool.extra)} className="w-12 h-12 flex items-center justify-center rounded-xl border-2 border-b-4 cursor-grab active:cursor-grabbing hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all text-gray-600 border-gray-200 bg-white">
