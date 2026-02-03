@@ -33,6 +33,7 @@ export interface SlideElement {
         hint?: string;
         runnable?: boolean;
         theme?: 'dark' | 'light';
+        enableAutocomplete?: boolean;
     };
 }
 
