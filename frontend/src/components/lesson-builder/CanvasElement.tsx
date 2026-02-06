@@ -159,67 +159,120 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 const startSide = el.arrowConfig.startSide;
                                 const endSide = el.arrowConfig.endSide;
 
-                                const margin = 30;
+                                const startMargin = el.arrowConfig.customStartOffset ?? 30;
+                                const endMargin = el.arrowConfig.customEndOffset ?? 30;
 
                                 // 1. Calculate Standoff Points (p1, p2)
                                 let p1 = { ...s };
-                                if (startSide === 'top') p1.y -= margin;
-                                else if (startSide === 'bottom') p1.y += margin;
-                                else if (startSide === 'left') p1.x -= margin;
-                                else if (startSide === 'right') p1.x += margin;
+                                if (startSide === 'top') p1.y -= startMargin;
+                                else if (startSide === 'bottom') p1.y += startMargin;
+                                else if (startSide === 'left') p1.x -= startMargin;
+                                else if (startSide === 'right') p1.x += startMargin;
 
                                 let p2 = { ...e };
-                                if (endSide === 'top') p2.y -= margin;
-                                else if (endSide === 'bottom') p2.y += margin;
-                                else if (endSide === 'left') p2.x -= margin;
-                                else if (endSide === 'right') p2.x += margin;
+                                if (endSide === 'top') p2.y -= endMargin;
+                                else if (endSide === 'bottom') p2.y += endMargin;
+                                else if (endSide === 'left') p2.x -= endMargin;
+                                else if (endSide === 'right') p2.x += endMargin;
 
                                 // 2. Determine Axis
                                 const isStartVertical = startSide === 'top' || startSide === 'bottom';
                                 const isEndVertical = endSide === 'top' || endSide === 'bottom';
 
                                 let midPath = '';
+                                let midHandlePos: { x: number, y: number } | null = null;
+                                let midCursor = 'cursor-pointer';
 
                                 if (isStartVertical === isEndVertical) {
                                     // Same Axis (V-V or H-H)
                                     if (startSide === endSide) {
-                                        // Same Direction (U-Turn case, e.g. Right -> Right)
-                                        // Extend out further to avoid crossing
+                                        // Same Direction (U-Turn)
                                         if (isStartVertical) {
-                                            // V-V Same (Top-Top or Bottom-Bottom) -> Use Horizontal Channel at limit
-                                            const channelY = startSide === 'top' ? Math.min(p1.y, p2.y) - margin : Math.max(p1.y, p2.y) + margin;
-                                            midPath = `L ${p1.x} ${channelY} L ${p2.x} ${channelY}`;
+                                            // Top-Top / Bottom-Bottom -> Horizontal Channel
+                                            const defaultChannel = startSide === 'top' ? Math.min(p1.y, p2.y) - 30 : Math.max(p1.y, p2.y) + 30;
+                                            const channel = el.arrowConfig.customChannel ?? defaultChannel;
+
+                                            midPath = `L ${p1.x} ${channel} L ${p2.x} ${channel}`;
+                                            midHandlePos = { x: (p1.x + p2.x) / 2, y: channel };
+                                            midCursor = 'cursor-ns-resize';
                                         } else {
-                                            // H-H Same (Right-Right or Left-Left) -> Use Vertical Channel at limit
-                                            const channelX = startSide === 'left' ? Math.min(p1.x, p2.x) - margin : Math.max(p1.x, p2.x) + margin;
-                                            midPath = `L ${channelX} ${p1.y} L ${channelX} ${p2.y}`;
+                                            // Left-Left / Right-Right -> Vertical Channel
+                                            const defaultChannel = startSide === 'left' ? Math.min(p1.x, p2.x) - 30 : Math.max(p1.x, p2.x) + 30;
+                                            const channel = el.arrowConfig.customChannel ?? defaultChannel;
+
+                                            midPath = `L ${channel} ${p1.y} L ${channel} ${p2.y}`;
+                                            midHandlePos = { x: channel, y: (p1.y + p2.y) / 2 };
+                                            midCursor = 'cursor-ew-resize';
                                         }
                                     } else {
-                                        // Opposite Direction (Z-Shape case, e.g. Right -> Left)
-                                        // Use Midpoint
+                                        // Opposite Direction (Z-Shape)
                                         if (isStartVertical) {
-                                            const midY = (p1.y + p2.y) / 2;
-                                            midPath = `L ${p1.x} ${midY} L ${p2.x} ${midY}`;
+                                            // V-V Opposite -> Horizontal Channel
+                                            const defaultChannel = (p1.y + p2.y) / 2;
+                                            const channel = el.arrowConfig.customChannel ?? defaultChannel;
+
+                                            midPath = `L ${p1.x} ${channel} L ${p2.x} ${channel}`;
+                                            midHandlePos = { x: (p1.x + p2.x) / 2, y: channel };
+                                            midCursor = 'cursor-ns-resize';
                                         } else {
-                                            const midX = (p1.x + p2.x) / 2;
-                                            midPath = `L ${midX} ${p1.y} L ${midX} ${p2.y}`;
+                                            // H-H Opposite -> Vertical Channel
+                                            const defaultChannel = (p1.x + p2.x) / 2;
+                                            const channel = el.arrowConfig.customChannel ?? defaultChannel;
+
+                                            midPath = `L ${channel} ${p1.y} L ${channel} ${p2.y}`;
+                                            midHandlePos = { x: channel, y: (p1.y + p2.y) / 2 };
+                                            midCursor = 'cursor-ew-resize';
                                         }
                                     }
                                 } else {
-                                    // Orthogonal (V-H or H-V) -> L-Shape case
-                                    // Intersection Corner
-                                    // If Start V (Vertical Line from p1) and End H (Horizontal Line from p2)
-                                    // Intersection is (p1.x, p2.y)
-                                    if (isStartVertical) {
-                                        midPath = `L ${p1.x} ${p2.y}`;
-                                    } else {
-                                        // Start H (Horizontal Line from p1) and End V (Vertical Line from p2)
-                                        // Intersection is (p2.x, p1.y)
-                                        midPath = `L ${p2.x} ${p1.y}`;
-                                    }
+                                    // Orthogonal (L-Shape) - Start V, End H (or vice versa)
+                                    // No middle channel for L-shape usually, unless we want to force a Z-shape?
+                                    // The user might want to adjust the CORNER.
+                                    // The corner is at Intersection.
+                                    // If we implement 'breaks', we might convert L to Stepped.
+                                    // For now, let's keep L-shape simple unless requested.
+                                    if (isStartVertical) midPath = `L ${p1.x} ${p2.y}`;
+                                    else midPath = `L ${p2.x} ${p1.y}`;
                                 }
 
                                 d = `M ${s.x} ${s.y} L ${p1.x} ${p1.y} ${midPath} L ${p2.x} ${p2.y} L ${e.x} ${e.y}`;
+
+                                // Render Handles if selected
+                                if (isSelected) {
+                                    return (
+                                        <>
+                                            <path
+                                                d={d}
+                                                stroke={el.style?.color || '#374151'}
+                                                strokeWidth={el.style?.borderWidth || 4}
+                                                fill="none"
+                                                markerEnd={`url(#arrowhead-${el.id})`}
+                                                className="pointer-events-auto cursor-pointer"
+                                                strokeLinecap="round"
+                                                strokeLinejoin="round"
+                                            />
+                                            {/* Start Offset Handle (p1) */}
+                                            <circle cx={p1.x} cy={p1.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
+                                                className={`pointer-events-auto ${isStartVertical ? 'cursor-ns-resize' : 'cursor-ew-resize'}`}
+                                                onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-start-offset'); }}
+                                            />
+
+                                            {/* Middle Channel Handle */}
+                                            {midHandlePos && (
+                                                <circle cx={midHandlePos.x} cy={midHandlePos.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
+                                                    className={`pointer-events-auto ${midCursor}`}
+                                                    onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-channel'); }}
+                                                />
+                                            )}
+
+                                            {/* End Offset Handle (p2) */}
+                                            <circle cx={p2.x} cy={p2.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
+                                                className={`pointer-events-auto ${isEndVertical ? 'cursor-ns-resize' : 'cursor-ew-resize'}`}
+                                                onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-end-offset'); }}
+                                            />
+                                        </>
+                                    );
+                                }
                             }
 
                             return (

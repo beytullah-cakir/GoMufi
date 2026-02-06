@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
-import { Download, Upload, Home, Minus, Plus as PlusIcon, Trash2, Plus } from 'lucide-react';
+import { Home, Minus, Plus as PlusIcon, Trash2, Plus, Undo, Redo, Copy, Clipboard, Play, Rocket, CheckCircle2, Cloud, Sparkles, Circle, Triangle, Hexagon, Loader2 } from 'lucide-react';
 import type { Slide, SlideElement, ElementStyle } from './lesson-builder/types';
 import Toolbar from './lesson-builder/Toolbar';
 import ContextMenu from './lesson-builder/ContextMenu';
 import CanvasElement from './lesson-builder/CanvasElement';
 import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
+import GameBuilder from './lesson-builder/GameBuilder';
+import { Gamepad2, LayoutTemplate } from 'lucide-react';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -19,6 +21,23 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [editingElementId, setEditingElementId] = useState<string | null>(null);
     const [scale, setScale] = useState(1);
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
+    const [showAddSlideModal, setShowAddSlideModal] = useState(false);
+
+    // -- Header State --
+    const [projectName, setProjectName] = useState("Yeni Ders Projesi");
+    const [saveStatus] = useState<'saved' | 'saving'>('saved');
+    // const [lastSavedTime, setLastSavedTime] = useState<Date>(new Date());
+
+    // -- Stage Indicator State --
+    const [activeStage, setActiveStage] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET'>('ANLA');
+
+    const stages = [
+        { id: 'ANLA', label: 'ANLA', color: 'rgb(217, 70, 239)', desc: 'Öğrenci konuyu ilk kez kavrar.' },
+        { id: 'UYGULA', label: 'UYGULA', color: 'rgb(6, 182, 212)', desc: 'Öğrenci öğrendiklerini dener.' },
+        { id: 'BİRLEŞTİR', label: 'BİRLEŞTİR', color: 'rgb(34, 197, 94)', desc: 'Önceki bilgilerle bağlantı kurar.' },
+        { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)', desc: 'Öğrenci kendi çıktısını üretir.' }
+    ] as const;
+
 
     // -- Draw/Connect Tool State --
     const [activeTool, setActiveTool] = useState<'select' | 'draw' | 'connect'>('select');
@@ -59,7 +78,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     });
 
     const canvasRef = useRef<HTMLDivElement>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    // const fileInputRef = useRef<HTMLInputElement>(null);
 
     const currentSlide = slides.find(s => s.id === currentSlideId) || slides[0];
 
@@ -73,21 +92,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         a.click();
     };
 
-    const loadProject = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            try {
-                const parsed = JSON.parse(ev.target?.result as string);
-                if (Array.isArray(parsed)) {
-                    setSlides(parsed);
-                    setCurrentSlideId(parsed[0]?.id || 1);
-                }
-            } catch (err) { alert("Invalid JSON"); }
-        };
-        reader.readAsText(file);
-    };
+
 
     // -- Helpers --
     const updateElement = (id: string, updates: Partial<SlideElement>) => {
@@ -120,9 +125,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     };
 
     const addSlide = () => {
-        const newId = (slides[slides.length - 1]?.id || 0) + 1;
-        setSlides(prev => [...prev, { id: newId, elements: [] }]);
-        setCurrentSlideId(newId);
+        setShowAddSlideModal(true);
     };
 
     const deleteSlide = (e: React.MouseEvent, id: number) => {
@@ -508,15 +511,85 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             let newX = initialX;
             let newY = initialY;
 
-            if (dragState.handle === 'start' || dragState.handle === 'end') {
+            if (dragState.handle === 'start' || dragState.handle === 'end' || dragState.handle === 'arrow-start-offset' || dragState.handle === 'arrow-end-offset' || dragState.handle === 'arrow-channel') {
                 // Arrow Endpoint Dragging
                 const el = currentSlide.elements.find(e => e.id === dragState.elementId);
                 if (el && el.type === 'arrow' && el.arrowConfig) {
                     const mouseX = (e.clientX - canvasRef.current!.getBoundingClientRect().left) / scale;
                     const mouseY = (e.clientY - canvasRef.current!.getBoundingClientRect().top) / scale;
 
+                    // ... (Snapping Logic - Keep as is) ...
+
+
+                    // NEW: Handle Offset Drags
+                    if (dragState.handle === 'arrow-start-offset') {
+                        const relMouseX = mouseX - el.x;
+                        const relMouseY = mouseY - el.y;
+                        const s = el.arrowConfig.start;
+                        const side = el.arrowConfig.startSide;
+                        let margin = 30;
+
+                        if (side === 'top') margin = s.y - relMouseY;
+                        else if (side === 'bottom') margin = relMouseY - s.y;
+                        else if (side === 'left') margin = s.x - relMouseX;
+                        else if (side === 'right') margin = relMouseX - s.x;
+
+                        updateElement(dragState.elementId, {
+                            arrowConfig: { ...el.arrowConfig, customStartOffset: Math.max(10, margin) }
+                        });
+                        return;
+                    }
+
+                    if (dragState.handle === 'arrow-end-offset') {
+                        const relMouseX = mouseX - el.x;
+                        const relMouseY = mouseY - el.y;
+                        const ePoint = el.arrowConfig.end;
+                        const side = el.arrowConfig.endSide;
+                        let margin = 30;
+
+                        if (side === 'top') margin = ePoint.y - relMouseY;
+                        else if (side === 'bottom') margin = relMouseY - ePoint.y;
+                        else if (side === 'left') margin = ePoint.x - relMouseX;
+                        else if (side === 'right') margin = relMouseX - ePoint.x;
+
+                        updateElement(dragState.elementId, {
+                            arrowConfig: { ...el.arrowConfig, customEndOffset: Math.max(10, margin) }
+                        });
+                        return;
+                    }
+
+                    // NEW: Handle Channel Drag
+                    if (dragState.handle === 'arrow-channel') {
+                        const relMouseX = mouseX - el.x;
+                        const relMouseY = mouseY - el.y;
+
+                        const startSide = el.arrowConfig.startSide;
+                        const endSide = el.arrowConfig.endSide;
+                        const isStartVertical = startSide === 'top' || startSide === 'bottom';
+                        const isEndVertical = endSide === 'top' || endSide === 'bottom';
+
+                        let newCustomChannel = el.arrowConfig.customChannel;
+
+                        if (isStartVertical === isEndVertical) {
+                            if (isStartVertical) {
+                                // V-V -> Horizontal Channel -> Control Y
+                                newCustomChannel = relMouseY;
+                            } else {
+                                // H-H -> Vertical Channel -> Control X
+                                newCustomChannel = relMouseX;
+                            }
+                        }
+
+                        updateElement(dragState.elementId, {
+                            arrowConfig: { ...el.arrowConfig, customChannel: newCustomChannel }
+                        });
+                        return;
+                    }
+
+                    // ... (Existing Endpoint Drag Logic) ...
                     let newX = mouseX;
                     let newY = mouseY;
+
                     let connectedId: string | undefined = undefined;
                     let side: 'top' | 'bottom' | 'left' | 'right' | undefined = undefined;
 
@@ -836,7 +909,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
     return (
         <div
-            className="w-full h-screen bg-[#f5f5f7] font-sans flex overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
+            className="w-full h-screen bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
             onMouseUp={(e) => handleMouseUp(e)}
             onMouseMove={handleMouseMove}
             onMouseDown={(e) => {
@@ -866,191 +939,389 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 // If activeTool is 'connect', do nothing on canvas background click
             }}
         >
-            {/* STYLES */}
-            <style>{`
+            {/* GLOBAL BUILDER BAR (Themed like ContentPage Box) */}
+            <div className="h-20 bg-gradient-to-r from-indigo-600 to-violet-600 border-b-4 border-indigo-800 flex items-center justify-between px-6 z-50 shrink-0 shadow-2xl relative overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+
+                {/* Decorative Background Elements */}
+                <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                    <Cloud className="absolute top-[-10px] left-96 text-white/10 transform -rotate-12" size={80} />
+                    <Cloud className="absolute -bottom-8 right-1/4 text-white/5 transform rotate-12" size={60} />
+                    <Sparkles className="absolute top-4 right-1/3 text-yellow-300/20 animate-pulse" size={24} />
+                    <Circle className="absolute top-1/2 left-1/4 text-white/5" size={16} />
+                    <Triangle className="absolute bottom-2 left-32 text-white/10 transform rotate-45" size={20} />
+                    <Hexagon className="absolute top-2 right-10 text-white/10" size={40} />
+
+                    {/* Decorative Dots */}
+                    <div className="absolute top-10 left-1/3 w-1.5 h-1.5 bg-white/30 rounded-full"></div>
+                    <div className="absolute bottom-4 right-1/2 w-2 h-2 bg-white/10 rounded-full"></div>
+                </div>
+
+                {/* LEFT: Back & Project Info */}
+                <div className="flex items-center gap-4 relative z-10">
+                    <button onClick={onExit} className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white hover:scale-105 transition-all shadow-sm">
+                        <Home className="w-5 h-5" />
+                    </button>
+                    <div className="h-8 w-px bg-indigo-400/50"></div>
+                    <div className="flex flex-col">
+                        <input
+                            type="text"
+                            value={projectName}
+                            onChange={(e) => setProjectName(e.target.value)}
+                            className="font-black text-white text-xl leading-none bg-transparent hover:bg-white/10 focus:bg-white/20 transition-colors rounded px-2 -ml-2 focus:outline-none focus:ring-2 focus:ring-white/30 w-64 placeholder-indigo-200"
+                        />
+                        <span className="text-xs font-bold text-indigo-200 px-0.5 mt-1 tracking-wide uppercase opacity-80">Ders Oluşturucu</span>
+                    </div>
+                </div>
+
+
+
+                {/* RIGHT: Actions (Undo/Redo/Clipboard) + Save/Publish */}
+                <div className="flex items-center gap-4 relative z-10">
+                    {/* Toolbar Actions */}
+                    <div className="flex items-center gap-1 bg-black/20 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-lg mr-4">
+                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Geri Al">
+                            <Undo className="w-4 h-4" />
+                        </button>
+                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="İleri Al">
+                            <Redo className="w-4 h-4" />
+                        </button>
+                        <div className="w-px h-5 bg-white/10 mx-1"></div>
+                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Kopyala">
+                            <Copy className="w-4 h-4" />
+                        </button>
+                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Yapıştır">
+                            <Clipboard className="w-4 h-4" />
+                        </button>
+                    </div>
+
+                    {/* Auto Save Status */}
+                    <div className="flex items-center gap-2 text-indigo-200 pr-4 border-r border-indigo-500/30">
+                        {saveStatus === 'saved' ? (
+                            <>
+                                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                                <span className="text-xs font-bold text-green-100">Kaydedildi</span>
+                            </>
+                        ) : (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                <span className="text-xs font-bold text-white">Kaydediliyor...</span>
+                            </>
+                        )}
+                    </div>
+
+                    <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-sm uppercase tracking-tight">
+                        <Play className="w-4 h-4 fill-current" />
+                        <span>Önizle</span>
+                    </button>
+
+                    <button
+                        onClick={saveProject}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group"
+                    >
+                        <Rocket className="w-4 h-4 group-hover:animate-bounce" />
+                        ```
+                        <span>Yayınla</span>
+                    </button>
+                </div>
+            </div>
+
+            {/* STAGE INDICATOR (Moved outside header to avoid overflow clipping) */}
+            <div className="absolute left-1/2 -translate-x-1/2 top-20 -mt-6 z-50">
+                <div className="bg-white px-2 py-2 rounded-2xl shadow-xl border-4 border-white/50 flex items-center gap-3">
+                    {stages.map((stage) => {
+                        const isActive = activeStage === stage.id;
+                        return (
+                            <button
+                                key={stage.id}
+                                onClick={() => setActiveStage(stage.id)}
+                                style={{
+                                    backgroundColor: isActive ? stage.color : 'transparent',
+                                    color: isActive ? 'white' : '#94a3b8'
+                                }}
+                                className={`
+                                    relative group flex items-center gap-3 px-6 py-3 rounded-xl transition-all duration-300
+                                    ${isActive ? 'shadow-lg scale-105 font-black' : 'hover:bg-gray-50 font-bold'}
+                                `}
+                            >
+                                {/* Indicator Dot */}
+                                <div
+                                    className={`w-3 h-3 rounded-full border-2 transition-colors duration-300`}
+                                    style={{
+                                        backgroundColor: isActive ? 'white' : 'transparent',
+                                        borderColor: isActive ? 'white' : '#cbd5e1'
+                                    }}
+                                ></div>
+
+                                <div className="flex flex-col items-start gap-0.5">
+                                    <span className="text-sm tracking-wider leading-none uppercase">{stage.label}</span>
+                                    {isActive && (
+                                        <span className="text-[10px] opacity-90 font-medium leading-none whitespace-nowrap">
+                                            {stage.desc}
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            <div
+                className="flex-1 w-full flex overflow-hidden relative"
+            >
+                {/* STYLES */}
+                <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Fredoka:wght@300;400;500;600&family=Pacifico&family=Patrick+Hand&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
                 .cursor-eraser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto; }
             `}</style>
 
-            {/* HEADER & ACTIONS */}
-            <div className="absolute top-4 left-4 z-50 flex items-center gap-4" onMouseDown={(e) => e.stopPropagation()}>
-                <button onClick={onExit} className="w-12 h-12 bg-white rounded-2xl border-2 border-b-4 border-gray-200 hover:border-gray-300 text-gray-600 flex items-center justify-center transition-all"><Home className="w-6 h-6" /></button>
-            </div>
-            <div className="absolute top-4 right-4 z-50 flex items-center gap-2" onMouseDown={(e) => e.stopPropagation()}>
-                <button onClick={saveProject} className="flex items-center gap-2 px-4 py-3 bg-white rounded-2xl border-2 border-b-4 border-gray-200 hover:bg-gray-50 text-gray-700 font-bold text-sm transition-all"><Download className="w-5 h-5" /><span>Kaydet</span></button>
-                <label className="flex items-center gap-2 px-4 py-3 bg-indigo-500 rounded-2xl border-2 border-b-4 border-indigo-700 hover:bg-indigo-600 text-white font-bold text-sm cursor-pointer transition-all shadow-indigo-200 shadow-lg"><Upload className="w-5 h-5" /><span>Yükle</span><input type="file" accept=".json" onChange={loadProject} className="hidden" ref={fileInputRef} /></label>
-            </div>
+                {/* HEADER & ACTIONS */}
 
-            <Toolbar
-                onDragStart={handleToolbarDragStart}
-                activeTool={activeTool}
-                setTool={setActiveTool}
-                brushColor={brushColor}
-                setBrushColor={setBrushColor}
-                brushSize={brushSize}
-                setBrushSize={setBrushSize}
-                brushType={brushType}
-                setBrushType={(type) => {
-                    setBrushType(type);
-                    if (type === 'pen') { setBrushOpacity(1); if (brushColor === '#ffffff') setBrushColor('#1f2937'); }
-                    else if (type === 'highlighter') { setBrushOpacity(0.5); setBrushSize(15); setBrushColor('#f59e0b'); }
-                    else if (type === 'eraser') {
-                        // Eraser now acts as a delete tool
-                        // We don't need to change color/opacity, just the mode
-                    }
-                }}
-            />
 
-            {/* FLOATING CONTEXT MENU */}
-            {selectedElementIds.length > 0 && !dragState.isDragging && (
-                (() => {
-                    const selectedEls = currentSlide.elements.filter(e => selectedElementIds.includes(e.id));
-                    return selectedEls.length > 0 ? (
-                        <ContextMenu
-                            elements={selectedEls}
-                            scale={scale}
-                            canvasRect={canvasRef.current?.getBoundingClientRect() || null}
-                            activeColorPickerId={activeColorPickerId}
-                            setActiveColorPickerId={setActiveColorPickerId}
-                            updateElementStyle={updateElementStyle}
-                            updateElement={updateElement}
-                            deleteElement={deleteElement}
-                            editingElementId={editingElementId}
-                        />
-                    ) : null;
-                })()
-            )}
-
-            {/* CANVAS */}
-            <div className="flex-1 overflow-auto relative bg-[#f5f5f7] flex items-center justify-center cursor-default h-full">
-                <div
-                    ref={canvasRef}
-                    onDrop={handleCanvasDrop}
-                    onDragOver={(e) => e.preventDefault()}
-                    onMouseDown={(e) => {
-                        // If drawing, we want the event to bubble up to the main container or handle it here.
-                        // The main container has the generic handler.
-                        // But we stopped propagation before.
-                        if (activeTool === 'draw') {
-                            // Don't stop propagation, let it bubble to container handler
-                            // But prevent default to stop text selection
-                            e.preventDefault();
-                        } else {
-                            // Allow bubbling to trigger Box Selection in parent
-                        }
-                    }}
-                    className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''}`}
-                    style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
-                >
-                    <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
-
-                    {/* Active Drawing Preview */}
-                    {isDrawing && currentPathPoints.length > 1 && (
-                        <svg className="absolute inset-0 w-full h-full pointer-events-none z-[100]">
-                            <path d={`M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`} fill="none" stroke={brushColor} strokeWidth={brushSize} strokeOpacity={brushOpacity} strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                    )}
-
-                    {/* SELECTION BOX */}
-                    {selectionBox && (
-                        <div
-                            className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-[100]"
-                            style={{ left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY) }}
-                        />
-                    )}
-
-                    {/* Group Selection Overlay */}
-                    {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
-                        <div className="absolute border-2 border-indigo-500 z-40 pointer-events-none"
-                            style={{
-                                left: bounds.minX,
-                                top: bounds.minY,
-                                width: bounds.width,
-                                height: bounds.height
+                {/* MAIN CONTENT AREA: CANVAS OR GAME BUILDER */}
+                {currentSlide.type === 'game' ? (
+                    <div className="flex-1 overflow-hidden relative h-full">
+                        <GameBuilder
+                            slide={currentSlide}
+                            updateSlide={(updates) => {
+                                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
                             }}
-                        >
-                            {/* Group Rotation Handle */}
+                        />
+                    </div>
+                ) : (
+                    <>
+                        <Toolbar
+                            onDragStart={handleToolbarDragStart}
+                            activeTool={activeTool}
+                            setTool={setActiveTool}
+                            brushColor={brushColor}
+                            setBrushColor={setBrushColor}
+                            brushSize={brushSize}
+                            setBrushSize={setBrushSize}
+                            brushType={brushType}
+                            setBrushType={(type) => {
+                                setBrushType(type);
+                                if (type === 'pen') { setBrushOpacity(1); if (brushColor === '#ffffff') setBrushColor('#1f2937'); }
+                                else if (type === 'highlighter') { setBrushOpacity(0.5); setBrushSize(15); setBrushColor('#f59e0b'); }
+                                else if (type === 'eraser') {
+                                    // Eraser now acts as a delete tool
+                                    // We don't need to change color/opacity, just the mode
+                                }
+                            }}
+                        />
+
+                        {/* FLOATING CONTEXT MENU */}
+                        {selectedElementIds.length > 0 && !dragState.isDragging && (
+                            (() => {
+                                const selectedEls = currentSlide.elements.filter(e => selectedElementIds.includes(e.id));
+                                return selectedEls.length > 0 ? (
+                                    <ContextMenu
+                                        elements={selectedEls}
+                                        scale={scale}
+                                        canvasRect={canvasRef.current?.getBoundingClientRect() || null}
+                                        activeColorPickerId={activeColorPickerId}
+                                        setActiveColorPickerId={setActiveColorPickerId}
+                                        updateElementStyle={updateElementStyle}
+                                        updateElement={updateElement}
+                                        deleteElement={deleteElement}
+                                        editingElementId={editingElementId}
+                                    />
+                                ) : null;
+                            })()
+                        )}
+
+                        {/* CANVAS */}
+                        <div className="flex-1 overflow-auto relative bg-[#f5f5f7] flex items-center justify-center cursor-default h-full">
+                            {/* ... Canvas Content ... */}
                             <div
-                                className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm"
-                                onMouseDown={(e) => handleMouseDown(e, 'group', 'rotate')}
+                                ref={canvasRef}
+                                onDrop={handleCanvasDrop}
+                                onDragOver={(e) => e.preventDefault()}
+                                onMouseDown={(e) => {
+                                    // If drawing, we want the event to bubble up to the main container or handle it here.
+                                    // The main container has the generic handler.
+                                    // But we stopped propagation before.
+                                    if (activeTool === 'draw') {
+                                        // Don't stop propagation, let it bubble to container handler
+                                        // But prevent default to stop text selection
+                                        e.preventDefault();
+                                    } else {
+                                        // Allow bubbling to trigger Box Selection in parent
+                                    }
+                                }}
+                                className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''}`}
+                                style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
                             >
-                                <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
+
+                                {/* Active Drawing Preview */}
+                                {isDrawing && currentPathPoints.length > 1 && (
+                                    <svg className="absolute inset-0 w-full h-full pointer-events-none z-[100]">
+                                        <path d={`M ${currentPathPoints.map(p => `${p.x} ${p.y}`).join(' L ')}`} fill="none" stroke={brushColor} strokeWidth={brushSize} strokeOpacity={brushOpacity} strokeLinecap="round" strokeLinejoin="round" />
+                                    </svg>
+                                )}
+
+                                {/* SELECTION BOX */}
+                                {selectionBox && (
+                                    <div
+                                        className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-[100]"
+                                        style={{ left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY) }}
+                                    />
+                                )}
+
+                                {/* Group Selection Overlay */}
+                                {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
+                                    <div className="absolute border-2 border-indigo-500 z-40 pointer-events-none"
+                                        style={{
+                                            left: bounds.minX,
+                                            top: bounds.minY,
+                                            width: bounds.width,
+                                            height: bounds.height
+                                        }}
+                                    >
+                                        {/* Group Rotation Handle */}
+                                        <div
+                                            className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm"
+                                            onMouseDown={(e) => handleMouseDown(e, 'group', 'rotate')}
+                                        >
+                                            <svg className="w-3 h-3 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* CONNECTOR LAYER */}
+                                <ConnectorRenderer
+                                    connections={currentSlide.connections || []}
+                                    elements={currentSlide.elements}
+                                />
+
+                                {currentSlide.elements.map(el => (
+                                    <CanvasElement
+                                        key={el.id}
+                                        el={el}
+                                        isSelected={selectedElementIds.includes(el.id)}
+                                        isEditing={editingElementId === el.id}
+                                        setEditingElementId={setEditingElementId}
+                                        updateElement={updateElement}
+                                        updateElementStyle={updateElementStyle}
+                                        deleteElement={deleteElement}
+                                        handleMouseDown={handleMouseDown}
+                                        showHandles={selectedElementIds.length === 1}
+                                    />
+                                ))}
                             </div>
                         </div>
-                    )}
+                    </>
+                )}
 
-                    {/* CONNECTOR LAYER */}
-                    <ConnectorRenderer
-                        connections={currentSlide.connections || []}
-                        elements={currentSlide.elements}
-                    />
-
-                    {currentSlide.elements.map(el => (
-                        <CanvasElement
-                            key={el.id}
-                            el={el}
-                            isSelected={selectedElementIds.includes(el.id)}
-                            isEditing={editingElementId === el.id}
-                            setEditingElementId={setEditingElementId}
-                            updateElement={updateElement}
-                            updateElementStyle={updateElementStyle}
-                            deleteElement={deleteElement}
-                            handleMouseDown={handleMouseDown}
-                            showHandles={selectedElementIds.length === 1}
-                        />
-                    ))}
+                {/* ZOOM Buttons */}
+                <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="absolute bottom-4 right-4 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2"
+                >
+                    <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><Minus className="w-5 h-5" /></button>
+                    <span className="text-xs font-black w-12 text-center text-gray-800">{Math.round(scale * 100)}%</span>
+                    <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><PlusIcon className="w-5 h-5" /></button>
                 </div>
-            </div>
 
-            {/* ZOOM Buttons */}
-            <div
-                onMouseDown={(e) => e.stopPropagation()}
-                className="absolute bottom-4 right-4 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2"
-            >
-                <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><Minus className="w-5 h-5" /></button>
-                <span className="text-xs font-black w-12 text-center text-gray-800">{Math.round(scale * 100)}%</span>
-                <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"><PlusIcon className="w-5 h-5" /></button>
-            </div>
-
-            {/* SLIDE STRIP - Restored */}
-            <div
-                onMouseDown={(e) => e.stopPropagation()}
-                className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]"
-            >
-                {slides.map((s, idx) => (
-                    <div
-                        key={s.id}
-                        onClick={() => setCurrentSlideId(s.id)}
-                        className={`
+                {/* SLIDE STRIP - Restored */}
+                <div
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]"
+                >
+                    {slides.map((s, idx) => (
+                        <div
+                            key={s.id}
+                            onClick={() => setCurrentSlideId(s.id)}
+                            className={`
                             w-32 h-20 rounded-xl border-2 cursor-pointer relative group transition-all shrink-0
                             ${currentSlideId === s.id ? 'border-indigo-500 shadow-indigo-200 shadow-lg scale-105 z-10' : 'border-gray-200 hover:border-gray-300 hover:scale-102'}
                             bg-white flex items-center justify-center overflow-hidden
                         `}
-                    >
-                        <span className={`text-2xl font-black ${currentSlideId === s.id ? 'text-indigo-100' : 'text-gray-100'}`}>{idx + 1}</span>
-                        {/* Mini Preview (Simulated with element count) */}
-                        <div className="absolute inset-0 flex flex-wrap gap-0.5 p-1 content-start opacity-30">
-                            {s.elements.slice(0, 5).map(e => (
-                                <div key={e.id} className="w-2 h-2 rounded-full bg-gray-400" />
-                            ))}
-                        </div>
-
-                        {/* Delete Slide Button */}
-                        <button
-                            onClick={(e) => deleteSlide(e, s.id)}
-                            className="absolute top-1 right-1 p-1 bg-red-100 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
                         >
-                            <Trash2 className="w-3 h-3" />
-                        </button>
+                            <span className={`text-2xl font-black ${currentSlideId === s.id ? 'text-indigo-100' : 'text-gray-100'}`}>{idx + 1}</span>
+                            {/* Mini Preview (Simulated with element count) */}
+                            <div className="absolute inset-0 flex flex-wrap gap-0.5 p-1 content-start opacity-30">
+                                {s.elements.slice(0, 5).map(e => (
+                                    <div key={e.id} className="w-2 h-2 rounded-full bg-gray-400" />
+                                ))}
+                            </div>
+
+                            {/* Delete Slide Button */}
+                            <button
+                                onClick={(e) => deleteSlide(e, s.id)}
+                                className="absolute top-1 right-1 p-1 bg-red-100 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                            >
+                                <Trash2 className="w-3 h-3" />
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={addSlide}
+                        className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-all shrink-0"
+                    >
+                        <Plus className="w-6 h-6" />
+                        <span className="text-xs font-bold">New</span>
+                    </button>
+                </div>
+
+                {/* ADD SLIDE MODAL */}
+                {showAddSlideModal && (
+                    <div className="absolute inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+                            <div className="p-8 border-b border-gray-100 text-center">
+                                <h2 className="text-2xl font-black text-gray-800 font-display">Yeni Slayt Ekle</h2>
+                                <p className="text-gray-500 mt-2">Ne tür bir içerik oluşturmak istiyorsun?</p>
+                            </div>
+                            <div className="p-8 grid grid-cols-2 gap-4">
+                                <button
+                                    onClick={() => {
+                                        const newSlide: Slide = {
+                                            id: Date.now(),
+                                            type: 'normal',
+                                            elements: [],
+                                            connections: []
+                                        };
+                                        setSlides(prev => [...prev, newSlide]);
+                                        setCurrentSlideId(newSlide.id);
+                                        setShowAddSlideModal(false);
+                                    }}
+                                    className="flex flex-col items-center justify-center gap-4 p-8 bg-gray-50 hover:bg-indigo-50 border-2 border-gray-200 hover:border-indigo-500 rounded-2xl transition-all group"
+                                >
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                        <LayoutTemplate className="w-8 h-8 text-gray-400 group-hover:text-indigo-500" />
+                                    </div>
+                                    <span className="font-bold text-gray-600 group-hover:text-indigo-600">Boş Sayfa</span>
+                                </button>
+
+                                <button
+                                    onClick={() => {
+                                        const newSlide: Slide = {
+                                            id: Date.now(),
+                                            type: 'game',
+                                            gameType: 'matching',
+                                            gameConfig: { timeLimit: 100, questions: [] },
+                                            elements: [],
+                                            connections: []
+                                        };
+                                        setSlides(prev => [...prev, newSlide]);
+                                        setCurrentSlideId(newSlide.id);
+                                        setShowAddSlideModal(false);
+                                    }}
+                                    className="flex flex-col items-center justify-center gap-4 p-8 bg-gray-50 hover:bg-purple-50 border-2 border-gray-200 hover:border-purple-500 rounded-2xl transition-all group"
+                                >
+                                    <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                        <Gamepad2 className="w-8 h-8 text-gray-400 group-hover:text-purple-500" />
+                                    </div>
+                                    <span className="font-bold text-gray-600 group-hover:text-purple-600">Eşleştirme Oyunu</span>
+                                </button>
+                            </div>
+                            <div className="p-4 bg-gray-50 flex justify-center">
+                                <button onClick={() => setShowAddSlideModal(false)} className="text-gray-400 hover:text-gray-600 font-bold text-sm">İptal</button>
+                            </div>
+                        </div>
                     </div>
-                ))}
-                <button
-                    onClick={addSlide}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-all shrink-0"
-                >
-                    <Plus className="w-6 h-6" />
-                    <span className="text-xs font-bold">New</span>
-                </button>
+                )}
             </div>
         </div>
     );

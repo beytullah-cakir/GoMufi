@@ -42,6 +42,9 @@ export interface SlideElement {
         endConnectedElementId?: string;
         startSide?: 'top' | 'bottom' | 'left' | 'right';
         endSide?: 'top' | 'bottom' | 'left' | 'right';
+        customChannel?: number;
+        customStartOffset?: number;
+        customEndOffset?: number;
         arrowStyle?: 'straight' | 'curved' | 'elbow';
     };
 }
@@ -54,8 +57,29 @@ export interface SlideConnection {
     width?: number;
 }
 
+export interface QuizOption {
+    id: string;
+    text: string;
+    isCorrect: boolean;
+}
+
+export interface QuizQuestion {
+    id: string;
+    text: string;
+    options: QuizOption[];
+}
+
+export interface MatchingGameConfig {
+    timeLimit: number; // seconds
+    questions: QuizQuestion[];
+}
+
 export interface Slide {
     id: number;
+    // 'normal' is default if undefined
+    type?: 'normal' | 'game';
+    gameType?: 'matching' | 'monster';
+    gameConfig?: MatchingGameConfig | any;
     elements: SlideElement[];
     connections?: SlideConnection[];
 }
