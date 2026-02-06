@@ -112,9 +112,9 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                 </div>
             </div>
 
-            {/* STAGE INDICATOR (Compact Sub-menu attached to header) */}
-            <div className="absolute left-0 right-0 top-20 z-40 flex justify-start pl-6 pointer-events-none">
-                <div className="pointer-events-auto bg-white/95 backdrop-blur-md px-1 py-1 rounded-b-xl shadow-lg border-b border-x border-indigo-100 flex items-center gap-1 -mt-0.5 animate-in slide-in-from-top-2 duration-300">
+            {/* STAGE INDICATOR (Unified Sub-menu Design) */}
+            <div className="absolute left-0 right-0 top-20 z-40 flex justify-start pl-8 pointer-events-none">
+                <div className="pointer-events-auto bg-white/90 backdrop-blur-xl px-1.5 py-1.5 rounded-b-xl shadow-lg border-b border-x border-indigo-50/50 flex items-center gap-1.5 -mt-[1px] animate-in slide-in-from-top-2 duration-300">
                     {stages.map((stage) => {
                         const isActive = activeStage === stage.id;
                         return (
@@ -126,20 +126,20 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                                     color: isActive ? 'white' : '#64748b'
                                 }}
                                 className={`
-                                    relative group flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all duration-200
-                                    ${isActive ? 'shadow-md font-bold' : 'hover:bg-indigo-50 font-medium'}
+                                    relative group flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all duration-300
+                                    ${isActive ? 'shadow-md shadow-indigo-500/20 scale-[1.02] font-black' : 'hover:bg-indigo-50/80 font-bold'}
                                 `}
                             >
                                 {/* Indicator Dot */}
                                 <div
-                                    className={`w-2 h-2 rounded-full border-[1.5px] transition-colors duration-300`}
+                                    className={`w-2 h-2 rounded-full border-[2px] transition-colors duration-300`}
                                     style={{
                                         backgroundColor: isActive ? 'white' : 'transparent',
                                         borderColor: isActive ? 'white' : '#cbd5e1'
                                     }}
                                 ></div>
 
-                                <span className="text-xs tracking-wide leading-none uppercase">{stage.label}</span>
+                                <span className="text-xs tracking-wider leading-none uppercase">{stage.label}</span>
                             </button>
                         );
                     })}
