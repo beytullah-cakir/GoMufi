@@ -9,6 +9,10 @@ interface LessonBuilderHeaderProps {
     onSave: () => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET';
     setActiveStage: (stage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET') => void;
+    onUndo: () => void;
+    onRedo: () => void;
+    onCopy: () => void;
+    onPaste: () => void;
 }
 
 const stages = [
@@ -25,7 +29,11 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
     saveStatus,
     onSave,
     activeStage,
-    setActiveStage
+    setActiveStage,
+    onUndo,
+    onRedo,
+    onCopy,
+    onPaste
 }) => {
     return (
         <>
@@ -67,17 +75,17 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                 <div className="flex items-center gap-4 relative z-10">
                     {/* Toolbar Actions */}
                     <div className="flex items-center gap-1 bg-black/20 backdrop-blur-md p-1.5 rounded-2xl border border-white/10 shadow-lg mr-4">
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Geri Al">
+                        <button onClick={onUndo} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Geri Al">
                             <Undo className="w-4 h-4" />
                         </button>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="İleri Al">
+                        <button onClick={onRedo} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="İleri Al">
                             <Redo className="w-4 h-4" />
                         </button>
                         <div className="w-px h-5 bg-white/10 mx-1"></div>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Kopyala">
+                        <button onClick={onCopy} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Kopyala">
                             <Copy className="w-4 h-4" />
                         </button>
-                        <button className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Yapıştır">
+                        <button onClick={onPaste} className="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-white/10 text-indigo-100 hover:text-white transition-all" title="Yapıştır">
                             <Clipboard className="w-4 h-4" />
                         </button>
                     </div>
