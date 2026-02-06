@@ -9,6 +9,8 @@ import LessonBuilderHeader from './lesson-builder/LessonBuilderHeader';
 import LessonBuilderSlideStrip from './lesson-builder/LessonBuilderSlideStrip';
 import LessonBuilderZoomControls from './lesson-builder/LessonBuilderZoomControls';
 import AddSlideModal from './lesson-builder/AddSlideModal';
+import RightClickMenu from './lesson-builder/RightClickMenu';
+import LayersPanel from './lesson-builder/LayersPanel';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -80,7 +82,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         initialWidth: 0, initialHeight: 0, initialRotation: 0
     });
 
+    const [contextMenu, setContextMenu] = useState<{ x: number, y: number, visible: boolean, elementId?: string }>({ x: 0, y: 0, visible: false });
+    const [showLayers, setShowLayers] = useState(false);
+
     const canvasRef = useRef<HTMLDivElement>(null);
+    const containerRef = useRef<HTMLDivElement>(null);
     // const fileInputRef = useRef<HTMLInputElement>(null);
 
     const currentSlide = slides.find(s => s.id === currentSlideId) || slides[0];
@@ -412,6 +418,214 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         return { minX, minY, maxX, maxY, width: maxX - minX, height: maxY - minY, centerX: minX + (maxX - minX) / 2, centerY: minY + (maxY - minY) / 2 };
     };
 
+    const handleContextMenu = (e: React.MouseEvent) => {
+        e.preventDefault();
+        const target = e.target as HTMLElement;
+        const elementWrapper = target.closest('[data-id]');
+        let elementId: string | undefined;
+
+        if (elementWrapper) {
+            elementId = elementWrapper.getAttribute('data-id') || undefined;
+            // Select if not already
+            if (elementId && !selectedElementIds.includes(elementId)) {
+                setSelectedElementIds([elementId]);
+            }
+        } else {
+            // Background click
+            setSelectedElementIds([]);
+        }
+
+        setContextMenu({
+            x: e.clientX,
+            y: e.clientY,
+            visible: true,
+            elementId
+        });
+    };
+
+    const handleMenuAction = (action: string, value?: any) => {
+        setContextMenu(prev => ({ ...prev, visible: false }));
+
+        switch (action) {
+            case 'paste':
+                handlePaste();
+                break;
+            case 'copy':
+                handleCopy();
+                break;
+            case 'delete':
+                if (selectedElementIds.length > 0) {
+                    // Standard delete logic
+                    addToHistory();
+                    setSlides(prev => prev.map(s => {
+                        if (s.id === currentSlideId) {
+                            return { ...s, elements: s.elements.filter(el => !selectedElementIds.includes(el.id)) };
+                        }
+                        return s;
+                    }));
+                    setSelectedElementIds([]);
+                }
+                break;
+            case 'bringForward':
+                changeLayer('forward');
+                break;
+            case 'bringToFront':
+                changeLayer('front');
+                break;
+            case 'sendBackward':
+                changeLayer('backward');
+                break;
+            case 'sendToBack':
+                changeLayer('back');
+                break;
+            case 'align':
+                alignSelection(value);
+                break;
+            case 'toggleLayers':
+                setShowLayers(prev => !prev);
+                break;
+            case 'connect':
+                setActiveTool('connect');
+                // Optionally start connection from the selected element if single selection
+                if (selectedElementIds.length === 1) {
+                    setConnectionStartId(selectedElementIds[0]);
+                }
+                break;
+            case 'comment':
+                if (selectedElementIds.length > 0) {
+                    const targetId = selectedElementIds[selectedElementIds.length - 1]; // Use last selected
+                    const targetEl = currentSlide.elements.find(e => e.id === targetId);
+                    if (targetEl) {
+                        const newSticky: SlideElement = {
+                            id: Date.now().toString(),
+                            type: 'sticky',
+                            x: targetEl.x + targetEl.width + 20,
+                            y: targetEl.y,
+                            width: 150,
+                            height: 150,
+                            rotation: 0,
+                            content: '', // Empty initially
+                            style: { backgroundColor: '#fef3c7', fontFamily: 'Patrick Hand', fontSize: 24, textAlign: 'center' }
+                        };
+                        addToHistory();
+                        setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: [...s.elements, newSticky] } : s));
+                        setSelectedElementIds([newSticky.id]);
+                        setEditingElementId(newSticky.id); // Auto-focus
+                    }
+                }
+                break; // Ensure to break!
+        }
+    };
+
+    const changeLayer = (action: 'front' | 'back' | 'forward' | 'backward') => {
+        if (selectedElementIds.length === 0) return;
+        addToHistory();
+
+        setSlides(prev => prev.map(s => {
+            if (s.id === currentSlideId) {
+                let els = [...s.elements];
+                // Process each selected element
+                // Note: Complex with multi-selection. Simple approach:
+                // Sort selected indices.
+
+                const selectedIndices = els.map((el, i) => selectedElementIds.includes(el.id) ? i : -1).filter(i => i !== -1).sort((a, b) => a - b);
+
+                // If single selection, standard logic
+                if (selectedIndices.length === 1) {
+                    const idx = selectedIndices[0];
+                    const el = els[idx];
+                    els.splice(idx, 1);
+
+                    if (action === 'front') els.push(el);
+                    else if (action === 'back') els.unshift(el);
+                    else if (action === 'forward') els.splice(Math.min(els.length, idx + 1), 0, el);
+                    else if (action === 'backward') els.splice(Math.max(0, idx - 1), 0, el);
+                } else {
+                    // Multi-selection Logic (Group Layering)
+                    let changed = false;
+
+                    if (action === 'front') {
+                        const toMove = els.filter(el => selectedElementIds.includes(el.id));
+                        const others = els.filter(el => !selectedElementIds.includes(el.id));
+                        if (others.length > 0) {
+                            els = [...others, ...toMove];
+                            changed = true;
+                        }
+                    } else if (action === 'back') {
+                        const toMove = els.filter(el => selectedElementIds.includes(el.id));
+                        const others = els.filter(el => !selectedElementIds.includes(el.id));
+                        if (others.length > 0) {
+                            els = [...toMove, ...others];
+                            changed = true;
+                        }
+                    } else if (action === 'forward') {
+                        // Iterate from end to start to handle bubbling correctly
+                        for (let i = els.length - 2; i >= 0; i--) {
+                            const el = els[i];
+                            const next = els[i + 1];
+                            if (selectedElementIds.includes(el.id) && !selectedElementIds.includes(next.id)) {
+                                els[i] = next;
+                                els[i + 1] = el;
+                                changed = true;
+                            }
+                        }
+                    } else if (action === 'backward') {
+                        // Iterate from start to end
+                        for (let i = 1; i < els.length; i++) {
+                            const el = els[i];
+                            const prev = els[i - 1];
+                            if (selectedElementIds.includes(el.id) && !selectedElementIds.includes(prev.id)) {
+                                els[i] = prev;
+                                els[i - 1] = el;
+                                changed = true;
+                            }
+                        }
+                    }
+
+                    if (!changed) return s;
+                }
+
+                return { ...s, elements: els };
+            }
+            return s;
+        }));
+    };
+
+    const alignSelection = (alignment: 'left' | 'center-h' | 'right' | 'top' | 'center-v' | 'bottom') => {
+        if (selectedElementIds.length === 0) return;
+        addToHistory();
+
+        // Align to Page (Canvas 1280x720)
+        const CANVAS_W = 1280;
+        const CANVAS_H = 720;
+
+        setSlides(prev => prev.map(s => {
+            if (s.id === currentSlideId) {
+                return {
+                    ...s,
+                    elements: s.elements.map(el => {
+                        if (selectedElementIds.includes(el.id)) {
+                            let newX = el.x;
+                            let newY = el.y;
+
+                            if (alignment === 'left') newX = 0;
+                            if (alignment === 'center-h') newX = (CANVAS_W - el.width) / 2;
+                            if (alignment === 'right') newX = CANVAS_W - el.width;
+
+                            if (alignment === 'top') newY = 0;
+                            if (alignment === 'center-v') newY = (CANVAS_H - el.height) / 2;
+                            if (alignment === 'bottom') newY = CANVAS_H - el.height;
+
+                            return { ...el, x: newX, y: newY };
+                        }
+                        return el;
+                    })
+                };
+            }
+            return s;
+        }));
+    };
+
     // -- Handlers --
 
     const handleToolbarDragStart = (e: React.DragEvent, type: string, extraData: any = {}) => {
@@ -481,6 +695,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     // -- TRANSFORM LOGIC --
 
     const handleMouseDown = (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate' = 'drag', handle?: string) => {
+        // Ensure main window has focus so keyboard shortcuts (Ctrl+Z, etc) work
+        if (containerRef.current) {
+            const target = e.target as HTMLElement;
+            const isInput = target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable ||
+                target.closest('[contenteditable="true"]');
+            if (!isInput) containerRef.current.focus();
+        }
+
         e.stopPropagation(); // Stop canvas pan
 
         // Connect Tool Logic
@@ -1261,7 +1485,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
     return (
         <div
-            className="w-full h-screen bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
+            ref={containerRef}
+            tabIndex={-1}
+            className="w-full h-screen bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700 outline-none"
             onMouseUp={(e) => handleMouseUp(e)}
             onMouseMove={handleMouseMove}
             onDoubleClick={(e) => {
@@ -1279,6 +1505,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 }
             }}
             onMouseDown={(e) => {
+                // Focus container on background click
+                if (containerRef.current) {
+                    const target = e.target as HTMLElement;
+                    const isInput = target.tagName === 'INPUT' ||
+                        target.tagName === 'TEXTAREA' ||
+                        target.isContentEditable ||
+                        target.closest('[contenteditable="true"]');
+                    if (!isInput) containerRef.current.focus();
+                }
+
                 if (activeTool === 'draw') {
                     // Don't stop propagation, let it bubble to container handler
                     // But prevent default to stop text selection
@@ -1304,7 +1540,32 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 }
                 // If activeTool is 'connect', do nothing on canvas background click
             }}
+            onContextMenu={handleContextMenu}
         >
+            {showLayers && (
+                <LayersPanel
+                    elements={currentSlide.elements}
+                    selectedIds={selectedElementIds}
+                    onSelect={(id, multi) => {
+                        if (multi) {
+                            if (selectedElementIds.includes(id)) setSelectedElementIds(prev => prev.filter(eid => eid !== id));
+                            else setSelectedElementIds(prev => [...prev, id]);
+                        } else {
+                            setSelectedElementIds([id]);
+                        }
+                    }}
+                    onReorder={() => { }}
+                />
+            )}
+            {contextMenu.visible && (
+                <RightClickMenu
+                    x={contextMenu.x}
+                    y={contextMenu.y}
+                    elementId={contextMenu.elementId}
+                    onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+                    onAction={handleMenuAction}
+                />
+            )}
             {/* HEADER & STAGE INDICATOR */}
             <LessonBuilderHeader
                 onExit={onExit}

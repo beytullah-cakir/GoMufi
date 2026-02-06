@@ -68,7 +68,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 left: el.x || 0, top: el.y || 0,
                 width: el.width || 100, height: el.height || 100,
                 transform: `rotate(${el.rotation || 0}deg)`,
-                zIndex: isSelected ? 50 : 10,
                 pointerEvents: el.type === 'draw' ? 'none' : 'auto'
             }}
             onMouseDown={(e) => {
