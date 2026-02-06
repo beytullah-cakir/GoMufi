@@ -1,5 +1,6 @@
 import React from 'react';
 import { Trash2, Plus } from 'lucide-react';
+import SlideThumbnail from './SlideThumbnail';
 import type { Slide } from './types';
 
 interface LessonBuilderSlideStripProps {
@@ -20,33 +21,40 @@ const LessonBuilderSlideStrip: React.FC<LessonBuilderSlideStripProps> = ({
     return (
         <div
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-2 p-2 bg-white/90 backdrop-blur rounded-2xl shadow-2xl border border-gray-200 overflow-x-auto max-w-[60vw]"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-4 p-3 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-x-auto max-w-[70vw] items-center"
         >
             {slides.map((s, idx) => (
                 <div
                     key={s.id}
                     onClick={() => setCurrentSlideId(s.id)}
                     className={`
-                    w-32 h-20 rounded-xl border-2 cursor-pointer relative group transition-all shrink-0
-                    ${currentSlideId === s.id ? 'border-indigo-500 shadow-indigo-200 shadow-lg scale-105 z-10' : 'border-gray-200 hover:border-gray-300 hover:scale-102'}
-                    bg-white flex items-center justify-center overflow-hidden
+                    w-40 h-[5.5rem] rounded-xl border-2 cursor-pointer relative group transition-all shrink-0 overflow-hidden
+                    ${currentSlideId === s.id ? 'border-indigo-500 ring-4 ring-indigo-500/20 scale-105 z-10' : 'border-gray-200 hover:border-indigo-300 hover:scale-102'}
+                    bg-white flex items-center justify-center
                 `}
                 >
-                    <span className={`text-2xl font-black ${currentSlideId === s.id ? 'text-indigo-100' : 'text-gray-100'}`}>{idx + 1}</span>
-                    {/* Mini Preview (Simulated with element count) */}
-                    <div className="absolute inset-0 flex flex-wrap gap-0.5 p-1 content-start opacity-30">
-                        {s.elements.slice(0, 5).map(e => (
-                            <div key={e.id} className="w-2 h-2 rounded-full bg-gray-400" />
-                        ))}
+                    <SlideThumbnail slide={s} width={160} height={90} />
+
+                    {/* Index Badge */}
+                    <div className={`absolute bottom-1 right-1 px-1.5 py-0.5 rounded-md text-[10px] font-black pointer-events-none transition-colors
+                        ${currentSlideId === s.id ? 'bg-indigo-600 text-white' : 'bg-gray-200 text-gray-500'}
+                    `}>
+                        {idx + 1}
                     </div>
 
                     {/* Delete Slide Button */}
                     <button
                         onClick={(e) => onDeleteSlide(e, s.id)}
-                        className="absolute top-1 right-1 p-1 bg-red-100 text-red-500 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-200"
+                        className="absolute top-1 right-1 p-1.5 bg-red-50 text-red-500 rounded-lg opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white"
+                        title="Delete Slide"
                     >
-                        <Trash2 className="w-3 h-3" />
+                        <Trash2 className="w-3.5 h-3.5" />
                     </button>
+
+                    {/* Active Indicator Overlay */}
+                    {currentSlideId === s.id && (
+                        <div className="absolute inset-0 border-[3px] border-indigo-500 rounded-xl pointer-events-none"></div>
+                    )}
                 </div>
             ))}
             <button

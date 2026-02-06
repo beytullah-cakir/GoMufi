@@ -320,13 +320,30 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 }}
             >
                 {el.type === 'shape' && (
-                    <div className={`w-full h-full ${el.shapeType === 'circle' ? 'rounded-full' : ''}`}
+                    <div className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' : el.style?.verticalAlign === 'bottom' ? 'items-end' : 'items-center'} justify-center ${el.shapeType === 'circle' ? 'rounded-full' : ''}`}
                         style={{
                             backgroundColor: el.style?.backgroundColor,
                             borderRadius: el.style?.borderRadius ? `${el.style.borderRadius}px` : undefined,
                             borderWidth: el.style?.borderWidth ? `${el.style.borderWidth}px` : '4px',
-                            borderColor: el.style?.borderColor || '#1f2937'
-                        }}></div>
+                            borderColor: el.style?.borderColor || '#1f2937',
+                            padding: '10px'
+                        }}>
+                        <div
+                            ref={contentRef}
+                            className={`w-full outline-none ${isEditing ? 'cursor-text select-text' : 'cursor-default select-none'} ${el.style?.textAlign === 'left' ? 'text-left' :
+                                el.style?.textAlign === 'right' ? 'text-right' :
+                                    el.style?.textAlign === 'center' ? 'text-center' : 'text-center'
+                                }`}
+                            contentEditable={isEditing}
+                            suppressContentEditableWarning
+                            onMouseDown={(e) => {
+                                if (isEditing) e.stopPropagation();
+                            }}
+                            onBlur={(e) => { updateElement(el.id, { content: e.currentTarget.innerHTML }); setEditingElementId(null); }}
+                            style={style}
+                            dangerouslySetInnerHTML={htmlContent}
+                        />
+                    </div>
                 )}
                 {el.type === 'text' && (
                     <div className={`w-full h-full flex ${el.style?.verticalAlign === 'top' ? 'items-start' :
@@ -335,7 +352,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         }`}>
                         <div
                             ref={contentRef}
-                            className={`w-full outline-none cursor-text select-text ${el.style?.textAlign === 'left' ? 'text-left' :
+                            className={`w-full outline-none ${isEditing ? 'cursor-text select-text' : 'cursor-default select-none'} ${el.style?.textAlign === 'left' ? 'text-left' :
                                 el.style?.textAlign === 'right' ? 'text-right' :
                                     'text-center'
                                 }`}
@@ -360,7 +377,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                     >
                         <div
                             ref={contentRef}
-                            className={`w-full outline-none cursor-text select-text ${el.style?.textAlign === 'left' ? 'text-left' :
+                            className={`w-full outline-none ${isEditing ? 'cursor-text select-text' : 'cursor-default select-none'} ${el.style?.textAlign === 'left' ? 'text-left' :
                                 el.style?.textAlign === 'right' ? 'text-right' :
                                     'text-center'
                                 }`}
