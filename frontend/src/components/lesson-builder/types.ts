@@ -83,4 +83,5 @@ export interface Slide {
     gameConfig?: MatchingGameConfig | any;
     elements: SlideElement[];
     connections?: SlideConnection[];
+    background?: 'default' | 'notebook';
 }

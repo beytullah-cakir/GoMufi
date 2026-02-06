@@ -12,6 +12,21 @@ interface RightClickMenuProps {
 const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction, elementId }) => {
     const menuRef = useRef<HTMLDivElement>(null);
     const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+    const hoverTimeout = useRef<any>(null);
+
+    const handleMouseEnter = (submenu: string) => {
+        if (hoverTimeout.current) {
+            clearTimeout(hoverTimeout.current);
+            hoverTimeout.current = null;
+        }
+        setActiveSubmenu(submenu);
+    };
+
+    const handleMouseLeave = () => {
+        hoverTimeout.current = setTimeout(() => {
+            setActiveSubmenu(null);
+        }, 150); // 150ms delay to bridge the gap
+    };
 
     // Close on click outside
     useEffect(() => {
@@ -21,7 +36,10 @@ const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+            if (hoverTimeout.current) clearTimeout(hoverTimeout.current);
+        };
     }, [onClose]);
 
     // Prevent overflow off screen
@@ -64,8 +82,8 @@ const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction
             {/* KATMAN (LAYER) */}
             <div
                 className="relative group"
-                onMouseEnter={() => setActiveSubmenu('layer')}
-                onMouseLeave={() => setActiveSubmenu(null)}
+                onMouseEnter={() => handleMouseEnter('layer')}
+                onMouseLeave={handleMouseLeave}
             >
                 <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -77,7 +95,10 @@ const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction
 
                 {/* Submenu */}
                 {activeSubmenu === 'layer' && (
-                    <div className="absolute left-full top-0 ml-1 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 w-56">
+                    <div className="absolute left-full top-0 ml-1 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 w-56"
+                        onMouseEnter={() => handleMouseEnter('layer')} // Keep open when entering submenu
+                        onMouseLeave={handleMouseLeave}
+                    >
                         <button onClick={() => onAction('bringForward')} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <ArrowUp className="w-4 h-4" />
@@ -123,8 +144,8 @@ const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction
             {/* SAYFAYA HIZALA (ALIGN) */}
             <div
                 className="relative group"
-                onMouseEnter={() => setActiveSubmenu('align')}
-                onMouseLeave={() => setActiveSubmenu(null)}
+                onMouseEnter={() => handleMouseEnter('align')}
+                onMouseLeave={handleMouseLeave}
             >
                 <button className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center justify-between">
                     <div className="flex items-center gap-2">
@@ -136,7 +157,10 @@ const RightClickMenu: React.FC<RightClickMenuProps> = ({ x, y, onClose, onAction
 
                 {/* Submenu */}
                 {activeSubmenu === 'align' && (
-                    <div className="absolute left-full top-0 ml-1 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 w-40">
+                    <div className="absolute left-full top-0 ml-1 bg-white dark:bg-[#1e1e1e] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 w-40"
+                        onMouseEnter={() => handleMouseEnter('align')} // Keep open when entering submenu
+                        onMouseLeave={handleMouseLeave}
+                    >
                         <button onClick={() => onAction('align', 'left')} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-2">
                             <AlignLeft className="w-4 h-4" />
                             <span>Sol</span>

@@ -9,6 +9,7 @@ interface LessonBuilderSlideStripProps {
     setCurrentSlideId: (id: number) => void;
     onAddSlide: () => void;
     onDeleteSlide: (e: React.MouseEvent, id: number) => void;
+    onReorderSlides: (slides: Slide[]) => void;
 }
 
 const LessonBuilderSlideStrip: React.FC<LessonBuilderSlideStripProps> = ({
@@ -16,21 +17,59 @@ const LessonBuilderSlideStrip: React.FC<LessonBuilderSlideStripProps> = ({
     currentSlideId,
     setCurrentSlideId,
     onAddSlide,
-    onDeleteSlide
+    onDeleteSlide,
+    onReorderSlides
 }) => {
+    const [draggedIndex, setDraggedIndex] = React.useState<number | null>(null);
+
+    const handleDragStart = (e: React.DragEvent, index: number) => {
+        setDraggedIndex(index);
+        e.dataTransfer.effectAllowed = "move";
+        // Make the drag transparent/ghostly
+        e.currentTarget.classList.add('opacity-50');
+    };
+
+    const handleDragEnd = (e: React.DragEvent) => {
+        setDraggedIndex(null);
+        e.currentTarget.classList.remove('opacity-50');
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+    };
+
+    const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+        e.preventDefault();
+        if (draggedIndex === null || draggedIndex === dropIndex) return;
+
+        const newSlides = [...slides];
+        const [movedSlide] = newSlides.splice(draggedIndex, 1);
+        newSlides.splice(dropIndex, 0, movedSlide);
+
+        onReorderSlides(newSlides);
+        setDraggedIndex(null);
+    };
+
     return (
         <div
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-4 p-3 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-x-auto max-w-[70vw] items-center"
+            className="absolute bottom-4 left-1/2 -translate-x-1/2 z-50 flex gap-4 p-3 bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 overflow-x-auto max-w-[70vw] items-center custom-scrollbar"
         >
             {slides.map((s, idx) => (
                 <div
                     key={s.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, idx)}
+                    onDragEnd={handleDragEnd}
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleDrop(e, idx)}
                     onClick={() => setCurrentSlideId(s.id)}
                     className={`
                     w-40 h-[5.5rem] rounded-xl border-2 cursor-pointer relative group transition-all shrink-0 overflow-hidden
                     ${currentSlideId === s.id ? 'border-indigo-500 ring-4 ring-indigo-500/20 scale-105 z-10' : 'border-gray-200 hover:border-indigo-300 hover:scale-102'}
-                    bg-white flex items-center justify-center
+                    ${draggedIndex === idx ? 'opacity-40 border-dashed border-indigo-400' : 'bg-white'}
+                    flex items-center justify-center
                 `}
                 >
                     <SlideThumbnail slide={s} width={160} height={90} />

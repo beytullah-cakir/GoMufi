@@ -11,6 +11,7 @@ import LessonBuilderZoomControls from './lesson-builder/LessonBuilderZoomControl
 import AddSlideModal from './lesson-builder/AddSlideModal';
 import RightClickMenu from './lesson-builder/RightClickMenu';
 import LayersPanel from './lesson-builder/LayersPanel';
+import SelectionOverlay from './lesson-builder/SelectionOverlay';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -1664,10 +1665,24 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         // Allow bubbling to trigger Box Selection in parent
                                     }
                                 }}
-                                className={`bg-white shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''}`}
+                                className={`shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''} ${currentSlide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : 'bg-white'}`}
                                 style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
                             >
-                                <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
+                                {currentSlide.background !== 'notebook' && (
+                                    <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
+                                )}
+
+                                {currentSlide.background === 'notebook' && (
+                                    <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#3e3e3e] border-r border-gray-900/10 flex flex-col justify-evenly py-4 z-0 shadow-xl">
+                                        <div className="absolute inset-y-0 right-0 w-1 bg-gradient-to-l from-black/20 to-transparent"></div>
+                                        {Array.from({ length: 12 }).map((_, i) => (
+                                            <div key={i} className="relative w-full h-8 flex items-center justify-center shrink-0">
+                                                <div className="w-16 h-3 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-400 rounded-full shadow-lg transform -rotate-2 z-20 -ml-8"></div>
+                                                <div className="absolute right-[-4px] w-2 h-2 bg-black/30 rounded-full blur-[1px]"></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Active Drawing Preview */}
                                 {isDrawing && currentPathPoints.length > 1 && (
@@ -1676,13 +1691,29 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                     </svg>
                                 )}
 
-                                {/* SELECTION BOX */}
+                                {/* SELECTION BOX (Drag Select) */}
                                 {selectionBox && (
                                     <div
                                         className="absolute border-2 border-indigo-500 bg-indigo-500/10 pointer-events-none z-[100]"
                                         style={{ left: Math.min(selectionBox.startX, selectionBox.currentX), top: Math.min(selectionBox.startY, selectionBox.currentY), width: Math.abs(selectionBox.currentX - selectionBox.startX), height: Math.abs(selectionBox.currentY - selectionBox.startY) }}
                                     />
                                 )}
+
+                                {/* SINGLE ELEMENT SELECTION OVERLAY */}
+                                {selectedElementIds.map(id => {
+                                    const el = currentSlide.elements.find(e => e.id === id);
+                                    if (el && !editingElementId) {
+                                        return (
+                                            <SelectionOverlay
+                                                key={id}
+                                                el={el}
+                                                isEditing={editingElementId === id}
+                                                handleMouseDown={handleMouseDown}
+                                            />
+                                        );
+                                    }
+                                    return null;
+                                })}
 
                                 {/* Group Selection Overlay */}
                                 {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
@@ -1728,14 +1759,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                     <CanvasElement
                                         key={el.id}
                                         el={el}
-                                        isSelected={selectedElementIds.includes(el.id)}
                                         isEditing={editingElementId === el.id}
                                         setEditingElementId={setEditingElementId}
                                         updateElement={updateElement}
                                         updateElementStyle={updateElementStyle}
                                         deleteElement={deleteElement}
                                         handleMouseDown={handleMouseDown}
-                                        showHandles={selectedElementIds.length === 1}
                                     />
                                 ))}
                             </div>
@@ -1751,8 +1780,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     slides={slides}
                     currentSlideId={currentSlideId}
                     setCurrentSlideId={setCurrentSlideId}
-                    onAddSlide={addSlide}
+                    onAddSlide={() => setShowAddSlideModal(true)}
                     onDeleteSlide={deleteSlide}
+                    onReorderSlides={(newSlides) => {
+                        setPast(prev => [...prev, slides]);
+                        setSlides(newSlides);
+                        setFuture([]);
+                    }}
                 />
 
                 {/* ADD SLIDE MODAL */}
@@ -1762,7 +1796,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     onAddSlide={(type) => {
                         const newSlide: Slide = {
                             id: Date.now(),
-                            type: type,
+                            type: type === 'notebook' ? 'normal' : type,
+                            background: type === 'notebook' ? 'notebook' : 'default',
                             gameType: type === 'game' ? 'matching' : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
                             elements: [],
