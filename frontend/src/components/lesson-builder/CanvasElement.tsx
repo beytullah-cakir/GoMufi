@@ -312,7 +312,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
 
             {/* CONTENT */}
             <div
-                className={`w-full h-full ${el.type === 'draw' || el.type === 'arrow' ? '' : 'overflow-hidden'}`}
+                className={`w-full h-full ${el.type === 'draw' || el.type === 'arrow' || (el.type === 'shape' && el.style?.borderPosition === 'outside') ? '' : 'overflow-hidden'}`}
                 onDoubleClick={(e) => {
                     if (['text', 'sticky', 'code', 'video'].includes(el.type)) {
                         e.stopPropagation(); setEditingElementId(el.id);
@@ -324,8 +324,9 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         style={{
                             backgroundColor: el.style?.backgroundColor,
                             borderRadius: el.style?.borderRadius ? `${el.style.borderRadius}px` : undefined,
-                            borderWidth: el.style?.borderWidth ? `${el.style.borderWidth}px` : '4px',
+                            borderWidth: (!el.style?.borderPosition || el.style?.borderPosition === 'inside') ? (el.style?.borderWidth !== undefined ? `${el.style.borderWidth}px` : '4px') : '0px',
                             borderColor: el.style?.borderColor || '#1f2937',
+                            boxShadow: el.style?.borderPosition === 'outside' && el.style?.borderWidth ? `0 0 0 ${el.style.borderWidth}px ${el.style.borderColor || '#1f2937'}` : undefined,
                             padding: '10px'
                         }}>
                         <div

@@ -32,7 +32,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({ current, onUpdate, setActiveC
                 <input
                     type="color"
                     value={current || '#000000'}
-                    onChange={(e) => { onUpdate(e.target.value); setActiveColorPickerId(null); }}
+                    onChange={(e) => { onUpdate(e.target.value); }}
                     className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                     onMouseDown={(e) => e.stopPropagation()}
                 />
@@ -358,6 +358,22 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                                                 onChange={(e) => bulkUpdateStyle({ borderWidth: parseInt(e.target.value) })}
                                                 className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
                                             />
+                                        </div>
+
+                                        {/* Position */}
+                                        <div className="flex bg-gray-800 p-0.5 rounded-lg border border-gray-700">
+                                            <button
+                                                onClick={() => bulkUpdateStyle({ borderPosition: 'inside' })}
+                                                className={`flex-1 text-[10px] py-1 rounded-md transition-colors ${(!firstEl.style?.borderPosition || firstEl.style?.borderPosition === 'inside') ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-300'}`}
+                                            >
+                                                Inside
+                                            </button>
+                                            <button
+                                                onClick={() => bulkUpdateStyle({ borderPosition: 'outside' })}
+                                                className={`flex-1 text-[10px] py-1 rounded-md transition-colors ${firstEl.style?.borderPosition === 'outside' ? 'bg-gray-700 text-white shadow-sm' : 'text-gray-400 hover:text-gray-300'}`}
+                                            >
+                                                Outside
+                                            </button>
                                         </div>
 
                                         {/* Color */}

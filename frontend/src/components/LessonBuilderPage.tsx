@@ -335,7 +335,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'text': { content: 'Double click to edit', style: baseStyle },
                 'code': { content: 'print("Hello")', style: { ...baseStyle, fontFamily: 'Fira Code' as const, fontSize: 14 } },
                 'sticky': { content: 'Note...', style: { ...baseStyle, backgroundColor: '#fef3c7', fontFamily: 'Patrick Hand' as const } },
-                'shape': { content: '', shapeType: extraData.shapeType || 'rectangle', style: { backgroundColor: '#e2e8f0' } },
+                'shape': { content: '', shapeType: extraData.shapeType || 'rectangle', style: { backgroundColor: '#e2e8f0', borderWidth: 0 } },
                 'image': { content: '' },
                 'video': { content: '' },
                 'arrow': {

@@ -11,6 +11,7 @@ export interface ElementStyle {
     borderRadius?: number;
     borderColor?: string;
     borderWidth?: number;
+    borderPosition?: 'inside' | 'outside';
     opacity?: number;
 }
 
