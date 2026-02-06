@@ -78,10 +78,11 @@ export interface MatchingGameConfig {
 export interface Slide {
     id: number;
     // 'normal' is default if undefined
-    type?: 'normal' | 'game';
+    type?: 'normal' | 'game' | 'coding';
     gameType?: 'matching' | 'monster';
     gameConfig?: MatchingGameConfig | any;
     elements: SlideElement[];
     connections?: SlideConnection[];
     background?: 'default' | 'notebook';
+    backgroundColor?: string;
 }

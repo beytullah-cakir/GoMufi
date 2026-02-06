@@ -51,11 +51,67 @@ interface ContextMenuProps {
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
     deleteElement: (id: string) => void;
     editingElementId: string | null;
+    isCanvasSelected?: boolean;
+    slideBackgroundColor?: string;
+    onUpdateSlideBackground?: (color: string) => void;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, activeColorPickerId, setActiveColorPickerId, updateElementStyle, updateElement, deleteElement, editingElementId }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({
+    elements, scale, canvasRect, activeColorPickerId, setActiveColorPickerId,
+    updateElementStyle, updateElement, deleteElement, editingElementId,
+    isCanvasSelected, slideBackgroundColor, onUpdateSlideBackground
+}) => {
 
-    if (!canvasRect || elements.length === 0) return null;
+    if (!canvasRect || (elements.length === 0 && !isCanvasSelected)) return null;
+
+    // -- Canvas Menu --
+    if (isCanvasSelected) {
+        const centerX = canvasRect.left + canvasRect.width / 2;
+        const topY = canvasRect.top;
+
+        return (
+            <div
+                className="fixed z-[1000] flex flex-col gap-2 animate-in fade-in zoom-in-95"
+                style={{
+                    left: centerX,
+                    top: topY - 60, // Positioned above the canvas
+                    transform: 'translate(-50%, 0)', // Center horizontally
+                    transformOrigin: 'top center'
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="bg-gray-900 text-white p-2 rounded-xl shadow-2xl flex items-center gap-2 border border-gray-700 select-none">
+                    <span className="text-xs font-bold text-gray-500 px-2 uppercase tracking-wider">Canvas</span>
+                    <div className="w-[1px] h-6 bg-gray-700 mx-1" />
+
+                    {/* Canvas Color Picker */}
+                    <div className="relative">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === 'canvas-color' ? null : 'canvas-color'); }}
+                            className={`w-8 h-8 rounded hover:bg-gray-700 flex items-center justify-center gap-1 transition-colors ${activeColorPickerId === 'canvas-color' ? 'bg-gray-800 ring-1 ring-gray-600' : ''}`}
+                            title="Background Color"
+                        >
+                            <div className="w-5 h-5 rounded-full border border-gray-400" style={{ backgroundColor: slideBackgroundColor || '#ffffff' }} />
+                        </button>
+
+                        {activeColorPickerId === 'canvas-color' && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
+                                <ColorPicker
+                                    id="canvas-color"
+                                    current={slideBackgroundColor}
+                                    onUpdate={(c) => onUpdateSlideBackground?.(c)}
+                                    setActiveColorPickerId={setActiveColorPickerId}
+                                />
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (elements.length === 0) return null;
 
     // -- Helper: Bulk Updates --
     const bulkUpdateStyle = (updates: Partial<ElementStyle>) => {

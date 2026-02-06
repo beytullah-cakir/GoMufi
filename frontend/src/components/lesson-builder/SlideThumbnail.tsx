@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Slide, SlideElement } from './types';
-import { Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
+import { Image as ImageIcon, Video as VideoIcon, Check } from 'lucide-react';
 
 interface SlideThumbnailProps {
     slide: Slide;
@@ -26,11 +26,12 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
             }}
         >
             <div
-                className={`absolute top-0 left-0 origin-top-left ${slide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : 'bg-white'}`}
+                className={`absolute top-0 left-0 origin-top-left ${slide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : ''}`}
                 style={{
                     width: BASE_WIDTH,
                     height: baseHeight,
                     transform: `scale(${scale})`,
+                    backgroundColor: slide.backgroundColor || '#ffffff'
                 }}
             >
                 {slide.background === 'notebook' && (
@@ -45,31 +46,31 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                     </div>
                 )}
                 {slide.type === 'game' && slide.gameConfig?.questions?.[0] ? (
-                    <div className="w-full h-full flex items-center justify-center p-8 bg-slate-50">
-                        {/* Game Question Preview Card */}
-                        <div className="bg-white rounded-3xl shadow-xl border border-slate-200 p-8 w-[800px] flex flex-col gap-6">
-                            {/* MOCK GAME HEADER - Progress Bar etc. */}
-                            <div className="w-full flex justify-between items-center mb-8 px-4 relative z-10">
+                    <div className="w-full h-full flex items-center justify-center p-8 relative overflow-hidden">
+                        <div className="w-[850px] bg-white rounded-[32px] shadow-xl border border-gray-200 overflow-hidden p-8 relative">
+                            {/* Header */}
+                            <div className="w-full flex justify-between items-center mb-6 px-2 relative z-10 shrink-0">
                                 <div className="w-12 h-12 bg-gray-100 rounded-2xl flex items-center justify-center opacity-50">
-                                    <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                                 </div>
-                                {/* Mock Timer Bar */}
-                                <div className="flex-1 mx-8 h-4 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
+                                <div className="flex-1 mx-6 h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
                                     <div className="h-full bg-purple-500 w-full opacity-30"></div>
                                 </div>
-                                <div className="text-xl font-black text-gray-400 font-display w-12 text-right">
+                                <div className="text-3xl font-black text-gray-400 font-display w-16 text-right">
                                     1/{slide.gameConfig.questions.length || 1}
                                 </div>
                             </div>
 
-                            {/* Question Area */}
-                            <div className="text-center py-4 mb-4">
-                                <span className="text-gray-400 font-bold text-lg uppercase tracking-widest block mb-2">BÖLÜM 1</span>
-                                <h1 className="text-4xl font-black text-gray-700 font-display text-center" dangerouslySetInnerHTML={{ __html: slide.gameConfig.questions[0].text || 'Yeni Soru' }}></h1>
+                            {/* Question */}
+                            <div className="flex justify-center mb-8 w-full px-2">
+                                <div className="bg-white border-2 border-gray-200 border-b-4 rounded-3xl p-6 shadow-sm text-center w-full">
+                                    <span className="text-gray-400 font-bold text-lg uppercase tracking-widest block mb-2">BÖLÜM 1</span>
+                                    <h1 className="text-4xl font-black text-gray-700 font-display text-center line-clamp-2 leading-tight" dangerouslySetInnerHTML={{ __html: slide.gameConfig.questions[0].text || 'Yeni Soru' }}></h1>
+                                </div>
                             </div>
 
-                            {/* Options Preview */}
-                            <div className="grid grid-cols-2 gap-4 mt-2 px-4">
+                            {/* Options */}
+                            <div className="grid grid-cols-2 gap-4 w-full px-2">
                                 {slide.gameConfig.questions[0].options?.map((opt: any, i: number) => {
                                     const colors = [
                                         { bg: 'bg-red-500', border: 'border-red-700', box: 'bg-red-700', text: 'text-white' },
@@ -80,30 +81,43 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                                     const color = colors[i % 4];
 
                                     return (
-                                        <div key={i} className={`${color.bg} border-b-8 ${color.border} rounded-2xl flex items-center p-4 gap-4 overflow-hidden relative opacity-100`}>
+                                        <div key={i} className={`${color.bg} border-b-[8px] ${color.border} rounded-2xl flex items-center p-3 gap-3 overflow-hidden relative opacity-100 h-24`}>
                                             <div className={`w-14 h-14 ${color.box} rounded-xl flex items-center justify-center shadow-inner text-2xl font-black text-white font-display shrink-0`}>
                                                 {['A', 'B', 'C', 'D'][i]}
                                             </div>
-                                            <span className={`text-xl font-black ${color.text} font-display truncate`}>{opt.text || `Seçenek ${i + 1}`}</span>
+                                            <span className={`text-2xl font-black ${color.text} font-display truncate leading-tight flex-1`}>{opt.text || `Seçenek ${i + 1}`}</span>
 
-                                            {/* Checkmark if correct */}
                                             {opt.isCorrect && (
                                                 <div className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white text-green-500 shadow-lg flex items-center justify-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                                    <Check size={20} strokeWidth={3} />
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 }) || (
                                         <>
-                                            {/* Fallback Empty Options */}
-                                            <div className="h-24 bg-red-500 border-b-8 border-red-700 rounded-2xl opacity-50"></div>
-                                            <div className="h-24 bg-blue-500 border-b-8 border-blue-700 rounded-2xl opacity-50"></div>
-                                            <div className="h-24 bg-yellow-400 border-b-8 border-yellow-600 rounded-2xl opacity-50"></div>
-                                            <div className="h-24 bg-green-500 border-b-8 border-green-700 rounded-2xl opacity-50"></div>
+                                            <div className="h-24 bg-red-500 border-b-[8px] border-red-700 rounded-2xl opacity-50"></div>
+                                            <div className="h-24 bg-blue-500 border-b-[8px] border-blue-700 rounded-2xl opacity-50"></div>
+                                            <div className="h-24 bg-yellow-400 border-b-[8px] border-yellow-600 rounded-2xl opacity-50"></div>
+                                            <div className="h-24 bg-green-500 border-b-[8px] border-green-700 rounded-2xl opacity-50"></div>
                                         </>
                                     )}
                             </div>
+                        </div>
+                    </div>
+                ) : slide.type === 'coding' ? (
+                    <div className="w-full h-full flex p-8 gap-4 bg-[#f5f5f7]">
+                        {/* Left: Code */}
+                        <div className="flex-1 bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex flex-col gap-2">
+                            <div className="w-16 h-2 bg-gray-100 rounded-full" />
+                            <div className="w-24 h-2 bg-gray-100 rounded-full" />
+                            <div className="w-20 h-2 bg-gray-100 rounded-full" />
+                            <div className="w-32 h-2 bg-gray-100 rounded-full" />
+                        </div>
+                        {/* Right: Terminal */}
+                        <div className="w-1/3 bg-[#1e1e1e] rounded-xl shadow-sm p-4 flex flex-col gap-2">
+                            <div className="w-full h-2 bg-green-900/50 rounded-full" />
+                            <div className="w-2/3 h-2 bg-green-900/50 rounded-full" />
                         </div>
                     </div>
                 ) : (
@@ -111,7 +125,7 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                         <ThumbnailElement key={el.id} el={el} />
                     ))
                 )}
-            </div>
+            </div >
         </div >
     );
 };
