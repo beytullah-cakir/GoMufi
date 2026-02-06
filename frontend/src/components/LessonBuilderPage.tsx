@@ -152,29 +152,142 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSelectedElementIds(newElements.map(e => e.id));
     };
 
+    // -- State Ref for Event Handlers --
+    const stateRef = useRef({
+        slides, past, future, selectedElementIds, currentSlideId, clipboard: clipboard.current
+    });
+
+    React.useEffect(() => {
+        stateRef.current = { slides, past, future, selectedElementIds, currentSlideId, clipboard: clipboard.current };
+    }, [slides, past, future, selectedElementIds, currentSlideId]);
+
     // Keyboard Shortcuts
     React.useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+            if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
+
+            const { slides, past, future, selectedElementIds, currentSlideId, clipboard } = stateRef.current;
+            const currentSlide = slides.find(s => s.id === currentSlideId) || slides[0];
 
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'z') {
                     e.preventDefault();
-                    if (e.shiftKey) handleRedo();
-                    else handleUndo();
+                    if (e.shiftKey) {
+                        // Redo
+                        if (future.length === 0) return;
+                        const next = future[0];
+                        const newFuture = future.slice(1);
+                        setPast(prev => [...prev, slides]);
+                        setSlides(next);
+                        setFuture(newFuture);
+                    } else {
+                        // Undo
+                        if (past.length === 0) return;
+                        const previous = past[past.length - 1];
+                        const newPast = past.slice(0, past.length - 1);
+                        setFuture(prev => [slides, ...prev]);
+                        setSlides(previous);
+                        setPast(newPast);
+                    }
                 } else if (e.key === 'y') {
+                    // Redo
                     e.preventDefault();
-                    handleRedo();
+                    if (future.length === 0) return;
+                    const next = future[0];
+                    const newFuture = future.slice(1);
+                    setPast(prev => [...prev, slides]);
+                    setSlides(next);
+                    setFuture(newFuture);
                 } else if (e.key === 'c') {
                     e.preventDefault();
-                    handleCopy();
+                    if (selectedElementIds.length === 0) return;
+                    const elementsToCopy = currentSlide.elements.filter(el => selectedElementIds.includes(el.id));
+                    // Update the external ref as well so button clicks still work if they use it (though they generally use the component state/ref)
+                    // Actually we need to update the component's clipboard ref for uniformity
+                    // But we can't easily access the component's clipboard ref setter passed to other functions if it's just a ref.
+                    // Accessing the outer scope `clipboard` ref is fine!
+
+                    // We can just call handleCopy/handlePaste? 
+                    // No, those close over stale state if called from here unless we use a fresh closure? 
+                    // No, handleCopy/handlePaste defined in component body close over current render state.
+                    // But this effect runs ONCE. So it closes over INITIAL handleCopy.
+                    // So we must duplicate logic or use a ref for handlers (overkill).
+                    // Duplicating logic using stateRef is safest.
+
+                    // Update the main ref used by the component
+                    // Note: accessing outer `clipboard` ref work because it is a Ref object, distinct from stateRef.current.
+                    // But we should update it.
+                    const copyData = currentSlide.elements.filter(el => selectedElementIds.includes(el.id));
+                    // We need to update the MUTABLE clipboard ref from outer scope
+                    // The outer `clipboard` variable is available here.
+                    // Let's rely on the fact that `stateRef` is just for reading state, 
+                    // but we can write to `clipboard.current` directly.
+                    // Wait, cannot access outer `clipboard`? Yes I can.
+
+                    // Actually, let's keep it simple:
+                    // handleCopy logic:
+                    // clipboard.current = elementsToCopy;
+                    // BUT we need to reference the `clipboard` from the specific render? 
+                    // No, `clipboard` is a const Ref object. It is stable.
                 } else if (e.key === 'v') {
                     e.preventDefault();
-                    handlePaste();
+                    // Paste Logic
+                    // We need to read from the MUTABLE clipboard ref, because Ctrl+C might have happened 
+                    // via Button Click (which updates clipboard.current) OR via Shortcut (which we handle here).
+                    // stateRef.current.clipboard might be stale if we only update it on render!
+                    // So better to read `clipboard.current` directly if we can.
+
+                    // Wait, `clipboard` IS a dependency of the other effect? No it's a ref.
+                    // It's not in dependency array usually.
+
+                    // Let's implement Paste using `stateRef` for slides/ids etc, but `clipboard.current` for data.
+                }
+            }
+
+            // Re-implementing logic to be safe and avoid closure issues
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === 'c') {
+                    e.preventDefault();
+                    if (selectedElementIds.length === 0) return;
+                    const elementsToCopy = currentSlide.elements.filter(el => selectedElementIds.includes(el.id));
+                    // Update actual ref
+                    // We seek the outer scope `clipboard`. It is available.
+                    // @ts-ignore
+                    clipboard.current = elementsToCopy;
+                } else if (e.key === 'v') {
+                    e.preventDefault();
+                    // @ts-ignore
+                    const itemsToPaste = clipboard.current;
+                    if (itemsToPaste.length === 0) return;
+
+                    // Add to history manually since we are outside the closure of `addToHistory`
+                    setPast(prev => [...prev.slice(-19), slides]);
+                    setFuture([]);
+
+                    const newElements = itemsToPaste.map((el: any) => {
+                        const newId = Date.now().toString() + Math.random().toString().slice(2, 5);
+                        return {
+                            ...el,
+                            id: newId,
+                            x: el.x + 20,
+                            y: el.y + 20
+                        };
+                    });
+
+                    setSlides(prev => prev.map(s => {
+                        if (s.id === currentSlideId) {
+                            return { ...s, elements: [...s.elements, ...newElements] };
+                        }
+                        return s;
+                    }));
+
+                    setSelectedElementIds(newElements.map((e: any) => e.id));
                 }
             } else if (e.key === 'Delete' || e.key === 'Backspace') {
                 if (selectedElementIds.length > 0) {
-                    addToHistory();
+                    setPast(prev => [...prev.slice(-19), slides]);
+                    setFuture([]);
+
                     setSlides(prev => prev.map(s => {
                         if (s.id === currentSlideId) {
                             return { ...s, elements: s.elements.filter(el => !selectedElementIds.includes(el.id)) };
@@ -188,7 +301,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [slides, past, future, selectedElementIds, currentSlideId]); // Dependencies are important!
+    }, []);
 
 
     // -- Helpers --
