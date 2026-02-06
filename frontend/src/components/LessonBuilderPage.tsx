@@ -1039,6 +1039,20 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             className="w-full h-screen bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700"
             onMouseUp={(e) => handleMouseUp(e)}
             onMouseMove={handleMouseMove}
+            onDoubleClick={(e) => {
+                if (activeTool !== 'select') return;
+                const target = e.target as HTMLElement;
+                const elementWrapper = target.closest('[data-id]');
+                if (elementWrapper) {
+                    const id = elementWrapper.getAttribute('data-id');
+                    const type = elementWrapper.getAttribute('data-type');
+                    // Enable editing for shapes, circles, text, sticky
+                    if (id && ['text', 'sticky', 'shape', 'circle'].includes(type || '')) {
+                        setEditingElementId(id);
+                        setSelectedElementIds([id]);
+                    }
+                }
+            }}
             onMouseDown={(e) => {
                 if (activeTool === 'draw') {
                     // Don't stop propagation, let it bubble to container handler

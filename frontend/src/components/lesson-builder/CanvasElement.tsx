@@ -330,7 +330,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         }}>
                         <div
                             ref={contentRef}
-                            className={`w-full outline-none ${isEditing ? 'cursor-text select-text' : 'cursor-default select-none'} ${el.style?.textAlign === 'left' ? 'text-left' :
+                            className={`w-full min-h-[1.2em] outline-none ${isEditing ? 'cursor-text select-text' : 'cursor-default select-none'} ${el.style?.textAlign === 'left' ? 'text-left' :
                                 el.style?.textAlign === 'right' ? 'text-right' :
                                     el.style?.textAlign === 'center' ? 'text-center' : 'text-center'
                                 }`}

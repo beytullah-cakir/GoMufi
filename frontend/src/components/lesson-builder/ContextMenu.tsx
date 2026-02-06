@@ -62,64 +62,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
         elements.forEach(el => updateElementStyle(el.id, updates));
     };
 
-    const bulkUpdateColor = (color: string) => {
-        elements.forEach(el => {
-            // Smart Color Application:
-            // - Shape/Sticky -> backgroundColor
-            // - Text/Code -> color
-            if (['shape', 'sticky'].includes(el.type)) {
-                updateElementStyle(el.id, { backgroundColor: color });
-            } else if (el.type === 'code') {
-                updateElementStyle(el.id, { color: color });
-            } else {
-                // If we are currently editing THIS element, use execCommand for partial color
-                if (editingElementId === el.id) {
-                    document.execCommand('foreColor', false, color);
-                } else {
-                    // Object Mode: Apply color globally AND strip existing color formatting from content
-                    // This ensures the global color change overrides specific previous colors
-                    let newContent = el.content;
-                    if (el.type === 'text' || el.type === 'sticky') {
-                        const div = document.createElement('div');
-                        div.innerHTML = el.content;
-                        const styledEls = div.querySelectorAll('*');
-                        styledEls.forEach((node) => {
-                            if (node instanceof HTMLElement) {
-                                // Remove inline color style
-                                node.style.removeProperty('color');
-                                // Remove deprecated font color attribute
-                                if (node.getAttribute('color')) {
-                                    node.removeAttribute('color');
-                                }
-                                // If style is empty after removal, clean it up
-                                if (!node.getAttribute('style')) {
-                                    node.removeAttribute('style');
-                                }
-                            }
-                        });
-                        // Unwrap <font> tags if they are empty of attributes (optional, but cleaner)
-                        div.querySelectorAll('font').forEach(font => {
-                            if (!font.hasAttributes()) {
-                                const parent = font.parentNode;
-                                if (parent) {
-                                    while (font.firstChild) parent.insertBefore(font.firstChild, font);
-                                    parent.removeChild(font);
-                                }
-                            }
-                        });
-                        newContent = div.innerHTML;
-                    }
-
-                    // Update both style and content
-                    updateElement(el.id, {
-                        content: newContent,
-                        style: { ...el.style, color: color }
-                    });
-                }
-            }
-        });
-    };
-
     const bulkUpdateBorderColor = (color: string) => {
         elements.forEach(el => updateElementStyle(el.id, { borderColor: color }));
     };
@@ -143,14 +85,13 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
 
     // -- Determine Primary / Mixed Types --
     const allCode = elements.every(el => el.type === 'code');
-    const allText = elements.every(el => ['text', 'sticky'].includes(el.type)); // Removed code from here
+    const allText = elements.every(el => ['text', 'sticky', 'shape'].includes(el.type)); // Removed code from here
     const isSingle = elements.length === 1;
     const hasMedia = elements.some(el => ['image', 'video'].includes(el.type));
     const allBorders = elements.every(el => ['shape', 'image', 'video'].includes(el.type));
 
     // Representative Element (for default values)
     const firstEl = elements[0];
-    const isColorPickerOpen = activeColorPickerId === 'multi-color';
 
     // Menus
     const [isBorderMenuOpen, setIsBorderMenuOpen] = useState(false);
@@ -262,23 +203,83 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ elements, scale, canvasRect, 
                     </div>
                 )}
 
-                {/* Color Trigger (Smart Bulk) - Hide for Code */}
-                {!allCode && (
+                {/* Text Color Picker (A-Icon) - Visible for all text-capable elements */}
+                {(allText || allCode) && (
                     <div className="relative">
                         <button
-                            onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(isColorPickerOpen ? null : 'multi-color'); }}
+                            onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === 'text-color' ? null : 'text-color'); }}
                             onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                            className={`w-6 h-6 rounded-full border-2 transition-colors block ${isColorPickerOpen ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
-                            style={{ backgroundColor: (['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color) || 'white' }}
+                            className={`w-8 h-8 rounded hover:bg-gray-700 flex flex-col items-center justify-center gap-0.5 transition-colors ${activeColorPickerId === 'text-color' ? 'bg-gray-800 ring-1 ring-gray-600' : ''}`}
+                            title="Text Color"
+                        >
+                            <span className="font-serif font-bold text-lg leading-none text-gray-200">A</span>
+                            <div
+                                className="w-4 h-1 rounded-full"
+                                style={{ backgroundColor: firstEl.style?.color || (allCode ? '#d4d4d4' : 'black') }}
+                            />
+                        </button>
+
+                        {/* Dropdown */}
+                        {activeColorPickerId === 'text-color' && (
+                            <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
+                                <ColorPicker
+                                    id="text-color"
+                                    current={firstEl.style?.color}
+                                    onUpdate={(color) => {
+                                        elements.forEach(el => {
+                                            if (el.type === 'code') {
+                                                updateElementStyle(el.id, { color });
+                                            } else {
+                                                if (editingElementId === el.id) {
+                                                    document.execCommand('foreColor', false, color);
+                                                } else {
+                                                    // Strip existing color formatting to allow global override
+                                                    let newContent = el.content;
+                                                    const div = document.createElement('div');
+                                                    div.innerHTML = el.content;
+                                                    const styledEls = div.querySelectorAll('*');
+                                                    styledEls.forEach((node) => {
+                                                        if (node instanceof HTMLElement) {
+                                                            node.style.removeProperty('color');
+                                                            if (node.getAttribute('color')) node.removeAttribute('color');
+                                                            if (!node.getAttribute('style')) node.removeAttribute('style');
+                                                        }
+                                                    });
+                                                    newContent = div.innerHTML;
+
+                                                    updateElement(el.id, {
+                                                        content: newContent,
+                                                        style: { ...el.style, color: color }
+                                                    });
+                                                }
+                                            }
+                                        });
+                                    }}
+                                    setActiveColorPickerId={setActiveColorPickerId}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Fill Color Picker (Bucket/Circle) - Visible for Shapes & Sticky */}
+                {(elements.every(el => ['shape', 'sticky', 'circle'].includes(el.type) || (el.type === 'shape' && el.shapeType === 'circle'))) && (
+                    <div className="relative">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setActiveColorPickerId(activeColorPickerId === 'fill-color' ? null : 'fill-color'); }}
+                            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            className={`w-6 h-6 rounded-full border-2 transition-colors block ml-1 ${activeColorPickerId === 'fill-color' ? 'border-white ring-2 ring-indigo-500' : 'border-gray-500 hover:border-white'}`}
+                            style={{ backgroundColor: firstEl.style?.backgroundColor || 'transparent' }}
+                            title="Fill Color"
                         />
 
                         {/* Dropdown */}
-                        {isColorPickerOpen && (
+                        {activeColorPickerId === 'fill-color' && (
                             <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
                                 <ColorPicker
-                                    id="multi-color"
-                                    current={(['shape', 'sticky'].includes(firstEl.type) ? firstEl.style?.backgroundColor : firstEl.style?.color)}
-                                    onUpdate={bulkUpdateColor}
+                                    id="fill-color"
+                                    current={firstEl.style?.backgroundColor}
+                                    onUpdate={(color) => bulkUpdateStyle({ backgroundColor: color })}
                                     setActiveColorPickerId={setActiveColorPickerId}
                                 />
                             </div>
