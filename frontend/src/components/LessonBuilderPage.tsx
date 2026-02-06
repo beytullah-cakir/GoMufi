@@ -5,6 +5,7 @@ import ContextMenu from './lesson-builder/ContextMenu';
 import CanvasElement from './lesson-builder/CanvasElement';
 import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 import GameBuilder from './lesson-builder/GameBuilder';
+import CodingSlideBuilder from './lesson-builder/CodingSlideBuilder';
 import LessonBuilderHeader from './lesson-builder/LessonBuilderHeader';
 import LessonBuilderSlideStrip from './lesson-builder/LessonBuilderSlideStrip';
 import LessonBuilderZoomControls from './lesson-builder/LessonBuilderZoomControls';
@@ -22,6 +23,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [slides, setSlides] = useState<Slide[]>([{ id: 1, elements: [], connections: [] }]);
     const [currentSlideId, setCurrentSlideId] = useState<number>(1);
     const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
+    const [isCanvasSelected, setIsCanvasSelected] = useState<boolean>(false);
     const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
     const [editingElementId, setEditingElementId] = useState<string | null>(null);
     const [scale, setScale] = useState(1);
@@ -167,6 +169,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     React.useEffect(() => {
         stateRef.current = { slides, past, future, selectedElementIds, currentSlideId, clipboard: clipboard.current };
     }, [slides, past, future, selectedElementIds, currentSlideId]);
+
+    // Ensure mutually exclusive selection
+    React.useEffect(() => {
+        if (selectedElementIds.length > 0) {
+            setIsCanvasSelected(false);
+        }
+    }, [selectedElementIds]);
 
     // Keyboard Shortcuts
     React.useEffect(() => {
@@ -1604,6 +1613,15 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             }}
                         />
                     </div>
+                ) : currentSlide.type === 'coding' ? (
+                    <div className="flex-1 bg-gray-100 flex items-center justify-center overflow-hidden">
+                        <CodingSlideBuilder
+                            slide={currentSlide}
+                            updateSlide={(id, updates) => {
+                                setSlides(prev => prev.map(s => s.id === id ? { ...s, ...updates } : s));
+                            }}
+                        />
+                    </div>
                 ) : (
                     <>
                         <Toolbar
@@ -1647,26 +1665,40 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         )}
 
                         {/* CANVAS */}
-                        <div className="flex-1 overflow-auto relative bg-[#f5f5f7] flex items-center justify-center cursor-default h-full">
+                        <div
+                            className="flex-1 overflow-auto relative bg-[#f5f5f7] flex items-center justify-center cursor-default h-full"
+                            onMouseDown={(e) => {
+                                if (e.target === e.currentTarget) {
+                                    setSelectedElementIds([]);
+                                    setIsCanvasSelected(false);
+                                    setActiveColorPickerId(null);
+                                }
+                            }}
+                        >
                             {/* ... Canvas Content ... */}
                             <div
                                 ref={canvasRef}
                                 onDrop={handleCanvasDrop}
                                 onDragOver={(e) => e.preventDefault()}
                                 onMouseDown={(e) => {
-                                    // If drawing, we want the event to bubble up to the main container or handle it here.
-                                    // The main container has the generic handler.
-                                    // But we stopped propagation before.
+                                    // Canvas Selection Logic
+                                    if (activeTool === 'select' || activeTool === 'connect') {
+                                        setIsCanvasSelected(true);
+                                        setSelectedElementIds([]);
+                                        setActiveColorPickerId(null);
+                                    }
+
                                     if (activeTool === 'draw') {
-                                        // Don't stop propagation, let it bubble to container handler
-                                        // But prevent default to stop text selection
                                         e.preventDefault();
-                                    } else {
-                                        // Allow bubbling to trigger Box Selection in parent
                                     }
                                 }}
-                                className={`shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''} ${currentSlide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : 'bg-white'}`}
-                                style={{ width: '1280px', height: '720px', transform: `scale(${scale})` }}
+                                className={`shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''} ${currentSlide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : ''}`}
+                                style={{
+                                    width: '1280px',
+                                    height: '720px',
+                                    transform: `scale(${scale})`,
+                                    backgroundColor: currentSlide.backgroundColor || '#ffffff'
+                                }}
                             >
                                 {currentSlide.background !== 'notebook' && (
                                     <div className="absolute inset-0 opacity-[0.1] pointer-events-none" style={{ backgroundImage: 'radial-gradient(#94a3b8 2px, transparent 2px)', backgroundSize: '24px 24px' }} />
@@ -1714,6 +1746,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                     }
                                     return null;
                                 })}
+
+                                {/* Canvas Selection Border */}
+                                {isCanvasSelected && !dragState.isDragging && (
+                                    <div className="absolute inset-0 border-2 border-indigo-500 z-10 pointer-events-none animate-in fade-in duration-200"></div>
+                                )}
 
                                 {/* Group Selection Overlay */}
                                 {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
@@ -1770,6 +1807,31 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             </div>
                         </div>
                     </>
+                )}
+
+                {/* Canvas Context Menu */}
+                {isCanvasSelected && !dragState.isDragging && (
+                    <ContextMenu
+                        elements={[]}
+                        scale={scale}
+                        canvasRect={canvasRef.current?.getBoundingClientRect() || null}
+                        activeColorPickerId={activeColorPickerId}
+                        setActiveColorPickerId={setActiveColorPickerId}
+                        updateElementStyle={() => { }}
+                        updateElement={() => { }}
+                        deleteElement={() => { }}
+                        editingElementId={null}
+                        isCanvasSelected={true}
+                        slideBackgroundColor={currentSlide.backgroundColor || (currentSlide.background === 'notebook' ? '#fff' : '#ffffff')}
+                        onUpdateSlideBackground={(color) => {
+                            const newSlides = slides.map(s =>
+                                s.id === currentSlide.id
+                                    ? { ...s, backgroundColor: color }
+                                    : s
+                            );
+                            setSlides(newSlides);
+                        }}
+                    />
                 )}
 
                 {/* ZOOM Buttons */}

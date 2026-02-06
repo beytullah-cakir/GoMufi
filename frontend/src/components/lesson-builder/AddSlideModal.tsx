@@ -125,6 +125,33 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                         <p className="text-xs text-gray-400 mt-1">Çizgili defter görünümü.</p>
                                     </div>
                                 </button>
+
+                                <button
+                                    onClick={() => onAddSlide('coding' as any)}
+                                    className="text-left group"
+                                >
+                                    {/* Preview Container */}
+                                    <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-indigo-500 group-hover:shadow-md transition-all relative">
+                                        {/* Mock Layout */}
+                                        <div className="absolute inset-4 flex gap-2">
+                                            {/* Left: Code */}
+                                            <div className="flex-1 bg-white rounded shadow-sm border border-gray-200 p-2 flex flex-col gap-1">
+                                                <div className="w-8 h-1 bg-gray-200 rounded-full" />
+                                                <div className="w-12 h-1 bg-gray-200 rounded-full" />
+                                                <div className="w-10 h-1 bg-gray-200 rounded-full" />
+                                            </div>
+                                            {/* Right: Terminal */}
+                                            <div className="w-1/3 bg-[#1e1e1e] rounded shadow-sm p-2 flex flex-col gap-1">
+                                                <div className="w-full h-1 bg-green-900 rounded-full" />
+                                                <div className="w-2/3 h-1 bg-green-900 rounded-full" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="px-1">
+                                        <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">Kodlama Slaytı</h4>
+                                        <p className="text-xs text-gray-400 mt-1">Kod editörü ve terminal çıktısı.</p>
+                                    </div>
+                                </button>
                             </>
                         )}
 
