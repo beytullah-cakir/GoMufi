@@ -13,7 +13,7 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
     // or calculate bounding box. For simplicity, let's use a fixed scale based on 1600x900.
     // 128px width / 1600px = 0.08 scale.
 
-    const BASE_WIDTH = 1200;
+    const BASE_WIDTH = 1280;
     const scale = width / BASE_WIDTH;
     const baseHeight = height / scale; // Maintain aspect ratio of container
 
@@ -26,13 +26,24 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
             }}
         >
             <div
-                className="absolute top-0 left-0 origin-top-left"
+                className={`absolute top-0 left-0 origin-top-left ${slide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : 'bg-white'}`}
                 style={{
                     width: BASE_WIDTH,
                     height: baseHeight,
                     transform: `scale(${scale})`,
                 }}
             >
+                {slide.background === 'notebook' && (
+                    <div className="absolute left-0 top-0 bottom-0 w-12 bg-[#3e3e3e] border-r border-gray-900/10 flex flex-col justify-evenly py-4 z-0 shadow-xl">
+                        <div className="absolute inset-y-0 right-0 w-1 bg-gradient-to-l from-black/20 to-transparent"></div>
+                        {Array.from({ length: 12 }).map((_, i) => (
+                            <div key={i} className="relative w-full h-8 flex items-center justify-center shrink-0">
+                                <div className="w-16 h-3 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-400 rounded-full shadow-lg transform -rotate-2 z-20 -ml-8"></div>
+                                <div className="absolute right-[-4px] w-2 h-2 bg-black/30 rounded-full blur-[1px]"></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
                 {slide.type === 'game' && slide.gameConfig?.questions?.[0] ? (
                     <div className="w-full h-full flex items-center justify-center p-8 bg-slate-50">
                         {/* Game Question Preview Card */}

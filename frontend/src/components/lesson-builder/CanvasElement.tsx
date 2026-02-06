@@ -1,24 +1,21 @@
 import React, { useEffect, useRef } from 'react';
-import { RefreshCw, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
+import { Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import CodeWidget from './CodeWidget';
 import type { SlideElement, ElementStyle } from './types';
 
 interface CanvasElementProps {
     el: SlideElement;
-    isSelected: boolean;
     isEditing: boolean;
     setEditingElementId: (id: string | null) => void;
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
     deleteElement: (id: string) => void;
     handleMouseDown: (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => void;
-    showHandles?: boolean;
 }
 
 const CanvasElement: React.FC<CanvasElementProps> = ({
-    el, isSelected, isEditing,
-    setEditingElementId, updateElement, handleMouseDown,
-    showHandles = true
+    el, isEditing,
+    setEditingElementId, updateElement, handleMouseDown
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -80,56 +77,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             data-id={el.id}
             data-type={el.type}
         >
-            {/* SELECTION OVERLAY */}
-            {isSelected && !isEditing && el.type !== 'arrow' && (
-                <div className={`absolute -inset-1 border-2 border-indigo-500 pointer-events-none z-50 ${!showHandles ? 'opacity-50 border-dashed' : ''}`}>
-                    {/* Rotate Handle */}
-                    {showHandles && (
-                        <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-white border border-indigo-500 rounded-full flex items-center justify-center cursor-grab pointer-events-auto shadow-sm" onMouseDown={(e) => handleMouseDown(e, el.id, 'rotate')}>
-                            <RefreshCw className="w-3 h-3 text-indigo-600" />
-                        </div>
-                    )}
-                    {/* Edge Resize Handles (Invisible Bars) */}
-                    {showHandles && (
-                        <>
-                            {/* N - Top Edge */}
-                            <div
-                                className="absolute left-0 -top-1 w-full h-2 cursor-n-resize z-50 pointer-events-auto"
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'n')}
-                            />
-                            {/* S - Bottom Edge */}
-                            <div
-                                className="absolute left-0 -bottom-1 w-full h-2 cursor-s-resize z-50 pointer-events-auto"
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 's')}
-                            />
-                            {/* W - Left Edge */}
-                            <div
-                                className="absolute -left-1 top-0 w-2 h-full cursor-w-resize z-50 pointer-events-auto"
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'w')}
-                            />
-                            {/* E - Right Edge */}
-                            <div
-                                className="absolute -right-1 top-0 w-2 h-full cursor-e-resize z-50 pointer-events-auto"
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'e')}
-                            />
-                        </>
-                    )}
 
-                    {/* Corner Resize Handles (Visible Circles) */}
-                    {showHandles && ['nw', 'ne', 'sw', 'se'].map(pos => (
-                        <div
-                            key={pos}
-                            className={`absolute w-3 h-3 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto z-50
-                                ${pos === 'nw' ? '-top-1.5 -left-1.5 cursor-nw-resize' : ''}
-                                ${pos === 'ne' ? '-top-1.5 -right-1.5 cursor-ne-resize' : ''}
-                                ${pos === 'sw' ? '-bottom-1.5 -left-1.5 cursor-sw-resize' : ''}
-                                ${pos === 'se' ? '-bottom-1.5 -right-1.5 cursor-se-resize' : ''}
-                            `}
-                            onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', pos)}
-                        />
-                    ))}
-                </div>
-            )}
 
             {/* ARROW ELEMENT */}
             {el.type === 'arrow' && el.arrowConfig && (
@@ -151,7 +99,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 const cp1 = { x: s.x + dist * 0.5, y: s.y };
                                 const cp2 = { x: e.x - dist * 0.5, y: e.y };
 
-                                // Note: This matches the user's "Kıvrımlı" which is a smooth horizontal S-curve usually
                                 d = `M ${s.x} ${s.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${e.x} ${e.y}`;
                             } else if (el.arrowConfig.arrowStyle === 'elbow') {
                                 // Elbow Logic with Standoffs & Smart Routing
@@ -179,99 +126,35 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                                 const isEndVertical = endSide === 'top' || endSide === 'bottom';
 
                                 let midPath = '';
-                                let midHandlePos: { x: number, y: number } | null = null;
-                                let midCursor = 'cursor-pointer';
 
                                 if (isStartVertical === isEndVertical) {
-                                    // Same Axis (V-V or H-H)
                                     if (startSide === endSide) {
-                                        // Same Direction (U-Turn)
                                         if (isStartVertical) {
-                                            // Top-Top / Bottom-Bottom -> Horizontal Channel
                                             const defaultChannel = startSide === 'top' ? Math.min(p1.y, p2.y) - 30 : Math.max(p1.y, p2.y) + 30;
                                             const channel = el.arrowConfig.customChannel ?? defaultChannel;
-
                                             midPath = `L ${p1.x} ${channel} L ${p2.x} ${channel}`;
-                                            midHandlePos = { x: (p1.x + p2.x) / 2, y: channel };
-                                            midCursor = 'cursor-ns-resize';
                                         } else {
-                                            // Left-Left / Right-Right -> Vertical Channel
                                             const defaultChannel = startSide === 'left' ? Math.min(p1.x, p2.x) - 30 : Math.max(p1.x, p2.x) + 30;
                                             const channel = el.arrowConfig.customChannel ?? defaultChannel;
-
                                             midPath = `L ${channel} ${p1.y} L ${channel} ${p2.y}`;
-                                            midHandlePos = { x: channel, y: (p1.y + p2.y) / 2 };
-                                            midCursor = 'cursor-ew-resize';
                                         }
                                     } else {
-                                        // Opposite Direction (Z-Shape)
                                         if (isStartVertical) {
-                                            // V-V Opposite -> Horizontal Channel
                                             const defaultChannel = (p1.y + p2.y) / 2;
                                             const channel = el.arrowConfig.customChannel ?? defaultChannel;
-
                                             midPath = `L ${p1.x} ${channel} L ${p2.x} ${channel}`;
-                                            midHandlePos = { x: (p1.x + p2.x) / 2, y: channel };
-                                            midCursor = 'cursor-ns-resize';
                                         } else {
-                                            // H-H Opposite -> Vertical Channel
                                             const defaultChannel = (p1.x + p2.x) / 2;
                                             const channel = el.arrowConfig.customChannel ?? defaultChannel;
-
                                             midPath = `L ${channel} ${p1.y} L ${channel} ${p2.y}`;
-                                            midHandlePos = { x: channel, y: (p1.y + p2.y) / 2 };
-                                            midCursor = 'cursor-ew-resize';
                                         }
                                     }
                                 } else {
-                                    // Orthogonal (L-Shape) - Start V, End H (or vice versa)
-                                    // No middle channel for L-shape usually, unless we want to force a Z-shape?
-                                    // The user might want to adjust the CORNER.
-                                    // The corner is at Intersection.
-                                    // If we implement 'breaks', we might convert L to Stepped.
-                                    // For now, let's keep L-shape simple unless requested.
                                     if (isStartVertical) midPath = `L ${p1.x} ${p2.y}`;
                                     else midPath = `L ${p2.x} ${p1.y}`;
                                 }
 
                                 d = `M ${s.x} ${s.y} L ${p1.x} ${p1.y} ${midPath} L ${p2.x} ${p2.y} L ${e.x} ${e.y}`;
-
-                                // Render Handles if selected
-                                if (isSelected) {
-                                    return (
-                                        <>
-                                            <path
-                                                d={d}
-                                                stroke={el.style?.color || '#374151'}
-                                                strokeWidth={el.style?.borderWidth || 4}
-                                                fill="none"
-                                                markerEnd={`url(#arrowhead-${el.id})`}
-                                                className="pointer-events-auto cursor-pointer"
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                            />
-                                            {/* Start Offset Handle (p1) */}
-                                            <circle cx={p1.x} cy={p1.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
-                                                className={`pointer-events-auto ${isStartVertical ? 'cursor-ns-resize' : 'cursor-ew-resize'}`}
-                                                onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-start-offset'); }}
-                                            />
-
-                                            {/* Middle Channel Handle */}
-                                            {midHandlePos && (
-                                                <circle cx={midHandlePos.x} cy={midHandlePos.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
-                                                    className={`pointer-events-auto ${midCursor}`}
-                                                    onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-channel'); }}
-                                                />
-                                            )}
-
-                                            {/* End Offset Handle (p2) */}
-                                            <circle cx={p2.x} cy={p2.y} r={5} fill="#fff" stroke="#3b82f6" strokeWidth={2}
-                                                className={`pointer-events-auto ${isEndVertical ? 'cursor-ns-resize' : 'cursor-ew-resize'}`}
-                                                onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e, el.id, 'resize', 'arrow-end-offset'); }}
-                                            />
-                                        </>
-                                    );
-                                }
                             }
 
                             return (
@@ -288,24 +171,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                             );
                         })()}
                     </svg>
-
-                    {/* Arrow Handles */}
-                    {isSelected && !isEditing && (
-                        <>
-                            {/* Start Handle */}
-                            <div
-                                className="absolute w-4 h-4 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto cursor-move z-50 shadow-sm"
-                                style={{ left: el.arrowConfig.start.x - 8, top: el.arrowConfig.start.y - 8 }}
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'start')}
-                            />
-                            {/* End Handle */}
-                            <div
-                                className="absolute w-4 h-4 bg-white border-2 border-indigo-500 rounded-full pointer-events-auto cursor-move z-50 shadow-sm"
-                                style={{ left: el.arrowConfig.end.x - 8, top: el.arrowConfig.end.y - 8 }}
-                                onMouseDown={(e) => handleMouseDown(e, el.id, 'resize', 'end')}
-                            />
-                        </>
-                    )}
                 </div>
             )}
 
