@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import type { Slide, SlideElement, ElementStyle } from './lesson-builder/types';
 import Toolbar from './lesson-builder/Toolbar';
 import ContextMenu from './lesson-builder/ContextMenu';
@@ -27,7 +27,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [isCanvasSelected, setIsCanvasSelected] = useState<boolean>(false);
     const [selectionBox, setSelectionBox] = useState<{ startX: number, startY: number, currentX: number, currentY: number } | null>(null);
     const [editingElementId, setEditingElementId] = useState<string | null>(null);
-    const [scale, setScale] = useState(1);
+    const [scale, setScale] = useState(0.9);
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
     const [showAddSlideModal, setShowAddSlideModal] = useState(false);
     const [isPreview, setIsPreview] = useState(false);
@@ -637,6 +637,29 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             return s;
         }));
     };
+
+
+
+    // Add native wheel event listener to handle Ctrl+Scroll zoom prevention
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleWheel = (e: WheelEvent) => {
+            if (e.ctrlKey) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? -0.1 : 0.1;
+                setScale(s => Math.min(2, Math.max(0.2, s + delta)));
+            }
+        };
+
+        // Passive: false is crucial to allow preventDefault()
+        container.addEventListener('wheel', handleWheel, { passive: false });
+
+        return () => {
+            container.removeEventListener('wheel', handleWheel);
+        };
+    }, []);
 
     // -- Handlers --
 
@@ -1553,6 +1576,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 // If activeTool is 'connect', do nothing on canvas background click
             }}
             onContextMenu={handleContextMenu}
+
         >
             {/* LAYERS PANEL (Right) - Hidden in Preview */}
             {!isPreview && showLayers && (
