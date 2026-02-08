@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import GrassIcon from '../assets/sprites/grass.png';
 import { Swords, Users, Shield } from 'lucide-react';
 
-import GameOverlay from './GameOverlay';
+import GameOverlay from './students-pages/GameOverlay';
 import LessonSlide from './LessonSlide';
 import type { CourseData, PathNode } from '../types';
 
