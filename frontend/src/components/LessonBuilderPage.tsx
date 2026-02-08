@@ -12,6 +12,7 @@ import LessonBuilderZoomControls from './lesson-builder/LessonBuilderZoomControl
 import AddSlideModal from './lesson-builder/AddSlideModal';
 import RightClickMenu from './lesson-builder/RightClickMenu';
 import LayersPanel from './lesson-builder/LayersPanel';
+import PropertiesPanel from './lesson-builder/PropertiesPanel';
 import SelectionOverlay from './lesson-builder/SelectionOverlay';
 
 interface LessonBuilderProps {
@@ -29,6 +30,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [scale, setScale] = useState(1);
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
     const [showAddSlideModal, setShowAddSlideModal] = useState(false);
+    const [isPreview, setIsPreview] = useState(false);
 
     // -- Header State --
     const [projectName, setProjectName] = useState("Yeni Ders Projesi");
@@ -1552,7 +1554,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             }}
             onContextMenu={handleContextMenu}
         >
-            {showLayers && (
+            {/* LAYERS PANEL (Right) - Hidden in Preview */}
+            {!isPreview && showLayers && (
                 <LayersPanel
                     elements={currentSlide.elements}
                     selectedIds={selectedElementIds}
@@ -1567,6 +1570,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     onReorder={() => { }}
                 />
             )}
+
+
+
             {contextMenu.visible && (
                 <RightClickMenu
                     x={contextMenu.x}
@@ -1589,6 +1595,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 onRedo={handleRedo}
                 onCopy={handleCopy}
                 onPaste={handlePaste}
+                isPreview={isPreview}
+                setIsPreview={setIsPreview}
             />
 
             <div
@@ -1598,6 +1606,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Fredoka:wght@300;400;500;600&family=Pacifico&family=Patrick+Hand&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
                 .cursor-eraser { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="black" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg>') 0 24, auto; }
+                @keyframes slideInRight {
+                    from { transform: translateX(100%); opacity: 0; }
+                    to { transform: translateX(0); opacity: 1; }
+                }
+                .animate-slide-in-right {
+                    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                }
             `}</style>
 
                 {/* HEADER & ACTIONS */}
@@ -1624,25 +1639,28 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     </div>
                 ) : (
                     <>
-                        <Toolbar
-                            onDragStart={handleToolbarDragStart}
-                            activeTool={activeTool}
-                            setTool={setActiveTool}
-                            brushColor={brushColor}
-                            setBrushColor={setBrushColor}
-                            brushSize={brushSize}
-                            setBrushSize={setBrushSize}
-                            brushType={brushType}
-                            setBrushType={(type) => {
-                                setBrushType(type);
-                                if (type === 'pen') { setBrushOpacity(1); if (brushColor === '#ffffff') setBrushColor('#1f2937'); }
-                                else if (type === 'highlighter') { setBrushOpacity(0.5); setBrushSize(15); setBrushColor('#f59e0b'); }
-                                else if (type === 'eraser') {
-                                    // Eraser now acts as a delete tool
-                                    // We don't need to change color/opacity, just the mode
-                                }
-                            }}
-                        />
+                        {/* TOOLBAR (Left) - Hidden in Preview */}
+                        {!isPreview && (
+                            <Toolbar
+                                onDragStart={handleToolbarDragStart}
+                                activeTool={activeTool}
+                                setTool={setActiveTool}
+                                brushColor={brushColor}
+                                setBrushColor={setBrushColor}
+                                brushSize={brushSize}
+                                setBrushSize={setBrushSize}
+                                brushType={brushType}
+                                setBrushType={(type) => {
+                                    setBrushType(type);
+                                    if (type === 'pen') { setBrushOpacity(1); if (brushColor === '#ffffff') setBrushColor('#1f2937'); }
+                                    else if (type === 'highlighter') { setBrushOpacity(0.5); setBrushSize(15); setBrushColor('#f59e0b'); }
+                                    else if (type === 'eraser') {
+                                        // Eraser now acts as a delete tool
+                                        // We don't need to change color/opacity, just the mode
+                                    }
+                                }}
+                            />
+                        )}
 
                         {/* FLOATING CONTEXT MENU */}
                         {selectedElementIds.length > 0 && !dragState.isDragging && (
@@ -1802,6 +1820,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         updateElementStyle={updateElementStyle}
                                         deleteElement={deleteElement}
                                         handleMouseDown={handleMouseDown}
+                                        isPreview={isPreview}
                                     />
                                 ))}
                             </div>
@@ -1870,6 +1889,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         setShowAddSlideModal(false);
                     }}
                 />
+
+                {/* PROPERTIES PANEL (Right) - Shows when element is selected & not in preview */}
+                {!isPreview && !showLayers && selectedElementIds.length === 1 && (
+                    <PropertiesPanel
+                        selectedElementIds={selectedElementIds}
+                        elements={currentSlide.elements}
+                        updateElement={updateElement}
+                        onClose={() => setSelectedElementIds([])}
+                    />
+                )}
             </div>
         </div>
     );

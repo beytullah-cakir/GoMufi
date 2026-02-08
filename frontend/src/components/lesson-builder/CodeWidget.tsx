@@ -36,11 +36,12 @@ interface CodeWidgetProps {
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
     setEditingElementId: (id: string | null) => void;
     handleMouseDown: (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => void;
+    readOnly?: boolean;
 }
 
-const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, handleMouseDown, setEditingElementId }) => {
-    // viewMode: 'code' | 'settings' | 'output'
-    const [viewMode, setViewMode] = useState<'code' | 'settings' | 'output'>('code');
+const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, handleMouseDown, setEditingElementId, readOnly }) => {
+    // viewMode: 'code' | 'output'
+    const [viewMode, setViewMode] = useState<'code' | 'output'>('code');
     const [localCode, setLocalCode] = useState(el.content);
 
     // Autocomplete State
@@ -390,29 +391,25 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                         <span className="text-[10px] font-bold">RUN</span>
                     </button>
 
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setViewMode('code'); }}
-                        className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'code' ? 'text-indigo-500' : 'text-gray-400'}`}
-                        title="Code Editor"
-                    >
-                        <FileCode className="w-3.5 h-3.5" />
-                    </button>
+                    {!readOnly && (
+                        <>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setViewMode('code'); }}
+                                className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'code' ? 'text-indigo-500' : 'text-gray-400'}`}
+                                title="Code Editor"
+                            >
+                                <FileCode className="w-3.5 h-3.5" />
+                            </button>
 
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setViewMode('output'); }}
-                        className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'output' ? 'text-indigo-500' : 'text-gray-400'}`}
-                        title="Terminal / Output"
-                    >
-                        <SquareTerminal className="w-3.5 h-3.5" />
-                    </button>
-
-                    <button
-                        onClick={(e) => { e.stopPropagation(); setViewMode('settings'); }}
-                        className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'settings' ? 'text-indigo-500' : 'text-gray-400'}`}
-                        title="Widget Settings"
-                    >
-                        <Settings className="w-3.5 h-3.5" />
-                    </button>
+                            <button
+                                onClick={(e) => { e.stopPropagation(); setViewMode('output'); }}
+                                className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'output' ? 'text-indigo-500' : 'text-gray-400'}`}
+                                title="Terminal / Output"
+                            >
+                                <SquareTerminal className="w-3.5 h-3.5" />
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -446,7 +443,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     {/* TEXTAREA LAYER (Top) */}
                     <textarea
                         ref={textareaRef}
-                        className={`w-full h-full outline-none resize-none relative z-10 ${isEditing ? 'cursor-text' : 'cursor-default pointer-events-none'}`}
+                        className={`w-full h-full outline-none resize-none relative z-10 ${isEditing && !readOnly ? 'cursor-text' : 'cursor-default'}`}
                         style={{
                             ...EDITOR_STYLES,
                             backgroundColor: 'transparent',
@@ -455,6 +452,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                             whiteSpace: 'pre-wrap',
                             wordWrap: 'break-word',
                         }}
+                        readOnly={readOnly}
                         value={localCode}
                         onChange={handleCodeChange}
                         onBlur={handleSaveCode}
@@ -503,76 +501,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     )}
                 </div>
 
-                {/* 2. SETTINGS MODE (Teacher Data) */}
-                <div className={`absolute inset-0 p-4 flex flex-col gap-4 overflow-y-auto transition-transform duration-300 ease-in-out ${viewMode === 'settings' ? 'translate-x-0' : 'translate-x-full'}`}
-                    style={{ backgroundColor: theme === 'dark' ? '#252526' : '#f9fafb' }}
-                >
-
-                    {/* Expected Output */}
-                    <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70" style={{ color: inputText }}>
-                            <Eye className="w-3 h-3 text-indigo-400" />
-                            Beklenen Çıktı (Expected Output)
-                        </label>
-                        <textarea
-                            className="w-full h-24 rounded-lg p-3 text-xs font-mono focus:ring-1 focus:ring-indigo-500 outline-none transition-colors resize-none border"
-                            style={{ backgroundColor: inputBg, borderColor: inputBorder, color: inputText }}
-                            placeholder="Öğrencinin kodunun üretmesi gereken çıktı..."
-                            value={el.codeConfig?.expectedOutput || ''}
-                            onChange={(e) => handleConfigUpdate('expectedOutput', e.target.value)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                    </div>
-
-                    {/* Hint */}
-                    <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70" style={{ color: inputText }}>
-                            <MessageCircle className="w-3 h-3 text-yellow-400" />
-                            İpucu (Student Hint)
-                        </label>
-                        <textarea
-                            className="w-full h-20 rounded-lg p-3 text-xs font-sans focus:ring-1 focus:ring-yellow-500 outline-none transition-colors resize-none border"
-                            style={{ backgroundColor: inputBg, borderColor: inputBorder, color: inputText }}
-                            placeholder="Öğrenciye verilecek küçük bir ipucu..."
-                            value={el.codeConfig?.hint || ''}
-                            onChange={(e) => handleConfigUpdate('hint', e.target.value)}
-                            onKeyDown={(e) => e.stopPropagation()}
-                        />
-                    </div>
-
-                    {/* Language Selector */}
-                    <div className="flex flex-col gap-2">
-                        <label className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-70" style={{ color: inputText }}>
-                            <AlertCircle className="w-3 h-3 text-green-400" />
-                            Dil (Language)
-                        </label>
-                        <select
-                            className="w-full rounded-lg p-2 text-xs outline-none border"
-                            style={{ backgroundColor: inputBg, borderColor: inputBorder, color: inputText }}
-                            value={el.codeConfig?.language || 'python'}
-                            onChange={(e) => handleConfigUpdate('language', e.target.value)}
-                        >
-                            <option value="python">Python 3</option>
-                            <option value="javascript">JavaScript</option>
-                            <option value="typescript">TypeScript</option>
-                            <option value="cpp">C++</option>
-                        </select>
-                    </div>
-
-                    {/* Autocomplete Toggle */}
-                    <div className="flex items-center gap-3 pt-2 border-t border-white/5">
-                        <div
-                            className={`w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors ${el.codeConfig?.enableAutocomplete ? 'bg-green-500' : 'bg-gray-600'}`}
-                            onClick={() => handleConfigUpdate('enableAutocomplete', !el.codeConfig?.enableAutocomplete)}
-                        >
-                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform ${el.codeConfig?.enableAutocomplete ? 'translate-x-5' : 'translate-x-0'}`} />
-                        </div>
-                        <label className="text-xs font-bold uppercase tracking-wider opacity-70 cursor-pointer" style={{ color: inputText }} onClick={() => handleConfigUpdate('enableAutocomplete', !el.codeConfig?.enableAutocomplete)}>
-                            Snippets / Autocomplete
-                        </label>
-                    </div>
-
-                </div>
+                {/* 2. SETTINGS MODE (Refactored to Side Panel) */}
 
                 {/* 3. TERMINAL / OUTPUT MODE */}
                 <div className={`absolute inset-0 p-4 font-mono text-xs overflow-y-auto transition-transform duration-300 ease-in-out ${viewMode === 'output' ? 'translate-x-0' : 'translate-x-full'}`}
@@ -609,7 +538,6 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
             <div className="bg-[#2d2d2d] px-3 py-1 flex justify-between items-center text-[10px] text-gray-500 select-none">
                 <span>
                     {viewMode === 'code' && 'EDITOR'}
-                    {viewMode === 'settings' && 'CONFIG'}
                     {viewMode === 'output' && 'TERMINAL'}
                 </span>
                 <span>UTF-8</span>

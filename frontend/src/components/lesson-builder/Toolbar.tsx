@@ -1,7 +1,7 @@
 import React from 'react';
 import {
     MousePointer2, Pencil, Type, Square, Code, Image as ImageIcon, Video,
-    PenTool, Highlighter, Eraser, StickyNote, CircleIcon, Link as LinkIcon, ArrowRight
+    PenTool, Highlighter, Eraser, StickyNote, CircleIcon, Link as LinkIcon, ArrowRight, Eye
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -153,6 +153,26 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                 print("Hello World")<br />
                                 if True:<br />
                                 &nbsp;&nbsp;print("Yes")
+                            </div>
+                        </div>
+
+                        {/* Kod İncele Widget */}
+                        <div
+                            draggable
+                            onDragStart={(e) => onDragStart(e, 'code', { codeConfig: { language: 'python', theme: 'dark' }, content: '# Kod İncele\n# Öğrenci bu kodu değiştiremez\n\ndef incele():\n    print("Bu kod sadece okunabilir")\n    return True\n\nincele()' })}
+                            className="bg-gray-50 p-3 rounded-xl border-2 border-dashed border-gray-300 hover:border-indigo-400 hover:bg-indigo-50 cursor-grab active:cursor-grabbing transition-all group"
+                        >
+                            <div className="flex items-center gap-3 mb-2">
+                                <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 flex items-center justify-center text-indigo-600 shadow-sm">
+                                    <Eye className="w-4 h-4" />
+                                </div>
+                                <span className="font-semibold text-gray-700 text-sm group-hover:text-indigo-700">Kod İncele</span>
+                            </div>
+                            <div className="bg-gray-900 border border-gray-800 rounded p-2 text-[10px] font-mono text-green-400 overflow-hidden h-12 relative">
+                                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-gray-900/50" />
+                                # Read Only<br />
+                                def example():<br />
+                                &nbsp;&nbsp;pass
                             </div>
                         </div>
                     </div>

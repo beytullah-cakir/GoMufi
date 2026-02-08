@@ -11,11 +11,13 @@ interface CanvasElementProps {
     updateElementStyle: (id: string, style: Partial<ElementStyle>) => void;
     deleteElement: (id: string) => void;
     handleMouseDown: (e: React.MouseEvent, id: string, action: 'drag' | 'resize' | 'rotate', handle?: string) => void;
+    isPreview: boolean;
 }
 
 const CanvasElement: React.FC<CanvasElementProps> = ({
     el, isEditing,
-    setEditingElementId, updateElement, handleMouseDown
+    setEditingElementId, updateElement, handleMouseDown,
+    isPreview
 }) => {
     const contentRef = useRef<HTMLDivElement>(null);
 
@@ -68,7 +70,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 pointerEvents: el.type === 'draw' ? 'none' : 'auto'
             }}
             onMouseDown={(e) => {
-                if (isEditing) {
+                if (isPreview || isEditing) {
                     e.stopPropagation();
                     return;
                 }
@@ -264,6 +266,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                         updateElement={updateElement}
                         setEditingElementId={setEditingElementId}
                         handleMouseDown={handleMouseDown}
+                        readOnly={isPreview}
                     />
                 )}
                 {(el.type === 'image' || el.type === 'video') && (
@@ -272,7 +275,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                             borderRadius: el.style?.borderRadius ? `${el.style.borderRadius}px` : '16px',
                             borderWidth: (el.style?.borderWidth !== undefined) ? `${el.style.borderWidth}px` : (el.type === 'image' ? '2px' : '2px'),
                             borderColor: el.style?.borderColor || '#d1d5db',
-                            borderStyle: el.src ? 'solid' : 'dashed'
+                            borderStyle: el.src ? 'solid' : 'dashed',
+                            pointerEvents: isPreview ? 'auto' : 'none' // Allow interaction in preview if it's video controls? actually video controls layer might handle it
                         }}
                     >
                         {el.type === 'image' ? (

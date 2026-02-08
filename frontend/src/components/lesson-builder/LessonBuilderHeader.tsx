@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon } from 'lucide-react';
+import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil } from 'lucide-react';
 
 interface LessonBuilderHeaderProps {
     onExit: () => void;
@@ -13,6 +13,8 @@ interface LessonBuilderHeaderProps {
     onRedo: () => void;
     onCopy: () => void;
     onPaste: () => void;
+    isPreview: boolean;
+    setIsPreview: (v: boolean) => void;
 }
 
 const stages = [
@@ -33,7 +35,9 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
     onUndo,
     onRedo,
     onCopy,
-    onPaste
+    onPaste,
+    isPreview,
+    setIsPreview
 }) => {
     return (
         <>
@@ -105,9 +109,16 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         )}
                     </div>
 
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-sm uppercase tracking-tight">
-                        <Play className="w-4 h-4 fill-current" />
-                        <span>Önizle</span>
+                    <button
+                        onClick={() => setIsPreview(!isPreview)}
+                        className={`flex items-center gap-2 px-4 py-2 border font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-sm uppercase tracking-tight
+                            ${isPreview
+                                ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
+                            }`}
+                    >
+                        {isPreview ? <Pencil className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                        <span>{isPreview ? 'Düzenle' : 'Önizle'}</span>
                     </button>
 
                     <button
