@@ -46,7 +46,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
 
     // -- Draw/Connect Tool State --
-    const [activeTool, setActiveTool] = useState<'select' | 'draw' | 'connect'>('select');
+    const [activeTool, setActiveTool] = useState<'select' | 'draw' | 'connect' | 'code'>('select');
     const [isDrawing, setIsDrawing] = useState(false);
     const [connectionStartId, setConnectionStartId] = useState<string | null>(null);
 
