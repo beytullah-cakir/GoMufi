@@ -1,190 +1,316 @@
-import { useState, useEffect } from "react";
-import { Routes, Route, Navigate, Outlet, useLocation } from "react-router-dom";
-import api from "./api";
-import Sidebar from "./components/students-pages/Sidebar";
-import HomePage from "./components/HomePage";
-import AuthPage from "./components/AuthPage";
-import LandingPage from "./components/LandingPage";
-import CoursesPage from "./components/students-pages/CoursesPage";
-import ProfilePage from "./components/students-pages/ProfilePage";
-import ContentPage from "./components/ContentPage";
-import CompleteProfilePage from "./components/CompleteProfilePage";
-import InstructorLayout from "./components/instructor-pages/InstructorLayout";
-import InstructorDashboard from "./components/instructor-pages/InstructorDashboard";
-import InstructorCourses from "./components/instructor-pages/InstructorCourses";
-import InstructorContent from "./components/instructor-pages/InstructorContent";
-import InstructorStudents from "./components/instructor-pages/InstructorStudents";
-import InstructorInteractions from "./components/instructor-pages/InstructorInteractions";
-import InstructorAssessments from "./components/instructor-pages/InstructorAssessments";
-import InstructorCalendar from "./components/instructor-pages/InstructorCalendar";
-import InstructorRevenue from "./components/instructor-pages/InstructorRevenue";
-import InstructorSettings from "./components/instructor-pages/InstructorSettings";
+import { useState } from 'react';
+import Navbar from './components/Navbar';
+import HomePage from './components/HomePage';
+import CoursesPage from './components/CoursesPage';
+import ProfilePage from './components/ProfilePage';
+import ContentPage from './components/ContentPage';
+import AskQuestionPage from './components/AskQuestionPage';
+import LessonBuilderPage from './components/LessonBuilderPage';
+import MufiSleep from './assets/sprites/MufiSleep.png';
+
+// Import Types
+import type { CourseData, PathNode } from './types';
+
+// Import Assets for Course Data
+// import ChestIcon from './assets/sprites/Chest.png';
+// import HouseIcon from './assets/sprites/House.png';
+import ButtonCyan from './assets/sprites/ButtonCyan.png';
+// import ButtonRed from './assets/sprites/ButtonRed.png';
+import ButtonPurple from './assets/sprites/ButtonPurple.png';
+import ButtonYellow from './assets/sprites/ButtonYellow.png';
+import ButtonGreen from './assets/sprites/ButtonGreen.png';
+import BrainIcon from './assets/sprites/Brain.png';
+import PencilIcon from './assets/sprites/Pencil.png';
+import PuzzleIcon from './assets/sprites/Puzzle.png';
+import TrophyIcon from './assets/sprites/Trophy.png';
 
 function App() {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState<"student" | "teacher" | null>(null);
-  const [userData, setUserData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [activePage, setActivePage] = useState("Ana Sayfa");
-  const [instructorPage, setInstructorPage] = useState("Dashboard");
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
-  const location = useLocation();
+  const [activePage, setActivePage] = useState('Ana Sayfa');
+  const [activeCourseId, setActiveCourseId] = useState<string>('Python');
 
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const [profileRes, tagsRes] = await Promise.all([
-          api.get("/profile"),
-          api.get("/profile/tags"),
-        ]);
+  // --- Helper to Generate Lesson Nodes ---
+  const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean): PathNode[] => {
+    const baseId = startId;
+    const isLessonLocked = isLockedStart;
 
-        setIsAuthenticated(true);
-        setUserRole(profileRes.data.role);
-        setUserData(profileRes.data);
+    return [
+      {
+        id: baseId,
+        type: 'step', // Number Node 1 -> Brain
+        button: ButtonPurple,
+        icon: BrainIcon,
+        curve: 'up',
+        iconSize: 'w-20 h-20', // Slightly smaller than main
+        iconOffset: '-mt-22',
+        ringColor: 'border-fuchsia-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
+        pastelColor: '#fae8ff',
+        glowColor: 'rgba(232, 121, 249, 0.4)',
+        strokeColor: '#c026d3',
+        baseColor: '#d946ef',
+        title: 'BÖLÜM 1',
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 1,
+        type: 'start', // BRAIN
+        button: ButtonPurple,
+        icon: BrainIcon,
+        curve: 'down',
+        iconSize: 'w-24 h-24',
+        iconOffset: '-mt-24',
+        ringColor: 'border-fuchsia-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
+        pastelColor: '#fae8ff',
+        glowColor: 'rgba(232, 121, 249, 0.4)',
+        strokeColor: '#c026d3',
+        baseColor: '#d946ef',
+        title: 'ANLA: Konuyu Kavra',
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 2,
+        type: 'step', // Number Node 2 -> Pencil
+        button: ButtonCyan,
+        icon: PencilIcon,
+        curve: 'up',
+        iconSize: 'w-24 h-24', // Slightly smaller
+        iconOffset: '-mt-20',
+        ringColor: 'border-cyan-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
+        pastelColor: '#cffafe',
+        glowColor: 'rgba(34, 211, 238, 0.4)',
+        strokeColor: '#0891b2',
+        baseColor: '#06b6d4',
+        title: 'BÖLÜM 2',
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 3,
+        type: 'paw', // PENCIL
+        button: ButtonCyan,
+        icon: PencilIcon,
+        curve: 'down',
+        iconSize: 'w-28 h-28',
+        iconOffset: '-mt-20',
+        ringColor: 'border-cyan-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
+        pastelColor: '#cffafe',
+        glowColor: 'rgba(34, 211, 238, 0.4)',
+        strokeColor: '#0891b2',
+        baseColor: '#06b6d4',
+        title: 'UYGULA: Alıştırma Yap',
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 4,
+        type: 'step', // Number Node 3 -> Puzzle
+        button: ButtonGreen,
+        icon: PuzzleIcon,
+        curve: 'up',
+        iconSize: 'w-20 h-20',
+        iconOffset: '-mt-20',
+        ringColor: 'border-green-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
+        pastelColor: '#dcfce7',
+        glowColor: 'rgba(74, 222, 128, 0.4)',
+        strokeColor: '#16a34a',
+        baseColor: '#22c55e',
+        title: 'BÖLÜM 3',
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 5,
+        type: 'paw', // PUZZLE
+        button: ButtonGreen,
+        icon: PuzzleIcon,
+        curve: 'down',
+        iconSize: 'w-22 h-22',
+        iconOffset: '-mt-22',
+        ringColor: 'border-green-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
+        pastelColor: '#dcfce7',
+        glowColor: 'rgba(74, 222, 128, 0.4)',
+        strokeColor: '#16a34a',
+        baseColor: '#22c55e',
+        title: 'BİRLEŞTİR: Parçaları Tamamla',
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      },
+      {
+        id: baseId + 6,
+        type: 'chest', // TROPHY
+        button: ButtonYellow,
+        icon: TrophyIcon,
+        curve: 'up',
+        iconSize: 'w-24 h-24',
+        iconOffset: '-mt-24',
+        // Yellow Scheme
+        ringColor: 'border-yellow-400 bg-white',
+        numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400',
+        pastelColor: '#fef9c3',
+        glowColor: 'rgba(250, 204, 21, 0.4)',
+        strokeColor: '#ca8a04',
+        baseColor: '#eab308',
+        title: 'ÜRET: Kendini Göster',
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lastInLesson: true,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic
+      }
+    ];
+  };
 
-        if (Array.isArray(tagsRes.data)) {
-          setAvailableTags(tagsRes.data.map((t: any) => t.name));
+  // Initial Course Data
+  const [courses, setCourses] = useState<Record<string, CourseData>>(() => {
+    // Construct Python Course with generated nodes
+    // 5 Lessons = 20 nodes
+    const topics = ['Değişkenler', 'Veri Tipleri', 'Koşullar', 'Döngüler', 'Fonksiyonlar'];
+    const pythonNodes: PathNode[] = [];
+    let currentId = 1;
+
+    topics.forEach((topic, index) => {
+      const isLocked = index > 0; // Lock from 2nd lesson onwards (Index 1+)
+      const showStars = index === 0; // Show stars only for first lesson (Index 0)
+      const lessonNodes = generateLessonNodes(currentId, index + 1, isLocked, topic, showStars);
+      pythonNodes.push(...lessonNodes);
+      currentId += 7;
+    });
+
+    const mathNodes: PathNode[] = [];
+    // Just generate one Math lesson for now
+    mathNodes.push(...generateLessonNodes(1, 1, false, 'Temel Aritmetik', true));
+
+    return {
+      'Python': {
+        id: 'Python',
+        title: 'PYTHON',
+        icon: '🐍',
+        themeColor: '#58cc02',
+        nodes: pythonNodes,
+        instructor: {
+          name: 'Mufi Hoca',
+          avatar: '👨‍🏫',
+          status: 'Çevrimiçi',
+          isOnline: true
+        },
+        stats: {
+          league: 'Bronz Lig',
+          xp: '120 XP',
+          streak: 8,
+          gems: 500
+        },
+        defaultHeader: {
+          title: 'İngilizce temellerini at',
+          subtitle: 'BÖLÜM 1, ÜNİTE 1'
         }
-      } catch (e) {
-        setIsAuthenticated(false);
-        setUserRole(null);
-        setUserData(null);
-      } finally {
-        setLoading(false);
+      },
+      'Matematik': {
+        id: 'Matematik',
+        title: 'MATEMATİK',
+        icon: '📐',
+        themeColor: '#3b82f6',
+        nodes: mathNodes,
+        instructor: {
+          name: 'Mufi Bilgin',
+          avatar: '👩‍🏫',
+          status: 'Meşgul',
+          isOnline: false
+        },
+        stats: {
+          league: 'Gümüş Lig',
+          xp: '2400 XP',
+          streak: 12,
+          gems: 1200
+        },
+        defaultHeader: {
+          title: 'Sayılarla Dans Et',
+          subtitle: 'BÖLÜM 1, TEMEL ARİTMETİK'
+        }
       }
     };
-    checkAuth();
-  }, []);
+  });
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#F8F9FC]">
-        <div className="animate-pulse font-black text-2xl text-sky-500">
-          Mufi Yükleniyor...
-        </div>
-      </div>
-    );
-  }
-
-  // Common Protected Layout for Students
-  const StudentLayout = () => {
-    if (!isAuthenticated) return <Navigate to="/auth" replace />;
-    if (userRole === "teacher") return <Navigate to="/instructor" replace />;
-
-    return (
-      <div className="flex h-screen bg-gray-50 font-sans text-gray-900 overflow-hidden">
-        <Sidebar activePage={activePage} onNavigate={setActivePage} />
-        <main className="flex-1 overflow-y-auto relative bg-white">
-          <Outlet context={{ userData }} />
-        </main>
-      </div>
-    );
+  const handleCourseChange = (id: string) => {
+    setActiveCourseId(id);
   };
 
-  // Instructor Specific Layout
-  const InstructorPanel = () => {
-    if (!isAuthenticated) return <Navigate to="/auth" replace />;
-    if (userRole === "student") return <Navigate to="/dashboard" replace />;
-
-    return (
-      <InstructorLayout
-        activePage={instructorPage}
-        onNavigate={setInstructorPage}
-        userData={userData}
-      >
-        {instructorPage === "Dashboard" ? (
-          <InstructorDashboard />
-        ) : instructorPage === "Courses" ? (
-          <InstructorCourses />
-        ) : instructorPage === "Content" ? (
-          <InstructorContent />
-        ) : instructorPage === "Students" ? (
-          <InstructorStudents />
-        ) : instructorPage === "Interactions" ? (
-          <InstructorInteractions />
-        ) : instructorPage === "Assessments" ? (
-          <InstructorAssessments />
-        ) : instructorPage === "Calendar" ? (
-          <InstructorCalendar />
-        ) : instructorPage === "Revenue" ? (
-          <InstructorRevenue />
-        ) : instructorPage === "Settings" ? (
-          <InstructorSettings
-            userData={userData}
-            availableTags={availableTags}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-64 text-gray-400 font-bold text-lg">
-            {instructorPage} İçeriği Hazırlanıyor...
-          </div>
-        )}
-      </InstructorLayout>
-    );
-  };
+  const currentCourse = courses[activeCourseId];
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          isAuthenticated ? (
-            userRole === "teacher" ? (
-              <Navigate to="/instructor" replace />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )
-          ) : (
-            <LandingPage />
-          )
-        }
-      />
+    <>
+      <div className="flex flex-col h-screen bg-white font-sans text-gray-900 overflow-hidden">
+        {activePage !== 'Builder' && (
+          <Navbar
+            activePage={activePage}
+            onNavigate={setActivePage}
+            currentCourse={currentCourse}
+            activeCourseId={activeCourseId}
+            courses={courses}
+            onCourseChange={handleCourseChange}
+          />
+        )}
 
-      <Route
-        path="/auth"
-        element={
-          isAuthenticated ? (
-            userRole === "teacher" ? (
-              <Navigate to="/instructor" replace />
-            ) : (
-              <Navigate to="/dashboard" replace />
-            )
-          ) : (
-            <AuthPage
-              onLogin={() => {
-                window.location.reload();
-              }}
+        <div className="flex-1 overflow-y-auto relative w-full">
+          {activePage === 'Ana Sayfa' ? (
+            <HomePage
+              currentCourse={currentCourse}
+              activeCourseId={activeCourseId}
+              courses={courses}
+              onCourseChange={handleCourseChange}
+              setCourses={setCourses}
             />
-          )
-        }
-      />
-
-      <Route
-        path="/complete-profile"
-        element={
-          isAuthenticated ? (
-            <CompleteProfilePage
-              userData={userData}
-              availableTags={availableTags}
-            />
+          ) : activePage === 'Kurslar' ? (
+            <CoursesPage />
+          ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
+            <ProfilePage />
+          ) : activePage === 'Kurslarım' ? (
+            <ContentPage />
+          ) : activePage === 'Soru Sor!' ? (
+            <AskQuestionPage />
+          ) : activePage === 'Builder' ? (
+            <LessonBuilderPage onExit={() => setActivePage('Ana Sayfa')} />
           ) : (
-            <Navigate to="/auth" replace />
-          )
-        }
-      />
+            <div className="p-8">
+              <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
+              <p className="mt-4 text-gray-600">This page is under construction.</p>
+            </div>
+          )}
+        </div>
+      </div>
 
-      {/* Student Routes */}
-      <Route element={<StudentLayout />}>
-        <Route path="/dashboard" element={<HomePage />} />
-        <Route path="/courses" element={<CoursesPage />} />
-        <Route path="/profile" element={<ProfilePage />} />
-        <Route path="/content" element={<ContentPage />} />
-      </Route>
-
-      {/* Instructor Routes */}
-      <Route path="/instructor" element={<InstructorPanel />} />
-
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      {/* Sleeping User Widget (Global Fixed - Outside App Layout) */}
+      {activePage === 'Ana Sayfa' && (
+        <div className="fixed bottom-0 right-0 z-[90] pointer-events-none origin-bottom-right m-0 p-0">
+          <div className="relative">
+            <div className="absolute top-2 right-12 z-20 flex flex-col items-center">
+              <span className="text-3xl font-black text-sky-400 animate-zzz font-display leading-none">Z</span>
+              <span className="text-2xl font-black text-sky-400/80 animate-zzz font-display absolute -top-4 -right-4 leading-none" style={{ animationDelay: '1s' }}>z</span>
+              <span className="text-xl font-black text-sky-400/60 animate-zzz font-display absolute -top-8 -right-6 leading-none" style={{ animationDelay: '2s' }}>z</span>
+            </div>
+            <img src={MufiSleep} alt="Sleeping Mufi" className="w-56 animate-breathe drop-shadow-2xl relative z-10 block" />
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

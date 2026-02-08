@@ -58,7 +58,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
         { label: 'Ana Sayfa', icon: HomeIcon },
         { label: 'Kurslar', icon: ShopIcon },
         { label: 'Profilim', icon: ProfileIcon },
-        { label: 'İçerik', icon: BooksIcon },
+        { label: 'Kurslarım', icon: BooksIcon },
         { label: 'Soru Sor!', icon: ChatIcon },
     ];
 
@@ -85,6 +85,18 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
                     />
                 ))}
             </div>
+            {/* BUILDER BUTTON (DEBUG) */}
+            <button
+                onClick={() => onNavigate('Builder')}
+                className={`flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
+                     ${activePage === 'Builder'
+                        ? 'bg-rose-100 border-rose-400 border-b-rose-400 text-rose-500'
+                        : 'bg-transparent border-transparent border-b-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200 hover:border-b-gray-200'}
+                     `}
+            >
+                <span className="text-xl">🛠️</span>
+                <span className="font-black tracking-wider uppercase font-sans text-sm whitespace-nowrap">Builder</span>
+            </button>
 
             {/* RIGHT SECTION: Profile Dropdown + Stats */}
             <div className="flex items-center gap-6">
@@ -145,7 +157,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }
 
             </div>
 
-        </div>
+        </div >
     );
 };
 
