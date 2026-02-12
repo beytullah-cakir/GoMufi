@@ -46,3 +46,9 @@ def teacher_required(user=Depends(get_current_user)):
     if user["role"] != "teacher":
         raise HTTPException(status_code=403, detail="Teacher access required")
     return user
+
+
+def parent_required(user=Depends(get_current_user)):
+    if user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Parent access required")
+    return user

@@ -26,7 +26,7 @@ const InstructorApp: React.FC = () => {
   const renderPage = () => {
     switch (activePage) {
       case "Dashboard":
-        return <InstructorDashboard />;
+        return <InstructorDashboard userData={userData} />;
       case "Courses":
         return <InstructorCourses />;
       case "Students":
@@ -34,7 +34,7 @@ const InstructorApp: React.FC = () => {
       case "Analytics":
         return <InstructorRevenue />; // Using Revenue component for Analytics
       case "Settings":
-        return <InstructorSettings />;
+        return <InstructorSettings userData={userData} />;
       default:
         return (
           <div className="p-8">

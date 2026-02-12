@@ -305,7 +305,9 @@ function StudentApp() {
             userData={userData}
           />
         )}
-        <div className="flex-1 overflow-y-auto relative w-full">
+        <div
+          className={`flex-1 relative w-full ${activePage === "Ana Sayfa" ? "overflow-hidden" : "overflow-y-auto"}`}
+        >
           {activePage === "Ana Sayfa" ? (
             <HomePage
               currentCourse={currentCourse}
