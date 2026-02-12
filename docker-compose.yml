@@ -12,7 +12,10 @@ services:
       # Buradaki değerler .env dosyasındakileri GEÇİCİ OLARAK (sadece bilgisayarınızda) ezer
       - FRONTEND_URL=http://localhost:5173
       - BACKEND_URL=http://localhost:8000
+<<<<<<< HEAD
     command: uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload
+=======
+>>>>>>> main
     restart: unless-stopped
 
   frontend:

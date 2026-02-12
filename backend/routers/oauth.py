@@ -106,6 +106,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 
         access_token = create_access_token(user_id=str(user_id), role=role)
         
+<<<<<<< HEAD
         print(f"DEBUG: Redirect decision - Role: {role}, IsNew: {is_new_user}, Incomplete: {is_profile_incomplete}")
         
         if is_new_user or is_profile_incomplete:
@@ -119,6 +120,9 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/"
 
         print(f"DEBUG: Redirecting to {redirect_url}")
+=======
+        redirect_url = f"{FRONTEND_URL}/complete-profile" if (is_new_user or is_profile_incomplete) else f"{FRONTEND_URL}/"
+>>>>>>> main
         response = RedirectResponse(url=redirect_url)
         
         is_production = "localhost" not in FRONTEND_URL
