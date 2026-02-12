@@ -6,21 +6,22 @@ export function useAuth() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<any>(null);
 
-    useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await api.get('/profile');
-                setUserData(response.data);
-            } catch (err) {
-                console.error("Failed to fetch user profile", err);
-                setError(err);
-            } finally {
-                setLoading(false);
-            }
-        };
+    const fetchUser = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get('/profile');
+            setUserData(response.data);
+        } catch (err) {
+            console.error("Failed to fetch user profile", err);
+            setError(err);
+        } finally {
+            setLoading(false);
+        }
+    };
 
+    useEffect(() => {
         fetchUser();
     }, []);
 
-    return { userData, loading, error };
+    return { userData, loading, error, refresh: fetchUser };
 }

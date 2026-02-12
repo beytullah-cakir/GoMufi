@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   User,
   Plus,
@@ -6,14 +6,42 @@ import {
   BookOpen,
   Clock,
   Trophy,
+  Trash2,
 } from "lucide-react";
+import api from "../../api";
 
 interface ParentStudentsProps {
   userData?: any;
+  onRefresh?: () => void;
 }
 
-const ParentStudents: React.FC<ParentStudentsProps> = ({ userData }) => {
+const ParentStudents: React.FC<ParentStudentsProps> = ({
+  userData,
+  onRefresh,
+}) => {
   const students = userData?.students || [];
+  const [isDeleting, setIsDeleting] = useState<number | null>(null);
+
+  const handleUnlink = async (studentId: number) => {
+    if (
+      !window.confirm(
+        "Bu öğrenciyi hesabınızdan ayırmak istediğinize emin misiniz?",
+      )
+    ) {
+      return;
+    }
+
+    setIsDeleting(studentId);
+    try {
+      await api.post(`/profile/unlink-student/${studentId}`);
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      console.error("Failed to unlink student", err);
+      alert("Öğrenci ayrılırken bir hata oluştu.");
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -52,6 +80,15 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData }) => {
                     className="w-20 h-20 rounded-xl bg-gray-50"
                   />
                 </div>
+                {/* Unlink Button */}
+                <button
+                  onClick={() => handleUnlink(student.id)}
+                  disabled={isDeleting === student.id}
+                  className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-red-500 text-white rounded-xl backdrop-blur-md transition-all border border-white/30 hover:border-red-600"
+                  title="Öğrenciyi Ayır"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
               </div>
 
               <div className="pt-12 p-6">

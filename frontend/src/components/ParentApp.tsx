@@ -10,7 +10,7 @@ import { useAuth } from "../hooks/useAuth";
 
 const ParentApp: React.FC = () => {
   const [activePage, setActivePage] = useState("Dashboard");
-  const { userData, loading } = useAuth();
+  const { userData, loading, refresh } = useAuth();
 
   if (loading) {
     return (
@@ -28,15 +28,15 @@ const ParentApp: React.FC = () => {
       case "Dashboard":
         return <ParentDashboard userData={userData} />;
       case "Progress":
-        return <ParentSkillTree />;
+        return <ParentSkillTree userData={userData} />;
       case "Instructors":
         return <ParentInstructors />;
       case "Students":
-        return <ParentStudents />;
+        return <ParentStudents userData={userData} onRefresh={refresh} />;
       case "Payments":
         return <ParentPayments />;
       case "Settings":
-        return <ParentSettings userData={userData} />;
+        return <ParentSettings userData={userData} onRefresh={refresh} />;
       default:
         return (
           <div className="p-8 text-center text-gray-500">Sayfa bulunamadı</div>
