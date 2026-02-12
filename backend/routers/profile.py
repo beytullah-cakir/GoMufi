@@ -1,20 +1,43 @@
-from fastapi import APIRouter, Depends, HTTPException, Response
-
-
-router = APIRouter()
-
-@router.post("/logout")
-async def logout(response: Response):
-    response.delete_cookie(key="access_token")
-    return {"message": "Logged out"}
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from auth.dependencies import get_current_user
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
 from models.teacher import Teacher
 from models.student import Student
+from models.tag import Tag
+from pydantic import BaseModel
+from typing import Optional
+
+router = APIRouter()
 
 
+
+
+
+import os
+
+@router.get("/profile/tags")
+async def get_tags(db: AsyncSession = Depends(get_db)):
+    print("DEBUG: Fetching tags...")
+    result = await db.execute(select(Tag))
+    tags = result.scalars().all()
+    return [{"id": t.id, "name": t.name} for t in tags]
+
+class TagCreate(BaseModel):
+    name: str
+
+@router.post("/profile/tags")
+async def create_tag(tag_data: TagCreate, db: AsyncSession = Depends(get_db)):
+    # Check if tag already exists
+    existing = await db.execute(select(Tag).where(Tag.name == tag_data.name))
+    if existing.scalars().first():
+        raise HTTPException(status_code=400, detail="Tag zaten mevcut")
+    
+    new_tag = Tag(name=tag_data.name)
+    db.add(new_tag)
+    await db.commit()
+    return {"message": "Tag başarıyla eklendi", "name": new_tag.name}
 
 @router.get("/profile")
 async def get_profile(
@@ -27,8 +50,8 @@ async def get_profile(
     if not str(user_id).isdigit():
         raise HTTPException(status_code=400, detail="Invalid user ID format in token")
     
-    if role in ["teacher", "instructor"]:
-        # Fetch teacher from database
+    if role =="teacher":
+        
         result = await db.execute(
             select(Teacher).where(Teacher.id == int(user_id))
         )
@@ -44,10 +67,10 @@ async def get_profile(
             "last_name": teacher.last_name,
             "email": teacher.email,
             "bio": teacher.bio,
+            "expertises": teacher.expertises,
         }
     
     elif role == "student":
-        # Fetch student from database
         result = await db.execute(
             select(Student).where(Student.id == int(user_id))
         )
@@ -62,18 +85,19 @@ async def get_profile(
             "first_name": student.first_name,
             "last_name": student.last_name,
             "email": student.email,
+            "nickname": student.nickname,
+            "grade_level": student.grade_level,
+            "education_level": student.education_level,
         }
     
     raise HTTPException(status_code=400, detail="Invalid user role")
 
-from pydantic import BaseModel
-from typing import Optional
 
 class ProfileUpdate(BaseModel):
     nickname: Optional[str] = None
     grade_level: Optional[str] = None
     education_level: Optional[str] = None
-    department: Optional[str] = None
+    expertises: Optional[str] = None
     bio: Optional[str] = None
     first_name: Optional[str] = None
     last_name: Optional[str] = None
@@ -103,19 +127,19 @@ async def update_profile(
         await db.commit()
         return {"message": "Profile updated"}
         
-    elif role in ["teacher", "instructor"]:
+    elif role =="teacher":
         result = await db.execute(select(Teacher).where(Teacher.id == int(user_id)))
         teacher = result.scalars().first()
         if not teacher:
             raise HTTPException(status_code=404, detail="Teacher not found")
             
-        if profile_data.department is not None:
-            teacher.department = profile_data.department
-        if profile_data.bio is not None:
+        if profile_data.expertises:
+            teacher.expertises = profile_data.expertises
+        if profile_data.bio:
             teacher.bio = profile_data.bio
-        if profile_data.first_name is not None:
+        if profile_data.first_name:
             teacher.first_name = profile_data.first_name
-        if profile_data.last_name is not None:
+        if profile_data.last_name:
             teacher.last_name = profile_data.last_name
             
         await db.commit()

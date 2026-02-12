@@ -1,5 +1,7 @@
 
+import os
 from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import func
 from auth.auth_request import LoginRequest, TeacherRegisterRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -17,17 +19,25 @@ async def register_user(
     db: AsyncSession = Depends(get_db)
 ):
     try:
+        # Check if email already exists
+        check_query = select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
+        res = await db.execute(check_query)
+        if res.scalars().first():
+            raise HTTPException(status_code=400, detail="Bu e-posta adresi ile zaten bir hesap mevcut.")
+
         new_teacher = Teacher(
             first_name=data.first_name,
             last_name=data.last_name,
             email=data.email,
-            department=data.department if hasattr(data, 'department') else None,
+            expertises=data.expertises,
             password=hash_password(data.password)
         )
 
         db.add(new_teacher)
         await db.commit()
         return {"status": "registered"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -41,7 +51,7 @@ async def login_user(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Teacher).where(Teacher.email == data.email)
+        select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
     )
     teacher = result.scalars().first()
 
@@ -50,12 +60,15 @@ async def login_user(
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    is_production ="localhost" not in FRONTEND_URL
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",   
-        secure=False,   
+        samesite="None" if is_production else "lax",   
+        secure=is_production,   
         path="/"
     )
 
@@ -64,11 +77,6 @@ async def login_user(
         "role": "teacher"
     }
 
-
-@router.post("/teacher/logout")
-async def logout_user(response: Response):
-    response.delete_cookie(key="access_token", path="/")
-    return {"status": "logged_out"}
 
 
 

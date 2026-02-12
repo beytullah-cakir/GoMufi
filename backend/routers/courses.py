@@ -30,6 +30,10 @@ class CourseResponse(BaseModel):
     category: Optional[str] = None
     created_at: Optional[datetime] = None
     progress: int
+    price: Optional[int] = 0
+    learning_outcomes: Optional[List[str]] = []
+    requirements: Optional[List[str]] = []
+    curriculum: Optional[List[dict]] = []
     teacher: Optional[TeacherResponse] = None
 
     class Config:
@@ -148,6 +152,19 @@ class CreateCourseRequest(BaseModel):
     title: str
     description: Optional[str] = ""
     category: str
+    price: int = 0
+    learning_outcomes: Optional[List[str]] = []
+    requirements: Optional[List[str]] = []
+    curriculum: Optional[List[dict]] = []
+
+class UpdateCourseRequest(BaseModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    price: Optional[int] = None
+    learning_outcomes: Optional[List[str]] = None
+    requirements: Optional[List[str]] = None
+    curriculum: Optional[List[dict]] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -155,17 +172,67 @@ async def create_course(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    new_course = Course(
-        teacher_id=teacher_id,
-        title=course_data.title,
-        description=course_data.description,
-        category=course_data.category,
-        progress=0
+    print(f"DEBUG: create_course data: {course_data.dict()}")
+    try:
+        new_course = Course(
+            teacher_id=teacher_id,
+            title=course_data.title,
+            description=course_data.description,
+            category=course_data.category,
+            progress=0,
+            price=course_data.price,
+            learning_outcomes=course_data.learning_outcomes,
+            requirements=course_data.requirements,
+            curriculum=course_data.curriculum
+        )
+        db.add(new_course)
+        await db.commit()
+        await db.refresh(new_course)
+        return new_course
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in create_course: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.put("/update_course/{course_id}")
+async def update_course(
+    course_id: int,
+    course_data: UpdateCourseRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    print(f"DEBUG: update_course data: {course_data.dict()}")
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
-    db.add(new_course)
-    await db.commit()
-    await db.refresh(new_course)
-    return new_course
+    course = result.scalar_one_or_none()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail=f"Course {course_id} not found for teacher {teacher_id}")
+    
+    try:
+        if course_data.title is not None:
+            course.title = course_data.title
+        if course_data.description is not None:
+            course.description = course_data.description
+        if course_data.category is not None:
+            course.category = course_data.category
+        if course_data.price is not None:
+            course.price = course_data.price
+        if course_data.learning_outcomes is not None:
+            course.learning_outcomes = course_data.learning_outcomes
+        if course_data.requirements is not None:
+            course.requirements = course_data.requirements
+        if course_data.curriculum is not None:
+            course.curriculum = course_data.curriculum
+            
+        await db.commit()
+        await db.refresh(course)
+        return course
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in update_course: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 

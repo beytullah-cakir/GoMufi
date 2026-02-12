@@ -1,6 +1,6 @@
 import React from 'react';
 import { Flame, Trophy, Star, Target } from 'lucide-react';
-import HouseIcon from '../assets/sprites/House.png';
+import HouseIcon from '../../assets/sprites/House.png';
 
 const Dashboard: React.FC = () => {
     return (

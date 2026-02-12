@@ -5,7 +5,7 @@ import { X, ChevronRight, Calculator, Music, Languages, Palette, Code, Dumbbell,
 interface QuizModalProps {
     isOpen: boolean;
     onClose: () => void;
-    userType?: 'student' | 'instructor';
+    userType?: 'student' | 'instructor' | 'parent';
 }
 
 const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, userType = 'student' }) => {
@@ -223,6 +223,24 @@ const QuizModal: React.FC<QuizModalProps> = ({ isOpen, onClose, userType = 'stud
 
                     <button onClick={onClose} className="w-full py-4 bg-indigo-600 text-white font-bold rounded-xl shadow-lg shadow-indigo-200 hover:bg-indigo-700 transition-colors">
                         Tüm Eşleşmeleri Gör
+                    </button>
+                </div>
+            );
+        } else if (userType === 'parent') {
+            return (
+                <div className="animate-fade-in text-center">
+                    <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-6 animate-bounce">
+                        <Trophy className="w-10 h-10 text-purple-600" />
+                    </div>
+                    <h3 className="text-2xl font-black text-gray-900 mb-2">Harika bir başlangıç!</h3>
+                    <p className="text-gray-500 mb-4 px-4">
+                        Çocuğunuzun geleceği için ilk adımı attınız.
+                    </p>
+                    <button
+                        onClick={() => navigate('/auth')}
+                        className="w-full py-4 bg-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
+                    >
+                        Ebeveyn Hesabı Oluştur <ChevronRight className="w-5 h-5" />
                     </button>
                 </div>
             );

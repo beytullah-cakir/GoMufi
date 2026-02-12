@@ -6,7 +6,7 @@ import QuizModal from './QuizModal';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
-    const [userType, setUserType] = useState<'student' | 'instructor'>('student');
+    const [userType, setUserType] = useState<'student' | 'instructor' | 'parent'>('student');
     const [isQuizOpen, setIsQuizOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -31,6 +31,12 @@ const LandingPage: React.FC = () => {
         { label: 'Aktif Öğrenci', value: '10k+', icon: <Award className="w-6 h-6 text-orange-500" /> },
         { label: 'Destek', value: '7/24', icon: <Star className="w-6 h-6 text-yellow-500" /> },
     ];
+    const parentStats = [
+        { label: 'Mutlu Aile', value: '15,000+', icon: <Users className="w-6 h-6 text-indigo-500" /> },
+        { label: 'Gelişim Raporu', value: 'Haftalık', icon: <CheckCircle2 className="w-6 h-6 text-green-500" /> },
+        { label: 'Güvenli İçerik', value: '%100', icon: <ShieldCheck className="w-6 h-6 text-orange-500" /> },
+        { label: 'Ebeveyn Desteği', value: '7/24', icon: <Star className="w-6 h-6 text-yellow-500" /> },
+    ];
 
     // Data: Features
     // Data: Features
@@ -44,6 +50,11 @@ const LandingPage: React.FC = () => {
         { title: 'Düzenli Gelir', desc: 'Ödemelerin her hafta hesabına güvenle yatar.', icon: <CheckCircle2 className="w-8 h-8 text-white" />, color: 'bg-[#23c55e]' },
         { title: 'Geniş Kitle', desc: 'Binlerce öğrenciye anında ulaşma şansı yakala.', icon: <Users className="w-8 h-8 text-white" />, color: 'bg-sky-500' },
     ];
+    const parentFeatures = [
+        { title: 'Gelişim Takibi', desc: 'Çocuğunuzun ilerlemesini detaylı raporlarla anlık görün.', icon: <Sparkles className="w-8 h-8 text-white" />, color: 'bg-yellow-500' },
+        { title: 'Güvenli Ortam', desc: 'Pedagog onaylı, filtrelenmiş ve güvenli içerikler.', icon: <ShieldCheck className="w-8 h-8 text-white" />, color: 'bg-[#23c55e]' },
+        { title: 'Pedagojik Destek', desc: 'Uzman pedagoglar tarafından hazırlanan özel müfredat.', icon: <Users className="w-8 h-8 text-white" />, color: 'bg-sky-500' },
+    ];
 
     // Data: How It Works
     // Data: How It Works
@@ -56,6 +67,11 @@ const LandingPage: React.FC = () => {
         { step: '01', title: 'Başvur', desc: 'Profilini oluştur ve uzmanlık alanlarını belirle.', color: 'text-[#23c55e]', bg: 'bg-green-50' },
         { step: '02', title: 'Doğrulan', desc: 'Ekibimiz başvurunu incelesin ve profilini onaylasın.', color: 'text-sky-600', bg: 'bg-sky-50' },
         { step: '03', title: 'Kazan', desc: 'Ders taleplerini kabul et ve kazanmaya başla.', color: 'text-yellow-600', bg: 'bg-yellow-50' },
+    ];
+    const parentSteps = [
+        { step: '01', title: 'Hesap Oluştur', desc: 'Ebeveyn profilinizi saniyeler içinde tamamlayın.', color: 'text-[#23c55e]', bg: 'bg-green-50' },
+        { step: '02', title: 'Öğrenci Ekle', desc: 'Çocuğunuz için özel bir öğrenme profili oluşturun.', color: 'text-sky-600', bg: 'bg-sky-50' },
+        { step: '03', title: 'Gelişimi İzle', desc: 'Arkanıza yaslanın ve çocuğunuzun gelişimini takip edin.', color: 'text-yellow-600', bg: 'bg-yellow-50' },
     ];
 
     // Data Testimonials
@@ -210,6 +226,12 @@ const LandingPage: React.FC = () => {
                         >
                             <CheckCircle className="w-4 h-4" /> Ders Vermek İstiyorum
                         </button>
+                        <button
+                            onClick={() => setUserType('parent')}
+                            className={`px-8 py-3 rounded-full font-bold text-sm transition-all duration-300 flex items-center gap-2 ${userType === 'parent' ? 'bg-purple-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-900 bg-transparent'}`}
+                        >
+                            <Users className="w-4 h-4" /> Ebeveynim
+                        </button>
                     </div>
 
                     <h1 className="text-5xl md:text-7xl font-black text-gray-900 mb-8 tracking-tight leading-[1.1] animate-fade-in-up animation-delay-200">
@@ -223,10 +245,15 @@ const LandingPage: React.FC = () => {
                                     </svg>
                                 </span>
                             </>
-                        ) : (
+                        ) : userType === 'instructor' ? (
                             <>
                                 Bilgini <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-600 to-cyan-600">Paylaş</span>,<br />
                                 Gelirini <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">Artır</span>
+                            </>
+                        ) : (
+                            <>
+                                Çocuğunuzun <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-pink-600">Geleceğini</span>,<br />
+                                Güvenle <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">İnşa Edin</span>
                             </>
                         )}
                     </h1>
@@ -234,19 +261,21 @@ const LandingPage: React.FC = () => {
                     <p className="text-xl md:text-2xl text-gray-500 mb-10 max-w-2xl mx-auto font-medium leading-relaxed animate-fade-in-up animation-delay-400">
                         {userType === 'student'
                             ? "Binlerce onaylı eğitmen, sana özel öğrenme planı ve %100 memnuniyet garantisi ile dilediğin her şeyi öğren."
-                            : "Kendi programını belirle, dilediğin yerden ders ver ve binlerce öğrenciye ulaşarak ek gelir elde et."
+                            : userType === 'instructor'
+                                ? "Kendi programını belirle, dilediğin yerden ders ver ve binlerce öğrenciye ulaşarak ek gelir elde et."
+                                : "Uzman eğitmenler ve pedagog onaylı içeriklerle çocuğunuzun gelişimini yakından takip edin."
                         }
                     </p>
 
                     {/* Hero CTA & Quiz Trigger */}
                     <div className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up animation-delay-600">
                         <button
-                            onClick={() => setIsQuizOpen(true)}
-                            className={`group relative px-10 py-5 rounded-2xl text-white font-bold text-lg shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 overflow-hidden ${userType === 'student' ? 'bg-[#23c55e] hover:bg-[#1ea54c] shadow-green-200' : 'bg-sky-500 hover:bg-sky-600 shadow-sky-200'}`}
+                            onClick={() => navigate('/auth', { state: { role: userType === 'student' ? 'student' : userType === 'instructor' ? 'teacher' : 'parent' } })}
+                            className={`group relative px-10 py-5 rounded-2xl text-white font-bold text-lg shadow-xl hover:-translate-y-1 transition-all duration-300 flex items-center gap-3 overflow-hidden ${userType === 'student' ? 'bg-[#23c55e] hover:bg-[#1ea54c] shadow-green-200' : userType === 'instructor' ? 'bg-sky-500 hover:bg-sky-600 shadow-sky-200' : 'bg-purple-600 hover:bg-purple-700 shadow-purple-200'}`}
                         >
                             <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
                             <Sparkles className="w-5 h-5 animate-pulse" />
-                            {userType === 'student' ? 'Sana En Uygununu Bul' : 'Eğitmen Başvurusu Yap'}
+                            {userType === 'student' ? 'Sana En Uygununu Bul' : userType === 'instructor' ? 'Eğitmen Başvurusu Yap' : 'Ebeveyn Paneli Girişi'}
                             <MoveRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                         </button>
 
@@ -270,7 +299,7 @@ const LandingPage: React.FC = () => {
             <section className="py-10 bg-white border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-6">
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-                        {(userType === 'student' ? studentStats : instructorStats).map((stat, idx) => (
+                        {(userType === 'student' ? studentStats : userType === 'instructor' ? instructorStats : parentStats).map((stat, idx) => (
                             <div key={idx} className="flex flex-col items-center text-center p-4 rounded-2xl hover:bg-gray-50 transition-colors">
                                 <div className="mb-2 p-3 bg-gray-100 rounded-full">{stat.icon}</div>
                                 <div className="text-3xl font-black text-gray-800 mb-1">{stat.value}</div>
@@ -285,12 +314,12 @@ const LandingPage: React.FC = () => {
             <section id="features" className="py-20 px-6 bg-gray-50">
                 <div className="max-w-7xl mx-auto">
                     <div className="text-center mb-16">
-                        <h2 className="text-3xl md:text-4xl font-black text-gray-800 mb-4">{userType === 'student' ? 'Neden GoMufi?' : 'Neden Eğitmen Olmalısın?'}</h2>
-                        <p className="text-gray-500 text-lg max-w-2xl mx-auto">{userType === 'student' ? 'Sıkıcı derslere son veriyoruz. İşte bizi farklı kılan özellikler.' : 'Kariyerini bir adım öteye taşıman için sunduğumuz avantajlar.'}</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-gray-800 mb-4">{userType === 'student' ? 'Neden GoMufi?' : userType === 'instructor' ? 'Neden Eğitmen Olmalısın?' : 'Neden Ebeveynler Bizi Seçiyor?'}</h2>
+                        <p className="text-gray-500 text-lg max-w-2xl mx-auto">{userType === 'student' ? 'Sıkıcı derslere son veriyoruz. İşte bizi farklı kılan özellikler.' : userType === 'instructor' ? 'Kariyerini bir adım öteye taşıman için sunduğumuz avantajlar.' : 'Çocuğunuzun geleceği için en doğru karar.'}</p>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
-                        {(userType === 'student' ? studentFeatures : instructorFeatures).map((feature, idx) => (
+                        {(userType === 'student' ? studentFeatures : userType === 'instructor' ? instructorFeatures : parentFeatures).map((feature, idx) => (
                             <div key={idx} className="bg-white p-8 rounded-3xl shadow-sm hover:shadow-lg transition-all border border-gray-100">
                                 <div className={`${feature.color} w-16 h-16 rounded-2xl flex items-center justify-center mb-6 shadow-md rotate-3 hover:rotate-6 transition-transform`}>
                                     {feature.icon}
@@ -417,7 +446,7 @@ const LandingPage: React.FC = () => {
                         {/* Connecting Line (Desktop) */}
                         <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-1 bg-gradient-to-r from-green-100 via-sky-100 to-yellow-100 border-t-2 border-dashed border-gray-200 z-0"></div>
 
-                        {(userType === 'student' ? studentSteps : instructorSteps).map((item, idx) => (
+                        {(userType === 'student' ? studentSteps : userType === 'instructor' ? instructorSteps : parentSteps).map((item, idx) => (
                             <div key={idx} className="relative z-10 flex flex-col items-center text-center group">
                                 <div className={`w-24 h-24 rounded-full ${item.bg} flex items-center justify-center mb-6 border-4 border-white shadow-lg group-hover:scale-110 transition-transform duration-300`}>
                                     <span className={`text-3xl font-black ${item.color}`}>{item.step}</span>
