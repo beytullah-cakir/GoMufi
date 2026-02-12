@@ -14,20 +14,35 @@ const CompleteProfilePage: React.FC<{
 
   // Form fields
   const [nickname, setNickname] = useState(
+<<<<<<< HEAD
     role === "student" ? userData?.nickname || "" : "",
+=======
+    role === "student" ? userData?.nickname || "" : ""
+>>>>>>> main
   );
   const [gradeLevel, setGradeLevel] = useState(
     role === "student" && userData?.grade_level !== "Unknown"
       ? userData?.grade_level
+<<<<<<< HEAD
       : "",
+=======
+      : ""
+>>>>>>> main
   );
   const [educationLevel, setEducationLevel] = useState(
     role === "student" && userData?.education_level !== "Unknown"
       ? userData?.education_level
+<<<<<<< HEAD
       : "",
   );
   const [selectedTags, setSelectedTags] = useState<string[]>(
     userData?.expertises ? userData.expertises.split(",").filter(Boolean) : [],
+=======
+      : ""
+  );
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
+>>>>>>> main
   );
   const [availableTags, setAvailableTags] =
     useState<string[]>(globalAvailableTags);
@@ -83,6 +98,7 @@ const CompleteProfilePage: React.FC<{
         expertises: selectedTags.join(","),
       });
       // Use window.location.href to force a full reload and update global user state in App.tsx
+<<<<<<< HEAD
       // Redirect to the appropriate dashboard based on role
       if (role === "teacher") {
         window.location.href = "/instructor";
@@ -91,6 +107,9 @@ const CompleteProfilePage: React.FC<{
       } else {
         window.location.href = "/";
       }
+=======
+      window.location.href = "/";
+>>>>>>> main
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Profil güncellenirken bir hata oluştu.");
