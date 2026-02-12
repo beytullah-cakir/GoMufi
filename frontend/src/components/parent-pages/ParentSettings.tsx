@@ -12,9 +12,13 @@ import api from "../../api";
 
 interface ParentSettingsProps {
   userData?: any;
+  onRefresh?: () => void;
 }
 
-const ParentSettings: React.FC<ParentSettingsProps> = ({ userData }) => {
+const ParentSettings: React.FC<ParentSettingsProps> = ({
+  userData,
+  onRefresh,
+}) => {
   const initials =
     (userData?.first_name?.[0] || "") + (userData?.last_name?.[0] || "");
   const fullName = userData?.first_name

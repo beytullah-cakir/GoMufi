@@ -19,6 +19,14 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData }) => {
     ? `Sayın ${userData.first_name} ${userData.last_name || ""}`
     : "Sayın Veli";
 
+  const students = userData?.students || [];
+  const studentText =
+    students.length > 0
+      ? students.length === 1
+        ? students[0].first_name || students[0].nickname || "Öğrenciniz"
+        : `${students[0].first_name || students[0].nickname} ve ${students.length - 1} diğer çocuğunuz`
+      : "Çocuğunuz";
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Welcome & Quick Stats */}
@@ -29,7 +37,7 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData }) => {
               Hoşgeldin, {welcomeName}! 👋
             </h2>
             <p className="text-purple-100 font-medium text-lg max-w-xl">
-              Çocuğunuz bu hafta harika bir ilerleme kaydetti! Matematik
+              {studentText} bu hafta harika bir ilerleme kaydetti! Matematik
               dersindeki başarısı %15 arttı.
             </p>
             <button className="mt-6 px-6 py-3 bg-white text-purple-600 font-bold rounded-xl hover:bg-purple-50 transition-colors shadow-sm">

@@ -227,3 +227,26 @@ async def link_parent(
     await db.commit()
     
     return {"message": f"Ebeveyn ({parent.first_name} {parent.last_name}) başarıyla bağlandı"}
+    
+@router.post("/profile/unlink-student/{student_id}")
+async def unlink_student(
+    student_id: int,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Sadece ebeveynler öğrenci bağını koparabilir")
+    
+    # Check if student belongs to this parent
+    result = await db.execute(
+        select(Student).where(Student.id == student_id, Student.parent_id == int(user["user_id"]))
+    )
+    student = result.scalars().first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Öğrenci bulunamadı veya size bağlı değil")
+    
+    student.parent_id = None
+    await db.commit()
+    
+    return {"message": "Öğrenci başarıyla hesabınızdan ayrıldı"}
