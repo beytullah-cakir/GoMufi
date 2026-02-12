@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from connect_db import get_db
 from models.student import Student
 from models.teacher import Teacher
+from models.parent import Parent
 
 router = APIRouter()
 
@@ -89,6 +90,22 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
                 await db.commit()
                 await db.refresh(user)
             user_id = user.id
+        elif role == 'parent':
+            result = await db.execute(select(Parent).where(Parent.email == email))
+            user = result.scalars().first()
+            
+            if not user:
+                is_new_user = True
+                user = Parent(
+                    first_name=first_name,
+                    last_name=last_name,
+                    email=email,
+                    hashed_password=""
+                )
+                db.add(user)
+                await db.commit()
+                await db.refresh(user)
+            user_id = user.id
         else:
             raise HTTPException(status_code=400, detail=f"Invalid role in session: {role}")
         
@@ -106,23 +123,21 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 
         access_token = create_access_token(user_id=str(user_id), role=role)
         
-<<<<<<< HEAD
         print(f"DEBUG: Redirect decision - Role: {role}, IsNew: {is_new_user}, Incomplete: {is_profile_incomplete}")
         
-        if is_new_user or is_profile_incomplete:
+        if (is_new_user or is_profile_incomplete) and role != 'parent':
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/complete-profile"
         elif role == 'teacher':
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/instructor"
         elif role == 'student':
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/student"
+        elif role == 'parent':
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/parent"
         else:
             print(f"DEBUG: Unknown role {role}, defaulting to root")
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/"
 
         print(f"DEBUG: Redirecting to {redirect_url}")
-=======
-        redirect_url = f"{FRONTEND_URL}/complete-profile" if (is_new_user or is_profile_incomplete) else f"{FRONTEND_URL}/"
->>>>>>> main
         response = RedirectResponse(url=redirect_url)
         
         is_production = "localhost" not in FRONTEND_URL

@@ -50,7 +50,6 @@ const NavItem: React.FC<NavItemProps> = ({
 };
 
 interface NavbarProps {
-<<<<<<< HEAD
   activePage: string;
   onNavigate: (page: string) => void;
   currentCourse: CourseData;
@@ -89,7 +88,7 @@ const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <div className="w-full bg-white border-b-2 border-gray-200 px-8 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
+    <div className="w-full bg-white border-b-2 border-gray-200 px-12 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
       {/* LEFT SECTION: Logo */}
       <div
         className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0"
@@ -105,12 +104,12 @@ const Navbar: React.FC<NavbarProps> = ({
         <img
           src={LogoText}
           alt="GoMufi Text"
-          className="h-28 scale-150 object-contain hidden lg:block origin-left relative z-0"
+          className="h-16 object-contain hidden lg:block relative z-0"
         />
       </div>
 
       {/* CENTER SECTION: Navigation Items */}
-      <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-1">
+      <div className="flex items-center gap-4 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-2">
         {navItems.map((item) => (
           <NavItem
             key={item.label}
@@ -142,7 +141,7 @@ const Navbar: React.FC<NavbarProps> = ({
       <div className="flex items-center gap-6">
         {/* Stats Row */}
         {currentCourse && (
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             {/* Fire / Streak */}
             <div
               className="flex items-center gap-1.5 group cursor-pointer"
@@ -229,124 +228,6 @@ const Navbar: React.FC<NavbarProps> = ({
       </div>
     </div>
   );
-=======
-    activePage: string;
-    onNavigate: (page: string) => void;
-    currentCourse: CourseData;
-    activeCourseId: string;
-    courses: Record<string, CourseData>;
-    onCourseChange: (id: string) => void;
-}
-
-const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse }) => {
-    const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-
-    const navItems = [
-        { label: 'Ana Sayfa', icon: HomeIcon },
-        { label: 'Kurslar', icon: ShopIcon },
-        { label: 'Profilim', icon: ProfileIcon },
-        { label: 'Kurslarım', icon: BooksIcon },
-        { label: 'Soru Sor!', icon: ChatIcon },
-    ];
-
-    return (
-        <div className="w-full bg-white border-b-2 border-gray-200 px-8 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
-
-            {/* LEFT SECTION: Logo */}
-            <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0" onClick={() => onNavigate('Ana Sayfa')}>
-                <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm overflow-hidden relative z-10">
-                    <img src={MufiLogo} alt="GoMufi" className="w-full h-full object-cover scale-110" />
-                </div>
-                <img src={LogoText} alt="GoMufi Text" className="h-28 scale-150 object-contain hidden lg:block origin-left relative z-0" />
-            </div>
-
-            {/* CENTER SECTION: Navigation Items */}
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-1">
-                {navItems.map((item) => (
-                    <NavItem
-                        key={item.label}
-                        icon={item.icon}
-                        label={item.label}
-                        isActive={activePage === item.label}
-                        onClick={() => onNavigate(item.label)}
-                    />
-                ))}
-            </div>
-            {/* BUILDER BUTTON (DEBUG) */}
-            <button
-                onClick={() => onNavigate('Builder')}
-                className={`flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
-                     ${activePage === 'Builder'
-                        ? 'bg-rose-100 border-rose-400 border-b-rose-400 text-rose-500'
-                        : 'bg-transparent border-transparent border-b-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200 hover:border-b-gray-200'}
-                     `}
-            >
-                <span className="text-xl">🛠️</span>
-                <span className="font-black tracking-wider uppercase font-sans text-sm whitespace-nowrap">Builder</span>
-            </button>
-
-            {/* RIGHT SECTION: Profile Dropdown + Stats */}
-            <div className="flex items-center gap-6">
-
-                {/* Stats Row */}
-                {currentCourse && (
-                    <div className="flex items-center gap-4">
-                        {/* Fire / Streak */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Günlük Seri">
-                            <img src={FireIcon} alt="Streak" className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                            <span className="text-sm font-black text-orange-500 font-display">{currentCourse.stats.streak}</span>
-                        </div>
-
-                        {/* Gems */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Elmaslar">
-                            <span className="text-lg group-hover:scale-110 transition-transform block text-sky-400">💎</span>
-                            <span className="text-sm font-black text-sky-500 font-display">{currentCourse.stats.gems}</span>
-                        </div>
-
-                        {/* Hearts */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Canlar">
-                            <span className="text-lg group-hover:scale-110 transition-transform block text-red-500">❤️</span>
-                            <span className="text-sm font-black text-red-500 font-display">5</span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Profile Dropdown Container */}
-                <div className="relative">
-                    <button
-                        className="w-12 h-12 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-2xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
-                        onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
-                    >
-                        👨‍🏫
-                    </button>
-
-                    {/* Profile Dropdown Menu */}
-                    {isProfileDropdownOpen && (
-                        <div className="absolute top-[120%] right-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
-                            <div className="p-4 border-b border-gray-100 bg-gray-50">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Oturum Açıldı</span>
-                                <span className="text-lg font-black text-gray-800 font-display">Mufi Öğrenci</span>
-                            </div>
-                            <div className="flex flex-col p-2">
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" onClick={() => onNavigate('Profilim')}>
-                                    <span>👤</span> Profilim
-                                </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
-                                    <span>⚙️</span> Ayarlar
-                                </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
-                                    <span>🚪</span> Çıkış Yap
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-            </div>
-
-        </div >
-    );
->>>>>>> main
 };
 
 export default Navbar;

@@ -11,7 +11,9 @@ interface AuthPageProps {
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
-  const [role, setRole] = useState<"student" | "teacher" | "parent" | null>(null);
+  const [role, setRole] = useState<"student" | "teacher" | "parent" | null>(
+    null,
+  );
   const [isLogin, setIsLogin] = useState(true);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const navigate = useNavigate();
@@ -45,33 +47,44 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     e.preventDefault();
     if (!role || isLoading) return;
 
-    const basePath = role === "student" ? "/student" : role === "teacher" ? "/teacher" : "parent";
+    const basePath =
+      role === "student"
+        ? "/student"
+        : role === "teacher"
+          ? "/teacher"
+          : "/parent";
     setIsLoading(true);
 
     try {
       if (isLogin) {
         await api.post(`${basePath}/login`, { email, password });
         onLogin();
-        navigate(role === 'student' ? '/student' : role === 'teacher' ? '/instructor' : '/parent');
+        navigate(
+          role === "student"
+            ? "/student"
+            : role === "teacher"
+              ? "/instructor"
+              : "/parent",
+        );
       } else {
         const registerData =
           role === "student"
             ? {
-              first_name: firstName,
-              last_name: lastName,
-              email: email,
-              password: password,
-              nickname: nickname,
-              grade_level: gradeLevel,
-              education_level: educationLevel,
-            }
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                password: password,
+                nickname: nickname,
+                grade_level: gradeLevel,
+                education_level: educationLevel,
+              }
             : {
-              first_name: firstName,
-              last_name: lastName,
-              email: email,
-              password: password,
-              expertises: department,
-            };
+                first_name: firstName,
+                last_name: lastName,
+                email: email,
+                password: password,
+                expertises: department,
+              };
 
         await api.post(`${basePath}/register`, registerData);
         setIsLogin(true);
@@ -102,8 +115,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
   const getInputClass = () => `
     w-full px-6 py-4 bg-gray-50/50 border border-gray-200 rounded-2xl text-gray-800 font-bold 
     focus:outline-none focus:bg-white focus:ring-4 transition-all duration-300 placeholder-gray-400 text-base 
-    focus:border-opacity-0 ${role === "student" ? "focus:ring-green-100" :
-      role === "teacher" ? "focus:ring-cyan-100" : "focus:ring-purple-100"
+    focus:border-opacity-0 ${
+      role === "student"
+        ? "focus:ring-green-100"
+        : role === "teacher"
+          ? "focus:ring-cyan-100"
+          : "focus:ring-purple-100"
     }
   `;
 
@@ -135,8 +152,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       <div className="relative z-10 w-full max-w-6xl flex flex-col md:flex-row items-center justify-center gap-10 md:gap-32">
         {/* Mascot Section */}
         <div
-          className={`flex flex-col items-center transition-all duration-700 ease-out z-20 ${role ? "scale-90 md:scale-100" : "scale-100"
-            }`}
+          className={`flex flex-col items-center transition-all duration-700 ease-out z-20 ${
+            role ? "scale-90 md:scale-100" : "scale-100"
+          }`}
         >
           <div className="relative group cursor-pointer perspective-1000">
             <div className="absolute inset-0 bg-white/40 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity duration-700"></div>
@@ -145,19 +163,21 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
               src={MufiMascot}
               alt="Mufi Mascot"
               className={`w-48 md:w-72 lg:w-96 object-contain drop-shadow-2xl transition-all duration-500 ease-[cubic-bezier(0.34,1.56,0.64,1)] 
-                ${isPasswordFocused
-                  ? "scale-105"
-                  : "animate-wave hover:scale-105"
+                ${
+                  isPasswordFocused
+                    ? "scale-105"
+                    : "animate-wave hover:scale-105"
                 }`}
               style={{ filter: "drop-shadow(0 25px 50px rgba(0,0,0,0.25))" }}
             />
 
             {/* Speech Bubble */}
             <div
-              className={`absolute -top-4 -right-12 transition-all duration-500 transform ${isPasswordFocused
-                ? "opacity-0 scale-75 translate-y-4"
-                : "opacity-100 rotate-6 animate-float animation-delay-1000"
-                }`}
+              className={`absolute -top-4 -right-12 transition-all duration-500 transform ${
+                isPasswordFocused
+                  ? "opacity-0 scale-75 translate-y-4"
+                  : "opacity-100 rotate-6 animate-float animation-delay-1000"
+              }`}
             >
               <div className="bg-white/90 backdrop-blur-md px-8 py-4 rounded-3xl rounded-bl-sm shadow-xl border border-white/50">
                 <p className="font-extrabold text-gray-800 whitespace-nowrap text-sm md:text-lg tracking-tight">
@@ -174,10 +194,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
 
             {/* Privacy Mode Bubble */}
             <div
-              className={`absolute top-0 right-0 transition-all duration-500 transform ${!isPasswordFocused
-                ? "opacity-0 scale-75 translate-y-4 pointer-events-none"
-                : "opacity-100 -rotate-3"
-                }`}
+              className={`absolute top-0 right-0 transition-all duration-500 transform ${
+                !isPasswordFocused
+                  ? "opacity-0 scale-75 translate-y-4 pointer-events-none"
+                  : "opacity-100 -rotate-3"
+              }`}
             >
               <div className="bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-2xl rounded-bl-none shadow-2xl border border-gray-700">
                 <p className="font-bold text-white whitespace-nowrap text-sm">
@@ -278,14 +299,19 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                   </button>
                   <div className="text-center pt-2">
                     <div
-                      className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-3 ${role === "student"
-                        ? "bg-green-100 text-green-600"
-                        : role === "teacher"
-                          ? "bg-cyan-100 text-cyan-600"
-                          : "bg-purple-100 text-purple-600"
-                        }`}
+                      className={`inline-block px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest mb-3 ${
+                        role === "student"
+                          ? "bg-green-100 text-green-600"
+                          : role === "teacher"
+                            ? "bg-cyan-100 text-cyan-600"
+                            : "bg-purple-100 text-purple-600"
+                      }`}
                     >
-                      {role === "student" ? "Öğrenci Girişi" : role === "teacher" ? "Eğitmen Paneli" : "Ebeveyn Paneli"}
+                      {role === "student"
+                        ? "Öğrenci Girişi"
+                        : role === "teacher"
+                          ? "Eğitmen Paneli"
+                          : "Ebeveyn Paneli"}
                     </div>
                     <h2 className="text-3xl font-black text-gray-800 mb-1 tracking-tight">
                       {isLogin
@@ -433,11 +459,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       type="submit"
                       disabled={isLoading}
                       className={`w-full py-5 rounded-2xl font-black text-white text-xl shadow-xl active:scale-95 active:shadow-sm transition-all duration-200 tracking-wide flex items-center justify-center gap-3
-                        ${role === "student"
-                          ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 shadow-green-200/50"
-                          : role === "teacher"
-                            ? "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-200/50"
-                            : "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 shadow-purple-200/50"
+                        ${
+                          role === "student"
+                            ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 shadow-green-200/50"
+                            : role === "teacher"
+                              ? "bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 shadow-cyan-200/50"
+                              : "bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-400 hover:to-indigo-400 shadow-purple-200/50"
                         } ${isLoading ? "opacity-70 cursor-not-allowed" : ""}`}
                     >
                       {isLoading ? (
@@ -499,9 +526,13 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       : "Zaten hesabın var mı?"}
                     <button
                       onClick={() => setIsLogin(!isLogin)}
-                      className={`ml-2 hover:underline transition-colors ${role === "student" ? "text-green-600" :
-                        role === "teacher" ? "text-cyan-600" : "text-purple-600"
-                        }`}
+                      className={`ml-2 hover:underline transition-colors ${
+                        role === "student"
+                          ? "text-green-600"
+                          : role === "teacher"
+                            ? "text-cyan-600"
+                            : "text-purple-600"
+                      }`}
                     >
                       {isLogin ? "Hemen Oluştur" : "Giriş Yap"}
                     </button>
