@@ -1,4 +1,6 @@
+import os 
 from fastapi import APIRouter, Depends, HTTPException, Response
+from sqlalchemy import func
 from auth.auth_request import StudentRegisterRequest, LoginRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -19,6 +21,12 @@ async def register_user(
     db: AsyncSession = Depends(get_db)
 ):
     try:
+        # Check if email already exists
+        check_query = select(Student).where(func.lower(Student.email) == func.lower(data.email))
+        res = await db.execute(check_query)
+        if res.scalars().first():
+            raise HTTPException(status_code=400, detail="Bu e-posta adresi ile zaten bir hesap mevcut.")
+
         new_student = Student(
             first_name=data.first_name,
             last_name=data.last_name,
@@ -32,6 +40,8 @@ async def register_user(
         db.add(new_student)
         await db.commit()
         return {"status": "registered"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -46,7 +56,7 @@ async def login_user(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Student).where(Student.email == data.email)
+        select(Student).where(func.lower(Student.email) == func.lower(data.email))
     )
     student = result.scalars().first()
 
@@ -55,12 +65,15 @@ async def login_user(
 
     access_token = create_access_token(str(student.id), role="student")
 
+    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    is_production ="localhost" not in FRONTEND_URL
+
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="lax",
-        secure=False,
+        samesite="None" if is_production else "lax",
+        secure=is_production,
         path="/"
     )
 

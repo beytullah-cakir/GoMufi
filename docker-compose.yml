@@ -6,10 +6,13 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+    env_file:
+      - ./backend/.env
     environment:
-      DATABASE_URL: "postgresql+asyncpg://postgres:241120@db:5432/gomufi_db"
-    depends_on:
-      - db
+      # Buradaki değerler .env dosyasındakileri GEÇİCİ OLARAK (sadece bilgisayarınızda) ezer
+      - FRONTEND_URL=http://localhost:5173
+      - BACKEND_URL=http://localhost:8000
+    command: uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload
     restart: unless-stopped
 
   frontend:
@@ -21,19 +24,3 @@ services:
       - ./frontend:/app
       - /app/node_modules
     restart: unless-stopped
-
-  db:
-    image: postgres:15
-    container_name: my-db
-    restart: always
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: 241120
-      POSTGRES_DB: gomufi_db
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-
-volumes:
-  postgres-data:

@@ -1,23 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
-import FireIcon from '../assets/sprites/Fire.png';
 
-import ChestIcon from '../assets/sprites/Chest.png';
-import HouseIcon from '../assets/sprites/House.png';
-import ButtonCyan from '../assets/sprites/ButtonCyan.png';
-import ButtonRed from '../assets/sprites/ButtonRed.png';
-import ButtonPurple from '../assets/sprites/ButtonPurple.png';
-import ButtonYellow from '../assets/sprites/ButtonYellow.png';
-import ButtonGreen from '../assets/sprites/ButtonGreen.png';
-import TextBubble from '../assets/sprites/TextBubble.png';
+
 import GrassIcon from '../assets/sprites/grass.png';
-import MufiSleep from '../assets/sprites/MufiSleep.png';
-import GameOverlay from './GameOverlay';
+import { Swords, Users, Shield } from 'lucide-react';
 
-const HomePage: React.FC = () => {
+import GameOverlay from './students-pages/GameOverlay';
+import LessonSlide from './LessonSlide';
+import type { CourseData, PathNode } from '../types';
+
+interface HomePageProps {
+    currentCourse: CourseData;
+    activeCourseId: string;
+    courses: Record<string, CourseData>;
+    onCourseChange: (id: string) => void;
+    setCourses: React.Dispatch<React.SetStateAction<Record<string, CourseData>>>;
+}
+
+const HomePage: React.FC<HomePageProps> = ({
+    currentCourse,
+    activeCourseId,
+    courses,
+    onCourseChange,
+    setCourses
+}) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
-    const [activeCourseId, setActiveCourseId] = useState<string>('Python');
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
+
+    const squadMembers = [
+        { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
+        { id: 2, name: 'Ayşe', status: 'in-class', avatarSeed: 456 },
+        { id: 3, name: 'Can', status: 'offline', avatarSeed: 789 },
+        { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
+    ];
 
     // Dynamic Header State
     const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
@@ -28,134 +44,28 @@ const HomePage: React.FC = () => {
     const [showGameOverlay, setShowGameOverlay] = useState(false);
     const [gameLevel, setGameLevel] = useState<number | null>(null);
 
-    // --- Data Structures & Helpers ---
+    // Lesson Slide State
+    const [showLessonSlide, setShowLessonSlide] = useState(false);
+    const [lessonLevel, setLessonLevel] = useState<number | null>(null);
 
-    type NodeType = 'start' | 'chest' | 'house' | 'paw';
-    type CurveType = 'up' | 'down';
+    // Initialize/Update Header when currentCourse changes
+    useEffect(() => {
+        if (currentCourse) {
+            // Find the last unlocked node (highest ID that is not locked)
+            const reversedNodes = [...currentCourse.nodes].reverse();
+            const lastUnlockedNode = reversedNodes.find(node => !node.isLocked);
 
-    interface PathNode {
-        id: number;
-        type: NodeType;
-        button: string;
-        icon?: string;
-        curve: CurveType;
-        iconSize: string;
-        iconOffset?: string;
-        ringColor: string;
-        numberGradient: string;
-        pastelColor: string;
-        glowColor: string; // Used for icon/number shadows
-        strokeColor: string; // Used for text stroke and button accents
-        baseColor: string; // Used for dynamic header
-        title: string; // Used for dynamic header
-        stars?: number; // ADDED: visual stars above node
-        isLocked?: boolean; // ADDED: locked state (gray)
-    }
-
-    interface Instructor {
-        name: string;
-        avatar: string;
-        status: string;
-        isOnline: boolean;
-    }
-
-    interface CourseStats {
-        league: string;
-        xp: string;
-        streak: number;
-        gems: number;
-    }
-
-    interface CourseData {
-        id: string;
-        title: string;
-        icon: string;
-        themeColor: string;
-        nodes: PathNode[];
-        instructor: Instructor;
-        stats: CourseStats;
-        defaultHeader: {
-            title: string;
-            subtitle: string;
-        };
-    }
-
-    const [courses, setCourses] = useState<Record<string, CourseData>>(() => {
-        const pythonNodes: PathNode[] = [
-            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Temel İfadeler' },
-            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Hazine Sandığı' },
-            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Ev Eşyaları' },
-            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Hayvanlar Alemi' },
-            { id: 5, type: 'paw', button: ButtonGreen, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Doğa Gezisi' },
-            { id: 6, type: 'paw', button: ButtonCyan, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Seyahat' },
-            { id: 7, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'down', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Sürpriz Ödül' },
-            { id: 8, type: 'paw', button: ButtonPurple, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Hobiler' },
-            { id: 9, type: 'paw', button: ButtonYellow, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Yiyecekler' },
-            { id: 10, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'up', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Aile Üyeleri' },
-            { id: 11, type: 'paw', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Alışveriş' },
-            { id: 12, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus' },
-            { id: 13, type: 'paw', button: ButtonPurple, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Okul' },
-            { id: 14, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Meslekler' },
-            { id: 15, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Bitiş' },
-        ];
-
-        const mathNodes: PathNode[] = [
-            { id: 1, type: 'start', button: ButtonCyan, curve: 'down', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-cyan-400 bg-white', numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400', pastelColor: '#A5F3FC', glowColor: 'rgba(34,211,238,0.4)', strokeColor: '#0891b2', baseColor: '#06b6d4', title: 'Matematiğe Giriş', stars: 3 },
-            { id: 2, type: 'chest', button: ButtonRed, icon: ChestIcon, curve: 'up', iconSize: 'w-24 h-24', iconOffset: '-mt-24', ringColor: 'border-red-400 bg-white', numberGradient: 'bg-gradient-to-b from-red-100 to-red-400', pastelColor: '#FECACA', glowColor: 'rgba(248,113,113,0.4)', strokeColor: '#dc2626', baseColor: '#ef4444', title: 'Bonus Ödül' },
-            { id: 3, type: 'house', button: ButtonPurple, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-purple-400 bg-white', numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400', pastelColor: '#E9D5FF', glowColor: 'rgba(192,132,252,0.4)', strokeColor: '#9333ea', baseColor: '#a855f7', title: 'Toplama İşlemi', isLocked: true },
-            { id: 4, type: 'paw', button: ButtonYellow, curve: 'up', iconSize: 'w-16 h-16', iconOffset: '-mt-12', ringColor: 'border-yellow-400 bg-white', numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400', pastelColor: '#FEF08A', glowColor: 'rgba(250,204,21,0.4)', strokeColor: '#ca8a04', baseColor: '#eab308', title: 'Çıkarma İşlemi', isLocked: true },
-            { id: 5, type: 'house', button: ButtonGreen, icon: HouseIcon, curve: 'down', iconSize: 'w-28 h-28', iconOffset: '-mt-28', ringColor: 'border-green-400 bg-white', numberGradient: 'bg-gradient-to-b from-green-100 to-green-400', pastelColor: '#BBF7D0', glowColor: 'rgba(74,222,128,0.4)', strokeColor: '#16a34a', baseColor: '#22c55e', title: 'Final Sınavı', isLocked: true },
-        ];
-
-        return {
-            'Python': {
-                id: 'Python',
-                title: 'PYTHON',
-                icon: '🐍',
-                themeColor: '#58cc02',
-                nodes: pythonNodes,
-                instructor: {
-                    name: 'Mufi Hoca',
-                    avatar: '👨‍🏫',
-                    status: 'Çevrimiçi',
-                    isOnline: true
-                },
-                stats: {
-                    league: 'Bronz Lig',
-                    xp: '120 XP',
-                    streak: 8,
-                    gems: 500
-                },
-                defaultHeader: {
-                    title: 'İngilizce temellerini at',
-                    subtitle: 'BÖLÜM 1, ÜNİTE 1'
-                }
-            },
-            'Matematik': {
-                id: 'Matematik',
-                title: 'MATEMATİK',
-                icon: '📐',
-                themeColor: '#3b82f6',
-                nodes: mathNodes,
-                instructor: {
-                    name: 'Mufi Bilgin',
-                    avatar: '👩‍🏫',
-                    status: 'Meşgul',
-                    isOnline: false
-                },
-                stats: {
-                    league: 'Gümüş Lig',
-                    xp: '2400 XP',
-                    streak: 12,
-                    gems: 1200
-                },
-                defaultHeader: {
-                    title: 'Sayılarla Dans Et',
-                    subtitle: 'BÖLÜM 1, TEMEL ARİTMETİK'
-                }
+            if (lastUnlockedNode) {
+                setHeaderColor(lastUnlockedNode.baseColor);
+                setHeaderTitle(lastUnlockedNode.title);
+                setHeaderSubtitle(`BÖLÜM 1, DERS ${lastUnlockedNode.id}`);
+            } else {
+                setHeaderColor(currentCourse.themeColor);
+                setHeaderTitle(currentCourse.defaultHeader.title);
+                setHeaderSubtitle(currentCourse.defaultHeader.subtitle);
             }
-        };
-    });
+        }
+    }, [currentCourse]); // Re-run when course changes
 
     const handleNodeClick = (node: PathNode) => {
         if (activeNodeId === node.id) {
@@ -169,27 +79,9 @@ const HomePage: React.FC = () => {
     };
 
     const handleCourseChange = (courseId: string) => {
-        setActiveCourseId(courseId);
+        onCourseChange(courseId); // Prop call
         setIsDropdownOpen(false);
-        setActiveNodeId(null); // Reset active node on change
-
-        const newCourse = courses[courseId];
-
-        // Find the last unlocked node (highest ID that is not locked)
-        // Since we want the "latest available", we look for the last one in the list that isn't locked
-        const reversedNodes = [...newCourse.nodes].reverse();
-        const lastUnlockedNode = reversedNodes.find(node => !node.isLocked);
-
-        if (lastUnlockedNode) {
-            setHeaderColor(lastUnlockedNode.baseColor);
-            setHeaderTitle(lastUnlockedNode.title);
-            setHeaderSubtitle(`BÖLÜM 1, DERS ${lastUnlockedNode.id}`);
-        } else {
-            // Fallback (if everything is locked or empty, which shouldn't happen usually)
-            setHeaderColor(newCourse.themeColor);
-            setHeaderTitle(newCourse.defaultHeader.title);
-            setHeaderSubtitle(newCourse.defaultHeader.subtitle);
-        }
+        setActiveNodeId(null);
     };
 
     const handleStartGame = (levelId: number) => {
@@ -197,9 +89,26 @@ const HomePage: React.FC = () => {
         setShowGameOverlay(true);
     };
 
+    const handleOpenLesson = (levelId: number) => {
+        setLessonLevel(levelId);
+        setShowLessonSlide(true);
+    };
+
+    const handleLessonComplete = () => {
+        setShowLessonSlide(false);
+        if (lessonLevel !== null) {
+            handleStartGame(lessonLevel);
+        }
+    };
+
     const handleCloseGame = () => {
         setShowGameOverlay(false);
         setGameLevel(null);
+    };
+
+    const handleCloseLesson = () => {
+        setShowLessonSlide(false);
+        setLessonLevel(null);
     };
 
     const handleGameComplete = (stars: number) => {
@@ -227,8 +136,6 @@ const HomePage: React.FC = () => {
         handleCloseGame();
     };
 
-    const currentCourse = courses[activeCourseId];
-
     // Calculate dynamic styles for the Course Box to match the header
     const courseBoxStyle = {
         borderColor: currentCourse.themeColor,
@@ -239,11 +146,10 @@ const HomePage: React.FC = () => {
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            {/* WIDENED CONTAINER: Removed max-w-7xl, increased px to push to edges but keep safe area */}
             <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
                 <div className="flex items-center gap-4">
-                    {/* Course Info Box (New) - Dropdown Enabled */}
+                    {/* Course Info Box (Dropdown Enabled) */}
                     <div className="relative">
                         <div
                             className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
@@ -282,7 +188,7 @@ const HomePage: React.FC = () => {
                         )}
                     </div>
 
-                    {/* Unit Header (Left) - ENLARGED to h-28 */}
+                    {/* Unit Header (Left) */}
                     <div
                         className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
                         style={{ backgroundColor: headerColor }}
@@ -300,7 +206,7 @@ const HomePage: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* Instructor Widget (Moved Inside Left Group) - ENLARGED to h-28 */}
+                    {/* Instructor Widget */}
                     <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
                         {/* Avatar */}
                         <div className="relative">
@@ -328,14 +234,79 @@ const HomePage: React.FC = () => {
                             <span className="text-xl">💬</span>
                         </button>
                     </div>
+
+                    {/* CLAN WIDGET (New - Matches Instructor Height) */}
+                    <div
+                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700"
+                        onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
+                    >
+                        {/* Background Deco */}
+                        <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
+                            <Swords size={24} />
+                        </div>
+
+                        {/* Icon */}
+                        <div className="relative z-10">
+                            <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl shadow-md backdrop-blur-sm">
+                                🚀
+                            </div>
+                        </div>
+
+                        {/* Info */}
+                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[140px]">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="font-black text-lg font-display leading-none">Kod Korsanları</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-indigo-100 mb-1">
+                                <Users size={12} />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Lvl 5 Klan</span>
+                            </div>
+                        </div>
+
+                        {/* Separator */}
+                        <div className="h-12 w-px bg-white/20 relative z-10"></div>
+
+                        {/* Stats / Role */}
+                        <div className="flex flex-col items-center justify-center relative z-10 text-white">
+                            <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
+                            <span className="text-xl font-black text-yellow-300 font-display leading-tight">24.5k</span>
+                        </div>
+
+                        {/* SQUAD MEMBER DROPDOWN */}
+                        {isClanDropdownOpen && (
+                            <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+                                    <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">Squad Üyeleri</span>
+                                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">4/5</span>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {squadMembers.map((member) => (
+                                        <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
+                                            <div className="relative">
+                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100" />
+                                                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-gray-800 leading-none mb-0.5">{member.name}</h4>
+                                                <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'in-class' ? 'Derste' : member.status}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-2 border-t border-indigo-50 bg-gray-50 text-center">
+                                    <button className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-wide">Tümünü Gör</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Right Column: Stats + Widgets (Grouped for Alignment) */}
+                {/* Right Column: Stats + Widgets */}
                 <div className="flex flex-col items-end relative z-50">
-                    {/* User Stats Row - FIXED WIDTH w-80 to match sidebar */}
+                    {/* User Stats Row */}
                     <div className="flex flex-col gap-3 w-80">
 
-                        {/* REDESIGNED XP BAR (Ranked/Graded Style) - REVERTED HEIGHT */}
+                        {/* REDESIGNED XP BAR */}
                         <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
                             {/* Background Progress Tint */}
                             <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
@@ -364,47 +335,12 @@ const HomePage: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* UNIFIED STATS BAR: Single container like the XP bar - REVERTED HEIGHT */}
-                        <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl px-3 py-2 flex items-center justify-between shadow-sm">
-                            {/* Flags / Lang */}
-                            <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0">
-                                <span className="text-xl">{currentCourse.id === 'Matematik' ? '📐' : '🇬🇧'}</span>
-                            </div>
 
-                            {/* Separator */}
-                            <div className="w-0.5 h-6 bg-gray-200 rounded-full"></div>
-
-                            {/* Icons Group */}
-                            <div className="flex items-center gap-4">
-                                {/* Fire */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <img src={FireIcon} alt="Streak" className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-black text-orange-500 font-display">{currentCourse.stats.streak}</span>
-                                </div>
-
-                                {/* Gems */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <span className="text-sm group-hover:scale-110 transition-transform block">💎</span>
-                                    <span className="text-sm font-black text-sky-500 font-display">{currentCourse.stats.gems}</span>
-                                </div>
-
-                                {/* Hearts */}
-                                <div className="flex items-center gap-1 group cursor-pointer">
-                                    <span className="text-sm group-hover:scale-110 transition-transform block">❤️</span>
-                                    <span className="text-sm font-black text-red-500 font-display">5</span>
-                                </div>
-                            </div>
-
-                            {/* Profile Tab */}
-                            <div className="w-9 h-9 rounded-xl hover:bg-gray-100 cursor-pointer flex items-center justify-center transition-all shrink-0 text-gray-400 hover:text-gray-600">
-                                <span className="text-xl">👤</span>
-                            </div>
-                        </div>
                     </div>
 
-                    {/* Right Sidebar Widgets - Anchored directly below Stats */}
+                    {/* Right Sidebar Widgets */}
                     <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-80">
-                        {/* Daily Quest Widget (Redesigned - Premium Card) */}
+                        {/* Daily Quest Widget */}
                         <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
                             <div className="flex justify-between items-center mb-5">
                                 <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">Günlük Görevler</h3>
@@ -441,10 +377,8 @@ const HomePage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Middle Section: Horizontal Path (Vertically Centered) */}
+            {/* Middle Section: Horizontal Path */}
             <div className="w-full flex-1 flex items-center justify-center relative z-20">
-                {/* Horizontal Gamified Path */}
-                {/* Added 'no-scrollbar' class (make sure to have it in CSS or use inline styling for hiding scrollbar) */}
                 <style>{`
                     .no-scrollbar::-webkit-scrollbar {
                         display: none;
@@ -461,41 +395,37 @@ const HomePage: React.FC = () => {
                         animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                     }
                 `}</style>
-                {/* INCREASED PADDING TOP (p-80) TO FIX CLIPPING - Extra space for bubbles */}
-                <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-80 pb-40 select-none">
+                <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-64 pb-40 select-none">
                     <div
                         key={activeCourseId}
                         className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
                     >
                         {(() => {
-                            let levelCounter = 0;
                             const currentNodes = courses[activeCourseId].nodes;
                             return currentNodes.map((node, index) => {
-                                const isLevel = node.type === 'start' || node.type === 'paw';
-                                if (isLevel) levelCounter++;
+                                const levelCounter = index + 1;
 
                                 return (
                                     <React.Fragment key={node.id}>
                                         {/* Node Container */}
                                         <div
                                             className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'} ${node.isLocked ? 'grayscale opacity-75 pointer-events-none' : ''}`}
-                                            // style={index === 0 ? { marginTop: '0' } : {}}
                                             onClick={() => !node.isLocked && handleNodeClick(node)}
                                         >
                                             {/* Stars Rendering */}
                                             {node.stars !== undefined && (
-                                                <div className="absolute -top-24 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-end">
+                                                <div className="absolute top-35 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
                                                     {[0, 1, 2].map((i) => (
                                                         <svg
                                                             key={i}
                                                             xmlns="http://www.w3.org/2000/svg"
                                                             viewBox="0 0 24 24"
                                                             fill="currentColor"
-                                                            className={`w-8 h-8 drop-shadow-md transition-transform 
+                                                            className={`w-8 h-8 drop-shadow-md transition-transform
                                                                 ${i < (node.stars || 0) ? 'text-yellow-400' : 'text-gray-300'}
-                                                                ${i === 0 ? '-rotate-12 translate-y-1' : ''} 
-                                                                ${i === 1 ? '-translate-y-2 scale-110' : ''} 
-                                                                ${i === 2 ? 'rotate-12 translate-y-1' : ''}
+                                                                ${i === 0 ? 'rotate-6' : ''}
+                                                                ${i === 1 ? 'translate-y-1 scale-110' : ''}
+                                                                ${i === 2 ? '-rotate-6' : ''}
                                                             `}
                                                         >
                                                             <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
@@ -504,40 +434,44 @@ const HomePage: React.FC = () => {
                                                 </div>
                                             )}
 
-                                            {/* Text Bubble - SQUASHED HEIGHT (scale-y-90) */}
+                                            {/* Text Bubble */}
                                             <div
-                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] w-64 origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id && !node.isLocked
-                                                    ? 'opacity-100 scale-100 scale-y-90 translate-y-[-20px] mb-12'
-                                                    : 'opacity-0 scale-50 translate-y-4 mb-16 pointer-events-none'
+                                                className={`absolute bottom-full left-1/2 -translate-x-1/2 z-[60] origin-bottom transition-all duration-300 ease-out ${activeNodeId === node.id && !node.isLocked
+                                                    ? 'opacity-100 scale-100 translate-y-[-80px]'
+                                                    : 'opacity-0 scale-50 translate-y-4 pointer-events-none'
                                                     }`}
                                             >
-                                                <div className="relative flex items-center justify-center">
-                                                    <img src={TextBubble} alt="Bubble" className="w-full drop-shadow-lg" />
-                                                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[75%] flex items-center gap-3">
-                                                        {/* 3D Play Button */}
-                                                        <div
-                                                            className="relative w-12 h-12 group/btn cursor-pointer transition-transform active:scale-95"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleStartGame(node.id);
-                                                            }}
-                                                        >
-                                                            <div className="absolute inset-x-0 bottom-0 h-12 rounded-full" style={{ backgroundColor: node.strokeColor, filter: 'brightness(0.6)' }}></div>
-                                                            <div className="absolute inset-x-0 bottom-2 h-12 rounded-full flex items-center justify-center transition-all group-active/btn:bottom-0" style={{ backgroundColor: node.strokeColor }}>
-                                                                <svg viewBox="0 0 24 24" className="w-6 h-6 text-white fill-current ml-1" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                                                                    <path d="M8 5v14l11-7z" />
-                                                                </svg>
-                                                            </div>
-                                                        </div>
-                                                        <span
-                                                            className="text-gray-500 font-black font-display text-xl whitespace-nowrap cursor-pointer hover:text-gray-700 transition-colors"
-                                                            onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                handleStartGame(node.id);
-                                                            }}
-                                                        >
-                                                            Teste Başla !
+                                                {/* DYNAMIC CARD BUBBLE */}
+                                                <div className="relative min-w-[280px] transform hover:-translate-y-1 transition-transform duration-300 group/bubble cursor-default">
+                                                    {/* Glow/Background Container */}
+                                                    <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-xl border-x-2 border-t-2 border-b-[6px]" style={{ backgroundColor: node.baseColor, borderColor: node.strokeColor || 'rgba(0,0,0,0.1)' }}>
+                                                        {/* Glow Shapes */}
+                                                        <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl"></div>
+                                                        <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
+                                                        <div className="absolute top-4 right-6 text-white/30 text-2xl animate-pulse">✨</div>
+                                                    </div>
+
+                                                    {/* Tail */}
+                                                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-6 h-6 rotate-45 rounded-sm" style={{ backgroundColor: node.baseColor }}></div>
+
+                                                    {/* Content */}
+                                                    <div className="relative z-10 p-5 flex flex-col items-start text-left">
+                                                        <h3 className="text-white font-black font-display text-xl leading-snug mb-1 drop-shadow-md pr-6">
+                                                            {node.title || "Ders Başlığı"}
+                                                        </h3>
+                                                        <span className="text-white/90 font-bold text-xs uppercase tracking-widest mb-4">
+                                                            DERS: {index + 1}/9
                                                         </span>
+
+                                                        <button
+                                                            className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                handleOpenLesson(node.id);
+                                                            }}
+                                                        >
+                                                            <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 PUAN</span>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             </div>
@@ -545,86 +479,121 @@ const HomePage: React.FC = () => {
                                             {/* Hover Ring Effect */}
                                             <div className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${node.ringColor} ${node.isLocked ? 'hidden' : ''}`}></div>
 
-                                            {/* Shadow */}
-                                            <div className="w-36 h-12 bg-black opacity-20 rounded-[100%] absolute top-14 left-2 blur-md"></div>
-
                                             {/* Button Sprite */}
                                             <img src={node.button} alt="Button" className="w-40 relative z-10" />
+
+                                            {/* Ground Shadow - Independent from floating icon */}
+                                            {node.icon && (
+                                                <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
+                                                    <div
+                                                        className="w-14 h-4 bg-gray-300 rounded-[100%] animate-shadow-pulse -mt-10"
+                                                        style={{
+                                                            animationDelay: `${index * 0.5 * -1}s`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            )}
 
                                             {/* Icon/Number Container */}
                                             <div className={`absolute inset-0 flex items-center justify-center z-20 ${node.iconOffset || ''}`}>
                                                 {node.icon ? (
-                                                    <img src={node.icon} alt={node.type} className={`${node.iconSize} drop-shadow-xl`} />
-                                                ) : (
-                                                    <div className="relative flex items-center justify-center">
-                                                        {/* Shadow */}
-                                                        <div className="absolute bottom-2 w-16 h-5 bg-gray-500/80 rounded-[100%] blur-[2px] animate-shadow-breathe"></div>
-
-                                                        {/* Number */}
-                                                        <span
-                                                            className="text-6xl font-black select-none animate-float relative z-10 -translate-y-8"
+                                                    <>
+                                                        {/* Back Glow Effect - Double Layer */}
+                                                        <div
+                                                            className="absolute w-36 h-36 rounded-full blur-3xl opacity-100 animate-pulse"
                                                             style={{
-                                                                fontFamily: "'Fredoka', sans-serif",
-                                                                color: 'white',
-                                                                WebkitTextStroke: `3px ${node.strokeColor}`,
-                                                                paintOrder: 'stroke fill',
-                                                                filter: `drop-shadow(0 0 8px ${node.pastelColor})`,
-                                                                textShadow: `
-                                                                    2px 2px 0px ${node.strokeColor},
-                                                                    4px 4px 0px ${node.strokeColor}
-                                                                `,
+                                                                backgroundColor: node.pastelColor,
+                                                                animationDelay: `${index * 0.5 * -1}s`
                                                             }}
+                                                        ></div>
+                                                        <div
+                                                            className="absolute w-16 h-16 bg-white rounded-full blur-2xl opacity-80 animate-pulse"
+                                                            style={{
+                                                                animationDelay: `${index * 0.5 * -1}s`
+                                                            }}
+                                                        ></div>
+
+                                                        <img
+                                                            src={node.icon}
+                                                            alt={node.type}
+                                                            className={`${node.iconSize} animate-float relative z-10`}
+                                                            style={{
+                                                                filter: `drop-shadow(0 0 5px ${node.pastelColor})`,
+                                                                animationDelay: `${index * 0.5 * -1}s`
+                                                            }}
+                                                        />
+
+                                                        {/* Level Number Underneath */}
+                                                        <div
+                                                            className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                                                            style={{ animationDelay: `${index * 0.5 * -1}s` }}
                                                         >
-                                                            {levelCounter}
-                                                        </span>
-                                                    </div>
-                                                )}
+                                                            <span
+                                                                className="text-2xl font-black tracking-wider select-none"
+                                                                style={{
+                                                                    fontFamily: "'Fredoka', sans-serif",
+                                                                    color: 'white',
+                                                                    WebkitTextStroke: `1.5px ${node.strokeColor}`,
+                                                                    paintOrder: 'stroke fill',
+                                                                    filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
+                                                                    textShadow: `2px 2px 0px ${node.strokeColor}`
+                                                                }}
+                                                            >
+                                                                LEVEL {levelCounter}
+                                                            </span>
+                                                        </div>
+                                                    </>
+                                                ) : null}
                                             </div>
                                         </div>
 
-                                        {/* Connector (if not last node) */}
+                                        {/* Connector (or Divider) */}
                                         {index < currentNodes.length - 1 && (
-                                            <div className="w-32 h-24 -mx-6 relative z-0 flex items-center justify-center">
-                                                <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
-                                                    <path
-                                                        d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
-                                                        stroke="#6B7280"
-                                                        strokeWidth="12"
-                                                        strokeLinecap="round"
-                                                        strokeDasharray="0 25"
-                                                        fill="none"
-                                                    />
-                                                </svg>
+                                            <>
+                                                {/* LESSON TRANSITION CHECK */}
+                                                {(node.lessonNumber && currentNodes[index + 1]?.lessonNumber !== node.lessonNumber && currentNodes[index + 1]?.lessonTopic) ? (
+                                                    // PREMIUM LESSON DIVIDER (Vertical Style)
+                                                    <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
+                                                        {/* Vertical Dashed Line */}
+                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
 
-                                                {/* Decorative Grass */}
-                                                {/* Main Path Grass */}
-                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
-                                                    style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
-
-                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
-                                                    style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
-                                                <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
-                                                    style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
-                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
-                                                    style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
-                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
-                                                    style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
-
-                                                {/* Hill/Valley Fillers */}
-                                                {node.curve !== 'down' ? (
-                                                    <>
-                                                        <img src={GrassIcon} alt="" className="absolute w-5 opacity-60 rotate-6" style={{ left: '20%', top: '55%' }} />
-                                                        <img src={GrassIcon} alt="" className="absolute w-6 opacity-50 -rotate-3" style={{ left: '40%', top: '45%' }} />
-                                                        <img src={GrassIcon} alt="" className="absolute w-5 opacity-60 rotate-12" style={{ left: '60%', top: '45%' }} />
-                                                        <img src={GrassIcon} alt="" className="absolute w-4 opacity-50 -rotate-6" style={{ left: '80%', top: '55%' }} />
-                                                    </>
+                                                        {/* Main Divider Body */}
+                                                        <div className="relative w-full flex flex-col items-center">
+                                                            {/* Topic Badge */}
+                                                            <div className="bg-white px-8 py-3 rounded-2xl shadow-none border-2 border-gray-100 flex flex-col items-center transform hover:scale-105 transition-transform cursor-pointer z-10">
+                                                                <span className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">DERS {currentNodes[index + 1].lessonNumber}</span>
+                                                                <span className="text-lg font-black font-display tracking-tight text-gray-800">{currentNodes[index + 1].lessonTopic}</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
                                                 ) : (
-                                                    <>
-                                                        <img src={GrassIcon} alt="" className="absolute w-4 opacity-40 rotate-6" style={{ left: '10%', top: '70%' }} />
-                                                        <img src={GrassIcon} alt="" className="absolute w-5 opacity-30 -rotate-12" style={{ left: '90%', top: '70%' }} />
-                                                    </>
+                                                    // STANDARD CONNECTOR
+                                                    <div className="w-32 h-24 -mx-6 relative z-0 flex items-center justify-center">
+                                                        <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
+                                                            <path
+                                                                d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
+                                                                stroke="#6B7280"
+                                                                strokeWidth="12"
+                                                                strokeLinecap="round"
+                                                                strokeDasharray="0 25"
+                                                                fill="none"
+                                                            />
+                                                        </svg>
+
+                                                        {/* Decorative Grass */}
+                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                                                            style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
+                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                                                            style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
+                                                        <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                                                            style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
+                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
+                                                            style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
+                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
+                                                            style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
+                                                    </div>
                                                 )}
-                                            </div>
+                                            </>
                                         )}
                                     </React.Fragment>
                                 );
@@ -633,19 +602,16 @@ const HomePage: React.FC = () => {
                     </div>
                 </div>
             </div>
-            {/* Sleeping User Widget (Bottom Right) */}
-            <div className="absolute bottom-[-40px] right-4 z-50 pointer-events-none hover:scale-105 transition-transform origin-bottom">
-                <div className="relative">
-                    <div className="absolute top-2 right-10 z-20 flex flex-col">
-                        <span className="text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                        <span className="text-xl font-black text-sky-400/80 animate-zzz font-display absolute -top-3 -right-3" style={{ animationDelay: '1s' }}>z</span>
-                        <span className="text-lg font-black text-sky-400/60 animate-zzz font-display absolute -top-6 -right-5" style={{ animationDelay: '2s' }}>z</span>
-                    </div>
-                    <img src={MufiSleep} alt="Sleeping Mufi" className="w-48 animate-breathe drop-shadow-2xl relative z-10" />
-                </div>
-            </div>
 
-            {/* GAME PAGE OVERLAY */}
+
+            {/* LESSON SLIDE OVERLAY */}
+            <LessonSlide
+                isOpen={showLessonSlide}
+                lessonTitle={currentCourse.nodes.find(n => n.id === lessonLevel)?.title}
+                onClose={handleCloseLesson}
+                onComplete={handleLessonComplete}
+            />
+
             {/* GAME PAGE OVERLAY */}
             <GameOverlay
                 isOpen={showGameOverlay}

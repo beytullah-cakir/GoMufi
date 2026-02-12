@@ -14,7 +14,7 @@ class TeacherRegisterRequest(BaseModel):
     first_name: str
     last_name: str
     email: str
-    department: str
+    expertises: str
     password: str
 
 class LoginRequest(BaseModel):
