@@ -25,7 +25,9 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 # 2. SESSION MIDDLEWARE kısmını şöyle değiştirin:
 app.add_middleware(
     SessionMiddleware, 
-    secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar") # .env'den okur 
+    secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar"),
+    same_site="none",  # Farklı domainler arası çerez transferi için
+    https_only=True
 )
 
 # lifespan bloğu kalsın; Supabase'e bağlandığında tabloları otomatik oluşturur.
