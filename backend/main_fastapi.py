@@ -27,7 +27,8 @@ app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar"),
     same_site="none",  # Farklı domainler arası çerez transferi için
-    https_only=True
+    https_only=True,
+    max_age=3600
 )
 
 # lifespan bloğu kalsın; Supabase'e bağlandığında tabloları otomatik oluşturur.
