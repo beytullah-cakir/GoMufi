@@ -1,3 +1,4 @@
+import uuid
 from sqlalchemy import Column, DateTime, Integer, String, func, ForeignKey
 from sqlalchemy.orm import relationship
 from connect_db import Base
@@ -14,6 +15,7 @@ class Student(Base):
     grade_level = Column(String)
     education_level = Column(String)
     password = Column(String)
+    student_code = Column(String, unique=True, index=True, default=lambda: f"ST-{str(uuid.uuid4())[:6].upper()}")
     parent_id = Column(Integer, ForeignKey("parents.id"), nullable=True)
 
     parent = relationship("Parent", back_populates="students")

@@ -4,6 +4,19 @@
 -- ============================================
 
 -- ==============
+--  PARENTS
+-- ==============
+CREATE TABLE parents (
+    id SERIAL PRIMARY KEY,
+    first_name VARCHAR(100),
+    last_name  VARCHAR(100),
+    email      VARCHAR(150) UNIQUE NOT NULL,
+    hashed_password VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- ==============
 --  STUDENTS
 -- ==============
 CREATE TABLE students (
@@ -14,6 +27,9 @@ CREATE TABLE students (
     email      VARCHAR(150) UNIQUE NOT NULL,
     education_level VARCHAR(20) NOT NULL,
     grade_level VARCHAR(20) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    student_code VARCHAR(20) UNIQUE,
+    parent_id INT REFERENCES parents(id),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

@@ -21,6 +21,31 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({
 }) => {
   const students = userData?.students || [];
   const [isDeleting, setIsDeleting] = useState<number | null>(null);
+  const [isLinking, setIsLinking] = useState(false);
+  const [studentCode, setStudentCode] = useState("");
+  const [linkLoading, setLinkLoading] = useState(false);
+
+  const handleLinkStudent = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!studentCode.trim()) return;
+
+    setLinkLoading(true);
+    try {
+      await api.post("/profile/link-student", {
+        student_code: studentCode.trim().toUpperCase(),
+      });
+      setStudentCode("");
+      setIsLinking(false);
+      if (onRefresh) onRefresh();
+      alert("Öğrenci başarıyla bağlandı!");
+    } catch (err: any) {
+      console.error("Failed to link student", err);
+      const msg = err.response?.data?.detail || "Bağlanırken bir hata oluştu.";
+      alert(msg);
+    } finally {
+      setLinkLoading(false);
+    }
+  };
 
   const handleUnlink = async (studentId: number) => {
     if (
@@ -54,10 +79,51 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({
             Çocuklarınızın profillerini yönetin.
           </p>
         </div>
-        <button className="px-6 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-colors flex items-center gap-2">
+        <button
+          onClick={() => setIsLinking(true)}
+          className="px-6 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg shadow-purple-200 hover:bg-purple-700 transition-colors flex items-center gap-2"
+        >
           <Plus className="w-5 h-5" /> Öğrenci Ekle
         </button>
       </div>
+
+      {isLinking && (
+        <div className="bg-purple-50 border-2 border-purple-100 rounded-[2rem] p-8 animate-in fade-in slide-in-from-top-4 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-purple-100/50 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+          <div className="relative z-10 max-w-md">
+            <h3 className="text-xl font-black text-purple-800 mb-2">
+              Yeni Öğrenci Bağla
+            </h3>
+            <p className="text-purple-600/70 font-bold text-sm mb-6">
+              Öğrencinizin profilinde bulunan 8 haneli kodu buraya girin.
+            </p>
+            <form onSubmit={handleLinkStudent} className="flex gap-4">
+              <input
+                type="text"
+                value={studentCode}
+                onChange={(e) => setStudentCode(e.target.value)}
+                placeholder="ST-XXXXXX"
+                className="flex-1 bg-white border-2 border-purple-200 rounded-xl px-4 py-3 font-black text-purple-700 focus:outline-none focus:border-purple-400 placeholder:text-purple-200"
+                required
+              />
+              <button
+                type="submit"
+                disabled={linkLoading}
+                className="px-6 py-3 bg-purple-600 text-white font-bold rounded-xl hover:bg-purple-700 transition-colors disabled:opacity-50"
+              >
+                {linkLoading ? "..." : "Bağla"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsLinking(false)}
+                className="px-6 py-3 bg-gray-100 text-gray-500 font-bold rounded-xl hover:bg-gray-200 transition-colors"
+              >
+                İptal
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {students.map((student: any) => {
@@ -136,7 +202,10 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({
         })}
 
         {/* Add New Student Card (Placeholder style) */}
-        <button className="bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-8 text-gray-400 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50 transition-all gap-4 min-h-[300px]">
+        <button
+          onClick={() => setIsLinking(true)}
+          className="bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 flex flex-col items-center justify-center p-8 text-gray-400 hover:text-purple-600 hover:border-purple-300 hover:bg-purple-50 transition-all gap-4 min-h-[300px]"
+        >
           <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center shadow-sm">
             <Plus className="w-8 h-8" />
           </div>

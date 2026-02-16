@@ -12,7 +12,6 @@ class Parent(Base):
     last_name = Column(String, nullable=True)
     email = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=True)
-    parent_code = Column(String, unique=True, index=True, default=lambda: str(uuid.uuid4())[:8].upper())
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     
