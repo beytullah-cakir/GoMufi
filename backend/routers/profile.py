@@ -87,6 +87,7 @@ async def get_profile(
             "last_name": student.last_name,
             "email": student.email,
             "nickname": student.nickname,
+            "student_code": student.student_code,
             "grade_level": student.grade_level,
             "education_level": student.education_level,
         }
@@ -112,7 +113,6 @@ async def get_profile(
             "first_name": parent.first_name,
             "last_name": parent.last_name,
             "email": parent.email,
-            "parent_code": parent.parent_code,
             "students": [
                 {
                     "id": s.id,
@@ -197,36 +197,32 @@ async def update_profile(
     raise HTTPException(status_code=400, detail="Invalid role")
 
 
-class LinkParentRequest(BaseModel):
-    parent_code: str
+class LinkStudentRequest(BaseModel):
+    student_code: str
 
-@router.post("/profile/link-parent")
-async def link_parent(
-    data: LinkParentRequest,
+@router.post("/profile/link-student")
+async def link_student(
+    data: LinkStudentRequest,
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user["role"] != "student":
-        raise HTTPException(status_code=403, detail="Sadece öğrenciler ebeveyn bağlayabilir")
+    if user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Sadece ebeveynler öğrenci bağlayabilir")
     
-    # Find parent by code
-    result = await db.execute(select(Parent).where(Parent.parent_code == data.parent_code.upper()))
-    parent = result.scalars().first()
-    
-    if not parent:
-        raise HTTPException(status_code=404, detail="Geçersiz ebeveyn kodu")
-    
-    # Find student
-    result = await db.execute(select(Student).where(Student.id == int(user["user_id"])))
+    # Find student by code
+    result = await db.execute(select(Student).where(Student.student_code == data.student_code.upper()))
     student = result.scalars().first()
     
     if not student:
-        raise HTTPException(status_code=404, detail="Öğrenci bulunamadı")
+        raise HTTPException(status_code=404, detail="Geçersiz öğrenci kodu")
     
-    student.parent_id = parent.id
+    if student.parent_id:
+        raise HTTPException(status_code=400, detail="Bu öğrenci zaten başka bir ebeveyne bağlı")
+    
+    student.parent_id = int(user["user_id"])
     await db.commit()
     
-    return {"message": f"Ebeveyn ({parent.first_name} {parent.last_name}) başarıyla bağlandı"}
+    return {"message": f"Öğrenci ({student.first_name} {student.last_name}) başarıyla bağlandı"}
     
 @router.post("/profile/unlink-student/{student_id}")
 async def unlink_student(

@@ -47,33 +47,6 @@ const ProfilePage: React.FC = () => {
   const [isBlinking, setIsBlinking] = useState(false);
   const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
 
-  const [parentCodeInput, setParentCodeInput] = useState("");
-  const [isLinking, setIsLinking] = useState(false);
-
-  const handleLinkParent = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!parentCodeInput.trim()) return;
-
-    setIsLinking(true);
-    try {
-      const response = await api.post("/profile/link-parent", {
-        parent_code: parentCodeInput.trim(),
-      });
-      alert(response.data.message);
-      setParentCodeInput("");
-      // Optionally refresh profile to show linked parent
-      window.location.reload();
-    } catch (error: any) {
-      console.error("Link parent failed", error);
-      alert(
-        error.response?.data?.detail ||
-          "Bağlantı kurulamadı. Lütfen kodu kontrol edin.",
-      );
-    } finally {
-      setIsLinking(false);
-    }
-  };
-
   // Blinking effect logic
   React.useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout>;
@@ -266,6 +239,11 @@ const ProfilePage: React.FC = () => {
               <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
               <span>{joinDate}</span>
             </div>
+            {userData?.student_code && (
+              <div className="mt-3 inline-flex items-center gap-2 px-3 py-1 bg-white border-2 border-indigo-100 rounded-lg text-xs font-black text-indigo-500 uppercase tracking-wider shadow-sm">
+                🎁 ÖĞRENCİ KODU: {userData.student_code}
+              </div>
+            )}
           </div>
 
           {/* Right: Level Progress */}
@@ -590,41 +568,6 @@ const ProfilePage: React.FC = () => {
                     </div>
                   </div>
                 </div>
-              </div>
-
-              {/* PARENT CONNECTION WIDGET - NEW */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <Heart className="text-red-500 fill-red-500" size={24} />
-                  <h3 className="text-xl font-black text-gray-800 font-display">
-                    Ebeveyn Bağlantısı
-                  </h3>
-                </div>
-
-                <p className="text-sm font-medium text-gray-500 mb-6">
-                  Ebeveyninin senin gelişimini takip edebilmesi için onun
-                  paylaştığı 8 haneli kodu buraya gir.
-                </p>
-
-                <form onSubmit={handleLinkParent} className="flex gap-3">
-                  <input
-                    type="text"
-                    value={parentCodeInput}
-                    onChange={(e) =>
-                      setParentCodeInput(e.target.value.toUpperCase())
-                    }
-                    placeholder="Örn: A1B2C3D4"
-                    maxLength={8}
-                    className="flex-1 bg-gray-50 border-2 border-gray-200 rounded-xl px-4 py-3 font-black text-gray-700 focus:border-blue-400 outline-none transition-all placeholder:font-bold placeholder:text-gray-300 tracking-widest"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isLinking || parentCodeInput.length < 8}
-                    className="bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:bg-gray-300 text-white font-black px-6 rounded-xl shadow-[0_4px_0_rgb(37,99,235)] active:shadow-none active:translate-y-[4px] transition-all whitespace-nowrap"
-                  >
-                    {isLinking ? "BAĞLANIYOR..." : "BAĞLA"}
-                  </button>
-                </form>
               </div>
             </div>
 

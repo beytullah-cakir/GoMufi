@@ -204,6 +204,11 @@ const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-lg font-black text-gray-800 font-display truncate block max-w-full">
                   {displayName}
                 </span>
+                {userData?.student_code && (
+                  <div className="mt-2 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black border border-indigo-100 uppercase tracking-tighter text-center">
+                    KOD: {userData.student_code}
+                  </div>
+                )}
               </div>
               <div className="flex flex-col p-2">
                 <button

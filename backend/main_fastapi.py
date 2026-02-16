@@ -37,8 +37,10 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://go-mufi.vercel.app",
-        "http://localhost:5173",
+        "https://www.gomufi.com",         # Yeni ana domain
+        "https://gomufi.com",             # Yönlendirme için alternatif domain
+        "https://go-mufi.vercel.app",     # Eski adres (yedek olarak kalabilir)
+        "http://localhost:5173",    
     ],
     allow_credentials=True,
     allow_methods=["*"],
