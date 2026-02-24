@@ -1,0 +1,19 @@
+[
+  {
+    "id": 1,
+    "elements": [
+      {
+        "id": "bce47206-ca5f-4902-a1c0-28f363e54f12",
+        "type": "image",
+        "x": 100,
+        "y": 100,
+        "width": 300,
+        "height": 200,
+        "rotation": 0,
+        "content": "",
+        "src": "https://irjbpzhgoryppxyccgvk.supabase.co/storage/v1/object/public/lesson-images/uploads/24ee6640-0fd0-45c2-8130-78f60350bf93.jpeg"
+      }
+    ],
+    "connections": []
+  }
+]

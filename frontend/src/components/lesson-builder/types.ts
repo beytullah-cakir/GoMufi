@@ -26,6 +26,8 @@ export interface SlideElement {
     rotation: number;
     content: string;
     src?: string;
+    imageUrl?: string;
+    videoUrl?: string;
     style?: ElementStyle;
     // New Config for Widgets
     codeConfig?: {
