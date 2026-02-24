@@ -5,7 +5,6 @@ import CoursesPage from "./CoursesPage";
 import ProfilePage from "./ProfilePage";
 import ContentPage from "./ContentPage";
 import AskQuestionPage from "./AskQuestionPage";
-import LessonBuilderPage from "./LessonBuilderPage";
 import MufiSleep from "../assets/sprites/MufiSleep.png";
 
 // Import Types
@@ -278,16 +277,14 @@ function StudentApp() {
   return (
     <>
       <div className="flex flex-col h-screen bg-white font-sans text-gray-900 overflow-hidden">
-        {activePage !== "Builder" && (
-          <Navbar
-            activePage={activePage}
-            onNavigate={setActivePage}
-            currentCourse={currentCourse}
-            activeCourseId={activeCourseId}
-            courses={courses}
-            onCourseChange={handleCourseChange}
-          />
-        )}
+        <Navbar
+          activePage={activePage}
+          onNavigate={setActivePage}
+          currentCourse={currentCourse}
+          activeCourseId={activeCourseId}
+          courses={courses}
+          onCourseChange={handleCourseChange}
+        />
 
         <div className="flex-1 overflow-y-auto relative w-full">
           {activePage === "Ana Sayfa" ? (
@@ -306,8 +303,6 @@ function StudentApp() {
             <ContentPage />
           ) : activePage === "Soru Sor!" ? (
             <AskQuestionPage />
-          ) : activePage === "Builder" ? (
-            <LessonBuilderPage onExit={() => setActivePage("Ana Sayfa")} />
           ) : (
             <div className="p-8">
               <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>

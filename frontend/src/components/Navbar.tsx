@@ -11,6 +11,7 @@ import ChatIcon from "../assets/sprites/ChatIcon.png";
 
 import FireIcon from "../assets/sprites/Fire.png";
 import type { CourseData } from "../types";
+import api from "../api";
 
 interface NavItemProps {
   icon: string;
@@ -64,6 +65,16 @@ const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
 
+  const handleLogout = async () => {
+    try {
+      await api.post("/auth/logout");
+      window.location.href = "/";
+    } catch (error) {
+      console.error("Logout failed", error);
+      window.location.href = "/";
+    }
+  };
+
   const navItems = [
     { label: "Ana Sayfa", icon: HomeIcon },
     { label: "Kurslar", icon: ShopIcon },
@@ -104,23 +115,6 @@ const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onNavigate(item.label)}
           />
         ))}
-
-        {/* BUILDER BUTTON (DEBUG) - Moved inside center group for better flow */}
-        <button
-          onClick={() => onNavigate("Builder")}
-          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
-                         ${
-                           activePage === "Builder"
-                             ? "bg-rose-100 border-rose-400 border-b-rose-400 text-rose-500"
-                             : "bg-transparent border-transparent border-b-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200 hover:border-b-gray-200"
-                         }
-                         `}
-        >
-          <span className="text-sm">🛠️</span>
-          <span className="font-black tracking-wider uppercase font-sans text-[10px] whitespace-nowrap">
-            Builder
-          </span>
-        </button>
       </div>
 
       {/* RIGHT SECTION: Profile Dropdown + Stats */}
@@ -201,7 +195,10 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
                   <span>⚙️</span> Ayarlar
                 </button>
-                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
+                <button
+                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2"
+                  onClick={handleLogout}
+                >
                   <span>🚪</span> Çıkış Yap
                 </button>
               </div>
