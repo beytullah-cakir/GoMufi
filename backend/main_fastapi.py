@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import SessionLocal, engine, Base
 from starlette.middleware.sessions import SessionMiddleware
-from routers import profile, courses, student_auth, teacher_auth, oauth
+from routers import profile, courses, student_auth, teacher_auth, oauth, builder
 import os
 from models import Student, Teacher, Course, Enrollment
 
@@ -52,6 +52,7 @@ app.include_router(teacher_auth.router)
 app.include_router(profile.router)
 app.include_router(courses.router)
 app.include_router(oauth.router)
+app.include_router(builder.router)
 
 # Railway'de uvicorn genellikle Dockerfile CMD üzerinden başlatılır.
 # Eğer yerelde çalıştıracaksanız bu blok kalabilir.
