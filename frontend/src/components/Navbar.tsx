@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import api from "../api";
 
 // Import sprites
 import MufiLogo from "../assets/sprites/MufiLogo.png";
@@ -29,7 +28,7 @@ const NavItem: React.FC<NavItemProps> = ({
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
+      className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
       ${
         isActive
           ? "bg-sky-100 border-sky-400 border-b-sky-400 translate-y-0 text-sky-500"
@@ -40,9 +39,9 @@ const NavItem: React.FC<NavItemProps> = ({
       <img
         src={icon}
         alt={label}
-        className={`w-8 h-8 object-contain transition-transform duration-300 ${isActive ? "scale-100" : "grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:animate-wiggle"}`}
+        className={`w-5.5 h-5.5 object-contain transition-transform duration-300 ${isActive ? "scale-100" : "grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:animate-wiggle"}`}
       />
-      <span className="font-black tracking-wider uppercase font-sans text-sm whitespace-nowrap">
+      <span className="font-black tracking-wider uppercase font-sans text-[10px] whitespace-nowrap">
         {label}
       </span>
     </button>
@@ -56,28 +55,14 @@ interface NavbarProps {
   activeCourseId: string;
   courses: Record<string, CourseData>;
   onCourseChange: (id: string) => void;
-  userData: any;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
   activePage,
   onNavigate,
   currentCourse,
-  userData,
 }) => {
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
-
-  const handleLogout = async () => {
-    try {
-      await api.post("/auth/logout");
-    } catch (error) {
-      console.error("Logout failed", error);
-    }
-    window.location.href = "/"; // Full reload to clear state
-  };
-
-  const displayName =
-    userData?.nickname || userData?.first_name || "Mufi Öğrenci";
 
   const navItems = [
     { label: "Ana Sayfa", icon: HomeIcon },
@@ -88,13 +73,13 @@ const Navbar: React.FC<NavbarProps> = ({
   ];
 
   return (
-    <div className="w-full bg-white border-b-2 border-gray-200 px-12 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
+    <div className="w-full bg-white border-b-2 border-gray-200 px-5 py-1 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-16 box-border">
       {/* LEFT SECTION: Logo */}
       <div
-        className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0"
+        className="flex items-center gap-2.5 cursor-pointer hover:scale-105 transition-transform shrink-0"
         onClick={() => onNavigate("Ana Sayfa")}
       >
-        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center border-b-4 border-yellow-300 shadow-sm overflow-hidden relative z-10">
+        <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center border-b-[3px] border-yellow-300 shadow-sm overflow-hidden relative">
           <img
             src={MufiLogo}
             alt="GoMufi"
@@ -104,12 +89,12 @@ const Navbar: React.FC<NavbarProps> = ({
         <img
           src={LogoText}
           alt="GoMufi Text"
-          className="h-16 object-contain hidden lg:block relative z-0"
+          className="h-6 object-contain hidden lg:block"
         />
       </div>
 
       {/* CENTER SECTION: Navigation Items */}
-      <div className="flex items-center gap-4 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-2">
+      <div className="flex-1 flex items-center justify-center gap-1.5 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-4 mx-4">
         {navItems.map((item) => (
           <NavItem
             key={item.label}
@@ -119,29 +104,30 @@ const Navbar: React.FC<NavbarProps> = ({
             onClick={() => onNavigate(item.label)}
           />
         ))}
+
+        {/* BUILDER BUTTON (DEBUG) - Moved inside center group for better flow */}
+        <button
+          onClick={() => onNavigate("Builder")}
+          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
+                         ${
+                           activePage === "Builder"
+                             ? "bg-rose-100 border-rose-400 border-b-rose-400 text-rose-500"
+                             : "bg-transparent border-transparent border-b-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200 hover:border-b-gray-200"
+                         }
+                         `}
+        >
+          <span className="text-sm">🛠️</span>
+          <span className="font-black tracking-wider uppercase font-sans text-[10px] whitespace-nowrap">
+            Builder
+          </span>
+        </button>
       </div>
-      {/* BUILDER BUTTON (DEBUG) */}
-      <button
-        onClick={() => onNavigate("Builder")}
-        className={`flex items-center gap-3 px-6 py-3 rounded-2xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 shrink-0
-                     ${
-                       activePage === "Builder"
-                         ? "bg-rose-100 border-rose-400 border-b-rose-400 text-rose-500"
-                         : "bg-transparent border-transparent border-b-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600 hover:border-gray-200 hover:border-b-gray-200"
-                     }
-                     `}
-      >
-        <span className="text-xl">🛠️</span>
-        <span className="font-black tracking-wider uppercase font-sans text-sm whitespace-nowrap">
-          Builder
-        </span>
-      </button>
 
       {/* RIGHT SECTION: Profile Dropdown + Stats */}
-      <div className="flex items-center gap-6">
+      <div className="flex items-center gap-3">
         {/* Stats Row */}
         {currentCourse && (
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-3">
             {/* Fire / Streak */}
             <div
               className="flex items-center gap-1.5 group cursor-pointer"
@@ -162,7 +148,7 @@ const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1.5 group cursor-pointer"
               title="Elmaslar"
             >
-              <span className="text-lg group-hover:scale-110 transition-transform block text-sky-400">
+              <span className="text-sm group-hover:scale-110 transition-transform block text-sky-400">
                 💎
               </span>
               <span className="text-sm font-black text-sky-500 font-display">
@@ -175,7 +161,7 @@ const Navbar: React.FC<NavbarProps> = ({
               className="flex items-center gap-1.5 group cursor-pointer"
               title="Canlar"
             >
-              <span className="text-lg group-hover:scale-110 transition-transform block text-red-500">
+              <span className="text-sm group-hover:scale-110 transition-transform block text-red-500">
                 ❤️
               </span>
               <span className="text-sm font-black text-red-500 font-display">
@@ -188,7 +174,7 @@ const Navbar: React.FC<NavbarProps> = ({
         {/* Profile Dropdown Container */}
         <div className="relative">
           <button
-            className="w-12 h-12 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-2xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
+            className="w-10 h-10 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
             onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
           >
             👨‍🏫
@@ -201,14 +187,9 @@ const Navbar: React.FC<NavbarProps> = ({
                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">
                   Oturum Açıldı
                 </span>
-                <span className="text-lg font-black text-gray-800 font-display truncate block max-w-full">
-                  {displayName}
+                <span className="text-sm font-black text-gray-800 font-display">
+                  Mufi Öğrenci
                 </span>
-                {userData?.student_code && (
-                  <div className="mt-2 px-2 py-1 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black border border-indigo-100 uppercase tracking-tighter text-center">
-                    KOD: {userData.student_code}
-                  </div>
-                )}
               </div>
               <div className="flex flex-col p-2">
                 <button
@@ -220,10 +201,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
                   <span>⚙️</span> Ayarlar
                 </button>
-                <button
-                  className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2"
-                  onClick={handleLogout}
-                >
+                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
                   <span>🚪</span> Çıkış Yap
                 </button>
               </div>

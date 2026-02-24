@@ -1,56 +1,36 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useOutletContext } from "react-router-dom";
 import api from "../api";
-import { useAuth } from "../hooks/useAuth";
 
 const CompleteProfilePage: React.FC<{
   userData?: any;
   availableTags?: string[];
 }> = ({ userData: propUserData, availableTags: globalAvailableTags = [] }) => {
   const navigate = useNavigate();
-  const { userData: hookUserData, loading: authLoading } = useAuth();
-  const userData = propUserData || hookUserData;
+  const { userData: outletUserData }: any = useOutletContext() || {};
+  const userData = propUserData || outletUserData;
 
   const role = userData?.role;
 
-  useEffect(() => {
-    if (!authLoading && !userData) {
-      navigate("/auth");
-      return;
-    }
-    if (role === "parent") {
-      navigate("/parent");
-    }
-  }, [role, navigate, authLoading, userData]);
-
   // Form fields
-  const [nickname, setNickname] = useState("");
-  const [gradeLevel, setGradeLevel] = useState("");
-  const [educationLevel, setEducationLevel] = useState("");
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [nickname, setNickname] = useState(
+    role === "student" ? userData?.nickname || "" : ""
+  );
+  const [gradeLevel, setGradeLevel] = useState(
+    role === "student" && userData?.grade_level !== "Unknown"
+      ? userData?.grade_level
+      : ""
+  );
+  const [educationLevel, setEducationLevel] = useState(
+    role === "student" && userData?.education_level !== "Unknown"
+      ? userData?.education_level
+      : ""
+  );
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
+  );
   const [availableTags, setAvailableTags] =
     useState<string[]>(globalAvailableTags);
-
-  useEffect(() => {
-    if (userData) {
-      setNickname(role === "student" ? userData?.nickname || "" : "");
-      setGradeLevel(
-        role === "student" && userData?.grade_level !== "Unknown"
-          ? userData?.grade_level
-          : "",
-      );
-      setEducationLevel(
-        role === "student" && userData?.education_level !== "Unknown"
-          ? userData?.education_level
-          : "",
-      );
-      setSelectedTags(
-        userData?.expertises
-          ? userData.expertises.split(",").filter(Boolean)
-          : [],
-      );
-    }
-  }, [userData, role]);
 
   useEffect(() => {
     if (globalAvailableTags.length > 0) {
@@ -83,6 +63,7 @@ const CompleteProfilePage: React.FC<{
   // Based on the instruction, userData is guaranteed to be available when this component renders.
   // Thus, loading can be initialized to false directly, or the state can be removed if not used elsewhere.
   // Keeping it as useState(false) for consistency, assuming userData is always present.
+  const [loading, setLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -102,14 +83,7 @@ const CompleteProfilePage: React.FC<{
         expertises: selectedTags.join(","),
       });
       // Use window.location.href to force a full reload and update global user state in App.tsx
-      // Redirect to the appropriate dashboard based on role
-      if (role === "teacher") {
-        window.location.href = "/instructor";
-      } else if (role === "student") {
-        window.location.href = "/student";
-      } else {
-        window.location.href = "/";
-      }
+      window.location.href = "/";
     } catch (error) {
       console.error("Error updating profile:", error);
       alert("Profil güncellenirken bir hata oluştu.");
@@ -118,7 +92,7 @@ const CompleteProfilePage: React.FC<{
     }
   };
 
-  if (authLoading)
+  if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center">
         Yükleniyor...

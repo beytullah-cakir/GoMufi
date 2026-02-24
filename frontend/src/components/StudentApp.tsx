@@ -24,169 +24,166 @@ import PencilIcon from "../assets/sprites/Pencil.png";
 import PuzzleIcon from "../assets/sprites/Puzzle.png";
 import TrophyIcon from "../assets/sprites/Trophy.png";
 
-import { useAuth } from "../hooks/useAuth";
-
-// --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (
-  startId: number,
-  lessonNum: number,
-  isLockedStart: boolean,
-  lessonTopic: string,
-  showStars: boolean,
-): PathNode[] => {
-  const baseId = startId;
-  const isLessonLocked = isLockedStart;
-
-  return [
-    {
-      id: baseId,
-      type: "step", // Number Node 1 -> Brain
-      button: ButtonPurple,
-      icon: BrainIcon,
-      curve: "up",
-      iconSize: "w-20 h-20", // Slightly smaller than main
-      iconOffset: "-mt-22",
-      ringColor: "border-fuchsia-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-fuchsia-100 to-fuchsia-400",
-      pastelColor: "#fae8ff",
-      glowColor: "rgba(232, 121, 249, 0.4)",
-      strokeColor: "#c026d3",
-      baseColor: "#d946ef",
-      title: "BÖLÜM 1",
-      stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 1,
-      type: "start", // BRAIN
-      button: ButtonPurple,
-      icon: BrainIcon,
-      curve: "down",
-      iconSize: "w-24 h-24",
-      iconOffset: "-mt-24",
-      ringColor: "border-fuchsia-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-fuchsia-100 to-fuchsia-400",
-      pastelColor: "#fae8ff",
-      glowColor: "rgba(232, 121, 249, 0.4)",
-      strokeColor: "#c026d3",
-      baseColor: "#d946ef",
-      title: "ANLA: Konuyu Kavra",
-      stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 2,
-      type: "step", // Number Node 2 -> Pencil
-      button: ButtonCyan,
-      icon: PencilIcon,
-      curve: "up",
-      iconSize: "w-24 h-24", // Slightly smaller
-      iconOffset: "-mt-20",
-      ringColor: "border-cyan-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-cyan-100 to-cyan-400",
-      pastelColor: "#cffafe",
-      glowColor: "rgba(34, 211, 238, 0.4)",
-      strokeColor: "#0891b2",
-      baseColor: "#06b6d4",
-      title: "BÖLÜM 2",
-      stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 3,
-      type: "paw", // PENCIL
-      button: ButtonCyan,
-      icon: PencilIcon,
-      curve: "down",
-      iconSize: "w-28 h-28",
-      iconOffset: "-mt-20",
-      ringColor: "border-cyan-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-cyan-100 to-cyan-400",
-      pastelColor: "#cffafe",
-      glowColor: "rgba(34, 211, 238, 0.4)",
-      strokeColor: "#0891b2",
-      baseColor: "#06b6d4",
-      title: "UYGULA: Alıştırma Yap",
-      stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 4,
-      type: "step", // Number Node 3 -> Puzzle
-      button: ButtonGreen,
-      icon: PuzzleIcon,
-      curve: "up",
-      iconSize: "w-20 h-20",
-      iconOffset: "-mt-20",
-      ringColor: "border-green-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-green-100 to-green-400",
-      pastelColor: "#dcfce7",
-      glowColor: "rgba(74, 222, 128, 0.4)",
-      strokeColor: "#16a34a",
-      baseColor: "#22c55e",
-      title: "BÖLÜM 3",
-      stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 5,
-      type: "paw", // PUZZLE
-      button: ButtonGreen,
-      icon: PuzzleIcon,
-      curve: "down",
-      iconSize: "w-22 h-22",
-      iconOffset: "-mt-22",
-      ringColor: "border-green-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-green-100 to-green-400",
-      pastelColor: "#dcfce7",
-      glowColor: "rgba(74, 222, 128, 0.4)",
-      strokeColor: "#16a34a",
-      baseColor: "#22c55e",
-      title: "BİRLEŞTİR: Parçaları Tamamla",
-      stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
-      isLocked: isLessonLocked,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-    {
-      id: baseId + 6,
-      type: "chest", // TROPHY
-      button: ButtonYellow,
-      icon: TrophyIcon,
-      curve: "up",
-      iconSize: "w-24 h-24",
-      iconOffset: "-mt-24",
-      // Yellow Scheme
-      ringColor: "border-yellow-400 bg-white",
-      numberGradient: "bg-gradient-to-b from-yellow-100 to-yellow-400",
-      pastelColor: "#fef9c3",
-      glowColor: "rgba(250, 204, 21, 0.4)",
-      strokeColor: "#ca8a04",
-      baseColor: "#eab308",
-      title: "ÜRET: Kendini Göster",
-      stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
-      isLocked: isLessonLocked,
-      lastInLesson: true,
-      lessonNumber: lessonNum,
-      lessonTopic: lessonTopic,
-    },
-  ];
-};
-
 function StudentApp() {
   const [activePage, setActivePage] = useState("Ana Sayfa");
   const [activeCourseId, setActiveCourseId] = useState<string>("Python");
-  const { userData, loading } = useAuth();
+
+  // --- Helper to Generate Lesson Nodes ---
+  const generateLessonNodes = (
+    startId: number,
+    lessonNum: number,
+    isLockedStart: boolean,
+    lessonTopic: string,
+    showStars: boolean,
+  ): PathNode[] => {
+    const baseId = startId;
+    const isLessonLocked = isLockedStart;
+
+    return [
+      {
+        id: baseId,
+        type: "step", // Number Node 1 -> Brain
+        button: ButtonPurple,
+        icon: BrainIcon,
+        curve: "up",
+        iconSize: "w-16 h-16", // Slightly smaller
+        iconOffset: "-mt-16",
+        ringColor: "border-fuchsia-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-fuchsia-100 to-fuchsia-400",
+        pastelColor: "#fae8ff",
+        glowColor: "rgba(232, 121, 249, 0.4)",
+        strokeColor: "#c026d3",
+        baseColor: "#d946ef",
+        title: "BÖLÜM 1",
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 1,
+        type: "start", // BRAIN
+        button: ButtonPurple,
+        icon: BrainIcon,
+        curve: "down",
+        iconSize: "w-20 h-20",
+        iconOffset: "-mt-20",
+        ringColor: "border-fuchsia-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-fuchsia-100 to-fuchsia-400",
+        pastelColor: "#fae8ff",
+        glowColor: "rgba(232, 121, 249, 0.4)",
+        strokeColor: "#c026d3",
+        baseColor: "#d946ef",
+        title: "ANLA: Konuyu Kavra",
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 2,
+        type: "step", // Number Node 2 -> Pencil
+        button: ButtonCyan,
+        icon: PencilIcon,
+        curve: "up",
+        iconSize: "w-18 h-18", // Slightly smaller
+        iconOffset: "-mt-16",
+        ringColor: "border-cyan-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-cyan-100 to-cyan-400",
+        pastelColor: "#cffafe",
+        glowColor: "rgba(34, 211, 238, 0.4)",
+        strokeColor: "#0891b2",
+        baseColor: "#06b6d4",
+        title: "BÖLÜM 2",
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 3,
+        type: "paw", // PENCIL
+        button: ButtonCyan,
+        icon: PencilIcon,
+        curve: "down",
+        iconSize: "w-22 h-22",
+        iconOffset: "-mt-16",
+        ringColor: "border-cyan-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-cyan-100 to-cyan-400",
+        pastelColor: "#cffafe",
+        glowColor: "rgba(34, 211, 238, 0.4)",
+        strokeColor: "#0891b2",
+        baseColor: "#06b6d4",
+        title: "UYGULA: Alıştırma Yap",
+        stars: showStars ? (isLessonLocked ? 0 : 2) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 4,
+        type: "step", // Number Node 3 -> Puzzle
+        button: ButtonGreen,
+        icon: PuzzleIcon,
+        curve: "up",
+        iconSize: "w-16 h-16",
+        iconOffset: "-mt-16",
+        ringColor: "border-green-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-green-100 to-green-400",
+        pastelColor: "#dcfce7",
+        glowColor: "rgba(74, 222, 128, 0.4)",
+        strokeColor: "#16a34a",
+        baseColor: "#22c55e",
+        title: "BÖLÜM 3",
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 5,
+        type: "paw", // PUZZLE
+        button: ButtonGreen,
+        icon: PuzzleIcon,
+        curve: "down",
+        iconSize: "w-18 h-18",
+        iconOffset: "-mt-18",
+        ringColor: "border-green-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-green-100 to-green-400",
+        pastelColor: "#dcfce7",
+        glowColor: "rgba(74, 222, 128, 0.4)",
+        strokeColor: "#16a34a",
+        baseColor: "#22c55e",
+        title: "BİRLEŞTİR: Parçaları Tamamla",
+        stars: showStars ? (isLessonLocked ? 0 : 1) : undefined,
+        isLocked: isLessonLocked,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+      {
+        id: baseId + 6,
+        type: "chest", // TROPHY
+        button: ButtonYellow,
+        icon: TrophyIcon,
+        curve: "up",
+        iconSize: "w-20 h-20",
+        iconOffset: "-mt-20",
+        // Yellow Scheme
+        ringColor: "border-yellow-400 bg-white",
+        numberGradient: "bg-gradient-to-b from-yellow-100 to-yellow-400",
+        pastelColor: "#fef9c3",
+        glowColor: "rgba(250, 204, 21, 0.4)",
+        strokeColor: "#ca8a04",
+        baseColor: "#eab308",
+        title: "ÜRET: Kendini Göster",
+        stars: showStars ? (isLessonLocked ? 0 : 3) : undefined,
+        isLocked: isLessonLocked,
+        lastInLesson: true,
+        lessonNumber: lessonNum,
+        lessonTopic: lessonTopic,
+      },
+    ];
+  };
 
   // Initial Course Data
   const [courses, setCourses] = useState<Record<string, CourseData>>(() => {
@@ -272,19 +269,6 @@ function StudentApp() {
     };
   });
 
-  if (loading) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-white">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin"></div>
-          <p className="font-black text-gray-400 uppercase tracking-widest text-sm">
-            Yükleniyor...
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   const handleCourseChange = (id: string) => {
     setActiveCourseId(id);
   };
@@ -302,12 +286,10 @@ function StudentApp() {
             activeCourseId={activeCourseId}
             courses={courses}
             onCourseChange={handleCourseChange}
-            userData={userData}
           />
         )}
-        <div
-          className={`flex-1 relative w-full ${activePage === "Ana Sayfa" ? "overflow-hidden" : "overflow-y-auto"}`}
-        >
+
+        <div className="flex-1 overflow-y-auto relative w-full">
           {activePage === "Ana Sayfa" ? (
             <HomePage
               currentCourse={currentCourse}
