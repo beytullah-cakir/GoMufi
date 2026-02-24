@@ -33,36 +33,13 @@ const HomePage: React.FC<HomePageProps> = ({
     { id: 4, name: "Ece", status: "online", avatarSeed: 101 },
   ];
 
-  // Derived Header State from currentCourse
-  const headerInfo = React.useMemo(() => {
-    if (!currentCourse)
-      return {
-        color: "#58cc02",
-        title: "İngilizce temellerini at",
-        subtitle: "BÖLÜM 1, ÜNİTE 1",
-      };
-
-    const reversedNodes = [...currentCourse.nodes].reverse();
-    const lastUnlockedNode = reversedNodes.find((node) => !node.isLocked);
-
-    if (lastUnlockedNode) {
-      return {
-        color: lastUnlockedNode.baseColor,
-        title: lastUnlockedNode.title,
-        subtitle: `BÖLÜM 1, DERS ${lastUnlockedNode.id}`,
-      };
-    }
-
-    return {
-      color: currentCourse.themeColor,
-      title: currentCourse.defaultHeader.title,
-      subtitle: currentCourse.defaultHeader.subtitle,
-    };
-  }, [currentCourse]);
-
-  const headerColor = headerInfo.color;
-  const headerTitle = headerInfo.title;
-  const headerSubtitle = headerInfo.subtitle;
+  // Dynamic Header State
+  const [headerColor, setHeaderColor] = useState<string>("#58cc02"); // Default Green
+  const [headerTitle, setHeaderTitle] = useState<string>(
+    "İngilizce temellerini at",
+  );
+  const [headerSubtitle, setHeaderSubtitle] =
+    useState<string>("BÖLÜM 1, ÜNİTE 1");
 
   // Game Overlay State
   const [showGameOverlay, setShowGameOverlay] = useState(false);
@@ -72,11 +49,33 @@ const HomePage: React.FC<HomePageProps> = ({
   const [showLessonSlide, setShowLessonSlide] = useState(false);
   const [lessonLevel, setLessonLevel] = useState<number | null>(null);
 
+  // Initialize/Update Header when currentCourse changes
+  useEffect(() => {
+    if (currentCourse) {
+      // Find the last unlocked node (highest ID that is not locked)
+      const reversedNodes = [...currentCourse.nodes].reverse();
+      const lastUnlockedNode = reversedNodes.find((node) => !node.isLocked);
+
+      if (lastUnlockedNode) {
+        setHeaderColor(lastUnlockedNode.baseColor);
+        setHeaderTitle(lastUnlockedNode.title);
+        setHeaderSubtitle(`BÖLÜM 1, DERS ${lastUnlockedNode.id}`);
+      } else {
+        setHeaderColor(currentCourse.themeColor);
+        setHeaderTitle(currentCourse.defaultHeader.title);
+        setHeaderSubtitle(currentCourse.defaultHeader.subtitle);
+      }
+    }
+  }, [currentCourse]); // Re-run when course changes
+
   const handleNodeClick = (node: PathNode) => {
     if (activeNodeId === node.id) {
       setActiveNodeId(null);
     } else {
       setActiveNodeId(node.id);
+      setHeaderColor(node.baseColor);
+      setHeaderTitle(node.title);
+      setHeaderSubtitle(`BÖLÜM 1, DERS ${node.id}`);
     }
   };
 
@@ -145,20 +144,22 @@ const HomePage: React.FC<HomePageProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col items-center overflow-hidden">
+    <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
       {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-      <div className="w-full px-8 pt-4 flex justify-between items-start z-30 relative gap-4">
-        {/* Left Side Container: Course Box + Unit Header + Instructor Widget + Clan Widget */}
-        <div className="flex items-center gap-3 shrink-0">
+      <div className="w-full px-4 md:px-8 pt-6 flex flex-wrap lg:flex-nowrap justify-between items-start gap-4 z-30 relative">
+        {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink">
           {/* Course Info Box (Dropdown Enabled) */}
           <div className="relative">
             <div
-              className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+              className="w-16 h-16 rounded-xl border-2 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
               style={courseBoxStyle}
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
             >
-              <span className="text-4xl mb-1">{currentCourse.icon}</span>
-              <span className="font-black text-sm uppercase tracking-wider font-display">
+              <span className="text-xl md:text-2xl mb-0">
+                {currentCourse.icon}
+              </span>
+              <span className="font-black text-[7px] md:text-[8px] uppercase tracking-widest font-black font-display">
                 {currentCourse.title}
               </span>
               {/* Dropdown Indicator */}
@@ -180,14 +181,14 @@ const HomePage: React.FC<HomePageProps> = ({
 
             {/* DROPDOWN MENU */}
             {isDropdownOpen && (
-              <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="absolute top-[105%] left-0 w-44 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                 {Object.values(courses).map((course) => (
                   <div
                     key={course.id}
                     className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? "bg-gray-50" : ""}`}
                     onClick={() => handleCourseChange(course.id)}
                   >
-                    <span className="text-2xl">{course.icon}</span>
+                    <span className="text-xl">{course.icon}</span>
                     <span
                       className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? "text-gray-900" : "text-gray-500"}`}
                     >
@@ -202,46 +203,47 @@ const HomePage: React.FC<HomePageProps> = ({
             )}
           </div>
 
+          {/* Unit Header (Left) */}
           <div
-            className="rounded-2xl p-4 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[410px] h-28 transition-[background-color,width] duration-500 ease-in-out border-b-4 border-black/10"
+            className="rounded-2xl p-3 md:p-3.5 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[280px] h-16 md:h-16 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
             style={{ backgroundColor: headerColor }}
           >
             {/* Status Bar Top Line */}
             <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
 
-            <div className="relative z-10 flex flex-col justify-center flex-1 h-full py-1">
-              <h1 className="text-xl md:text-2xl font-black font-display tracking-tight drop-shadow-sm leading-tight max-w-[220px]">
-                {headerTitle}
-              </h1>
-              <h2 className="text-[10px] font-black tracking-widest opacity-90 uppercase font-display leading-none mt-1">
+            <div className="relative z-10">
+              <h2 className="text-[9px] font-black tracking-widest opacity-90 mb-1 uppercase font-display">
                 {headerSubtitle}
               </h2>
+              <h1 className="text-xl md:text-2xl font-black font-display tracking-tight drop-shadow-sm">
+                {headerTitle}
+              </h1>
             </div>
 
-            <button className="bg-white/20 hover:bg-white/30 text-white font-black px-5 py-3 rounded-xl text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
+            <button className="bg-white/20 hover:bg-white/30 text-white font-black px-3 py-1.5 rounded-lg text-[10px] transition-colors uppercase tracking-wider flex items-center gap-1.5 border-2 border-transparent">
               <span className="text-xl">📖</span> REHBER
             </button>
           </div>
 
           {/* Instructor Widget */}
-          <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
+          <div className="hidden lg:flex h-16 md:h-16 px-3 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-4 shadow-sm ml-1">
             {/* Avatar */}
             <div className="relative">
-              <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
+              <div className="w-9 h-9 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-xl">
                 {currentCourse.instructor.avatar}
               </div>
               {/* Online Status Dot */}
               {currentCourse.instructor.isOnline && (
-                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+                <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
               )}
             </div>
 
             {/* Info */}
             <div className="flex flex-col justify-center">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
+              <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
                 Eğitmen
               </span>
-              <span className="text-lg font-black text-gray-800 font-display leading-tight mb-1">
+              <span className="text-sm font-black text-gray-800 font-display leading-none mb-1">
                 {currentCourse.instructor.name}
               </span>
               <span
@@ -255,53 +257,52 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {/* Chat Action */}
-            <button className="w-10 h-10 ml-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
+            <button className="w-8 h-8 ml-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
               <span className="text-xl">💬</span>
             </button>
           </div>
 
           {/* CLAN WIDGET (New - Matches Instructor Height) */}
-          {/* Clan Widget */}
           <div
-            className="hidden xl:flex h-28 px-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-4 shadow-sm shadow-indigo-200 relative group hover:scale-[1.02] transition-all cursor-pointer border-b-4 border-indigo-700 w-[270px] shrink-0"
+            className="hidden xl:flex h-16 md:h-16 px-3 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-5 shadow-sm shadow-indigo-200 ml-1 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700"
             onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
           >
             {/* Background Deco */}
             <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
-              <Swords size={24} />
+              <Swords size={20} />
             </div>
 
             {/* Icon */}
             <div className="relative z-10">
-              <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl shadow-md backdrop-blur-sm">
+              <div className="w-9 h-9 rounded-lg bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl shadow-md backdrop-blur-sm">
                 🚀
               </div>
             </div>
 
             {/* Info */}
-            <div className="flex flex-col justify-center relative z-10 text-white flex-1 h-full py-1">
-              <div className="flex items-center gap-2">
-                <span className="font-black text-lg font-display leading-tight">
+            <div className="flex flex-col justify-center relative z-10 text-white min-w-[100px]">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className="font-black text-sm font-display leading-none">
                   Kod Korsanları
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-indigo-100 opacity-90">
-                <Users size={12} />
-                <span className="text-[10px] font-bold uppercase tracking-wider leading-none">
+              <div className="flex items-center gap-2 text-indigo-100 mb-1">
+                <Users size={10} />
+                <span className="text-[7.5px] font-bold uppercase tracking-wider">
                   Lvl 5 Klan
                 </span>
               </div>
             </div>
 
             {/* Separator */}
-            <div className="h-12 w-px bg-white/20 relative z-10"></div>
+            <div className="h-8 w-px bg-white/20 relative z-10"></div>
 
             {/* Stats / Role */}
             <div className="flex flex-col items-center justify-center relative z-10 text-white">
-              <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">
+              <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">
                 KLAN SKORU
               </span>
-              <span className="text-xl font-black text-yellow-300 font-display leading-tight">
+              <span className="text-sm font-black text-yellow-300 font-display leading-tight">
                 24.5k
               </span>
             </div>
@@ -362,7 +363,7 @@ const HomePage: React.FC<HomePageProps> = ({
         {/* Right Column: Stats + Widgets */}
         <div className="flex flex-col items-end relative z-50">
           {/* User Stats Row */}
-          <div className="flex flex-col gap-2 w-64 lg:w-72">
+          <div className="flex flex-col gap-2 w-64">
             {/* REDESIGNED XP BAR */}
             <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
               {/* Background Progress Tint */}
@@ -387,7 +388,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   <span className="text-sm font-black text-white">III</span>
                 </div>
                 <div className="flex flex-col">
-                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-tight">
+                  <span className="text-[8px] font-bold text-gray-400 uppercase tracking-wider leading-none">
                     {currentCourse.stats.league}
                   </span>
                   <span className="text-sm font-black text-gray-700 font-display">
@@ -399,26 +400,26 @@ const HomePage: React.FC<HomePageProps> = ({
               {/* Segmented Bar */}
               <div className="flex gap-1 relative z-10">
                 <div
-                  className={`w-2 h-6 rounded-sm ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
+                  className={`w-1.5 h-4 rounded-xs ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
                 ></div>
                 <div
-                  className={`w-2 h-6 rounded-sm ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
+                  className={`w-1.5 h-4 rounded-xs ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
                 ></div>
                 <div
-                  className={`w-2 h-6 rounded-sm ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
+                  className={`w-1.5 h-4 rounded-xs ${currentCourse.id === "Matematik" ? "bg-blue-400" : "bg-yellow-400"}`}
                 ></div>
-                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
-                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
+                <div className="w-1.5 h-4 rounded-xs bg-gray-200"></div>
+                <div className="w-1.5 h-4 rounded-xs bg-gray-200"></div>
               </div>
             </div>
           </div>
 
           {/* Right Sidebar Widgets */}
-          <div className="hidden xl:flex flex-col gap-4 w-64 lg:w-72 mt-3 shrink-0">
+          <div className="absolute top-full mt-4 right-0 hidden xl:flex flex-col gap-4 w-64">
             {/* Daily Quest Widget */}
-            <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all group">
-              <div className="flex justify-between items-center mb-5">
-                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">
+            <div className="bg-white rounded-2xl border-2 border-gray-200 border-b-4 p-3 shadow-sm hover:shadow-md transition-all group">
+              <div className="flex justify-between items-center mb-2.5">
+                <h3 className="text-gray-700 font-black text-base font-display tracking-tight">
                   Günlük Görevler
                 </h3>
                 <a
@@ -428,9 +429,9 @@ const HomePage: React.FC<HomePageProps> = ({
                   TÜMÜ
                 </a>
               </div>
-              <div className="space-y-5">
+              <div className="space-y-2.5">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">
                     ⚡
                   </div>
                   <div className="flex-1">
@@ -448,7 +449,7 @@ const HomePage: React.FC<HomePageProps> = ({
                   </div>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">
                     🎯
                   </div>
                   <div className="flex-1">
@@ -489,7 +490,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                     }
                 `}</style>
-        <div className="w-full h-full overflow-x-auto overflow-y-hidden flex items-center no-scrollbar pt-0 pb-32">
+        <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-64 pb-40 select-none">
           <div
             key={activeCourseId}
             className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
@@ -503,34 +504,10 @@ const HomePage: React.FC<HomePageProps> = ({
                   <React.Fragment key={node.id}>
                     {/* Node Container */}
                     <div
-                      className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === "up" ? "mt-32" : "-mt-12"} ${node.isLocked ? "grayscale opacity-75 pointer-events-none" : ""}`}
+                      className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === "up" ? "mt-16" : "-mt-8"} ${node.isLocked ? "grayscale opacity-75 pointer-events-none" : ""}`}
                       onClick={() => !node.isLocked && handleNodeClick(node)}
                     >
-                      {/* Stars Rendering */}
-                      {node.stars !== undefined && (
-                        <div className="absolute top-35 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
-                          {[0, 1, 2].map((i) => (
-                            <svg
-                              key={i}
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 24 24"
-                              fill="currentColor"
-                              className={`w-8 h-8 drop-shadow-md transition-transform
-                                                                ${i < (node.stars || 0) ? "text-yellow-400" : "text-gray-300"}
-                                                                ${i === 0 ? "rotate-6" : ""}
-                                                                ${i === 1 ? "translate-y-1 scale-110" : ""}
-                                                                ${i === 2 ? "-rotate-6" : ""}
-                                                            `}
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          ))}
-                        </div>
-                      )}
+
 
                       {/* Text Bubble */}
                       <div
@@ -541,7 +518,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         }`}
                       >
                         {/* DYNAMIC CARD BUBBLE */}
-                        <div className="relative min-w-[280px] transform hover:-translate-y-1 transition-transform duration-300 group/bubble cursor-default">
+                        <div className="relative min-w-[240px] transform hover:-translate-y-1 transition-transform duration-300 group/bubble cursor-default">
                           {/* Glow/Background Container */}
                           <div
                             className="absolute inset-0 rounded-3xl overflow-hidden shadow-xl border-x-2 border-t-2 border-b-[6px]"
@@ -601,14 +578,14 @@ const HomePage: React.FC<HomePageProps> = ({
                       <img
                         src={node.button}
                         alt="Button"
-                        className="w-40 relative z-10"
+                        className="w-32 relative z-10"
                       />
 
                       {/* Ground Shadow - Independent from floating icon */}
                       {node.icon && (
                         <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
                           <div
-                            className="w-14 h-4 bg-gray-300 rounded-[100%] animate-shadow-pulse -mt-10"
+                            className="w-14 h-4 bg-gray-300 rounded-[100%] animate-shadow-pulse -mt-8"
                             style={{
                               animationDelay: `${index * 0.5 * -1}s`,
                             }}
@@ -624,14 +601,14 @@ const HomePage: React.FC<HomePageProps> = ({
                           <>
                             {/* Back Glow Effect - Double Layer */}
                             <div
-                              className="absolute w-36 h-36 rounded-full blur-3xl opacity-100 animate-pulse"
+                              className="absolute w-28 h-28 rounded-full blur-3xl opacity-100 animate-pulse"
                               style={{
                                 backgroundColor: node.pastelColor,
                                 animationDelay: `${index * 0.5 * -1}s`,
                               }}
                             ></div>
                             <div
-                              className="absolute w-16 h-16 bg-white rounded-full blur-2xl opacity-80 animate-pulse"
+                              className="absolute w-12 h-12 bg-white rounded-full blur-2xl opacity-80 animate-pulse"
                               style={{
                                 animationDelay: `${index * 0.5 * -1}s`,
                               }}
@@ -653,11 +630,11 @@ const HomePage: React.FC<HomePageProps> = ({
                               style={{ animationDelay: `${index * 0.5 * -1}s` }}
                             >
                               <span
-                                className="text-2xl font-black tracking-wider select-none"
+                                className="text-xl font-black tracking-wider select-none"
                                 style={{
                                   fontFamily: "'Fredoka', sans-serif",
                                   color: "white",
-                                  WebkitTextStroke: `1.5px ${node.strokeColor}`,
+                                  WebkitTextStroke: "1.5px", WebkitTextStrokeColor: node.strokeColor,
                                   paintOrder: "stroke fill",
                                   filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
                                   textShadow: `2px 2px 0px ${node.strokeColor}`,
@@ -665,6 +642,30 @@ const HomePage: React.FC<HomePageProps> = ({
                               >
                                 LEVEL {levelCounter}
                               </span>
+                              {node.stars !== undefined && (
+                                <div className="flex gap-0.5 mt-1 justify-center">
+                                  {[0, 1, 2].map((i) => (
+                                    <svg
+                                      key={i}
+                                      xmlns="http://www.w3.org/2000/svg"
+                                      viewBox="0 0 24 24"
+                                      fill="currentColor"
+                                      className={`w-5 h-5 drop-shadow-md transition-transform
+                                        ${i < (node.stars || 0) ? "text-yellow-400" : "text-gray-300"}
+                                        ${i === 0 ? "rotate-6" : ""}
+                                        ${i === 1 ? "translate-y-1 scale-110" : ""}
+                                        ${i === 2 ? "-rotate-6" : ""}
+                                      `}
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z"
+                                        clipRule="evenodd"
+                                      />
+                                    </svg>
+                                  ))}
+                                </div>
+                              )}
                             </div>
                           </>
                         ) : null}
@@ -688,7 +689,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             <div className="relative w-full flex flex-col items-center">
                               {/* Topic Badge */}
                               <div className="bg-white px-8 py-3 rounded-2xl shadow-none border-2 border-gray-100 flex flex-col items-center transform hover:scale-105 transition-transform cursor-pointer z-10">
-                                <span className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">
+                                <span className="text-[8px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">
                                   DERS {currentNodes[index + 1].lessonNumber}
                                 </span>
                                 <span className="text-lg font-black font-display tracking-tight text-gray-800">

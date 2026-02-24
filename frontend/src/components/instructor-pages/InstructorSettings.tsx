@@ -16,7 +16,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
   const [email, setEmail] = useState(userData?.email || "");
   const [bio, setBio] = useState(userData?.bio || "");
   const [selectedTags, setSelectedTags] = useState<string[]>(
-    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : [],
+    userData?.expertises ? userData.expertises.split(",").filter(Boolean) : []
   );
   const [availableTags, setAvailableTags] =
     useState<string[]>(globalAvailableTags);
@@ -24,19 +24,6 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-
-  // Update local state when userData prop (from useAuth) loads
-  React.useEffect(() => {
-    if (userData) {
-      setFirstname(userData.first_name || "");
-      setLastname(userData.last_name || "");
-      setEmail(userData.email || "");
-      setBio(userData.bio || "");
-      if (userData.expertises) {
-        setSelectedTags(userData.expertises.split(",").filter(Boolean));
-      }
-    }
-  }, [userData]);
 
   React.useEffect(() => {
     if (globalAvailableTags.length > 0) {
@@ -236,7 +223,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
                             .filter((tag) =>
                               tag
                                 .toLowerCase()
-                                .includes(searchQuery.toLowerCase()),
+                                .includes(searchQuery.toLowerCase())
                             )
                             .map((tag) => {
                               const isSelected = selectedTags.includes(tag);
@@ -266,7 +253,7 @@ const InstructorSettings: React.FC<InstructorSettingsProps> = ({
                         </div>
 
                         {availableTags.filter((tag) =>
-                          tag.toLowerCase().includes(searchQuery.toLowerCase()),
+                          tag.toLowerCase().includes(searchQuery.toLowerCase())
                         ).length === 0 && (
                           <div className="text-center py-12">
                             <p className="text-gray-400 font-medium italic">
