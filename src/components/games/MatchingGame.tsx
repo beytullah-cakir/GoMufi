@@ -134,9 +134,9 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
 
   // Calculate Stars
   const getStars = () => {
-    if (score === 100) return 3; // 100% accuracy = 3 stars
-    if (score >= 60) return 2;  // 60-80% = 2 stars
-    if (score >= 20) return 1;  // 20-40% = 1 star
+    if (score >= 80) return 3;
+    if (score >= 40) return 2;
+    if (score > 0) return 1;
     return 0;
   };
 
