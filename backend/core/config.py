@@ -10,5 +10,8 @@ class Settings:
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS"))
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
+    IYZICO_API_KEY: str = os.getenv("IYZICO_API_KEY", "")
+    IYZICO_SECRET_KEY: str = os.getenv("IYZICO_SECRET_KEY", "")
+    IYZICO_BASE_URL: str = os.getenv("IYZICO_BASE_URL", "https://sandbox-api.iyzipay.com")
 
 settings = Settings()

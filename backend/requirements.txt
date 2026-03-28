@@ -13,3 +13,4 @@ httpx
 itsdangerous
 supabase
 python-multipart
+iyzipay
