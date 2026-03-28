@@ -5,8 +5,6 @@ import InstructorCourses from './instructor-pages/InstructorCourses';
 import InstructorStudents from './instructor-pages/InstructorStudents';
 import InstructorRevenue from './instructor-pages/InstructorRevenue';
 import InstructorSettings from './instructor-pages/InstructorSettings';
-import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
-import LessonBuilderPage from './LessonBuilderPage';
 
 const InstructorApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
@@ -30,8 +28,6 @@ const InstructorApp: React.FC = () => {
                 return <InstructorRevenue />; // Using Revenue component for Analytics
             case 'Settings':
                 return <InstructorSettings />;
-            case 'AIQuestions':
-                return <InstructorAIQuestions />;
             default:
                 return (
                     <div className="p-8">
@@ -41,10 +37,6 @@ const InstructorApp: React.FC = () => {
                 );
         }
     };
-
-    if (activePage === 'Builder') {
-        return <LessonBuilderPage onExit={() => setActivePage('Dashboard')} />;
-    }
 
     return (
         <InstructorLayout

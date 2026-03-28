@@ -37,8 +37,6 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
                 ? "Kurslarım"
                 : activePage === "Content"
                 ? "İçerik Yönetimi"
-                : activePage === "Builder"
-                ? "Ders Oluşturucu"
                 : activePage === "Students"
                 ? "Öğrenciler"
                 : activePage === "Interactions"
@@ -51,8 +49,6 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
                 ? "Gelir"
                 : activePage === "Settings"
                 ? "Ayarlar"
-                : activePage === "AIQuestions"
-                ? "YZ Soru Oluşturucu"
                 : activePage}
             </h1>
 

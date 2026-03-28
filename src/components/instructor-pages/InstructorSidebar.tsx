@@ -8,8 +8,6 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  PlusCircle,
-  Sparkles,
 } from "lucide-react";
 import api from "../../api";
 
@@ -99,16 +97,6 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "Kurslarım",
       icon: <BookOpen size={24} strokeWidth={2.5} />,
       id: "Courses",
-    },
-    {
-      label: "Ders Oluşturucu",
-      icon: <PlusCircle size={24} strokeWidth={2.5} />,
-      id: "Builder",
-    },
-    {
-      label: "YZ Soru Oluştur",
-      icon: <Sparkles size={24} strokeWidth={2.5} />,
-      id: "AIQuestions",
     },
     {
       label: "Öğrenciler",

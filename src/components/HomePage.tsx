@@ -119,19 +119,11 @@ const HomePage: React.FC<HomePageProps> = ({
             if (!currentCourseData) return prev; // Safety
 
             const updatedNodes = currentCourseData.nodes.map(node => {
-                // If it's the current node, update stars
                 if (node.id === gameLevel) {
                     return { ...node, stars: stars };
                 }
-                // Unlock the NEXT node
-                if (node.id === gameLevel + 1) {
-                    return { ...node, isLocked: false };
-                }
                 return node;
             });
-
-            // Persist progress: last completed node ID
-            localStorage.setItem(`progress_${activeCourseId}`, gameLevel.toString());
 
             return {
                 ...prev,
