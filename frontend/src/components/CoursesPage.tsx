@@ -10,7 +10,12 @@ import DataIcon from '../assets/sprites/DataIcon.png';
 import FlutterIcon from '../assets/sprites/FlutterIcon.png';
 import ChestIcon from '../assets/sprites/Chest.png';
 
-const CoursesPage: React.FC = () => {
+interface CoursesPageProps {
+    addToCart: (course: { id: number; title: string; price: string; icon: string; instructor: string; }) => void;
+    cart: { id: number; }[];
+}
+
+const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
     // const [activeCategory, setActiveCategory] = useState<string>('Hepsi'); // Removed simple category state
 
     // Expanded Mock Data matching the reference style
@@ -277,7 +282,11 @@ const CoursesPage: React.FC = () => {
                         {/* List Items */}
                         <div className="flex flex-col gap-4">
                             {courses.map((course) => (
-                                <div key={course.id} className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden">
+                                <div 
+                                    key={course.id} 
+                                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden"
+                                    onClick={() => addToCart(course)}
+                                >
                                     {/* Image / Icon Section */}
                                     {/* Using a background color placeholder if icon is small to look like thumbnail */}
                                     <div className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden`}>
@@ -321,14 +330,27 @@ const CoursesPage: React.FC = () => {
 
                                     {/* Price & Badge Section */}
                                     <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
-                                        <div className="flex flex-col items-end">
-                                            <div className="flex items-baseline gap-1 whitespace-nowrap">
-                                                <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
-                                                <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                        <div className="flex flex-col items-end w-full gap-2">
+                                            <div className="flex flex-col items-end">
+                                                <div className="flex items-baseline gap-1 whitespace-nowrap">
+                                                    <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
+                                                    <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                                </div>
+                                                {course.oldPrice && (
+                                                    <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
+                                                )}
                                             </div>
-                                            {course.oldPrice && (
-                                                <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
-                                            )}
+
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); addToCart(course); }}
+                                                className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
+                                                    ${cart.some(item => item.id === course.id)
+                                                        ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
+                                                        : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
+                                                    }`}
+                                            >
+                                                {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
+                                            </button>
                                         </div>
 
                                         {course.badge && (

@@ -106,19 +106,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 
         access_token = create_access_token(user_id=str(user_id), role=role)
         
-        print(f"DEBUG: Redirect decision - Role: {role}, IsNew: {is_new_user}, Incomplete: {is_profile_incomplete}")
-        
-        if is_new_user or is_profile_incomplete:
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/complete-profile"
-        elif role == 'teacher':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/instructor"
-        elif role == 'student':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/student"
-        else:
-            print(f"DEBUG: Unknown role {role}, defaulting to root")
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/"
-
-        print(f"DEBUG: Redirecting to {redirect_url}")
+        redirect_url = f"{FRONTEND_URL}/complete-profile" if (is_new_user or is_profile_incomplete) else f"{FRONTEND_URL}/"
         response = RedirectResponse(url=redirect_url)
         
         is_production = "localhost" not in FRONTEND_URL

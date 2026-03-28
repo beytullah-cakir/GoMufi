@@ -12,6 +12,9 @@ import {
   Layout,
   List,
   Layers,
+  Calendar,
+  Clock,
+  Video,
 } from "lucide-react";
 
 export interface Lecture {
@@ -35,6 +38,9 @@ export interface CourseData {
   requirements: string[];
   curriculum: Section[];
   price: number;
+  isLive?: boolean;
+  startDate?: string;
+  startTime?: string;
 }
 
 interface AddCourseModalProps {
@@ -65,6 +71,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     initialData?.description || ""
   );
   const [price, setPrice] = useState<number | string>(initialData?.price ?? 0);
+  const [isLive, setIsLive] = useState(initialData?.isLive || false);
+  const [startDate, setStartDate] = useState(initialData?.startDate || "");
+  const [startTime, setStartTime] = useState(initialData?.startTime || "");
 
   // Details State
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(
@@ -223,6 +232,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       requirements: requirements.filter((i) => i.trim()),
       curriculum: sections,
       price: Number(price) || 0,
+      isLive,
+      startDate,
+      startTime,
     });
   };
 
@@ -347,6 +359,61 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                       rows={6}
                       className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all resize-none"
                     />
+                  </div>
+
+                  {/* LIVE LESSON SETTINGS */}
+                  <div className="pt-4 border-t border-gray-100">
+                    <div className="flex items-center justify-between p-4 bg-sky-50 rounded-2xl border border-sky-100">
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-sky-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
+                          <Video size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-sky-900">Canlı Kurs Modu</h4>
+                          <p className="text-sky-600 text-xs font-bold">Öğrencilerle eş zamanlı buluşun</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsLive(!isLive)}
+                        className={`w-14 h-8 rounded-full transition-all relative ${
+                          isLive ? "bg-sky-500" : "bg-gray-200"
+                        }`}
+                      >
+                        <div
+                          className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${
+                            isLive ? "left-7" : "left-1"
+                          }`}
+                        />
+                      </button>
+                    </div>
+
+                    {isLive && (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 animate-slide-down">
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <Calendar size={16} className="text-sky-500" /> Başlangıç Tarihi
+                          </label>
+                          <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                            <Clock size={16} className="text-sky-500" /> Başlangıç Saati
+                          </label>
+                          <input
+                            type="time"
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
