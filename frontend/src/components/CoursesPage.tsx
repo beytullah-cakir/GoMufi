@@ -1,5 +1,6 @@
-import React from 'react';
-import { Star, Zap, Search, ChevronDown, MonitorPlay } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Star, Zap, Search, ChevronDown, MonitorPlay, Loader2 } from 'lucide-react';
+import api from '../api';
 
 // Import Icons
 import PythonIcon from '../assets/sprites/PythonIcon.png';
@@ -15,120 +16,82 @@ interface CoursesPageProps {
     cart: { id: number; }[];
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
-    // const [activeCategory, setActiveCategory] = useState<string>('Hepsi'); // Removed simple category state
+interface BackendCourse {
+    id: number;
+    title: string;
+    description?: string;
+    category?: string;
+    price: number;
+    teacher?: {
+        first_name: string;
+        last_name: string;
+    };
+}
 
-    // Expanded Mock Data matching the reference style
-    const courses = [
-        {
-            id: 1,
-            title: '(40+ Saat) Python | Sıfırdan İleri Seviye Programlama (2025)',
-            description: '(40+ Saat) - Python ve Programlama Öğrenin. Django, Web Geliştirme, Veri Analizi (Pandas, Numpy), Selenium',
-            instructor: 'Mustafa Murat Coşkun',
-            rating: 4.8,
-            ratingCount: '50.154',
-            students: '12.5k',
-            hours: '42 saat',
-            lectures: '336 ders',
-            level: 'Tüm Düzeyler',
-            price: '₺299,99',
-            oldPrice: '₺319,99',
-            badge: 'En Çok Satan',
-            badgeColor: 'bg-yellow-100 text-yellow-700',
-            icon: PythonIcon,
-            color: 'bg-yellow-400', // For button/accents
-        },
-        {
-            id: 2,
-            title: 'Komple Uygulamalı Web Geliştirme Eğitimi [2025]',
-            description: 'Sıfırdan ileri seviyeye Fullstack Web Geliştirme: HTML, CSS, Bootstrap, JavaScript, React, ASP.NET Core ve API',
-            instructor: 'Sadık Turan',
-            rating: 4.7,
-            ratingCount: '26.940',
-            students: '110k',
-            hours: '100 saat',
-            lectures: '623 ders',
-            level: 'Yeni Başlayan',
-            price: '₺349,99',
-            oldPrice: '₺399,99',
-            badge: 'En Çok Satan',
-            badgeColor: 'bg-sky-100 text-sky-700',
-            icon: ReactIcon,
-            color: 'bg-sky-500',
-        },
-        {
-            id: 3,
-            title: '(100+ Saat) Aranan Programcı Olma Kamp Kursu| Python,Java,C#',
-            description: 'Sürekli güncel kalan içeriğiyle sıfırdan Python, JAVA, C#, Flutter, Angular, React ve çok daha fazlasını öğrenin.',
-            instructor: 'Engin Demiroğ',
-            rating: 4.8,
-            ratingCount: '22.979',
-            students: '85k',
-            hours: '104.5 saat',
-            lectures: '659 ders',
-            level: 'Tüm Düzeyler',
-            price: '₺399,99',
-            oldPrice: '',
-            badge: 'Üst Düzey',
-            badgeColor: 'bg-purple-100 text-purple-700',
-            icon: JsIcon, // Using JS icon as generic code icon
-            color: 'bg-amber-500',
-        },
-        {
-            id: 4,
-            title: 'İngilizce B1-B2: Orta Seviye İngilizce Kursu',
-            description: 'Grammar, Speaking, Listening ve Reading becerilerinizi B2 seviyesine taşıyın. Bol pratik ve sınav hazırlığı.',
-            instructor: 'Sarah Teacher',
-            rating: 4.9,
-            ratingCount: '5.420',
-            students: '12k',
-            hours: '24 saat',
-            lectures: '112 ders',
-            level: 'Orta Düzey',
-            price: '₺199,99',
-            oldPrice: '₺499,99',
-            badge: 'Popüler',
-            badgeColor: 'bg-red-100 text-red-700',
-            icon: EnglishIcon,
-            color: 'bg-indigo-500',
-        },
-        {
-            id: 5,
-            title: 'Veri Bilimi ve Machine Learning Bootcamp 2025',
-            description: 'Sıfırdan Uzmanlığa: Python, R, İstatistik, Pandas, Matplotlib, Seaborn, Sklearn ve Deep Learning',
-            instructor: 'Mufi Academy',
-            rating: 4.9,
-            ratingCount: '3.150',
-            students: '8k',
-            hours: '35 saat',
-            lectures: '210 ders',
-            level: 'İleri Düzey',
-            price: '₺259,99',
-            oldPrice: '₺599,99',
-            badge: 'Yeni',
-            badgeColor: 'bg-green-100 text-green-700',
-            icon: DataIcon,
-            color: 'bg-blue-600',
-        },
-        {
-            id: 6,
-            title: 'Flutter ile Mobil Uygulama Geliştirme Rehberi',
-            description: 'Dart dili ve Flutter framework ile Android ve iOS uyumlu native performanslı mobil uygulamalar geliştirin.',
-            instructor: 'Can Hoca',
-            rating: 4.8,
-            ratingCount: '9.800',
-            students: '25k',
-            hours: '48 saat',
-            lectures: '415 ders',
-            level: 'Tüm Düzeyler',
-            price: '₺299,99',
-            oldPrice: '₺350,00',
-            badge: 'Editörün Seçimi',
-            badgeColor: 'bg-cyan-100 text-cyan-700',
-            icon: FlutterIcon,
-            color: 'bg-cyan-500',
+const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
+    const [courses, setCourses] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        fetchCourses();
+    }, []);
+
+    const fetchCourses = async () => {
+        try {
+            setIsLoading(true);
+            const response = await api.get('/courses');
+            
+            // Map backend data to frontend format
+            const mappedCourses = response.data.map((c: any) => ({
+                id: c.id,
+                title: c.title,
+                description: c.description || "Bu kurs için açıklama henüz eklenmemiş.",
+                instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : "Anonim Eğitmen",
+                rating: 4.8, // Mock for now
+                ratingCount: '0', 
+                students: '0',
+                hours: '10+ saat', // Mock for now
+                lectures: '20+ ders', // Mock for now
+                level: 'Tüm Düzeyler',
+                price: `₺${c.price.toLocaleString('tr-TR')}`,
+                oldPrice: c.price > 0 ? `₺${(c.price * 1.2).toFixed(2)}` : null,
+                badge: c.price === 0 ? 'Ücretsiz' : 'Yeni',
+                badgeColor: c.price === 0 ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700',
+                icon: getIconByCategory(c.category),
+                color: getColorByCategory(c.category),
+            }));
+            
+            setCourses(mappedCourses);
+        } catch (err: any) {
+            console.error("Courses fetch error:", err);
+            setError("Kurslar yüklenirken bir hata oluştu.");
+        } finally {
+            setIsLoading(false);
         }
-    ];
+    };
+
+    const getIconByCategory = (category?: string) => {
+        const cat = category?.toLowerCase() || "";
+        if (cat.includes("python")) return PythonIcon;
+        if (cat.includes("react") || cat.includes("web")) return ReactIcon;
+        if (cat.includes("javascript") || cat.includes("js")) return JsIcon;
+        if (cat.includes("ingilizce") || cat.includes("english")) return EnglishIcon;
+        if (cat.includes("data") || cat.includes("veri")) return DataIcon;
+        if (cat.includes("flutter") || cat.includes("mobil")) return FlutterIcon;
+        return ChestIcon; // Default
+    };
+
+    const getColorByCategory = (category?: string) => {
+        const cat = category?.toLowerCase() || "";
+        if (cat.includes("python")) return "bg-yellow-400";
+        if (cat.includes("react") || cat.includes("web")) return "bg-sky-500";
+        if (cat.includes("javascript") || cat.includes("js")) return "bg-amber-500";
+        if (cat.includes("ingilizce") || cat.includes("english")) return "bg-indigo-500";
+        if (cat.includes("data") || cat.includes("veri")) return "bg-blue-600";
+        if (cat.includes("flutter") || cat.includes("mobil")) return "bg-cyan-500";
+        return "bg-purple-500"; // Default
+    };
 
     return (
         <div className="w-full bg-white pb-20">
@@ -268,7 +231,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                     <div className="flex-1">
                         {/* List Header */}
                         <div className="flex justify-between items-center mb-4">
-                            <span className="font-bold text-gray-400 text-sm">10.000 sonuç</span>
+                            <span className="font-bold text-gray-400 text-sm">{courses.length} sonuç listeleniyor</span>
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold text-gray-500">Sırala:</span>
                                 <select className="bg-white border text-sm border-gray-200 rounded-lg px-3 py-2 font-bold text-gray-800 outline-none cursor-pointer hover:border-gray-400">
@@ -278,6 +241,34 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                                 </select>
                             </div>
                         </div>
+
+                        {/* Loading & Error States */}
+                        {isLoading && (
+                            <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+                                <p className="font-bold text-gray-400">Kurslar Yükleniyor...</p>
+                            </div>
+                        )}
+
+                        {error && (
+                            <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-8 text-center">
+                                <p className="text-red-500 font-bold mb-4">{error}</p>
+                                <button 
+                                    onClick={fetchCourses}
+                                    className="bg-red-500 text-white px-6 py-2 rounded-xl font-black hover:bg-red-600 transition-colors"
+                                >
+                                    Tekrar Dene
+                                </button>
+                            </div>
+                        )}
+
+                        {!isLoading && !error && courses.length === 0 && (
+                            <div className="bg-gray-50 border-2 border-gray-100 rounded-2xl p-12 text-center">
+                                <div className="text-5xl mb-4">📭</div>
+                                <h3 className="text-xl font-black text-gray-800 mb-2">Henüz Kurs Bulunamadı</h3>
+                                <p className="text-gray-400 font-bold">Kriterlere uygun kurs henüz eklenmemiş.</p>
+                            </div>
+                        )}
 
                         {/* List Items */}
                         <div className="flex flex-col gap-4">

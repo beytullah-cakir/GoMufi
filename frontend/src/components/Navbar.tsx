@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { ShoppingCart, X, Trash2 } from 'lucide-react';
+import { ShoppingCart, X, Trash2, LogOut, Settings, User } from 'lucide-react';
+import api from '../api';
 
 // Import sprites
 import MufiLogo from '../assets/sprites/MufiLogo.png';
-import LogoText from '../assets/sprites/LogoText.png';
-import HomeIcon from '../assets/sprites/HomeIcon.png';
-import ShopIcon from '../assets/sprites/ShopIcon.png';
-import ProfileIcon from '../assets/sprites/ProfileIcon.png';
+import LogoTextg from '../assets/sprites/LogoText.png';
+import HomeIcong from '../assets/sprites/HomeIcon.png';
+import ShopIcong from '../assets/sprites/ShopIcon.png';
+import ProfileIcong from '../assets/sprites/ProfileIcon.png';
 import BooksIcon from '../assets/sprites/BooksIcon.png';
 import ChatIcon from '../assets/sprites/ChatIcon.png';
 
@@ -57,6 +58,18 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, cart, removeFromCart }) => {
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
+
+    const handleLogout = async () => {
+        try {
+            await api.post('/auth/logout');
+            // Redirect to landing page
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Fallback: clear and redirect anyway if it fails
+            window.location.href = '/';
+        }
+    };
 
     const calculateTotal = () => {
         return cart.reduce((acc, item) => {
@@ -216,14 +229,20 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                                 <span className="text-lg font-black text-gray-800 font-display">Mufi Öğrenci</span>
                             </div>
                             <div className="flex flex-col p-2">
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" onClick={() => onNavigate('Profilim')}>
-                                    <span>👤</span> Profilim
+                                <button 
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" 
+                                    onClick={() => onNavigate('Profilim')}
+                                >
+                                    <User className="w-4 h-4" /> Profilim
                                 </button>
                                 <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
-                                    <span>⚙️</span> Ayarlar
+                                    <Settings className="w-4 h-4" /> Ayarlar
                                 </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
-                                    <span>🚪</span> Çıkış Yap
+                                <button 
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2"
+                                    onClick={handleLogout}
+                                >
+                                    <LogOut className="w-4 h-4" /> Çıkış Yap
                                 </button>
                             </div>
                         </div>
