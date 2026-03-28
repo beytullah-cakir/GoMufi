@@ -1,7 +1,6 @@
 
 import os
 from fastapi import APIRouter, Depends, HTTPException, Response
-from sqlalchemy import func
 from auth.auth_request import LoginRequest, TeacherRegisterRequest
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select

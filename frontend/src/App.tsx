@@ -1,19 +1,18 @@
-import { Routes, Route, Navigate } from "react-router-dom";
-import LandingPage from "./components/LandingPage";
-import AuthPage from "./components/AuthPage";
-import StudentApp from "./components/StudentApp";
-import InstructorApp from "./components/InstructorApp";
-import ParentApp from "./components/ParentApp";
-
-import CompleteProfilePage from "./components/CompleteProfilePage";
+import { Routes, Route, Navigate } from 'react-router-dom';
+import LandingPage from './components/LandingPage';
+import AuthPage from './components/AuthPage';
+import StudentApp from './components/StudentApp';
+import InstructorApp from './components/InstructorApp';
+import ParentApp from './components/ParentApp';
 
 function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
-      <Route path="/auth" element={<AuthPage onLogin={() => {}} />} />
-
-      <Route path="/complete-profile" element={<CompleteProfilePage />} />
+      <Route
+        path="/auth"
+        element={<AuthPage onLogin={() => { }} />}
+      />
 
       {/* Student Routes */}
       <Route path="/student/*" element={<StudentApp />} />
