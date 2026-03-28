@@ -19,15 +19,16 @@ app = FastAPI(lifespan=lifespan)
 # 1. PROXY HEADERS (Railway için zorunlu)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
-# 2. SESSION MIDDLEWARE
-# main_fastapi.py (Düzenlenen Kısımlar)
+# Production veya Local tespiti
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+is_production = "localhost" not in FRONTEND_URL
 
-# 2. SESSION MIDDLEWARE kısmını şöyle değiştirin:
+# 2. SESSION MIDDLEWARE
 app.add_middleware(
     SessionMiddleware, 
     secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar"),
-    same_site="none",  # Farklı domainler arası çerez transferi için
-    https_only=True,
+    same_site="none" if is_production else "lax", 
+    https_only=is_production,  # Local'de HTTP (False), Production'da HTTPS (True)
     max_age=3600
 )
 
