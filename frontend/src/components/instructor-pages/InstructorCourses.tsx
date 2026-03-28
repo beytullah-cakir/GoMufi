@@ -17,6 +17,9 @@ interface Course {
   learning_outcomes?: string[];
   requirements?: string[];
   curriculum?: any[];
+  isLive?: boolean;
+  startDate?: string;
+  startTime?: string;
 }
 
 const InstructorCourses: React.FC = () => {
@@ -58,6 +61,9 @@ const InstructorCourses: React.FC = () => {
                 ? "orange"
                 : "gray",
             lastUpdated: "Yakın zamanda",
+            isLive: c.is_live || false,
+            startDate: c.start_date || "",
+            startTime: c.start_time || "",
           }));
           setCourses(mappedCourses);
         }
@@ -87,6 +93,9 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: courseData.curriculum,
+          is_live: courseData.isLive,
+          start_date: courseData.startDate,
+          start_time: courseData.startTime,
         });
 
         setCourses(
@@ -102,6 +111,9 @@ const InstructorCourses: React.FC = () => {
                   curriculum: courseData.curriculum,
                   color: courseData.color,
                   lastUpdated: "Şimdi",
+                  isLive: courseData.isLive,
+                  startDate: courseData.startDate,
+                  startTime: courseData.startTime,
                 }
               : c
           )
@@ -117,6 +129,9 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: courseData.curriculum,
+          is_live: courseData.isLive,
+          start_date: courseData.startDate,
+          start_time: courseData.startTime,
         });
 
         const newCourse: Course = {
@@ -127,6 +142,9 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: response.data.learning_outcomes || [],
           requirements: response.data.requirements || [],
           curriculum: response.data.curriculum || [],
+          isLive: courseData.isLive,
+          startDate: courseData.startDate,
+          startTime: courseData.startTime,
           students: 0,
           rating: 0,
           progress: 0,
@@ -273,9 +291,17 @@ const InstructorCourses: React.FC = () => {
                     <h3 className="text-lg font-black text-gray-800 group-hover:text-sky-600 transition-colors">
                       {course.title}
                     </h3>
-                    <p className="text-xs font-bold text-gray-400 mt-1">
-                      Son güncelleme: {course.lastUpdated}
-                    </p>
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
+                      <p className="text-xs font-bold text-gray-400">
+                        Son güncelleme: {course.lastUpdated}
+                      </p>
+                      {course.isLive && (
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-100">
+                          <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                          Canlı: {course.startDate} @ {course.startTime}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Metrics */}
@@ -398,6 +424,9 @@ const InstructorCourses: React.FC = () => {
                     ? "design"
                     : "other",
                 color: editingCourse.color,
+                isLive: editingCourse.isLive,
+                startDate: editingCourse.startDate,
+                startTime: editingCourse.startTime,
               }
             : null
         }
