@@ -8,7 +8,8 @@ import {
   BarChart3,
   Settings,
   LogOut,
-  Wand2,
+  PlusCircle,
+  Sparkles,
 } from "lucide-react";
 import api from "../../api";
 
@@ -101,8 +102,13 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
     },
     {
       label: "Ders Oluşturucu",
-      icon: <Wand2 size={24} strokeWidth={2.5} />,
+      icon: <PlusCircle size={24} strokeWidth={2.5} />,
       id: "Builder",
+    },
+    {
+      label: "YZ Soru Oluştur",
+      icon: <Sparkles size={24} strokeWidth={2.5} />,
+      id: "AIQuestions",
     },
     {
       label: "Öğrenciler",
@@ -122,19 +128,19 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   ];
 
   const handleLogout = async () => {
-    try {
-      // 1. Backend'e çıkış isteği gönder
-      await api.post("/auth/logout");
-
-      // 2. Başarılıysa kullanıcıyı LandingPage veya Auth sayfasına yönlendir
-      // window.location.href kullanmak state'i sıfırlamak için en güvenli yoldur
-      window.location.href = "/";
-    } catch (error) {
-      console.error("Logout failed", error);
-      // Hata olsa bile kullanıcıyı ana sayfaya atmak iyi bir pratiktir
-      window.location.href = "/";
-    }
-  };
+  try {
+    // 1. Backend'e çıkış isteği gönder
+    await api.post("/auth/logout");
+    
+    // 2. Başarılıysa kullanıcıyı LandingPage veya Auth sayfasına yönlendir
+    // window.location.href kullanmak state'i sıfırlamak için en güvenli yoldur
+    window.location.href = "/"; 
+  } catch (error) {
+    console.error("Logout failed", error);
+    // Hata olsa bile kullanıcıyı ana sayfaya atmak iyi bir pratiktir
+    window.location.href = "/";
+  }
+};
 
   return (
     <div
