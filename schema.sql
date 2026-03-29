@@ -41,6 +41,9 @@ CREATE TABLE teachers (
     first_name VARCHAR(100) NOT NULL,
     last_name  VARCHAR(100) NOT NULL,
     email      VARCHAR(150) UNIQUE NOT NULL,
+    expertises VARCHAR(255),
+    password   VARCHAR(255),
+    bio        TEXT,
     department VARCHAR(150),
     created_at TIMESTAMP DEFAULT NOW()
 );
@@ -54,6 +57,11 @@ CREATE TABLE courses (
     title VARCHAR(200) NOT NULL,
     description TEXT,
     category VARCHAR(100),
+    progress INT DEFAULT 0,
+    price INT DEFAULT 0,
+    learning_outcomes JSONB DEFAULT '[]',
+    requirements JSONB DEFAULT '[]',
+    curriculum JSONB DEFAULT '[]',
     created_at TIMESTAMP DEFAULT NOW(),
 
     FOREIGN KEY (teacher_id) REFERENCES teachers(id)
@@ -72,4 +80,19 @@ CREATE TABLE enrollments (
     FOREIGN KEY (course_id) REFERENCES courses(id),
 
     UNIQUE (student_id, course_id)
+);
+
+-- =================    
+--  LIVE SESSIONS
+-- =================
+CREATE TABLE live_sessions (
+    id SERIAL PRIMARY KEY,
+    course_id INT NOT NULL REFERENCES courses(id),
+    title VARCHAR(200) NOT NULL,
+    day_of_week VARCHAR(20), -- Pazartesi, Salı...
+    start_time TIME,
+    duration_minutes INT DEFAULT 40,
+    type VARCHAR(20) DEFAULT 'live', -- live, reserved
+    status VARCHAR(20) DEFAULT 'upcoming', -- upcoming, completed, live
+    created_at TIMESTAMP DEFAULT NOW()
 );

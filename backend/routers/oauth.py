@@ -12,9 +12,11 @@ from models.parent import Parent
 
 router = APIRouter()
 
-# Environment variables for OAuth URLs
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000")
+from core.config import settings
+
+# Settings üzerinden URL'leri al
+FRONTEND_URL = settings.FRONTEND_URL
+BACKEND_URL = settings.BACKEND_URL
 
 @router.get("/auth/google/login")
 async def google_login(request: Request, role: str):

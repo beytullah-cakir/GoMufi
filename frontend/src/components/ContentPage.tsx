@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../api';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -73,71 +73,92 @@ const ContentPage: React.FC = () => {
 
     // --- Mock Data ---
 
-    const courses: Course[] = [
-        {
-            id: 'python-101',
-            title: 'Python ile Programlama',
-            level: 'Level 12',
-            progress: 65,
-            icon: PythonIcon,
-            color: 'bg-yellow-400',
-            borderColor: 'border-yellow-500',
-            lightColor: 'bg-yellow-50',
-            nextLesson: 'Döngüler ve Listeler',
-            instructor: 'Mufi Hoca'
-        },
-        {
-            id: 'react-adv',
-            title: 'İleri Seviye React',
-            level: 'Level 5',
-            progress: 20,
-            icon: ReactIcon,
-            color: 'bg-sky-400',
-            borderColor: 'border-sky-500',
-            lightColor: 'bg-sky-50',
-            nextLesson: 'Custom Hooks',
-            instructor: 'Ahmet Hoca'
-        },
-        {
-            id: 'eng-b1',
-            title: 'İngilizce B1',
-            level: 'Level 8',
-            progress: 45,
-            icon: EnglishIcon,
-            color: 'bg-purple-500',
-            borderColor: 'border-purple-600',
-            lightColor: 'bg-purple-50',
-            nextLesson: 'Past Perfect Tense',
-            instructor: 'Sarah Teacher'
-        },
-        {
-            id: 'data-101',
-            title: 'Veri Bilimi Giriş',
-            level: 'Level 2',
-            progress: 10,
-            icon: DataIcon,
-            color: 'bg-blue-600',
-            borderColor: 'border-blue-700',
-            lightColor: 'bg-blue-50',
-            nextLesson: 'Pandas Kütüphanesi',
-            instructor: 'Mufi Hoca'
-        }
-    ];
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const schedule: ScheduleSlot[] = [
-        // Monday
-        { id: 's1', day: 'Pazartesi', time: '14:00', title: 'Python: Döngüler Pratik', type: 'live', status: 'completed', color: 'bg-yellow-100 border-yellow-300 text-yellow-800' },
-        { id: 's2', day: 'Pazartesi', time: '16:00', title: 'Boş Slot', type: 'empty' },
-        // Tuesday
-        { id: 's3', day: 'Salı', time: '10:00', title: 'React: Component Mimarisi', type: 'live', status: 'upcoming', color: 'bg-sky-100 border-sky-300 text-sky-800', duration: '15 dk kaldı' },
-        { id: 's4', day: 'Salı', time: '14:00', title: 'Boş Slot', type: 'empty' },
-        // Wednesday (Availability)
-        { id: 's5', day: 'Çarşamba', time: '15:00', title: 'Özel Ders Rezervasyonu', type: 'reserved' },
-        // Thursday
-        { id: 's6', day: 'Perşembe', time: '18:00', title: 'İngilizce Konuşma Kulübü', type: 'live', status: 'upcoming', color: 'bg-purple-100 border-purple-300 text-purple-800' },
-        // Friday
-        { id: 's7', day: 'Cuma', time: '20:00', title: 'Veri Bilimi: Soru & Cevap', type: 'live', status: 'upcoming', color: 'bg-blue-100 border-blue-300 text-blue-800' },
-    ];
+    const getCourseStyle = (category: string | null) => {
+        const cat = (category || '').toLowerCase();
+        if (cat.includes('python') || cat.includes('yazılım') || cat.includes('coding')) {
+            return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Mufi Hoca' };
+        } else if (cat.includes('react') || cat.includes('frontend')) {
+            return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Ahmet Hoca' };
+        } else if (cat.includes('english') || cat.includes('dil') || cat.includes('ingilizce')) {
+            return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Sarah Teacher' };
+        } else if (cat.includes('ver') || cat.includes('data')) {
+            return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Mufi Hoca' };
+        }
+        return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Mufi Hoca' };
+    };
+
+    useEffect(() => {
+        const fetchCourses = async () => {
+            try {
+                const response = await api.get('/my-content');
+                const mappedCourses: Course[] = response.data.map((c: any) => {
+                    const style = getCourseStyle(c.category);
+                    return {
+                        id: c.id.toString(),
+                        title: c.title,
+                        level: `Level ${Math.floor(c.progress / 5) + 1}`,
+                        progress: c.progress || 0,
+                        icon: style.icon,
+                        color: style.color,
+                        borderColor: style.borderColor,
+                        lightColor: style.lightColor,
+                        nextLesson: 'Hemen İzle!',
+                        instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : style.instructor
+                    };
+                });
+                setCourses(mappedCourses);
+                if (mappedCourses.length > 0) {
+                    setSelectedCourse(mappedCourses[0].id);
+                }
+            } catch (err) {
+                console.error("Kurslar alınamadı:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchCourses();
+    }, []);
+
+    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
+
+    useEffect(() => {
+        const fetchSchedule = async () => {
+            try {
+                const response = await api.get('/my-schedule');
+                const mappedSchedule: ScheduleSlot[] = response.data.map((s: any) => {
+                    const timeStr = s.start_time.substring(0, 5); // "14:00:00" -> "14:00"
+                    
+                    // Logic for colors based on the course's category if possible, or mapping by s.id
+                    // For now, let's use some consistent styling
+                    let color = 'bg-gray-100 border-gray-300 text-gray-800';
+                    if (s.title.toLowerCase().includes('python')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
+                    else if (s.title.toLowerCase().includes('react')) color = 'bg-sky-100 border-sky-300 text-sky-800';
+                    else if (s.title.toLowerCase().includes('ingilizce')) color = 'bg-purple-100 border-purple-300 text-purple-800';
+                    
+                    return {
+                        id: s.id.toString(),
+                        day: s.day_of_week,
+                        time: timeStr,
+                        title: s.title,
+                        type: s.type as 'live' | 'empty' | 'reserved',
+                        status: s.status as 'upcoming' | 'live_now' | 'completed',
+                        color: color,
+                        duration: `${s.duration_minutes} dk`
+                    };
+                });
+                
+                // Add empty slots for better visualization if the schedule is sparse
+                // (Actually, maybe just show what we have first)
+                setSchedule(mappedSchedule);
+            } catch (err) {
+                console.error("Takvim alınamadı:", err);
+            }
+        };
+        fetchSchedule();
+    }, [courses]); // Refresh schedule when courses list changes
 
     const squadMembers: SquadMember[] = [
         { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
@@ -153,6 +174,17 @@ const ContentPage: React.FC = () => {
     ];
 
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
+
+    if (isLoading) {
+        return (
+            <div className="w-full min-h-screen bg-[#F3F4F6] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="font-black text-gray-500">Kursların Yükleniyor...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="w-full min-h-screen bg-[#F3F4F6] p-6 font-sans text-gray-800 overflow-hidden flex flex-col">
@@ -382,8 +414,8 @@ const ContentPage: React.FC = () => {
                                                 <Clock size={12} /> 15 dk kaldı
                                             </span>
                                         </div>
-                                        <h2 className="text-3xl font-black font-display mb-1">{activeCourseData.title}</h2>
-                                        <p className="text-orange-100 font-bold text-lg">{activeCourseData.nextLesson}</p>
+                                        <h2 className="text-3xl font-black font-display mb-1">{activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
+                                        <p className="text-orange-100 font-bold text-lg">{activeCourseData?.nextLesson || "Marketten yeni kurslar keşfedebilirsin."}</p>
                                     </div>
                                     <button className="bg-white text-orange-600 px-6 py-4 rounded-2xl font-black shadow-lg animate-bounce hover:scale-105 transition-transform flex items-center gap-2">
                                         <Play fill="currentColor" />
@@ -554,7 +586,7 @@ const ContentPage: React.FC = () => {
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div>
-                                <h4 className="font-black text-gray-800 text-lg">{activeCourseData.instructor}</h4>
+                                <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Mufi Hoca"}</h4>
                                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">Çevrimiçi</span>
                             </div>
                         </div>

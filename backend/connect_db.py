@@ -1,8 +1,8 @@
-import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
+from core.config import settings
 
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = settings.DATABASE_URL
 
 # Railway'den gelen URL bazen 'postgresql://' ile başlar. 
 # Bunu asenkron sürücü olan 'postgresql+asyncpg://' ile değiştirmeliyiz.

@@ -71,7 +71,7 @@ async def initialize_checkout(
     # 3. Create Iyzico Request
     options = get_iyzico_options()
     
-    backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
+    backend_url = settings.BACKEND_URL
     course_ids_str = ",".join(map(str, course_ids))
     callback_url = f"{backend_url}/payment/callback/{course_ids_str}/{student_id}"
 
@@ -165,7 +165,7 @@ async def checkout_callback(
 
     checkout_form_result = json.loads(checkout_form_result_raw.read().decode('utf-8'))
 
-    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    frontend_url = settings.FRONTEND_URL
     course_ids = [int(cid) for cid in course_ids_str.split(",")]
 
     if checkout_form_result.get('status') == 'success' and checkout_form_result.get('paymentStatus') == 'SUCCESS':

@@ -1,5 +1,5 @@
-
 import React, { useState } from 'react';
+import api from '../api';
 import { Settings, Share2, Award, Trophy, ChevronRight, Lock, BookOpen, Clock, Target, Calendar, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, Swords, Users, Video, Play, CheckCircle, GitBranch, Shield, Cpu, Gamepad2, Medal } from 'lucide-react';
 // Import the new character avatar
 import CharacterBody from '../sprites/CharacterProfile2.png';
@@ -10,6 +10,24 @@ const ProfilePage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'overview' | 'skills' | 'portfolio'>('overview');
     const [isBlinking, setIsBlinking] = useState(false);
     const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
+    const [profileData, setProfileData] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Fetch user profile data
+    React.useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await api.get('/profile');
+                setProfileData(response.data);
+            } catch (err) {
+                console.error("Profile fetch error:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchProfile();
+    }, []);
+
 
     // Blinking effect logic
     React.useEffect(() => {
@@ -143,11 +161,15 @@ const ProfilePage: React.FC = () => {
                 <div className="flex flex-col md:flex-row items-end justify-between mb-8 relative z-20">
                     {/* Left: Name & Identity */}
                     <div className="flex flex-col items-center md:items-start mb-4 md:mb-0">
-                        <h1 className="text-4xl font-black text-gray-900 font-display tracking-tight mb-1">Kadir</h1>
+                        <h1 className="text-4xl font-black text-gray-900 font-display tracking-tight mb-1">
+                            {profileData?.first_name || 'Öğrenci'} {profileData?.last_name || ''}
+                        </h1>
                         <div className="flex items-center gap-2 text-gray-500 font-bold text-sm">
-                            <span className="text-blue-500">@kadir_codera</span>
+                            <span className="text-blue-500">@{profileData?.nickname || 'isimsiz'}</span>
                             <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-                            <span>Aralık 2025</span>
+                            <span>{profileData?.grade_level || 'Sınıf Belirtilmedi'}</span>
+                            <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
+                            <span className="capitalize">{profileData?.education_level || 'Seviye Yok'}</span>
                         </div>
                     </div>
 

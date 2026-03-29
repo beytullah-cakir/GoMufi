@@ -1,12 +1,14 @@
-import os 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from auth.auth_request import StudentRegisterRequest, LoginRequest
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from core.security import create_access_token, hash_password
-from core.security import verify_password
+from core.security import create_access_token, hash_password, verify_password
 from connect_db import get_db
 from models.student import Student
+from models.teacher import Teacher
+from core.config import settings
+import jwt
 
 
 router = APIRouter()
@@ -64,8 +66,7 @@ async def login_user(
 
     access_token = create_access_token(str(student.id), role="student")
 
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    is_production ="localhost" not in FRONTEND_URL
+    is_production ="localhost" not in settings.FRONTEND_URL
 
     response.set_cookie(
         key="access_token",
@@ -87,6 +88,40 @@ async def logout_user(response: Response):
     response.delete_cookie(key="access_token", path="/")
     return {"status": "logged_out"}
 
+
+@router.post("/complete-profile")
+async def complete_profile(
+    request: Request,
+    data: dict, # Simplified for demo, should be a Pydantic model
+    db: AsyncSession = Depends(get_db)
+):
+    token = request.cookies.get("access_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = int(payload["sub"])
+        role = payload["role"]
+        
+        if role == "student":
+            result = await db.execute(select(Student).where(Student.id == user_id))
+            user = result.scalar_one_or_none()
+            if user:
+                user.nickname = data.get("nickname", user.nickname)
+                user.grade_level = data.get("grade_level", user.grade_level)
+                user.education_level = data.get("education_level", user.education_level)
+        elif role == "teacher":
+            result = await db.execute(select(Teacher).where(Teacher.id == user_id))
+            user = result.scalar_one_or_none()
+            if user:
+                user.expertises = data.get("expertises", user.expertises)
+                user.bio = data.get("bio", user.bio)
+        
+        await db.commit()
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 def get_current_student():
     return current_student

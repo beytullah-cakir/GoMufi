@@ -7,10 +7,13 @@ import ParentApp from './components/ParentApp';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentError from './components/PaymentError';
 
+import CompleteProfile from './components/CompleteProfile';
+
 function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      <Route path="/complete-profile" element={<CompleteProfile />} />
       <Route
         path="/auth"
         element={<AuthPage onLogin={() => { }} />}

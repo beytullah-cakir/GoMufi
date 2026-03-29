@@ -11,5 +11,6 @@ COPY . .
 EXPOSE 8000
 
 # Portu 8000'den Railway'in atadığı $PORT değişkenine çekiyoruz
-CMD ["sh", "-c", "uvicorn main_fastapi:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Önce veritabanı göçlerini (migrations) uygula, sonra uygulamayı başlat
+CMD ["sh", "-c", "alembic upgrade head && uvicorn main_fastapi:app --host 0.0.0.0 --port ${PORT:-8000}"]
 
