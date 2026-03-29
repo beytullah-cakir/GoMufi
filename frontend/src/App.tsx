@@ -4,6 +4,8 @@ import AuthPage from './components/AuthPage';
 import StudentApp from './components/StudentApp';
 import InstructorApp from './components/InstructorApp';
 import ParentApp from './components/ParentApp';
+import PaymentSuccess from './components/PaymentSuccess';
+import PaymentError from './components/PaymentError';
 
 function App() {
   return (
@@ -22,6 +24,10 @@ function App() {
 
       {/* Parent Routes */}
       <Route path="/parent/*" element={<ParentApp />} />
+
+      {/* Payment Result Routes */}
+      <Route path="/payment-success" element={<PaymentSuccess />} />
+      <Route path="/payment-error" element={<PaymentError />} />
 
       {/* Redirect unknown routes to Landing */}
       <Route path="*" element={<Navigate to="/" replace />} />

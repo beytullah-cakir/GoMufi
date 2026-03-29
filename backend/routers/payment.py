@@ -1,6 +1,7 @@
 import iyzipay
 import os
 import uuid
+import json
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,15 +12,23 @@ from models.enrollment import Enrollment
 from connect_db import get_db
 import jwt
 from core.config import settings
+from pydantic import BaseModel
+from typing import List
+
+class CheckoutRequest(BaseModel):
+    course_ids: List[int]
 
 router = APIRouter(prefix="/payment", tags=["payment"])
 
 # Iyzico Configuration
 def get_iyzico_options():
+    # iyzipay-python expects only the hostname (without https://) in base_url
+    base_url = settings.IYZICO_BASE_URL.replace("https://", "").replace("http://", "")
+    
     options = {
         'api_key': settings.IYZICO_API_KEY,
         'secret_key': settings.IYZICO_SECRET_KEY,
-        'base_url': settings.IYZICO_BASE_URL
+        'base_url': base_url
     }
     return options
 
@@ -33,18 +42,22 @@ async def get_current_user_info(request: Request):
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-@router.post("/initialize-checkout/{course_id}")
+@router.post("/initialize-checkout")
 async def initialize_checkout(
-    course_id: int,
+    checkout_data: CheckoutRequest,
     request: Request,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
-    # 1. Get Course and Student Details
-    result = await db.execute(select(Course).where(Course.id == course_id))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Course not found")
+    course_ids = checkout_data.course_ids
+    if not course_ids:
+        raise HTTPException(status_code=400, detail="No courses in cart")
+
+    # 1. Get Courses and Student Details
+    result = await db.execute(select(Course).where(Course.id.in_(course_ids)))
+    courses = result.scalars().all()
+    if len(courses) != len(course_ids):
+        raise HTTPException(status_code=404, detail="One or more courses not found")
 
     student_id = int(user_info["sub"])
     student_result = await db.execute(select(Student).where(Student.id == student_id))
@@ -52,44 +65,46 @@ async def initialize_checkout(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
 
-    # 2. Check if already enrolled
-    existing = await db.execute(
-        select(Enrollment).where(
-            Enrollment.student_id == student_id,
-            Enrollment.course_id == course_id
-        )
-    )
-    if existing.scalars().first():
-        return {"status": "already_enrolled", "message": "Zaten bu kursa kayıtlısınız."}
+    # 2. total price calculation
+    total_price = sum(c.price for c in courses)
 
     # 3. Create Iyzico Request
     options = get_iyzico_options()
     
-    # Callback URL (Front-end will handle the result or back-end will redirect)
-    # Using relative URL might not work with Iyzico, usually requires absolute URL
     backend_url = os.getenv("BACKEND_URL", "http://localhost:8000")
-    callback_url = f"{backend_url}/payment/callback/{course_id}/{student_id}"
+    course_ids_str = ",".join(map(str, course_ids))
+    callback_url = f"{backend_url}/payment/callback/{course_ids_str}/{student_id}"
 
-    checkout_form_initialize = iyzipay.CheckoutFormInitialize().create({
-        'locale': iyzipay.Locale.TR.value,
+    basket_items = []
+    for course in courses:
+        basket_items.append({
+            'id': f'C{course.id}',
+            'name': course.title,
+            'category1': course.category or 'Education',
+            'itemType': 'VIRTUAL',
+            'price': str(course.price)
+        })
+
+    checkout_form_initialize_raw = iyzipay.CheckoutFormInitialize().create({
+        'locale': 'tr',
         'conversationId': str(uuid.uuid4()),
-        'price': str(course.price),
-        'paidPrice': str(course.price),
-        'currency': iyzipay.Currency.TRY.value,
-        'basketId': f'B{course_id}',
-        'paymentGroup': iyzipay.PaymentGroup.PRODUCT.value,
+        'price': str(total_price),
+        'paidPrice': str(total_price),
+        'currency': 'TRY',
+        'basketId': f'B{student_id}_{str(uuid.uuid4())[:8]}',
+        'paymentGroup': 'PRODUCT',
         'callbackUrl': callback_url,
         'enabledInstallments': [1, 2, 3, 6, 9],
         'buyer': {
             'id': str(student.id),
             'name': student.first_name or "Guest",
             'surname': student.last_name or "User",
-            'gsmNumber': '+905350000000', # Placeholder
+            'gsmNumber': '+905350000000',
             'email': student.email,
-            'identityNumber': '74455544444', # Placeholder
+            'identityNumber': '74455544444',
             'lastLoginDate': '2015-10-05 12:43:35',
             'registrationDate': '2013-04-21 15:12:09',
-            'registrationAddress': 'Nispetiye Mah. Güller Sk. No:7', # Placeholder
+            'registrationAddress': 'Nispetiye Mah. Güller Sk. No:7',
             'ip': request.client.host,
             'city': 'Istanbul',
             'country': 'Turkey',
@@ -109,16 +124,10 @@ async def initialize_checkout(
             'address': 'Nispetiye Mah. Güller Sk. No:7',
             'zipCode': '34732'
         },
-        'basketItems': [
-            {
-                'id': f'C{course_id}',
-                'name': course.title,
-                'category1': course.category or 'Education',
-                'itemType': iyzipay.BasketItemType.VIRTUAL.value,
-                'price': str(course.price)
-            }
-        ]
+        'basketItems': basket_items
     }, options)
+
+    checkout_form_initialize = json.loads(checkout_form_initialize_raw.read().decode('utf-8'))
 
     if checkout_form_initialize.get('status') == 'success':
         # checkout_form_content is the HTML snippet to be injected into the frontend
@@ -134,9 +143,9 @@ async def initialize_checkout(
             detail=checkout_form_initialize.get('errorMessage', 'Payment initialization failed')
         )
 
-@router.post("/callback/{course_id}/{student_id}")
+@router.post("/callback/{course_ids_str}/{student_id}")
 async def checkout_callback(
-    course_id: int,
+    course_ids_str: str,
     student_id: int,
     request: Request,
     db: AsyncSession = Depends(get_db)
@@ -148,34 +157,39 @@ async def checkout_callback(
         raise HTTPException(status_code=400, detail="Token not found in callback")
 
     options = get_iyzico_options()
-    checkout_form_result = iyzipay.CheckoutForm().retrieve({
-        'locale': iyzipay.Locale.TR.value,
+    checkout_form_result_raw = iyzipay.CheckoutForm().retrieve({
+        'locale': 'tr',
         'conversationId': str(uuid.uuid4()),
         'token': token
     }, options)
 
+    checkout_form_result = json.loads(checkout_form_result_raw.read().decode('utf-8'))
+
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:5173")
+    course_ids = [int(cid) for cid in course_ids_str.split(",")]
 
     if checkout_form_result.get('status') == 'success' and checkout_form_result.get('paymentStatus') == 'SUCCESS':
-        # Payment successful, enroll the student
+        # Payment successful, enroll the student in all courses
         try:
-            # Check again if already enrolled (concurrency)
-            existing = await db.execute(
-                select(Enrollment).where(
-                    Enrollment.student_id == student_id,
-                    Enrollment.course_id == course_id
+            for course_id in course_ids:
+                # Check again if already enrolled (concurrency)
+                existing = await db.execute(
+                    select(Enrollment).where(
+                        Enrollment.student_id == student_id,
+                        Enrollment.course_id == course_id
+                    )
                 )
-            )
-            if not existing.scalars().first():
-                enrollment = Enrollment(student_id=student_id, course_id=course_id)
-                db.add(enrollment)
-                await db.commit()
+                if not existing.scalars().first():
+                    enrollment = Enrollment(student_id=student_id, course_id=course_id)
+                    db.add(enrollment)
+            
+            await db.commit()
             
             # Redirect to success page on frontend
             return HTMLResponse(content=f"""
                 <html>
                     <script>
-                        window.location.href = "{frontend_url}/payment-success?course_id={course_id}";
+                        window.location.href = "{frontend_url}/payment-success?course_ids={course_ids_str}";
                     </script>
                 </html>
             """)

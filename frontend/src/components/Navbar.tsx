@@ -4,10 +4,10 @@ import api from '../api';
 
 // Import sprites
 import MufiLogo from '../assets/sprites/MufiLogo.png';
-import LogoTextg from '../assets/sprites/LogoText.png';
-import HomeIcong from '../assets/sprites/HomeIcon.png';
-import ShopIcong from '../assets/sprites/ShopIcon.png';
-import ProfileIcong from '../assets/sprites/ProfileIcon.png';
+import LogoText from '../assets/sprites/LogoText.png';
+import HomeIcon from '../assets/sprites/HomeIcon.png';
+import ShopIcon from '../assets/sprites/ShopIcon.png';
+import ProfileIcon from '../assets/sprites/ProfileIcon.png';
 import BooksIcon from '../assets/sprites/BooksIcon.png';
 import ChatIcon from '../assets/sprites/ChatIcon.png';
 
