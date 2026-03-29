@@ -1,11 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { Users, BookOpen, TrendingUp, AlertTriangle, CheckCircle, MessageSquare } from 'lucide-react';
+import { Users, BookOpen, TrendingUp, AlertTriangle, CheckCircle, MessageSquare, Video, Play, Clock } from 'lucide-react';
 import api from '../../api';
 
 const InstructorDashboard: React.FC = () => {
     const [courses, setCourses] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [showJitsi, setShowJitsi] = useState(false);
+    const [jitsiRoomName, setJitsiRoomName] = useState("");
+    const [jitsiTitle, setJitsiTitle] = useState("");
+    const [timeOffsetMs, setTimeOffsetMs] = useState(0);
+    const [upcomingSession, setUpcomingSession] = useState<{courseId: number, courseTitle: string, date: string, time: string, isActive: boolean, timeLeftStr: string} | null>(null);
+
+    useEffect(() => {
+        const fetchRealTime = async () => {
+            try {
+                const res = await fetch("http://worldtimeapi.org/api/timezone/Europe/Istanbul");
+                const data = await res.json();
+                const realTime = new Date(data.datetime).getTime();
+                setTimeOffsetMs(realTime - new Date().getTime());
+            } catch (err) {
+                console.error("Gerçek saat alınamadı", err);
+            }
+        };
+        fetchRealTime();
+    }, []);
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -14,9 +33,7 @@ const InstructorDashboard: React.FC = () => {
                     api.get('/teacher/content'),
                     api.get('/teacher/students')
                 ]);
-                
                 setCourses(coursesRes.data);
-                
                 const uniqueStudents = new Set();
                 studentsRes.data.forEach((s: any) => {
                     if (s.student_id) uniqueStudents.add(s.student_id);
@@ -31,8 +48,113 @@ const InstructorDashboard: React.FC = () => {
         fetchDashboardData();
     }, []);
 
+    // Kurslar veya zaman offset'i değişince, en yakın oturumu hesapla
+    useEffect(() => {
+        const computeNextSession = () => {
+            const now = new Date(Date.now() + timeOffsetMs);
+            let closest: typeof upcomingSession = null;
+            let minDiff = Infinity;
+
+            for (const c of courses) {
+                const curriculum = c.curriculum || [];
+                if (curriculum.length > 0 && curriculum[0]?.type === "live_sessions_config") {
+                    const sessions: {date: string, time: string}[] = curriculum[0].sessions || [];
+                    for (const sess of sessions) {
+                        if (!sess.date || !sess.time) continue;
+                        const [year, month, day] = sess.date.split('-').map(Number);
+                        const [hours, minutes] = sess.time.split(':').map(Number);
+                        const lessonTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                        const diff = lessonTime.getTime() - now.getTime();
+
+                        if (diff > -7200000 && diff < minDiff) {
+                            minDiff = diff;
+                            let isActive = false;
+                            let timeLeftStr = '';
+                            if (diff <= 0 && diff > -7200000) {
+                                isActive = true;
+                                timeLeftStr = "Canlı Yayında!";
+                            } else if (diff > 0) {
+                                const d = Math.floor(diff / 86400000);
+                                const h = Math.floor((diff % 86400000) / 3600000);
+                                const m = Math.floor((diff % 3600000) / 60000);
+                                const s = Math.floor((diff % 60000) / 1000);
+                                if (d > 0) timeLeftStr = `${d} gün ${h} s kaldı`;
+                                else if (h > 0) timeLeftStr = `${h} s ${m} dk kaldı`;
+                                else if (m > 0) timeLeftStr = `${m} dk kaldı`;
+                                else timeLeftStr = `${s} sn kaldı`;
+                            }
+                            closest = {
+                                courseId: c.id,
+                                courseTitle: c.title,
+                                date: sess.date,
+                                time: sess.time,
+                                isActive,
+                                timeLeftStr
+                            };
+                        }
+                    }
+                }
+            }
+            setUpcomingSession(closest);
+        };
+
+        if (!isLoading) {
+            computeNextSession();
+            const timer = setInterval(computeNextSession, 1000);
+            return () => clearInterval(timer);
+        }
+    }, [courses, timeOffsetMs, isLoading]);
+
     return (
         <div className="space-y-8 animate-fade-in-down">
+
+            {/* Yaklaşan Ders Baneri */}
+            {upcomingSession && (
+                <div className={`relative overflow-hidden rounded-3xl p-6 text-white shadow-xl border-b-8 ${
+                    upcomingSession.isActive
+                        ? 'bg-gradient-to-r from-green-500 to-emerald-600 border-green-700'
+                        : 'bg-gradient-to-r from-indigo-600 to-purple-700 border-indigo-800'
+                }`}>
+                    <Video className="absolute top-0 right-0 w-48 h-48 text-white/10 translate-x-12 -translate-y-10" />
+                    <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                        <div>
+                            <div className="flex items-center gap-2 mb-2">
+                                <span className={`flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full ${
+                                    upcomingSession.isActive ? 'bg-white/20 animate-pulse' : 'bg-white/10'
+                                }`}>
+                                    {upcomingSession.isActive ? '🔴 CANLI' : '📅 YAKLAŞAN DERS'}
+                                </span>
+                            </div>
+                            <h2 className="text-2xl font-black mb-1">{upcomingSession.courseTitle}</h2>
+                            <div className="flex items-center gap-2 text-white/80">
+                                <Clock size={14} />
+                                <span className="text-sm font-bold">{upcomingSession.date} · {upcomingSession.time}</span>
+                                <span className="ml-2 bg-black/20 px-2 py-0.5 rounded-lg text-xs font-black">{upcomingSession.timeLeftStr}</span>
+                            </div>
+                        </div>
+                        <button
+                            disabled={!upcomingSession.isActive}
+                            onClick={() => {
+                                if (upcomingSession.isActive) {
+                                    const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, '')}`;
+                                    setJitsiRoomName(room);
+                                    setJitsiTitle(upcomingSession.courseTitle);
+                                    setShowJitsi(true);
+                                }
+                            }}
+                            className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all whitespace-nowrap ${
+                                upcomingSession.isActive
+                                    ? 'bg-white text-green-600 hover:scale-105 animate-bounce'
+                                    : 'bg-white/20 text-white/50 cursor-not-allowed'
+                            }`}
+                        >
+                            <Play fill="currentColor" size={20} />
+                            {upcomingSession.isActive ? 'TOPLANTIYI BAŞLAT' : 'BEKLENIYOR'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Smart Alerts */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-4 shadow-sm">
@@ -188,8 +310,40 @@ const InstructorDashboard: React.FC = () => {
                     </div>
                 </div>
             </div>
+
+            {/* JITSI MEET MODAL */}
+            {showJitsi && (
+                <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 lg:p-10 backdrop-blur-sm">
+                    <div className="w-full max-w-7xl flex justify-between items-center px-6 py-4 bg-[#111] border-b border-gray-800 text-white rounded-t-2xl shadow-xl">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-green-500/20 rounded-xl">
+                                <Video size={24} className="text-green-400 animate-pulse" />
+                            </div>
+                            <div>
+                                <h2 className="font-black text-xl">Canlı Sınıf — Eğitmen</h2>
+                                <p className="text-xs font-bold text-gray-400">{jitsiTitle} · Oda: {jitsiRoomName}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setShowJitsi(false)}
+                            className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 flex items-center gap-2 rounded-xl font-bold transition-all border border-red-500/20 hover:border-red-600"
+                        >
+                            <span className="text-xl leading-none">&times;</span>
+                            <span className="hidden sm:inline">Toplantıyı Bitir</span>
+                        </button>
+                    </div>
+                    <div className="w-full max-w-7xl h-[85vh] bg-[#1a1a1a] rounded-b-2xl overflow-hidden shadow-2xl relative">
+                        <iframe
+                            src={`https://meet.element.io/${jitsiRoomName}#userInfo.displayName=E%C4%9Fitmen&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`}
+                            allow="camera; microphone; fullscreen; display-capture; screen-wake-lock; autoplay"
+                            className="absolute inset-0 w-full h-full border-none"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
 export default InstructorDashboard;
+

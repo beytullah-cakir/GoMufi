@@ -218,6 +218,8 @@ const ContentPage: React.FC = () => {
     const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string} | null>(null);
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [timeOffsetMs, setTimeOffsetMs] = useState<number>(0);
+    const [showJitsi, setShowJitsi] = useState<boolean>(false);
+    const [jitsiRoomName, setJitsiRoomName] = useState<string>("");
 
     // Uygulama yüklendiğinde, öğrenci pc saatini değiştirip hile yapamasın diye ve
     // saat farklılıklarını engellemek adına Türkiye gerçek saatini çekip, farkı (offset) hesaplıyoruz.
@@ -614,7 +616,10 @@ const ContentPage: React.FC = () => {
                                         disabled={!isClassActive}
                                         onClick={() => {
                                             if (isClassActive) {
-                                                alert("Derse girildi!");
+                                                // Derse tıklandığında Jitsi frame'ini güvenli bir isimle başlatıyoruz.
+                                                const roomName = `GoMufi-${activeCourseData?.id}-${(nextLessonData?.title || "Class").replace(/[^a-zA-Z0-9]/g, "")}`;
+                                                setJitsiRoomName(roomName);
+                                                setShowJitsi(true);
                                             }
                                         }}
                                         className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
@@ -881,8 +886,39 @@ const ContentPage: React.FC = () => {
                     </div>
 
                 </div>
-
             </div>
+
+            {/* JITSI MEET MODAL OVERLAY */}
+            {showJitsi && (
+                <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 lg:p-10 backdrop-blur-sm">
+                    <div className="w-full max-w-7xl flex justify-between items-center px-6 py-4 bg-[#111] border-b border-gray-800 text-white rounded-t-2xl shadow-xl shadow-black/50">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-indigo-500/20 rounded-xl">
+                                <Video size={24} className="text-indigo-400 animate-pulse" />
+                            </div>
+                            <div>
+                                <h2 className="font-black text-xl tracking-tight leading-tight">Canlı Sınıf</h2>
+                                <p className="text-xs font-bold text-gray-400">{nextLessonData?.title || 'Online Ders'} (Oda: {jitsiRoomName})</p>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => setShowJitsi(false)} 
+                            className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 flex items-center gap-2 rounded-xl font-bold transition-all border border-red-500/20 hover:border-red-600"
+                        >
+                            <span className="text-xl leading-none">&times;</span>
+                            <span className="hidden sm:inline">Dersten Çık</span>
+                        </button>
+                    </div>
+                    <div className="w-full max-w-7xl h-[85vh] bg-[#1a1a1a] rounded-b-2xl overflow-hidden shadow-2xl relative">
+                        {/* Jitsi meet iframe - Öğrenci mod: kamera/mikrofon kapalı başlar */}
+                        <iframe 
+                            src={`https://meet.element.io/${jitsiRoomName}#userInfo.displayName=%C3%96%C4%9Frenci&config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22hangup%22]`} 
+                            allow="camera; microphone; fullscreen; display-capture; screen-wake-lock; autoplay" 
+                            className="absolute inset-0 w-full h-full border-none"
+                        />
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
