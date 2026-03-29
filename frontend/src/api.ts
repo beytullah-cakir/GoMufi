@@ -11,14 +11,25 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// api.interceptors.request.use((config) => {
-//   const token = localStorage.getItem("token");
-
-//   if (token) {
-//     config.headers.Authorization = `Bearer ${token}`;
-//   }
-
-//   return config;
-// });
+api.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response && error.response.status === 401) {
+      // Eğer token süresi dolduysa / geçersizse anasayfaya veya giriş paneline at
+      const msg = error.response.data?.detail || "";
+      if (msg.toLowerCase().includes("token expired") || msg.toLowerCase().includes("not authenticated")) {
+        // Prevent infinite reload loops or double-alerts
+        if (window.location.pathname !== '/' && window.location.pathname !== '/login') {
+          console.warn("[Auth] Token expired, redirecting to login...");
+          alert("Oturum süreniz doldu (Token Expired). Lütfen tekrar giriş yapın.");
+          window.location.href = "/";
+        }
+      }
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
