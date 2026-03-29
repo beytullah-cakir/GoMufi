@@ -21,7 +21,7 @@ app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Production veya Local tespiti
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-is_production = "localhost" not in FRONTEND_URL
+is_production = "localhost" not in FRONTEND_URL and FRONTEND_URL.startswith("https")
 
 # 2. SESSION MIDDLEWARE
 app.add_middleware(
@@ -38,10 +38,12 @@ app.add_middleware(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://www.gomufi.com",         # Yeni ana domain
-        "https://gomufi.com",             # Yönlendirme için alternatif domain
-        "https://go-mufi.vercel.app",     # Eski adres (yedek olarak kalabilir)
+        "https://www.gomufi.com",         
+        "https://gomufi.com",             
+        "https://go-mufi.vercel.app",     
         "http://localhost:5173",    
+        "http://127.0.0.1:5173",
+        "http://0.0.0.0:5173", # Docker veya harici host erişimi için
     ],
     allow_credentials=True,
     allow_methods=["*"],
