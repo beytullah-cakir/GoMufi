@@ -53,6 +53,15 @@ class LiveSessionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class TeacherStudentResponse(BaseModel):
+    student_id: int
+    first_name: str
+    last_name: str
+    email: str
+    course_title: str
+    progress: int = 0
+    enrolled_at: Optional[datetime] = None
+
 async def get_current_user_info(request: Request):
     token = request.cookies.get("access_token")
     if not token:
@@ -183,6 +192,37 @@ async def read_my_courses(
     )
     courses = result.scalars().all()
     return courses
+
+@router.get("/teacher/students", response_model=List[TeacherStudentResponse])
+async def read_teacher_students(
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    from models.student import Student
+    
+    stmt = (
+        select(Enrollment, Student, Course)
+        .join(Course, Course.id == Enrollment.course_id)
+        .join(Student, Student.id == Enrollment.student_id)
+        .where(Course.teacher_id == teacher_id)
+    )
+    result = await db.execute(stmt)
+    rows = result.all()
+    
+    response = []
+    for enrollment, student, course in rows:
+        response.append(
+            TeacherStudentResponse(
+                student_id=student.id,
+                first_name=student.first_name,
+                last_name=student.last_name,
+                email=student.email,
+                course_title=course.title,
+                progress=0, # İleride gerçek progress hesaplanabilir
+                enrolled_at=enrollment.enrolled_at
+            )
+        )
+    return response
 
 class CreateCourseRequest(BaseModel):
     title: str

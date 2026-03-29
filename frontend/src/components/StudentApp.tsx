@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Navbar from './Navbar';
+import api from '../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
 import ProfilePage from './ProfilePage';
@@ -33,6 +34,23 @@ interface CartItem {
 function StudentApp() {
     const [activePage, setActivePage] = useState('Ana Sayfa');
     const [activeCourseId, setActiveCourseId] = useState<string>('Python');
+    const [userData, setUserData] = useState<any>(null);
+    const [isUserDataLoading, setIsUserDataLoading] = useState(true);
+
+    // Fetch user data once on mount
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get("/profile");
+                setUserData(response.data);
+            } catch (err) {
+                console.error("Failed to fetch user data", err);
+            } finally {
+                setIsUserDataLoading(false);
+            }
+        };
+        fetchUserData();
+    }, []);
 
     // --- One-time Reset (Test İçin Geçici) ---
     useEffect(() => {
@@ -346,7 +364,7 @@ function StudentApp() {
                     ) : activePage === 'Kurslar' ? (
                         <CoursesPage addToCart={addToCart} cart={cart} />
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
-                        <ProfilePage />
+                        <ProfilePage userData={userData} isLoading={isUserDataLoading} />
                     ) : activePage === 'Kurslarım' ? (
                         <ContentPage />
                     ) : activePage === 'Soru Sor!' ? (
