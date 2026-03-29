@@ -10,6 +10,7 @@ import {
   LogOut,
   PlusCircle,
   Sparkles,
+  User,
 } from "lucide-react";
 import api from "../../api";
 
@@ -109,6 +110,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "YZ Soru Oluştur",
       icon: <Sparkles size={24} strokeWidth={2.5} />,
       id: "AIQuestions",
+    },
+    {
+      label: "Profilim",
+      icon: <User size={24} strokeWidth={2.5} />,
+      id: "Profile",
     },
     {
       label: "Öğrenciler",

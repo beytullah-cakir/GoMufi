@@ -1,7 +1,36 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Users, BookOpen, TrendingUp, AlertTriangle, CheckCircle, MessageSquare } from 'lucide-react';
+import api from '../../api';
 
 const InstructorDashboard: React.FC = () => {
+    const [courses, setCourses] = useState<any[]>([]);
+    const [students, setStudents] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                const [coursesRes, studentsRes] = await Promise.all([
+                    api.get('/teacher/content'),
+                    api.get('/teacher/students')
+                ]);
+                
+                setCourses(coursesRes.data);
+                
+                const uniqueStudents = new Set();
+                studentsRes.data.forEach((s: any) => {
+                    if (s.student_id) uniqueStudents.add(s.student_id);
+                });
+                setStudents(Array.from(uniqueStudents));
+            } catch (err) {
+                console.error("Failed to fetch dashboard data:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchDashboardData();
+    }, []);
+
     return (
         <div className="space-y-8 animate-fade-in-down">
             {/* Smart Alerts */}
@@ -31,8 +60,8 @@ const InstructorDashboard: React.FC = () => {
             {/* Detailed Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 {[
-                    { label: 'Toplam Öğrenci', value: '1,234', change: '+12%', sublabel: 'Geçen aya göre', icon: <Users size={24} />, color: 'blue' },
-                    { label: 'Aktif Kurslar', value: '8', change: '+2', sublabel: 'Bu ay eklendi', icon: <BookOpen size={24} />, color: 'emerald' },
+                    { label: 'Toplam Öğrenci', value: isLoading ? '...' : students.length.toString(), change: 'Tümü', sublabel: 'Platformda aktif', icon: <Users size={24} />, color: 'blue' },
+                    { label: 'Aktif Kurslar', value: isLoading ? '...' : courses.length.toString(), change: 'Sistemde', sublabel: 'Yayındaki kurslarım', icon: <BookOpen size={24} />, color: 'emerald' },
                     { label: 'Ortalama Tamamlanma', value: '86%', change: '+5%', sublabel: 'Hedefin üstünde', icon: <CheckCircle size={24} />, color: 'purple' },
                     { label: 'Bugün Aktif', value: '142', change: 'En yüksek', sublabel: '24s içindeki girişler', icon: <TrendingUp size={24} />, color: 'orange' },
                 ].map((stat, index) => (
@@ -74,35 +103,40 @@ const InstructorDashboard: React.FC = () => {
                             <div className="col-span-3 text-right">Durum</div>
                         </div>
 
-                        {[
-                            { title: 'Python: Temel Algoritmalar', students: 450, rating: 4.8, status: 'Yayında', progress: 75, color: 'blue' },
-                            { title: 'Web Geliştirme 101', students: 320, rating: 4.5, status: 'Yayında', progress: 45, color: 'purple' },
-                            { title: 'Oyun Tasarımı', students: 210, rating: 4.9, status: 'Yayında', progress: 90, color: 'orange' },
-                            { title: 'Veri Bilimine Giriş', students: 0, rating: '-', status: 'Taslak', progress: 0, color: 'gray' },
-                        ].map((course, i) => (
-                            <div key={i} className="grid grid-cols-12 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors group">
-                                <div className="col-span-5 flex items-center gap-4">
-                                    <div className={`w-10 h-10 rounded-xl bg-${course.color}-100 flex items-center justify-center text-xl`}>
-                                        {i === 0 ? '🐍' : i === 1 ? '🌐' : i === 2 ? '🎮' : '📊'}
-                                    </div>
-                                    <div>
-                                        <h4 className="font-bold text-gray-800 text-sm group-hover:text-sky-600 transition-colors">{course.title}</h4>
-                                        <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                                            <div className={`h-full bg-${course.color}-500 rounded-full`} style={{ width: `${course.progress}%` }}></div>
+                        {isLoading ? (
+                            <p className="text-sm p-4 text-gray-400 font-bold text-center">Kurslar yükleniyor...</p>
+                        ) : courses.length === 0 ? (
+                            <p className="text-sm p-4 text-gray-400 font-bold text-center">Yayında bir kursunuz bulunmuyor.</p>
+                        ) : (
+                            courses.slice(0, 5).map((course, i) => {
+                                const colors = ['blue', 'purple', 'orange', 'emerald', 'sky'];
+                                const c = colors[i % colors.length];
+                                
+                                return (
+                                <div key={course.id} className="grid grid-cols-12 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors group cursor-pointer">
+                                    <div className="col-span-5 flex items-center gap-4">
+                                        <div className={`w-10 h-10 rounded-xl bg-${c}-100 flex items-center justify-center text-xl`}>
+                                            {i % 4 === 0 ? '🐍' : i % 4 === 1 ? '🌐' : i % 4 === 2 ? '🎮' : '📊'}
+                                        </div>
+                                        <div>
+                                            <h4 className="font-bold text-gray-800 text-sm group-hover:text-sky-600 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">{course.title}</h4>
+                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                                                <div className={`h-full bg-${c}-500 rounded-full`} style={{ width: `${course.progress || 0}%` }}></div>
+                                            </div>
                                         </div>
                                     </div>
+                                    <div className="col-span-2 text-center font-bold text-gray-600 text-sm">{/* Not available yet */ '-'}</div>
+                                    <div className="col-span-2 text-center flex items-center justify-center gap-1 font-bold text-gray-600 text-sm">
+                                        <span className="text-yellow-400">★</span> 5.0
+                                    </div>
+                                    <div className="col-span-3 text-right">
+                                        <span className={`text-xs font-bold px-3 py-1 rounded-full ${course.progress !== undefined ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
+                                            Yayında
+                                        </span>
+                                    </div>
                                 </div>
-                                <div className="col-span-2 text-center font-bold text-gray-600 text-sm">{course.students}</div>
-                                <div className="col-span-2 text-center flex items-center justify-center gap-1 font-bold text-gray-600 text-sm">
-                                    <span className="text-yellow-400">★</span> {course.rating}
-                                </div>
-                                <div className="col-span-3 text-right">
-                                    <span className={`text-xs font-bold px-3 py-1 rounded-full ${course.status === 'Yayında' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-500'}`}>
-                                        {course.status}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
+                            )})
+                        )}
                     </div>
                 </div>
 
@@ -112,7 +146,12 @@ const InstructorDashboard: React.FC = () => {
                         <div className="flex justify-between items-start mb-8">
                             <div>
                                 <p className="text-indigo-100 text-sm font-bold mb-1">Toplam Kazanç</p>
-                                <h3 className="text-3xl font-black">₺12,450</h3>
+                                <h3 className="text-3xl font-black">
+                                    {isLoading ? '...' : `₺${students.reduce((acc, student) => {
+                                        const course = courses.find((c: any) => c.id === student.course_id);
+                                        return acc + (course?.price || 0);
+                                    }, 0).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}`}
+                                </h3>
                             </div>
                             <div className="p-2 bg-white/20 rounded-xl">
                                 <TrendingUp size={20} />

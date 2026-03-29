@@ -1,16 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, Mail, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
+import api from '../../api';
 
 const InstructorStudents: React.FC = () => {
-    // const [selectedStudent, setSelectedStudent] = useState<number | null>(null);
+    const [students, setStudents] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const students = [
-        { id: 1, name: 'Ali Yılmaz', email: 'ali@example.com', progress: 85, lastLogin: '2 saat önce', status: 'active', course: 'Python: Temel Algoritmalar', performance: 'high' },
-        { id: 2, name: 'Ayşe Demir', email: 'ayse@example.com', progress: 15, lastLogin: '5 gün önce', status: 'struggling', course: 'Web Geliştirme 101', performance: 'low' },
-        { id: 3, name: 'Mehmet Kaya', email: 'mehmet@example.com', progress: 45, lastLogin: '1 gün önce', status: 'active', course: 'Python: Temel Algoritmalar', performance: 'average' },
-        { id: 4, name: 'Zeynep Çelik', email: 'zeynep@example.com', progress: 98, lastLogin: '10dk önce', status: 'completed', course: 'Oyun Tasarımı', performance: 'high' },
-        { id: 5, name: 'Canberk Öz', email: 'canberk@example.com', progress: 0, lastLogin: '1 ay önce', status: 'inactive', course: 'Web Geliştirme 101', performance: 'inactive' },
-    ];
+    useEffect(() => {
+        const fetchStudents = async () => {
+            try {
+                const response = await api.get('/teacher/students');
+                setStudents(response.data);
+            } catch (err) {
+                console.error("Failed to fetch students:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchStudents();
+    }, []);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
@@ -61,47 +69,56 @@ const InstructorStudents: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {students.map((student) => (
-                            <tr
-                                key={student.id}
-                                className="group hover:bg-sky-50 transition-colors cursor-pointer"
-                            // onClick={() => setSelectedStudent(student.id)}
-                            >
-                                <td className="py-4 px-6">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-sm">
-                                            {student.name.split(' ').map(n => n[0]).join('')}
-                                        </div>
-                                        <div>
-                                            <p className="font-bold text-gray-800 text-sm">{student.name}</p>
-                                            <p className="text-xs text-gray-400">{student.email}</p>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td className="py-4 px-6">
-                                    <span className="text-sm font-semibold text-gray-600">{student.course}</span>
-                                </td>
-                                <td className="py-4 px-6">
-                                    <div className="flex items-center justify-center gap-2">
-                                        <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full rounded-full ${student.progress > 80 ? 'bg-green-500' : student.progress < 30 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                                style={{ width: `${student.progress}%` }}
-                                            ></div>
-                                        </div>
-                                        <span className="text-xs font-bold text-gray-500 w-8">{student.progress}%</span>
-                                    </div>
-                                </td>
-                                <td className="py-4 px-6 text-center">
-                                    {getStatusBadge(student.status)}
-                                </td>
-                                <td className="py-4 px-6 text-right">
-                                    <button className="p-2 text-gray-400 hover:text-sky-600 rounded-lg transition-colors">
-                                        <MoreVertical size={18} />
-                                    </button>
-                                </td>
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-8 text-gray-400 font-bold">Öğrenciler yükleniyor...</td>
                             </tr>
-                        ))}
+                        ) : students.length === 0 ? (
+                            <tr>
+                                <td colSpan={5} className="text-center py-8 text-gray-400 font-bold">Henüz kurslarınıza kayıtlı bir öğrenci bulunmuyor.</td>
+                            </tr>
+                        ) : (
+                            students.map((student, index) => (
+                                <tr
+                                    key={student.student_id ? student.student_id + '-' + index : index}
+                                    className="group hover:bg-sky-50 transition-colors cursor-pointer"
+                                >
+                                    <td className="py-4 px-6">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center font-bold text-gray-500 text-sm">
+                                                {student.first_name?.[0]}{student.last_name?.[0]}
+                                            </div>
+                                            <div>
+                                                <p className="font-bold text-gray-800 text-sm">{student.first_name} {student.last_name}</p>
+                                                <p className="text-xs text-gray-400">{student.email}</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                        <span className="text-sm font-semibold text-gray-600">{student.course_title}</span>
+                                    </td>
+                                    <td className="py-4 px-6">
+                                        <div className="flex items-center justify-center gap-2">
+                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full rounded-full ${student.progress > 80 ? 'bg-green-500' : student.progress < 30 ? 'bg-red-500' : 'bg-blue-500'}`}
+                                                    style={{ width: `${student.progress || 0}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className="text-xs font-bold text-gray-500 w-8">{student.progress || 0}%</span>
+                                        </div>
+                                    </td>
+                                    <td className="py-4 px-6 text-center">
+                                        {getStatusBadge(student.status || 'active')}
+                                    </td>
+                                    <td className="py-4 px-6 text-right">
+                                        <button className="p-2 text-gray-400 hover:text-sky-600 rounded-lg transition-colors">
+                                            <MoreVertical size={18} />
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
             </div>

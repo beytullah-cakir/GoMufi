@@ -37,7 +37,15 @@ import CharacterBody from "../sprites/CharacterProfile2.png";
 import CharacterEyes from "../sprites/eyes.png";
 import PythonIcon from "../assets/sprites/PythonIcon.png";
 
-const ProfilePage: React.FC = () => {
+interface ProfilePageProps {
+  userData?: any;
+  isLoading?: boolean;
+}
+
+const ProfilePage: React.FC<ProfilePageProps> = ({ 
+  userData: propUserData, 
+  isLoading: propIsLoading 
+}) => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "skills" | "portfolio"
   >("overview");
@@ -46,20 +54,32 @@ const ProfilePage: React.FC = () => {
   const [profileData, setProfileData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch user profile data
+  // Sync state with props
   React.useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await api.get("/profile");
-        setProfileData(response.data);
-      } catch (err) {
-        console.error("Profile fetch error:", err);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchProfile();
-  }, []);
+    if (propUserData) {
+      setProfileData(propUserData);
+      setIsLoading(false);
+    } else if (propIsLoading !== undefined) {
+      setIsLoading(propIsLoading);
+    }
+  }, [propUserData, propIsLoading]);
+
+  // If no props provided (fallback for existing logic), fetch locally
+  React.useEffect(() => {
+    if (!propUserData && propIsLoading === undefined) {
+      const fetchProfile = async () => {
+        try {
+          const response = await api.get("/profile");
+          setProfileData(response.data);
+        } catch (err) {
+          console.error("Profile fetch error:", err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchProfile();
+    }
+  }, [propUserData, propIsLoading]);
 
   // Blinking effect logic
   React.useEffect(() => {
@@ -229,11 +249,11 @@ const ProfilePage: React.FC = () => {
         <div className="flex flex-col md:flex-row items-end justify-between mb-8 relative z-20">
           {/* Left: Name & Identity */}
           <div className="flex flex-col items-center md:items-start mb-4 md:mb-0">
-            <h1 className="text-4xl font-black text-gray-900 font-display tracking-tight mb-1">
+            <h1 className={`text-4xl font-black font-display tracking-tight mb-1 ${isLoading ? "bg-gray-200 animate-pulse text-transparent rounded" : "text-gray-900"}`}>
               {profileData?.first_name || "Öğrenci"}{" "}
               {profileData?.last_name || ""}
             </h1>
-            <div className="flex items-center gap-2 text-gray-500 font-bold text-sm">
+            <div className={`flex items-center gap-2 font-bold text-sm ${isLoading ? "bg-gray-100 animate-pulse text-transparent rounded mt-1" : "text-gray-500"}`}>
               <span className="text-blue-500">
                 @{profileData?.nickname || "isimsiz"}
               </span>

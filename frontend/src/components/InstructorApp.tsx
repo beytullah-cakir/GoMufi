@@ -7,16 +7,27 @@ import InstructorRevenue from './instructor-pages/InstructorRevenue';
 import InstructorSettings from './instructor-pages/InstructorSettings';
 import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
 import LessonBuilderPage from './LessonBuilderPage';
+import InstructorProfile from './instructor-pages/InstructorProfile';
+import api from '../api';
+import { useEffect } from 'react';
 
 const InstructorApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
 
-    // Mock User Data (In a real app, this would come from a Context or Global State)
-    const userData = {
-        first_name: "Mualla",
-        last_name: "Yılmaz",
-        email: "mualla@example.com"
-    };
+    // User Data State
+    const [userData, setUserData] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get("/profile");
+                setUserData(response.data);
+            } catch (err) {
+                console.error("Failed to fetch coach data", err);
+            }
+        };
+        fetchUserData();
+    }, []);
 
     const renderPage = () => {
         switch (activePage) {
@@ -32,6 +43,8 @@ const InstructorApp: React.FC = () => {
                 return <InstructorSettings />;
             case 'AIQuestions':
                 return <InstructorAIQuestions />;
+            case 'Profile':
+                return <InstructorProfile userData={userData} setUserData={setUserData} />;
             default:
                 return (
                     <div className="p-8">

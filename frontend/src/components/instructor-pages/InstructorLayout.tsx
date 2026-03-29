@@ -16,12 +16,11 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   children,
   userData,
 }) => {
-  if (!userData) return null;
-  const firstname = userData.first_name || "";
-  const lastname = userData.last_name || "";
-  const email = userData.email || "";
+  const firstname = userData?.first_name || "Eğitmen";
+  const lastname = userData?.last_name || "";
+  const email = userData?.email || "";
 
-  const initials = (firstname.charAt(0) + lastname.charAt(0)).toUpperCase();
+  const initials = (firstname.charAt(0) + (lastname.charAt(0) || "")).toUpperCase();
 
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
@@ -79,7 +78,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
             <div className="flex items-center gap-3 pl-6 border-l-2 border-gray-100">
               <div className="text-right hidden md:block">
                 <p className="text-sm font-black text-gray-800">
-                  {firstname} Hoca
+                  {firstname} {lastname.charAt(0).toUpperCase()}.
                 </p>                
               </div>
               <div className="w-10 h-10 rounded-full bg-sky-100 border-2 border-sky-200 flex items-center justify-center text-sky-600 font-bold cursor-pointer hover:bg-sky-200 transition-colors">
