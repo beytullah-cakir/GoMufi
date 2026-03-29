@@ -13,7 +13,8 @@ from core.config import settings
 
 router = APIRouter()
 
-from datetime import datetime
+from datetime import datetime, time
+from models.live_session import LiveSession
 
 class TeacherResponse(BaseModel):
     first_name: str
@@ -35,6 +36,19 @@ class CourseResponse(BaseModel):
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
     teacher: Optional[TeacherResponse] = None
+
+    class Config:
+        from_attributes = True
+
+class LiveSessionResponse(BaseModel):
+    id: int
+    course_id: int
+    title: str
+    day_of_week: str
+    start_time: time
+    duration_minutes: int
+    type: str
+    status: str
 
     class Config:
         from_attributes = True
@@ -73,6 +87,28 @@ async def read_my_content(
             .join(Enrollment)
             .where(Enrollment.student_id == user_id)
             .options(joinedload(Course.teacher))
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+    else:
+        return []
+
+@router.get("/my-schedule", response_model=List[LiveSessionResponse])
+async def read_my_schedule(
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    user_id = int(user_info["sub"])
+    role = user_info["role"]
+    
+    if role == "student":
+        # Get all live sessions for courses the student is enrolled in
+        stmt = (
+            select(LiveSession)
+            .join(Course)
+            .join(Enrollment)
+            .where(Enrollment.student_id == user_id)
+            .order_by(LiveSession.start_time)
         )
         result = await db.execute(stmt)
         return result.scalars().all()
