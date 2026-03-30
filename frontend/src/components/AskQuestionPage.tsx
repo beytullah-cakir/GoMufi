@@ -100,9 +100,9 @@ interface AskQuestionPageProps {
     courses: Record<string, CourseData>;
 }
 
-const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses }) => {
+const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
     // Process instructors from active courses
-    const activeInstructors: Instructor[] = Object.values(courses).map((c, idx) => ({
+    const activeInstructors: Instructor[] = Object.values(courses || {}).map((c, idx) => ({
         id: `inst-${c.id}`,
         name: c.instructor.name,
         branch: c.id,
@@ -119,7 +119,7 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses }) => {
     // New Question Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newQuestionForm, setNewQuestionForm] = useState({
-        lesson: Object.keys(courses)[0] || 'Python',
+        lesson: Object.keys(courses || {})[0] || 'Python',
         topic: '',
         instructor: 'auto', // 'auto' or specific ID
         message: ''
@@ -476,7 +476,7 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses }) => {
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Ders Seçimi</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {Object.keys(courses).map(opt => (
+                                    {Object.keys(courses || {}).map(opt => (
                                         <button
                                             key={opt}
                                             onClick={() => setNewQuestionForm({ ...newQuestionForm, lesson: opt })}
