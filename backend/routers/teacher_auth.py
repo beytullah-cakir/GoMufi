@@ -68,7 +68,8 @@ async def login_user(
         httponly=True,
         samesite="None" if is_production else "lax",   
         secure=is_production,   
-        path="/"
+        path="/",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60  # dakikayı saniyeye çevir
     )
 
     return {
