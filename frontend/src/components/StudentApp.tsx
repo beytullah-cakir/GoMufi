@@ -368,7 +368,7 @@ function StudentApp() {
                     ) : activePage === 'Kurslarım' ? (
                         <ContentPage />
                     ) : activePage === 'Soru Sor!' ? (
-                        <AskQuestionPage />
+                        <AskQuestionPage courses={courses} />
                     ) : activePage === 'Ödeme' ? (
                         <StudentPayment
                             cart={cart}
