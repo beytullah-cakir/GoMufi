@@ -616,11 +616,8 @@ const ContentPage: React.FC = () => {
                                         onClick={() => {
                                             if (isClassActive) {
                                                 const roomName = `GoMufi-${activeCourseData?.id}-${(nextLessonData?.title || "Class").replace(/[^a-zA-Z0-9]/g, "")}`;
-                                                window.open(
-                                                    `/classroom?room=${encodeURIComponent(roomName)}&role=student`,
-                                                    '_blank',
-                                                    'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no'
-                                                );
+                                                const url = `https://meet.element.io/${roomName}#userInfo.displayName=%C3%96%C4%9Frenci&config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22hangup%22]`;
+                                                window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
                                             }
                                         }}
                                         className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${

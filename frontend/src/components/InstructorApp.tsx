@@ -14,20 +14,14 @@ import { useEffect } from 'react';
 const InstructorApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
 
-    // Önce cache'den anında yükle, sonra API'den güncelle
-    const [userData, setUserData] = useState<any>(() => {
-        try {
-            const cached = localStorage.getItem('instructor_profile');
-            return cached ? JSON.parse(cached) : null;
-        } catch { return null; }
-    });
+    // User Data State
+    const [userData, setUserData] = useState<any>(null);
 
     useEffect(() => {
         const fetchUserData = async () => {
             try {
                 const response = await api.get("/profile");
                 setUserData(response.data);
-                localStorage.setItem('instructor_profile', JSON.stringify(response.data));
             } catch (err) {
                 console.error("Failed to fetch coach data", err);
             }
