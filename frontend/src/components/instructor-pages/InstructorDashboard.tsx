@@ -6,9 +6,7 @@ const InstructorDashboard: React.FC = () => {
     const [courses, setCourses] = useState<any[]>([]);
     const [students, setStudents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [showJitsi, setShowJitsi] = useState(false);
-    const [jitsiRoomName, setJitsiRoomName] = useState("");
-    const [jitsiTitle, setJitsiTitle] = useState("");
+
     const [timeOffsetMs, setTimeOffsetMs] = useState(0);
     const [upcomingSession, setUpcomingSession] = useState<{courseId: number, courseTitle: string, date: string, time: string, isActive: boolean, timeLeftStr: string} | null>(null);
 
@@ -137,9 +135,8 @@ const InstructorDashboard: React.FC = () => {
                             onClick={() => {
                                 if (upcomingSession.isActive) {
                                     const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, '')}`;
-                                    setJitsiRoomName(room);
-                                    setJitsiTitle(upcomingSession.courseTitle);
-                                    setShowJitsi(true);
+                                    const url = `https://meet.element.io/${room}#userInfo.displayName=E%C4%9Fitmen&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`;
+                                    window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
                                 }
                             }}
                             className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all whitespace-nowrap ${
@@ -311,36 +308,7 @@ const InstructorDashboard: React.FC = () => {
                 </div>
             </div>
 
-            {/* JITSI MEET MODAL */}
-            {showJitsi && (
-                <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 lg:p-10 backdrop-blur-sm">
-                    <div className="w-full max-w-7xl flex justify-between items-center px-6 py-4 bg-[#111] border-b border-gray-800 text-white rounded-t-2xl shadow-xl">
-                        <div className="flex items-center gap-3">
-                            <div className="p-2 bg-green-500/20 rounded-xl">
-                                <Video size={24} className="text-green-400 animate-pulse" />
-                            </div>
-                            <div>
-                                <h2 className="font-black text-xl">Canlı Sınıf — Eğitmen</h2>
-                                <p className="text-xs font-bold text-gray-400">{jitsiTitle} · Oda: {jitsiRoomName}</p>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => setShowJitsi(false)}
-                            className="bg-red-600/10 text-red-500 hover:bg-red-600 hover:text-white px-4 py-2 flex items-center gap-2 rounded-xl font-bold transition-all border border-red-500/20 hover:border-red-600"
-                        >
-                            <span className="text-xl leading-none">&times;</span>
-                            <span className="hidden sm:inline">Toplantıyı Bitir</span>
-                        </button>
-                    </div>
-                    <div className="w-full max-w-7xl h-[85vh] bg-[#1a1a1a] rounded-b-2xl overflow-hidden shadow-2xl relative">
-                        <iframe
-                            src={`https://meet.element.io/${jitsiRoomName}#userInfo.displayName=E%C4%9Fitmen&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`}
-                            allow="camera; microphone; fullscreen; display-capture; screen-wake-lock; autoplay"
-                            className="absolute inset-0 w-full h-full border-none"
-                        />
-                    </div>
-                </div>
-            )}
+
         </div>
     );
 };
