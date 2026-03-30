@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 
 // --- Types ---
+import type { CourseData } from '../types';
+
 interface Message {
     id: string;
     senderId: string;
@@ -94,7 +96,20 @@ const MOCK_CHATS: ChatSession[] = [
 ];
 
 
-const AskQuestionPage: React.FC = () => {
+interface AskQuestionPageProps {
+    courses: Record<string, CourseData>;
+}
+
+const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses }) => {
+    // Process instructors from active courses
+    const activeInstructors: Instructor[] = Object.values(courses).map((c, idx) => ({
+        id: `inst-${c.id}`,
+        name: c.instructor.name,
+        branch: c.id,
+        status: c.instructor.isOnline ? 'online' : 'offline',
+        avatarSeed: 101 + idx
+    }));
+
     const [chats, setChats] = useState<ChatSession[]>(MOCK_CHATS);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
@@ -104,7 +119,7 @@ const AskQuestionPage: React.FC = () => {
     // New Question Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newQuestionForm, setNewQuestionForm] = useState({
-        lesson: 'Python',
+        lesson: Object.keys(courses)[0] || 'Python',
         topic: '',
         instructor: 'auto', // 'auto' or specific ID
         message: ''
@@ -152,14 +167,13 @@ const AskQuestionPage: React.FC = () => {
 
     const handleNewQuestionSubmit = () => {
         // Logic to find instructor
-        let assignedInstructor = MOCK_INSTRUCTORS.find(i => i.id === newQuestionForm.instructor);
+        let assignedInstructor = activeInstructors.find(i => i.id === newQuestionForm.instructor);
 
         // Fallback or Auto assign logic
         if (!assignedInstructor || newQuestionForm.instructor === 'auto') {
-            // Try to find online instructor for branch, fallback to any
-            assignedInstructor = MOCK_INSTRUCTORS.find(i => i.branch === newQuestionForm.lesson && i.status === 'online') ||
-                MOCK_INSTRUCTORS.find(i => i.branch === newQuestionForm.lesson) ||
-                MOCK_INSTRUCTORS[0];
+            assignedInstructor = activeInstructors.find(i => i.branch === newQuestionForm.lesson && i.status === 'online') ||
+                activeInstructors.find(i => i.branch === newQuestionForm.lesson) ||
+                (activeInstructors.length > 0 ? activeInstructors[0] : { id: 'sys', name: 'Sistem', branch: 'Genel', status: 'online', avatarSeed: 0 });
         }
 
         const newChat: ChatSession = {
@@ -462,7 +476,7 @@ const AskQuestionPage: React.FC = () => {
                             <div>
                                 <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Ders Seçimi</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {['Python', 'React', 'English', 'Data Science'].map(opt => (
+                                    {Object.keys(courses).map(opt => (
                                         <button
                                             key={opt}
                                             onClick={() => setNewQuestionForm({ ...newQuestionForm, lesson: opt })}
@@ -485,7 +499,7 @@ const AskQuestionPage: React.FC = () => {
                                     onChange={(e) => setNewQuestionForm({ ...newQuestionForm, instructor: e.target.value })}
                                 >
                                     <option value="auto">Otomatik (Müsait Olan)</option>
-                                    {MOCK_INSTRUCTORS.map(inst => (
+                                    {activeInstructors.map(inst => (
                                         <option key={inst.id} value={inst.id}>
                                             {inst.name} ({inst.status === 'online' ? '🟢 Çevrimiçi' : '🔴 Çevrimdışı'})
                                         </option>
@@ -494,7 +508,7 @@ const AskQuestionPage: React.FC = () => {
                                 {newQuestionForm.instructor === 'auto' && (
                                     <div className="flex items-center gap-2 mt-2 text-xs text-indigo-500 font-medium">
                                         <Wifi size={14} />
-                                        <span>Aktif olan en uygun hocaya yönlendirileceksiniz.</span>
+                                        <span>Satın aldığınız dersin yetkili hocasına sorunuz yönlendirilecek.</span>
                                     </div>
                                 )}
                             </div>
