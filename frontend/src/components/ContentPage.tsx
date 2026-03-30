@@ -75,13 +75,8 @@ const ContentPage: React.FC = () => {
 
     // --- Mock Data ---
 
-    const [courses, setCourses] = useState<Course[]>(() => {
-        try {
-            const cached = localStorage.getItem('student_my_content');
-            return cached ? JSON.parse(cached) : [];
-        } catch { return []; }
-    });
-    const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('student_my_content'));
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const getCourseStyle = (category: string | null) => {
         const cat = (category || '').toLowerCase();
@@ -125,7 +120,6 @@ const ContentPage: React.FC = () => {
                     };
                 });
                 setCourses(mappedCourses);
-                localStorage.setItem('student_my_content', JSON.stringify(mappedCourses));
                 if (mappedCourses.length > 0) {
                     setSelectedCourse(mappedCourses[0].id);
                 }
@@ -138,12 +132,7 @@ const ContentPage: React.FC = () => {
         fetchCourses();
     }, []);
 
-    const [schedule, setSchedule] = useState<ScheduleSlot[]>(() => {
-        try {
-            const cached = localStorage.getItem('student_my_schedule');
-            return cached ? JSON.parse(cached) : [];
-        } catch { return []; }
-    });
+    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
 
     useEffect(() => {
         const fetchSchedule = async () => {
@@ -218,7 +207,6 @@ const ContentPage: React.FC = () => {
                 });
 
                 setSchedule(mappedSchedule);
-                localStorage.setItem('student_my_schedule', JSON.stringify(mappedSchedule));
             } catch (err) {
                 console.error("Takvim alınamadı:", err);
             }
