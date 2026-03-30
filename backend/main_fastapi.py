@@ -20,7 +20,7 @@ app = FastAPI(lifespan=lifespan)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Production veya Local tespiti
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FRONTEND_URL = os.getenv("FRONTEND_URL")
 is_production = "localhost" not in FRONTEND_URL and FRONTEND_URL.startswith("https")
 
 # 2. SESSION MIDDLEWARE
