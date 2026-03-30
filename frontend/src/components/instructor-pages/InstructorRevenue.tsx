@@ -3,9 +3,19 @@ import { TrendingUp, Download, CheckCircle, Clock } from 'lucide-react';
 import api from '../../api';
 
 const InstructorRevenue: React.FC = () => {
-    const [courses, setCourses] = useState<any[]>([]);
-    const [students, setStudents] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [courses, setCourses] = useState<any[]>(() => {
+        try {
+            const cached = localStorage.getItem('instructor_revenue_courses');
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    });
+    const [students, setStudents] = useState<any[]>(() => {
+        try {
+            const cached = localStorage.getItem('instructor_revenue_students');
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    });
+    const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('instructor_revenue_courses'));
 
     useEffect(() => {
         const fetchRevenueData = async () => {
@@ -16,6 +26,8 @@ const InstructorRevenue: React.FC = () => {
                 ]);
                 setCourses(coursesRes.data);
                 setStudents(studentsRes.data);
+                localStorage.setItem('instructor_revenue_courses', JSON.stringify(coursesRes.data));
+                localStorage.setItem('instructor_revenue_students', JSON.stringify(studentsRes.data));
             } catch (err) {
                 console.error("Failed to fetch revenue data:", err);
             } finally {

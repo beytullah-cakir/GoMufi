@@ -6,6 +6,7 @@ import InstructorApp from './components/InstructorApp';
 import ParentApp from './components/ParentApp';
 import PaymentSuccess from './components/PaymentSuccess';
 import PaymentError from './components/PaymentError';
+import ClassroomPage from './components/ClassroomPage';
 
 import CompleteProfile from './components/CompleteProfile';
 
@@ -31,6 +32,7 @@ function App() {
       {/* Payment Result Routes */}
       <Route path="/payment-success" element={<PaymentSuccess />} />
       <Route path="/payment-error" element={<PaymentError />} />
+      <Route path="/classroom" element={<ClassroomPage />} />
 
       {/* Redirect unknown routes to Landing */}
       <Route path="*" element={<Navigate to="/" replace />} />

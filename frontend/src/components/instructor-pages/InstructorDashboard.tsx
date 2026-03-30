@@ -3,9 +3,22 @@ import { Users, BookOpen, TrendingUp, AlertTriangle, CheckCircle, MessageSquare,
 import api from '../../api';
 
 const InstructorDashboard: React.FC = () => {
-    const [courses, setCourses] = useState<any[]>([]);
-    const [students, setStudents] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [courses, setCourses] = useState<any[]>(() => {
+        try {
+            const cached = localStorage.getItem('instructor_courses');
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    });
+    const [students, setStudents] = useState<any[]>(() => {
+        try {
+            const cached = localStorage.getItem('instructor_students');
+            return cached ? JSON.parse(cached) : [];
+        } catch { return []; }
+    });
+    const [isLoading, setIsLoading] = useState(() => {
+        // Cache varsa loading gösterme
+        return !localStorage.getItem('instructor_courses');
+    });
 
     const [timeOffsetMs, setTimeOffsetMs] = useState(0);
     const [upcomingSession, setUpcomingSession] = useState<{courseId: number, courseTitle: string, date: string, time: string, isActive: boolean, timeLeftStr: string} | null>(null);
@@ -32,11 +45,14 @@ const InstructorDashboard: React.FC = () => {
                     api.get('/teacher/students')
                 ]);
                 setCourses(coursesRes.data);
+                localStorage.setItem('instructor_courses', JSON.stringify(coursesRes.data));
                 const uniqueStudents = new Set();
                 studentsRes.data.forEach((s: any) => {
                     if (s.student_id) uniqueStudents.add(s.student_id);
                 });
-                setStudents(Array.from(uniqueStudents));
+                const studentsArr = Array.from(uniqueStudents);
+                setStudents(studentsArr);
+                localStorage.setItem('instructor_students', JSON.stringify(studentsArr));
             } catch (err) {
                 console.error("Failed to fetch dashboard data:", err);
             } finally {
@@ -135,8 +151,11 @@ const InstructorDashboard: React.FC = () => {
                             onClick={() => {
                                 if (upcomingSession.isActive) {
                                     const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, '')}`;
-                                    const url = `https://meet.element.io/${room}#userInfo.displayName=E%C4%9Fitmen&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`;
-                                    window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
+                                    window.open(
+                                        `/classroom?room=${encodeURIComponent(room)}&role=instructor`,
+                                        '_blank',
+                                        'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no'
+                                    );
                                 }
                             }}
                             className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all whitespace-nowrap ${
