@@ -3,20 +3,14 @@ import { Search, Filter, MoreVertical, Mail, TrendingUp, AlertCircle, CheckCircl
 import api from '../../api';
 
 const InstructorStudents: React.FC = () => {
-    const [students, setStudents] = useState<any[]>(() => {
-        try {
-            const cached = localStorage.getItem('instructor_students_list');
-            return cached ? JSON.parse(cached) : [];
-        } catch { return []; }
-    });
-    const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('instructor_students_list'));
+    const [students, setStudents] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
         const fetchStudents = async () => {
             try {
                 const response = await api.get('/teacher/students');
                 setStudents(response.data);
-                localStorage.setItem('instructor_students_list', JSON.stringify(response.data));
             } catch (err) {
                 console.error("Failed to fetch students:", err);
             } finally {

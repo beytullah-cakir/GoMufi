@@ -26,14 +26,9 @@ const InstructorCourses: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(() => !localStorage.getItem('instructor_courses_full'));
+  const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [courses, setCourses] = useState<Course[]>(() => {
-    try {
-      const cached = localStorage.getItem('instructor_courses_full');
-      return cached ? JSON.parse(cached) : [];
-    } catch { return []; }
-  });
+  const [courses, setCourses] = useState<Course[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -80,7 +75,6 @@ const InstructorCourses: React.FC = () => {
             liveSessions: liveSessions,
           }});
           setCourses(mappedCourses);
-          localStorage.setItem('instructor_courses_full', JSON.stringify(mappedCourses));
         }
       } catch (error) {
         console.error("Error fetching courses", error);
