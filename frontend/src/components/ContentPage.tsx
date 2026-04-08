@@ -74,9 +74,9 @@ const ContentPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
 
     // --- Mock Data ---
-
     const [courses, setCourses] = useState<Course[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
 
     const getCourseStyle = (category: string | null) => {
         const cat = (category || '').toLowerCase();
@@ -93,10 +93,16 @@ const ContentPage: React.FC = () => {
     };
 
     useEffect(() => {
-        const fetchCourses = async () => {
+        const fetchAllData = async () => {
             try {
-                const response = await api.get('/my-content');
-                const mappedCourses: Course[] = response.data.map((c: any) => {
+                // Fetch courses and schedule in PARALLEL
+                const [contentRes, scheduleRes] = await Promise.all([
+                    api.get('/my-content'),
+                    api.get('/my-schedule')
+                ]);
+
+                // 1. Handle Courses
+                const mappedCourses: Course[] = contentRes.data.map((c: any) => {
                     const style = getCourseStyle(c.category);
                     
                     let liveSessions = [];
@@ -119,31 +125,17 @@ const ContentPage: React.FC = () => {
                         liveSessions: liveSessions
                     };
                 });
+                
                 setCourses(mappedCourses);
-                if (mappedCourses.length > 0) {
+                if (mappedCourses.length > 0 && !selectedCourse) {
                     setSelectedCourse(mappedCourses[0].id);
                 }
-            } catch (err) {
-                console.error("Kurslar alınamadı:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchCourses();
-    }, []);
 
-    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
-
-    useEffect(() => {
-        const fetchSchedule = async () => {
-            try {
-                const response = await api.get('/my-schedule');
+                // 2. Handle Schedule
                 let mappedSchedule: ScheduleSlot[] = [];
-
-                if (response.data && response.data.length > 0) {
-                    mappedSchedule = response.data.map((s: any) => {
-                        const timeStr = s.start_time.substring(0, 5); // "14:00:00" -> "14:00"
-                        
+                if (scheduleRes.data && scheduleRes.data.length > 0) {
+                    mappedSchedule = scheduleRes.data.map((s: any) => {
+                        const timeStr = s.start_time.substring(0, 5);
                         let color = 'bg-gray-100 border-gray-300 text-gray-800';
                         if (s.title.toLowerCase().includes('python')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
                         else if (s.title.toLowerCase().includes('react')) color = 'bg-sky-100 border-sky-300 text-sky-800';
@@ -160,59 +152,37 @@ const ContentPage: React.FC = () => {
                             duration: `${s.duration_minutes} dk`
                         };
                     });
-                } else if (courses.length > 0) {
-                    // GERÇEK PLAN: Eğitmenin kurs oluştururken girdiği "liveSessions" değerlerini takvime aktar.
-                    const daysMapList = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-                    
-                    courses.forEach((c) => {
-                        // Eğer kursun eğitmeni tarafından belirlenmiş özel saatleri varsa onları çıkar
-                        if (c.liveSessions && c.liveSessions.length > 0) {
-                            c.liveSessions.forEach((session, idx) => {
-                                let color = 'bg-gray-100 border-gray-300 text-gray-800';
-                                if (c.title.toLowerCase().includes('python') || c.title.toLowerCase().includes('yazılım')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
-                                else if (c.title.toLowerCase().includes('react') || c.title.toLowerCase().includes('web')) color = 'bg-sky-100 border-sky-300 text-sky-800';
-                                else if (c.title.toLowerCase().includes('ingilizce') || c.title.toLowerCase().includes('dil')) color = 'bg-purple-100 border-purple-300 text-purple-800';
-                                else if (c.title.toLowerCase().includes('oyun') || c.title.toLowerCase().includes('tasarım')) color = 'bg-orange-100 border-orange-300 text-orange-800';
-                                else color = 'bg-indigo-100 border-indigo-300 text-indigo-800';
-
-                                let dayName = "Belirsiz";
-                                if (session.date) {
-                                  const parsedDate = new Date(session.date);
-                                  if (!isNaN(parsedDate.getTime())) {
-                                      dayName = daysMapList[parsedDate.getDay()];
-                                  }
-                                }
-
+                } else if (mappedCourses.length > 0) {
+                    mappedCourses.forEach((c) => {
+                        if (c.liveSessions) {
+                            c.liveSessions.forEach((sess: any) => {
                                 mappedSchedule.push({
-                                    id: `course-${c.id}-sess-${idx}`,
-                                    day: dayName,
-                                    fullDate: session.date,
-                                    time: session.time || "00:00",
+                                    id: `auto-${c.id}-${sess.day}`,
+                                    day: sess.day,
+                                    time: sess.time,
                                     title: c.title,
                                     type: 'live',
                                     status: 'upcoming',
-                                    color: color,
-                                    duration: '45 dk'
+                                    color: c.color.replace('bg-', 'bg-').replace('500', '100'),
+                                    duration: '60 dk'
                                 });
                             });
                         }
                     });
                 }
                 
-                // Saate göre sırala (en erkenden en geçe)
-                mappedSchedule.sort((a, b) => {
-                    const timeA = parseInt(a.time.replace(':', ''));
-                    const timeB = parseInt(b.time.replace(':', ''));
-                    return timeA - timeB;
-                });
-
+                // Sort by time
+                mappedSchedule.sort((a, b) => parseInt(a.time.replace(':', '')) - parseInt(b.time.replace(':', '')));
                 setSchedule(mappedSchedule);
+
             } catch (err) {
-                console.error("Takvim alınamadı:", err);
+                console.error("Veri yükleme hatası:", err);
+            } finally {
+                setIsLoading(false);
             }
         };
-        fetchSchedule();
-    }, [courses]); // Refresh schedule when courses list changes
+        fetchAllData();
+    }, []);
 
     const [timeLeftStr, setTimeLeftStr] = useState<string>("Hesaplanıyor...");
     const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string} | null>(null);
@@ -490,7 +460,7 @@ const ContentPage: React.FC = () => {
                                         <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
                                     </div>
                                     <div>
-                                        <h3 className={`font-black text-sm leading-tight mb-0.5 ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`}>
+                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate max-w-[140px] md:max-w-[160px] ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`} title={course.title}>
                                             {course.title}
                                         </h3>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">

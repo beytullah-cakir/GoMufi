@@ -150,6 +150,7 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             httponly=True,
             secure=is_production, # Local'de HTTP (False), Production'da HTTPS (True)
             samesite='None' if is_production else 'Lax', # None for cross-site (prod), Lax for local
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/"
         )
         return response

@@ -40,11 +40,15 @@ import PythonIcon from "../assets/sprites/PythonIcon.png";
 interface ProfilePageProps {
   userData?: any;
   isLoading?: boolean;
+  courses?: Record<string, any>;
+  currentCourse?: any;
 }
 
 const ProfilePage: React.FC<ProfilePageProps> = ({ 
   userData: propUserData, 
-  isLoading: propIsLoading 
+  isLoading: propIsLoading,
+  courses,
+  currentCourse
 }) => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "skills" | "portfolio"
@@ -596,27 +600,38 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               {/* Current Course Widget */}
               <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <img src={PythonIcon} className="w-24 h-24 rotate-12" />
+                   {currentCourse?.icon ? (
+                    <span className="text-6xl block transform rotate-12">{currentCourse.icon}</span>
+                  ) : (
+                    <img src={PythonIcon} className="w-24 h-24 rotate-12" />
+                  )}
                 </div>
 
                 <h3 className="text-gray-500 font-bold text-xs uppercase tracking-wider mb-2">
                   Devam Et
                 </h3>
                 <h2 className="text-2xl font-black text-gray-800 font-display leading-tight mb-4">
-                  Python Temelleri
+                  {currentCourse?.title || "Yeni Bir Kursa Başla!"}
                 </h2>
 
-                <div className="flex items-center justify-between text-sm font-bold text-gray-500 mb-2">
-                  <span>Bölüm 1 / 5</span>
-                  <span className="text-green-600">65%</span>
-                </div>
-                <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden mb-6 border border-gray-200">
-                  <div className="bg-green-500 w-[65%] h-full rounded-full shadow-inner stripe-pattern"></div>
-                </div>
+                {currentCourse && (
+                  <>
+                    <div className="flex items-center justify-between text-sm font-bold text-gray-500 mb-2">
+                      <span>Bölüm 1 / 5</span>
+                      <span className="text-green-600">65%</span>
+                    </div>
+                    <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden mb-6 border border-gray-200">
+                      <div className="bg-green-500 w-[65%] h-full rounded-full shadow-inner stripe-pattern"></div>
+                    </div>
+                  </>
+                )}
 
-                <button className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-[0_4px_0_rgb(21,128,61)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2">
+                <button 
+                  onClick={() => window.location.href = '/'}
+                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-[0_4px_0_rgb(21,128,61)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2"
+                >
                   <BookOpen size={20} />
-                  DERSİ SÜRDÜR
+                  {currentCourse ? "DERSİ SÜRDÜR" : "KURSLARI KEŞFET"}
                 </button>
               </div>
 
