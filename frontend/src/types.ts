@@ -49,11 +49,4 @@ export interface CourseData {
         title: string;
         subtitle: string;
     };
-    description?: string;
-    curriculum?: any[];
-    instructor_notes?: any[];
-    learning_outcomes?: string[];
-    requirements?: string[];
-    price?: number;
 }
-

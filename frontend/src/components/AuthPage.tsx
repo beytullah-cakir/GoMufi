@@ -352,9 +352,10 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                               <div className="relative">
                                 <select
                                   value={educationLevel}
-                                  onChange={(e) =>
-                                    setEducationLevel(e.target.value)
-                                  }
+                                  onChange={(e) => {
+                                    setEducationLevel(e.target.value);
+                                    setGradeLevel("");
+                                  }}
                                   className={`${getInputClass()} appearance-none cursor-pointer`}
                                   required
                                 >
@@ -380,17 +381,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                   }
                                   className={`${getInputClass()} appearance-none cursor-pointer`}
                                   required
+                                  disabled={!educationLevel}
                                 >
                                   <option value="" disabled>
                                     Sınıf
                                   </option>
-                                  {[...Array(12)].map((_, i) => (
-                                    <option key={i} value={`${i + 1}. Sınıf`}>
-                                      {i + 1}. Sınıf
-                                    </option>
-                                  ))}
-                                  <option value="hazirlik">Hazırlık</option>
-                                  <option value="mezun">Mezun</option>
+                                  {educationLevel === 'ilkokul' && [1, 2, 3, 4].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                  {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                  {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                  {educationLevel === 'universite' && ['Hazırlık', '1. Sınıf', '2. Sınıf', '3. Sınıf', '4. Sınıf', 'Mezun'].map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
                                   <ChevronRight className="w-4 h-4 rotate-90" />
@@ -398,6 +397,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                               </div>
                             </div>
                           </div>
+
                         </>
                       )}
 

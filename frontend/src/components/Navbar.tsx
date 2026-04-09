@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { ShoppingCart, X, Trash2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, X, Trash2, LogOut, Settings, User } from 'lucide-react';
+import api from '../api';
 
 // Import sprites
 import MufiLogo from '../assets/sprites/MufiLogo.png';
@@ -52,11 +53,50 @@ interface NavbarProps {
     onCourseChange: (id: string) => void;
     cart: { id: number; title: string; price: string; icon: string; instructor: string; }[];
     removeFromCart: (id: number) => void;
+    userData?: any;
 }
 
-const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, cart, removeFromCart }) => {
+const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, cart, removeFromCart, userData }) => {
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    
+    // Refs for outside click detection
+    const profileRef = useRef<HTMLDivElement>(null);
+    const cartRef = useRef<HTMLDivElement>(null);
+
+    // Outside click listener
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            // Check if profile dropdown should close
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setIsProfileDropdownOpen(false);
+            }
+            // Check if cart dropdown should close
+            if (cartRef.current && !cartRef.current.contains(event.target as Node)) {
+                setIsCartOpen(false);
+            }
+        };
+
+        // Bind the event listener
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            // Unbind the event listener on clean up
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    const handleLogout = async () => {
+        try {
+            await api.post('/auth/logout');
+            
+            // Redirect to landing page
+            window.location.href = '/';
+        } catch (error) {
+            console.error('Logout error:', error);
+            // Fallback: clear and redirect anyway if it fails
+            window.location.href = '/';
+        }
+    };
 
     const calculateTotal = () => {
         return cart.reduce((acc, item) => {
@@ -122,7 +162,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                 )}
 
                 {/* Shopping Cart */}
-                <div className="relative">
+                <div className="relative" ref={cartRef}>
                     <button
                         className="w-12 h-12 rounded-xl bg-gray-50 border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition-all relative group"
                         onClick={() => setIsCartOpen(!isCartOpen)}
@@ -200,7 +240,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                 </div>
 
                 {/* Profile Dropdown Container */}
-                <div className="relative">
+                <div className="relative" ref={profileRef}>
                     <button
                         className="w-12 h-12 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-2xl hover:bg-indigo-200 transition-colors shadow-sm focus:outline-none"
                         onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
@@ -213,17 +253,28 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                         <div className="absolute top-[120%] right-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-[100] overflow-hidden animate-in fade-in slide-in-from-top-2">
                             <div className="p-4 border-b border-gray-100 bg-gray-50">
                                 <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Oturum Açıldı</span>
-                                <span className="text-lg font-black text-gray-800 font-display">Mufi Öğrenci</span>
+                                <span className="text-lg font-black text-gray-800 font-display">
+                                    {userData ? `${userData.first_name} ${userData.last_name}` : 'Mufi Öğrenci'}
+                                </span>
                             </div>
                             <div className="flex flex-col p-2">
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" onClick={() => onNavigate('Profilim')}>
-                                    <span>👤</span> Profilim
+                                <button 
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left" 
+                                    onClick={() => { onNavigate('Profilim'); setIsProfileDropdownOpen(false); }}
+                                >
+                                    <User className="w-4 h-4" /> Profilim
                                 </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left">
-                                    <span>⚙️</span> Ayarlar
+                                <button 
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 text-gray-600 font-bold text-sm transition-colors text-left"
+                                    onClick={() => setIsProfileDropdownOpen(false)}
+                                >
+                                    <Settings className="w-4 h-4" /> Ayarlar
                                 </button>
-                                <button className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2">
-                                    <span>🚪</span> Çıkış Yap
+                                <button 
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 text-red-500 font-bold text-sm transition-colors text-left border-t border-gray-100 mt-2"
+                                    onClick={() => { handleLogout(); setIsProfileDropdownOpen(false); }}
+                                >
+                                    <LogOut className="w-4 h-4" /> Çıkış Yap
                                 </button>
                             </div>
                         </div>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { CreditCard, ShieldCheck, ShoppingBag, Trash2, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CreditCard, ShieldCheck, ShoppingBag, Trash2, ArrowLeft, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import api from '../../api';
 
 interface CartItem {
     id: number;
@@ -18,6 +19,10 @@ interface StudentPaymentProps {
 
 const StudentPayment: React.FC<StudentPaymentProps> = ({ cart, removeFromCart, onBack, onPurchaseComplete }) => {
     const [isPaid, setIsPaid] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [checkoutForm, setCheckoutForm] = useState<string | null>(null);
+    const formContainerRef = useRef<HTMLDivElement>(null);
 
     const calculateTotal = () => {
         return cart.reduce((acc, item) => {
@@ -26,11 +31,41 @@ const StudentPayment: React.FC<StudentPaymentProps> = ({ cart, removeFromCart, o
         }, 0).toFixed(2);
     };
 
-    const handlePayment = (e: React.FormEvent) => {
+    const handlePaymentInitialize = async (e: React.FormEvent) => {
         e.preventDefault();
-        // Mock payment process
-        setIsPaid(true);
+        if (cart.length === 0) return;
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const courseIds = cart.map(item => item.id);
+            const response = await api.post('/payment/initialize-checkout', { course_ids: courseIds });
+
+            if (response.data.status === 'success') {
+                setCheckoutForm(response.data.checkout_form_content);
+            } else {
+                setError(response.data.message || 'Ödeme başlatılamadı.');
+            }
+        } catch (err: any) {
+            console.error('Payment error:', err);
+            setError(err.response?.data?.detail || 'Bir hata oluştu. Lütfen tekrar deneyin.');
+        } finally {
+            setIsLoading(false);
+        }
     };
+
+    useEffect(() => {
+        if (checkoutForm && formContainerRef.current) {
+            // Clear previous form if any
+            formContainerRef.current.innerHTML = '';
+            
+            // Create a temporary container to execute scripts
+            const range = document.createRange();
+            const documentFragment = range.createContextualFragment(checkoutForm);
+            formContainerRef.current.appendChild(documentFragment);
+        }
+    }, [checkoutForm]);
 
     if (isPaid) {
         return (
@@ -118,72 +153,74 @@ const StudentPayment: React.FC<StudentPaymentProps> = ({ cart, removeFromCart, o
                 {/* Right: Payment Card */}
                 <div className="lg:col-span-5">
                     <div className="sticky top-24">
-                        <form onSubmit={handlePayment} className="bg-white rounded-[2rem] border-2 border-gray-100 p-8 shadow-xl">
-                            <div className="flex items-center gap-3 mb-8">
-                                <CreditCard className="w-6 h-6 text-purple-500" />
-                                <h3 className="text-xl font-black text-gray-800">Ödeme Bilgileri</h3>
+                        {!checkoutForm ? (
+                            <form onSubmit={handlePaymentInitialize} className="bg-white rounded-[2rem] border-2 border-gray-100 p-8 shadow-xl">
+                                <div className="flex items-center gap-3 mb-8">
+                                    <CreditCard className="w-6 h-6 text-purple-500" />
+                                    <h3 className="text-xl font-black text-gray-800">Ödeme Bilgileri</h3>
+                                </div>
+
+                                {error && (
+                                    <div className="mb-6 p-4 bg-red-50 border-2 border-red-100 rounded-2xl flex items-center gap-3 text-red-500 animate-in shake-in">
+                                        <AlertCircle className="w-5 h-5 shrink-0" />
+                                        <p className="text-sm font-bold">{error}</p>
+                                    </div>
+                                )}
+
+                                <div className="space-y-6">
+                                    <div className="p-6 bg-indigo-50 border-2 border-indigo-100 rounded-2xl">
+                                        <p className="text-sm font-bold text-indigo-600 mb-2 italic">Güvenli Ödeme Notu:</p>
+                                        <p className="text-xs text-indigo-500 font-medium leading-relaxed">
+                                            Ödemeniz <b>Iyzico</b> güvencesiyle 256-bit SSL şifreli ortamda gerçekleştirilecektir.
+                                            Devam ettiğinizde Iyzico ödeme formu açılacaktır.
+                                        </p>
+                                    </div>
+
+                                    <button 
+                                        type="submit"
+                                        disabled={cart.length === 0 || isLoading}
+                                        className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 disabled:bg-gray-200 flex items-center justify-center gap-2"
+                                    >
+                                        {isLoading ? (
+                                            <>
+                                                <Loader2 className="w-6 h-6 animate-spin" />
+                                                Başlatılıyor...
+                                            </>
+                                        ) : (
+                                            `₺${calculateTotal()} Öde`
+                                        )}
+                                    </button>
+
+                                    <div className="flex items-center justify-center gap-2 text-green-500 pt-4">
+                                        <ShieldCheck className="w-5 h-5" />
+                                        <span className="text-xs font-black uppercase tracking-widest">Güvenli Ödeme SSL</span>
+                                    </div>
+                                </div>
+                            </form>
+                        ) : (
+                            <div className="bg-white rounded-[2rem] border-2 border-gray-100 p-8 shadow-xl">
+                                <div className="flex items-center justify-between mb-8">
+                                    <div className="flex items-center gap-3">
+                                        <CreditCard className="w-6 h-6 text-purple-500" />
+                                        <h3 className="text-xl font-black text-gray-800">Iyzico Güvenli Ödeme</h3>
+                                    </div>
+                                    <button 
+                                        onClick={() => setCheckoutForm(null)}
+                                        className="text-xs font-black text-gray-400 hover:text-gray-900 uppercase underline"
+                                    >
+                                        Vazgeç
+                                    </button>
+                                </div>
+                                
+                                <div id="iyzipay-checkout-form" ref={formContainerRef} className="min-h-[400px]">
+                                    {/* Iyzico Form Will Render Here */}
+                                    <div className="flex flex-col items-center justify-center py-12 text-gray-400">
+                                        <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                                        <p className="font-bold">Ödeme formu yükleniyor...</p>
+                                    </div>
+                                </div>
                             </div>
-
-                            <div className="space-y-6">
-                                <div>
-                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Kart Üzerindeki İsim</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="MUALLA ŞAHİN" 
-                                        className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-gray-900 focus:bg-white transition-all uppercase placeholder:text-gray-300"
-                                        required
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Kart Numarası</label>
-                                    <div className="relative">
-                                        <input 
-                                            type="text" 
-                                            placeholder="**** **** **** 4242" 
-                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-gray-900 focus:bg-white transition-all placeholder:text-gray-300"
-                                            required
-                                        />
-                                        <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                                            <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" className="h-4" alt="Mastercard" />
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Son Kullanma</label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="MM/YY" 
-                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-gray-900 focus:bg-white transition-all placeholder:text-gray-300"
-                                            required
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">CVV</label>
-                                        <input 
-                                            type="text" 
-                                            placeholder="123" 
-                                            className="w-full bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 font-bold text-gray-800 outline-none focus:border-gray-900 focus:bg-white transition-all placeholder:text-gray-300"
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <button 
-                                    className="w-full py-4 bg-gray-900 text-white rounded-2xl font-black text-lg hover:bg-black transition-all shadow-xl shadow-gray-200 active:scale-95 disabled:bg-gray-200"
-                                    disabled={cart.length === 0}
-                                >
-                                    ₺{calculateTotal()} Öde
-                                </button>
-
-                                <div className="flex items-center justify-center gap-2 text-green-500 pt-4">
-                                    <ShieldCheck className="w-5 h-5" />
-                                    <span className="text-xs font-black uppercase tracking-widest">Güvenli Ödeme SSL</span>
-                                </div>
-                            </div>
-                        </form>
+                        )}
                     </div>
                 </div>
             </div>
