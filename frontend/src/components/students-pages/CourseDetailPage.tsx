@@ -208,7 +208,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
             <h2 className="text-2xl font-black mb-6 text-gray-900 uppercase tracking-tight">Kurs Müfredatı</h2>
             <div className="border border-gray-200 rounded-xl overflow-hidden">
               {(course.curriculum && course.curriculum.length > 0) ? (
-                course.curriculum.map((section, index) => (
+                course.curriculum.filter(s => s.type !== "live_sessions_config").map((section, index) => (
                   <div key={index} className="border-b border-gray-200 last:border-0">
                     <button 
                       onClick={() => toggleSection(index)}
@@ -218,11 +218,11 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                         {expandedSections.includes(index) ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                         <span className="font-bold text-gray-800">{section.title || `Bölüm ${index + 1}`}</span>
                       </div>
-                      <span className="text-sm text-gray-500">{section.lessons?.length || 0} ders</span>
+                      <span className="text-sm text-gray-500">{(section.lessons?.length || section.lectures?.length || 0)} ders</span>
                     </button>
                     {expandedSections.includes(index) && (
                       <div className="bg-white p-2">
-                        {section.lessons?.map((lesson: any, li: number) => (
+                        {(section.lessons || section.lectures)?.map((lesson: any, li: number) => (
                           <div key={li} className="flex items-center justify-between p-3 hover:bg-purple-50 rounded-lg group cursor-pointer transition-colors">
                             <div className="flex items-center gap-3">
                               <PlayCircle className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
