@@ -1,0 +1,40 @@
+services:
+  backend:
+    build: ./backend
+    container_name: my-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    env_file:
+      - ./backend/.env
+    environment:
+      # Buradaki değerler .env dosyasındakileri GEÇİCİ OLARAK (sadece bilgisayarınızda) ezer
+      - FRONTEND_URL=http://localhost:5173
+      - BACKEND_URL=http://localhost:8000
+    command: sh -c "alembic upgrade head && uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload"
+    restart: "no"
+    develop:
+      watch:
+        - action: sync
+          path: ./backend
+          target: /app
+
+  frontend:
+    build: ./frontend
+    container_name: my-frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    restart: "no"
+    develop:
+      watch:
+        - action: sync
+          path: ./frontend
+          target: /app
+          ignore:
+            - node_modules/

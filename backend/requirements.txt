@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+psycopg2-binary
+sqlalchemy
+asyncpg
+SQLAlchemy[asyncio]
+python-dotenv
+PyJWT
+passlib[bcrypt]
+bcrypt==4.0.1
+authlib
+httpx
+itsdangerous
+supabase
+python-multipart
+iyzipay
+alembic
