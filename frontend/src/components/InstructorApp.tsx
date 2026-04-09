@@ -14,12 +14,20 @@ import { useEffect } from 'react';
 const InstructorApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
 
-    // Mock User Data (In a real app, this would come from a Context or Global State)
-    const userData = {
-        first_name: "Mualla",
-        last_name: "Yılmaz",
-        email: "mualla@example.com"
-    };
+    // User Data State
+    const [userData, setUserData] = useState<any>(null);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const response = await api.get("/profile");
+                setUserData(response.data);
+            } catch (err) {
+                console.error("Failed to fetch coach data", err);
+            }
+        };
+        fetchUserData();
+    }, []);
 
     const renderPage = () => {
         switch (activePage) {
