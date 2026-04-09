@@ -13,7 +13,9 @@ import ChestIcon from '../assets/sprites/Chest.png';
 
 interface CoursesPageProps {
     addToCart: (course: { id: number; title: string; price: string; icon: string; instructor: string; }) => void;
+    onSelectCourse: (id: number) => void;
     cart: { id: number; }[];
+    purchasedCourseIds: number[];
 }
 
 interface BackendCourse {
@@ -28,7 +30,7 @@ interface BackendCourse {
     };
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
+const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, cart, purchasedCourseIds }) => {
     const [courses, setCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -275,12 +277,13 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                             {courses.map((course) => (
                                 <div 
                                     key={course.id} 
-                                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden"
-                                    onClick={() => addToCart(course)}
+                                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 transition-all hover:shadow-lg relative overflow-hidden"
                                 >
-                                    {/* Image / Icon Section */}
-                                    {/* Using a background color placeholder if icon is small to look like thumbnail */}
-                                    <div className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden`}>
+                                    {/* Thumbnail Area - Clickable */}
+                                    <div 
+                                        className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden cursor-pointer`}
+                                        onClick={() => onSelectCourse(course.id)}
+                                    >
                                         <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
                                         <img
                                             src={course.icon}
@@ -289,8 +292,11 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                                         />
                                     </div>
 
-                                    {/* Content Section */}
-                                    <div className="flex-1 py-4 flex flex-col justify-between pr-4">
+                                    {/* Content Section - Clickable */}
+                                    <div 
+                                        className="flex-1 py-4 flex flex-col justify-between pr-4 cursor-pointer"
+                                        onClick={() => onSelectCourse(course.id)}
+                                    >
                                         <div>
                                             <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
                                                 {course.title}
@@ -319,7 +325,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                                         </div>
                                     </div>
 
-                                    {/* Price & Badge Section */}
+                                    {/* Price & Badge Section (NOT clickable for detail) */}
                                     <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
                                         <div className="flex flex-col items-end w-full gap-2">
                                             <div className="flex flex-col items-end">
@@ -332,16 +338,26 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, cart }) => {
                                                 )}
                                             </div>
 
-                                            <button 
-                                                onClick={(e) => { e.stopPropagation(); addToCart(course); }}
-                                                className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
-                                                    ${cart.some(item => item.id === course.id)
-                                                        ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
-                                                        : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
-                                                    }`}
-                                            >
-                                                {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
-                                            </button>
+                                            {purchasedCourseIds.includes(course.id) ? (
+                                                <div className="w-full py-2 rounded-lg font-black text-xs text-center bg-gray-100 text-gray-500 border-2 border-gray-200 cursor-default uppercase tracking-wider">
+                                                    Zaten Sahipsin ✓
+                                                </div>
+                                            ) : (
+                                                <button 
+                                                    onClick={(e) => { 
+                                                        e.preventDefault();
+                                                        e.stopPropagation(); 
+                                                        addToCart(course); 
+                                                    }}
+                                                    className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
+                                                        ${cart.some(item => item.id === course.id)
+                                                            ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
+                                                            : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
+                                                        }`}
+                                                >
+                                                    {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
+                                                </button>
+                                            )}
                                         </div>
 
                                         {course.badge && (

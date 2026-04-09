@@ -182,6 +182,16 @@ async def read_courses(db: AsyncSession = Depends(get_db)):
     courses = result.scalars().all()
     return courses
 
+@router.get("/courses/{course_id}", response_model=CourseResponse)
+async def read_course(course_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(Course).where(Course.id == course_id).options(joinedload(Course.teacher))
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    return course
+
 @router.get("/teacher/content", response_model=List[CourseResponse])
 async def read_my_courses(
     teacher_id: int = Depends(get_current_teacher_id),

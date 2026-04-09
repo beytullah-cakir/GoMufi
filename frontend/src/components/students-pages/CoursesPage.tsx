@@ -47,7 +47,13 @@ interface BackendCourse {
   };
 }
 
-const CoursesPage: React.FC = () => {
+interface CoursesPageProps {
+  onSelectCourse: (id: number) => void;
+  addToCart: (item: any) => void;
+  cart: any[];
+}
+
+const CoursesPage: React.FC<CoursesPageProps> = ({ onSelectCourse, addToCart, cart }) => {
   // const [activeCategory, setActiveCategory] = useState<string>('Hepsi'); // Removed simple category state
 
   // Expanded Mock Data matching the reference style
