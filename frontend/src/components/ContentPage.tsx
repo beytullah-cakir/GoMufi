@@ -1,5 +1,5 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import api from '../api';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -46,11 +46,13 @@ interface Course {
     lightColor: string;
     nextLesson: string;
     instructor: string;
+    liveSessions: {date: string, time: string}[];
 }
 
 interface ScheduleSlot {
     id: string;
     day: string;
+    fullDate?: string;
     time: string;
     title: string;
     type: 'live' | 'empty' | 'reserved';
@@ -72,72 +74,218 @@ const ContentPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
 
     // --- Mock Data ---
+    const [courses, setCourses] = useState<Course[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
 
-    const courses: Course[] = [
-        {
-            id: 'python-101',
-            title: 'Python ile Programlama',
-            level: 'Level 12',
-            progress: 65,
-            icon: PythonIcon,
-            color: 'bg-yellow-400',
-            borderColor: 'border-yellow-500',
-            lightColor: 'bg-yellow-50',
-            nextLesson: 'Döngüler ve Listeler',
-            instructor: 'Mufi Hoca'
-        },
-        {
-            id: 'react-adv',
-            title: 'İleri Seviye React',
-            level: 'Level 5',
-            progress: 20,
-            icon: ReactIcon,
-            color: 'bg-sky-400',
-            borderColor: 'border-sky-500',
-            lightColor: 'bg-sky-50',
-            nextLesson: 'Custom Hooks',
-            instructor: 'Ahmet Hoca'
-        },
-        {
-            id: 'eng-b1',
-            title: 'İngilizce B1',
-            level: 'Level 8',
-            progress: 45,
-            icon: EnglishIcon,
-            color: 'bg-purple-500',
-            borderColor: 'border-purple-600',
-            lightColor: 'bg-purple-50',
-            nextLesson: 'Past Perfect Tense',
-            instructor: 'Sarah Teacher'
-        },
-        {
-            id: 'data-101',
-            title: 'Veri Bilimi Giriş',
-            level: 'Level 2',
-            progress: 10,
-            icon: DataIcon,
-            color: 'bg-blue-600',
-            borderColor: 'border-blue-700',
-            lightColor: 'bg-blue-50',
-            nextLesson: 'Pandas Kütüphanesi',
-            instructor: 'Mufi Hoca'
+    const getCourseStyle = (category: string | null) => {
+        const cat = (category || '').toLowerCase();
+        if (cat.includes('python') || cat.includes('yazılım') || cat.includes('coding')) {
+            return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Mufi Hoca' };
+        } else if (cat.includes('react') || cat.includes('frontend')) {
+            return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Ahmet Hoca' };
+        } else if (cat.includes('english') || cat.includes('dil') || cat.includes('ingilizce')) {
+            return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Sarah Teacher' };
+        } else if (cat.includes('ver') || cat.includes('data')) {
+            return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Mufi Hoca' };
         }
-    ];
+        return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Mufi Hoca' };
+    };
 
-    const schedule: ScheduleSlot[] = [
-        // Monday
-        { id: 's1', day: 'Pazartesi', time: '14:00', title: 'Python: Döngüler Pratik', type: 'live', status: 'completed', color: 'bg-yellow-100 border-yellow-300 text-yellow-800' },
-        { id: 's2', day: 'Pazartesi', time: '16:00', title: 'Boş Slot', type: 'empty' },
-        // Tuesday
-        { id: 's3', day: 'Salı', time: '10:00', title: 'React: Component Mimarisi', type: 'live', status: 'upcoming', color: 'bg-sky-100 border-sky-300 text-sky-800', duration: '15 dk kaldı' },
-        { id: 's4', day: 'Salı', time: '14:00', title: 'Boş Slot', type: 'empty' },
-        // Wednesday (Availability)
-        { id: 's5', day: 'Çarşamba', time: '15:00', title: 'Özel Ders Rezervasyonu', type: 'reserved' },
-        // Thursday
-        { id: 's6', day: 'Perşembe', time: '18:00', title: 'İngilizce Konuşma Kulübü', type: 'live', status: 'upcoming', color: 'bg-purple-100 border-purple-300 text-purple-800' },
-        // Friday
-        { id: 's7', day: 'Cuma', time: '20:00', title: 'Veri Bilimi: Soru & Cevap', type: 'live', status: 'upcoming', color: 'bg-blue-100 border-blue-300 text-blue-800' },
-    ];
+    useEffect(() => {
+        const fetchAllData = async () => {
+            try {
+                // Fetch courses and schedule in PARALLEL
+                const [contentRes, scheduleRes] = await Promise.all([
+                    api.get('/my-content'),
+                    api.get('/my-schedule')
+                ]);
+
+                // 1. Handle Courses
+                const mappedCourses: Course[] = contentRes.data.map((c: any) => {
+                    const style = getCourseStyle(c.category);
+                    
+                    let liveSessions = [];
+                    let finalCurriculum = c.curriculum || [];
+                    if (finalCurriculum.length > 0 && finalCurriculum[0]?.type === "live_sessions_config") {
+                        liveSessions = finalCurriculum[0].sessions || [];
+                    }
+
+                    return {
+                        id: c.id.toString(),
+                        title: c.title,
+                        level: `Level ${Math.floor(c.progress / 5) + 1}`,
+                        progress: c.progress || 0,
+                        icon: style.icon,
+                        color: style.color,
+                        borderColor: style.borderColor,
+                        lightColor: style.lightColor,
+                        nextLesson: 'Hemen İzle!',
+                        instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : style.instructor,
+                        liveSessions: liveSessions
+                    };
+                });
+                
+                setCourses(mappedCourses);
+                if (mappedCourses.length > 0 && !selectedCourse) {
+                    setSelectedCourse(mappedCourses[0].id);
+                }
+
+                // 2. Handle Schedule
+                let mappedSchedule: ScheduleSlot[] = [];
+                if (scheduleRes.data && scheduleRes.data.length > 0) {
+                    mappedSchedule = scheduleRes.data.map((s: any) => {
+                        const timeStr = s.start_time.substring(0, 5);
+                        let color = 'bg-gray-100 border-gray-300 text-gray-800';
+                        if (s.title.toLowerCase().includes('python')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
+                        else if (s.title.toLowerCase().includes('react')) color = 'bg-sky-100 border-sky-300 text-sky-800';
+                        else if (s.title.toLowerCase().includes('ingilizce')) color = 'bg-purple-100 border-purple-300 text-purple-800';
+                        
+                        return {
+                            id: s.id.toString(),
+                            day: s.day_of_week,
+                            time: timeStr,
+                            title: s.title,
+                            type: s.type as 'live' | 'empty' | 'reserved',
+                            status: s.status as 'upcoming' | 'live_now' | 'completed',
+                            color: color,
+                            duration: `${s.duration_minutes} dk`
+                        };
+                    });
+                } else if (mappedCourses.length > 0) {
+                    mappedCourses.forEach((c) => {
+                        if (c.liveSessions) {
+                            c.liveSessions.forEach((sess: any) => {
+                                mappedSchedule.push({
+                                    id: `auto-${c.id}-${sess.day}`,
+                                    day: sess.day,
+                                    time: sess.time,
+                                    title: c.title,
+                                    type: 'live',
+                                    status: 'upcoming',
+                                    color: c.color.replace('bg-', 'bg-').replace('500', '100'),
+                                    duration: '60 dk'
+                                });
+                            });
+                        }
+                    });
+                }
+                
+                // Sort by time
+                mappedSchedule.sort((a, b) => parseInt(a.time.replace(':', '')) - parseInt(b.time.replace(':', '')));
+                setSchedule(mappedSchedule);
+
+            } catch (err) {
+                console.error("Veri yükleme hatası:", err);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchAllData();
+    }, []);
+
+    const [timeLeftStr, setTimeLeftStr] = useState<string>("Hesaplanıyor...");
+    const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string} | null>(null);
+    const [isClassActive, setIsClassActive] = useState<boolean>(false);
+    const [timeOffsetMs, setTimeOffsetMs] = useState<number>(0);
+
+
+    // Uygulama yüklendiğinde, öğrenci pc saatini değiştirip hile yapamasın diye ve
+    // saat farklılıklarını engellemek adına Türkiye gerçek saatini çekip, farkı (offset) hesaplıyoruz.
+    useEffect(() => {
+        const fetchRealTime = async () => {
+             try {
+                 const res = await fetch("http://worldtimeapi.org/api/timezone/Europe/Istanbul");
+                 const data = await res.json();
+                 const realTime = new Date(data.datetime).getTime();
+                 const localTime = new Date().getTime();
+                 setTimeOffsetMs(realTime - localTime);
+             } catch (err) {
+                 console.error("Gerçek saat alınamadı, cihaz saati kullanılacak.", err);
+             }
+        };
+        fetchRealTime();
+    }, []);
+
+    useEffect(() => {
+        const updateCountdown = () => {
+             if (schedule.length === 0) {
+                 setTimeLeftStr("Ders Bulunmuyor");
+                 setNextLessonData(null);
+                 setIsClassActive(false);
+                 return;
+             }
+
+             const now = new Date(new Date().getTime() + timeOffsetMs);
+             let nextValidLesson = null;
+             let minDiff = Infinity;
+
+             for (const s of schedule) {
+                 if (s.type === 'live' && s.status !== 'completed' && s.fullDate && s.time) {
+                     const [hours, minutes] = s.time.split(':').map(Number);
+                     const [year, month, day] = s.fullDate.split('-').map(Number);
+                     
+                     // UTC kaymalarını engellemek için yerel Date üzerinden inşa ediyoruz
+                     const lessonTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                     
+                     // Diff in ms (lessonTime - now)
+                     const diff = lessonTime.getTime() - now.getTime();
+                     
+                     // Eğer ders geçmişteyse bile 2 saat (7200000 ms) boyunca aktif/geçerli sayılsın
+                     if (diff > -7200000 && diff < minDiff) {
+                         minDiff = diff;
+                         nextValidLesson = { ...s, lessonTime };
+                     }
+                 }
+             }
+
+             if (!nextValidLesson) {
+                 setTimeLeftStr("Yeni Ders Bekleniyor");
+                 setNextLessonData(null);
+                 setIsClassActive(false);
+                 return;
+             }
+             
+             setNextLessonData({
+                 title: nextValidLesson.title,
+                 subtitle: `Planlanan Gün: ${nextValidLesson.day}`
+             });
+
+             // Calculate remaining time
+             const diff = nextValidLesson.lessonTime.getTime() - now.getTime();
+             
+             if (diff <= 0 && diff > -7200000) {
+                 // Ders şu an yayında
+                 setTimeLeftStr("Canlı Yayında!");
+                 setIsClassActive(true);
+             } else if (diff > 0) {
+                 // Ders gelecekte
+                 const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
+                 const diffHours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                 const diffMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                 const diffSeconds = Math.floor((diff % (1000 * 60)) / 1000);
+                 
+                 setIsClassActive(false); // Ders saati tam olarak gelene kadar kapalı
+                 
+                 if (diffDays > 0) {
+                     setTimeLeftStr(`${diffDays} gün ${diffHours} s kaldı`);
+                 } else if (diffHours > 0) {
+                     setTimeLeftStr(`${diffHours} s ${diffMinutes} dk kaldı`);
+                 } else if (diffMinutes > 0) {
+                     setTimeLeftStr(`${diffMinutes} dk kaldı`);
+                 } else {
+                     setTimeLeftStr(`${diffSeconds} sn kaldı`);
+                 }
+             } else {
+                 setTimeLeftStr("Geçti");
+                 setIsClassActive(false);
+             }
+        };
+
+        updateCountdown();
+        const interval = setInterval(updateCountdown, 1000); // Her saniye kontrol et!
+        return () => clearInterval(interval);
+    }, [schedule, timeOffsetMs]);
 
     const squadMembers: SquadMember[] = [
         { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
@@ -153,6 +301,54 @@ const ContentPage: React.FC = () => {
     ];
 
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
+
+    if (isLoading) {
+        return (
+            <div className="w-full min-h-screen bg-[#F3F4F6] flex items-center justify-center">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p className="font-black text-gray-500">Kursların Yükleniyor...</p>
+                </div>
+            </div>
+        );
+    }
+
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth(); 
+    const currentYear = currentDate.getFullYear();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
+    const startOffset = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
+    const currentDayNum = currentDate.getDate();
+
+    const monthNames = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    const monthNameStr = `${monthNames[currentMonth]} ${currentYear}`;
+
+    const prevMonthDaysCount = new Date(currentYear, currentMonth, 0).getDate();
+    const prevPlaceholders = Array.from({length: startOffset}, (_, i) => prevMonthDaysCount - startOffset + i + 1);
+
+    const dayMap: { [key: string]: number } = {
+        'Pazartesi': 0, 'Monday': 0, 'Salı': 1, 'Tuesday': 1, 'Çarşamba': 2, 'Wednesday': 2,
+        'Perşembe': 3, 'Thursday': 3, 'Cuma': 4, 'Friday': 4, 'Cumartesi': 5, 'Saturday': 5, 'Pazar': 6, 'Sunday': 6
+    };
+
+    const getEventsForDay = (dayNum: number) => {
+        const dateObj = new Date(currentYear, currentMonth, dayNum);
+
+        return schedule.filter(s => {
+            // Aylık takvimde tam tarih eşleşmesi yapılması daha mantıklı. 
+            // Fakat 'schedule' içinde 'day' olarak sadece 'Pazartesi' vb string var. 
+            // Bunun için backend'den gelen/hesaplanan slotların 'date' içerecek şekilde düzenlenmesi ya da 
+            // gün eşleştirmesinin gün-isim (Pazartesi vb) üzerinden yapılması.
+            
+            // Eğer session haftalık tekrarlıysa gün eşleşmesi (Pazartesi vb):
+            const dayOfWeekIndex = dateObj.getDay();
+            const normalizedIndex = dayOfWeekIndex === 0 ? 6 : dayOfWeekIndex - 1;
+            
+            if (!s.day) return false;
+            return dayMap[s.day] === normalizedIndex;
+        });
+    };
 
     return (
         <div className="w-full min-h-screen bg-[#F3F4F6] p-6 font-sans text-gray-800 overflow-hidden flex flex-col">
@@ -264,7 +460,7 @@ const ContentPage: React.FC = () => {
                                         <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
                                     </div>
                                     <div>
-                                        <h3 className={`font-black text-sm leading-tight mb-0.5 ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`}>
+                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate max-w-[140px] md:max-w-[160px] ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`} title={course.title}>
                                             {course.title}
                                         </h3>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
@@ -379,15 +575,29 @@ const ContentPage: React.FC = () => {
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki Ders</span>
                                             <span className="flex items-center gap-1 text-xs font-bold bg-black/20 px-2 py-1 rounded-lg">
-                                                <Clock size={12} /> 15 dk kaldı
+                                                <Clock size={12} /> {timeLeftStr}
                                             </span>
                                         </div>
-                                        <h2 className="text-3xl font-black font-display mb-1">{activeCourseData.title}</h2>
-                                        <p className="text-orange-100 font-bold text-lg">{activeCourseData.nextLesson}</p>
+                                        <h2 className="text-3xl font-black font-display mb-1">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
+                                        <p className="text-orange-100 font-bold text-lg">{nextLessonData?.subtitle || activeCourseData?.nextLesson || "Marketten yeni kurslar keşfedebilirsin."}</p>
                                     </div>
-                                    <button className="bg-white text-orange-600 px-6 py-4 rounded-2xl font-black shadow-lg animate-bounce hover:scale-105 transition-transform flex items-center gap-2">
+                                    <button 
+                                        disabled={!isClassActive}
+                                        onClick={() => {
+                                            if (isClassActive) {
+                                                const roomName = `GoMufi-${activeCourseData?.id}-${(nextLessonData?.title || "Class").replace(/[^a-zA-Z0-9]/g, "")}`;
+                                                const url = `https://meet.element.io/${roomName}#userInfo.displayName=%C3%96%C4%9Frenci&config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22hangup%22]`;
+                                                window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
+                                            }
+                                        }}
+                                        className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
+                                            isClassActive 
+                                            ? 'bg-white text-orange-600 animate-bounce hover:scale-105' 
+                                            : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
+                                        }`}
+                                    >
                                         <Play fill="currentColor" />
-                                        SINIFA GİR
+                                        {isClassActive ? 'SINIFA GİR' : 'BEKLENİYOR'}
                                     </button>
                                 </div>
                             </div>
@@ -459,7 +669,7 @@ const ContentPage: React.FC = () => {
                         <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm flex flex-col h-full animate-in fade-in zoom-in duration-300">
                             {/* Month Header */}
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-black text-gray-800 font-display">Şubat 2026</h2>
+                                <h2 className="text-2xl font-black text-gray-800 font-display">{monthNameStr}</h2>
                                 <div className="flex gap-2">
                                     <button className="p-2 rounded-xl border-2 border-gray-100 hover:bg-gray-50 text-gray-500"><ChevronDown className="rotate-90" size={20} /></button>
                                     <button className="p-2 rounded-xl border-2 border-gray-100 hover:bg-gray-50 text-gray-500"><ChevronRight size={20} /></button>
@@ -472,38 +682,50 @@ const ContentPage: React.FC = () => {
                                     <div key={day} className="text-xs font-black text-gray-400 uppercase tracking-wide py-2">{day}</div>
                                 ))}
                             </div>
-                            <div className="grid grid-cols-7 gap-2 flex-1 auto-rows-fr">
+                            <div className="grid grid-cols-7 gap-2 flex-1 auto-rows-[minmax(60px,auto)] overflow-y-auto">
                                 {/* Placeholders for previous month */}
-                                {[29, 30, 31].map(d => (
-                                    <div key={`prev-${d}`} className="p-2 rounded-xl bg-gray-50/50 text-gray-300 font-bold text-sm min-h-[80px] border border-transparent">
+                                {prevPlaceholders.map(d => (
+                                    <div key={`prev-${d}`} className="p-2 rounded-xl bg-gray-50/50 text-gray-300 font-bold text-sm min-h-[60px] border border-transparent">
                                         {d}
                                     </div>
                                 ))}
 
                                 {/* Current Month Days */}
-                                {Array.from({ length: 28 }, (_, i) => i + 1).map(day => {
-                                    const hasEvent = [2, 5, 12, 15, 20, 24].includes(day);
-                                    const isToday = day === 2; // Hypothetical today
+                                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                                    const dailyEvents = getEventsForDay(day);
+                                    const hasEvent = dailyEvents.length > 0;
+                                    const isToday = day === currentDayNum; 
+                                    
                                     return (
                                         <div key={day} className={`
-                                            p-2 rounded-xl font-bold text-sm min-h-[80px] border-2 relative group cursor-pointer transition-all
+                                            p-2 rounded-xl font-bold text-sm min-h-[60px] border-2 relative group cursor-pointer transition-all
                                             ${isToday ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 hover:border-indigo-100 hover:shadow-md'}
                                         `}>
                                             <span className={`${isToday ? 'bg-indigo-500 text-white px-2 py-0.5 rounded-md' : ''}`}>{day}</span>
 
                                             {hasEvent && (
                                                 <div className="mt-2 space-y-1">
-                                                    <div className="h-1.5 w-full bg-yellow-400 rounded-full"></div>
-                                                    {day % 2 === 0 && <div className="h-1.5 w-2/3 bg-sky-400 rounded-full"></div>}
+                                                    {dailyEvents.slice(0, 2).map((ev, i) => (
+                                                        <div key={i} className={`h-1.5 w-full rounded-full ${(ev.color || '').split(' ')[0] || 'bg-indigo-400'}`}></div>
+                                                    ))}
+                                                    {dailyEvents.length > 2 && <div className="text-[8px] text-gray-400 text-right w-full">+{dailyEvents.length - 2}</div>}
                                                 </div>
                                             )}
 
                                             {/* Hover Detail */}
                                             {hasEvent && (
-                                                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-32 bg-gray-900 text-white text-[10px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                                                    <div className="font-bold border-b border-gray-700 pb-1 mb-1">{day} Şubat</div>
-                                                    <div className="flex items-center gap-1 mb-1"><div className="w-1.5 h-1.5 rounded-full bg-yellow-400"></div> Python</div>
-                                                    {day % 2 === 0 && <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 rounded-full bg-sky-400"></div> React</div>}
+                                                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-gray-900 text-white p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl border border-gray-700">
+                                                    <div className="font-black text-xs border-b border-gray-700 pb-1 mb-1.5 text-indigo-300">{day} {monthNameStr.split(' ')[0]} Programı</div>
+                                                    <div className="space-y-1.5">
+                                                        {dailyEvents.map((ev, i) => (
+                                                            <div key={i} className="flex flex-col text-[10px]">
+                                                                <span className="font-bold text-gray-100 truncate w-full">{ev.title}</span>
+                                                                <span className="text-gray-400 font-medium flex items-center gap-1">
+                                                                    <Clock size={8} /> {ev.time}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
@@ -554,7 +776,7 @@ const ContentPage: React.FC = () => {
                                 <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
                             <div>
-                                <h4 className="font-black text-gray-800 text-lg">{activeCourseData.instructor}</h4>
+                                <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Mufi Hoca"}</h4>
                                 <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">Çevrimiçi</span>
                             </div>
                         </div>
@@ -632,8 +854,9 @@ const ContentPage: React.FC = () => {
                     </div>
 
                 </div>
-
             </div>
+
+
         </div>
     );
 };

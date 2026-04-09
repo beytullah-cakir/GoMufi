@@ -47,14 +47,7 @@ interface BackendCourse {
   };
 }
 
-interface CoursesPageProps {
-  onCourseClick: (courseId: number) => void;
-  addToCart: (item: any) => void;
-  cart: any[];
-}
-
-const CoursesPage: React.FC<CoursesPageProps> = ({ onCourseClick, addToCart, cart }) => {
-
+const CoursesPage: React.FC = () => {
   // const [activeCategory, setActiveCategory] = useState<string>('Hepsi'); // Removed simple category state
 
   // Expanded Mock Data matching the reference style
@@ -385,10 +378,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ onCourseClick, addToCart, car
                 courses.map((course) => (
                   <div
                     key={course.id}
-                    onClick={() => onCourseClick(course.id)}
                     className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 cursor-pointer transition-all hover:shadow-lg relative overflow-hidden"
                   >
-
                     {/* Image / Icon Section */}
                     {/* Using a background color placeholder if icon is small to look like thumbnail */}
                     <div

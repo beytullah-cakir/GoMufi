@@ -39,8 +39,7 @@ export interface CourseData {
   curriculum: Section[];
   price: number;
   isLive?: boolean;
-  startDate?: string;
-  startTime?: string;
+  liveSessions?: {date: string, time: string}[];
 }
 
 interface AddCourseModalProps {
@@ -72,8 +71,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   );
   const [price, setPrice] = useState<number | string>(initialData?.price ?? 0);
   const [isLive, setIsLive] = useState(initialData?.isLive || false);
-  const [startDate, setStartDate] = useState(initialData?.startDate || "");
-  const [startTime, setStartTime] = useState(initialData?.startTime || "");
+  const [liveSessions, setLiveSessions] = useState<{date: string, time: string}[]>(
+    initialData?.liveSessions?.length ? initialData.liveSessions : [{date: "", time: ""}]
+  );
 
   // Details State
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(
@@ -233,8 +233,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       curriculum: sections,
       price: Number(price) || 0,
       isLive,
-      startDate,
-      startTime,
+      liveSessions: isLive ? liveSessions.filter(s => s.date && s.time) : [],
     });
   };
 
@@ -389,28 +388,62 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     </div>
 
                     {isLive && (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6 animate-slide-down">
-                        <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <Calendar size={16} className="text-sky-500" /> Başlangıç Tarihi
-                          </label>
-                          <input
-                            type="date"
-                            value={startDate}
-                            onChange={(e) => setStartDate(e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                          />
+                      <div className="space-y-4 mt-6 animate-slide-down">
+                        <div className="flex items-center justify-between">
+                          <label className="text-sm font-bold text-gray-700">Canlı Ders Oturumları</label>
+                          <button
+                            type="button"
+                            onClick={() => setLiveSessions([...liveSessions, {date: "", time: ""}])}
+                            className="bg-sky-100 text-sky-600 px-3 py-1.5 rounded-lg flex items-center gap-1 text-xs font-bold hover:bg-sky-200"
+                          >
+                            <Plus size={14} /> Oturum Ekle
+                          </button>
                         </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                            <Clock size={16} className="text-sky-500" /> Başlangıç Saati
-                          </label>
-                          <input
-                            type="time"
-                            value={startTime}
-                            onChange={(e) => setStartTime(e.target.value)}
-                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200"
-                          />
+                        
+                        <div className="space-y-3">
+                          {liveSessions.map((session, sIdx) => (
+                            <div key={sIdx} className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl relative border border-gray-100 hover:border-sky-100 transition-colors">
+                              {liveSessions.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => setLiveSessions(liveSessions.filter((_, i) => i !== sIdx))}
+                                  className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1.5 hover:bg-red-200 transition-colors shadow-sm"
+                                >
+                                  <X size={14} />
+                                </button>
+                              )}
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 flex items-center gap-2">
+                                  <Calendar size={14} className="text-sky-500" /> {sIdx + 1}. Başlangıç Tarihi
+                                </label>
+                                <input
+                                  type="date"
+                                  value={session.date}
+                                  onChange={(e) => {
+                                    const newS = [...liveSessions];
+                                    newS[sIdx].date = e.target.value;
+                                    setLiveSessions(newS);
+                                  }}
+                                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <label className="text-xs font-bold text-gray-500 flex items-center gap-2">
+                                  <Clock size={14} className="text-sky-500" /> {sIdx + 1}. Başlangıç Saati
+                                </label>
+                                <input
+                                  type="time"
+                                  value={session.time}
+                                  onChange={(e) => {
+                                    const newS = [...liveSessions];
+                                    newS[sIdx].time = e.target.value;
+                                    setLiveSessions(newS);
+                                  }}
+                                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
+                                />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
