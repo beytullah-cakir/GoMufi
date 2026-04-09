@@ -15,4 +15,3 @@ supabase
 python-multipart
 iyzipay
 alembic
-google-generativeai

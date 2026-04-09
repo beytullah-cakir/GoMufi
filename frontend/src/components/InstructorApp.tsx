@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import InstructorLayout from './instructor-pages/InstructorLayout';
 import InstructorDashboard from './instructor-pages/InstructorDashboard';
 import InstructorCourses from './instructor-pages/InstructorCourses';
@@ -10,31 +9,10 @@ import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
 import LessonBuilderPage from './LessonBuilderPage';
 import InstructorProfile from './instructor-pages/InstructorProfile';
 import api from '../api';
+import { useEffect } from 'react';
 
 const InstructorApp: React.FC = () => {
-    const navigate = useNavigate();
-    const location = useLocation();
-    
-    // Derived activePage from URL
-    const getActivePageFromPath = (path: string) => {
-        const parts = path.split('/');
-        const lastPart = parts[parts.length - 1];
-        if (!lastPart || lastPart === 'instructor') return 'Dashboard';
-        
-        const mapping: { [key: string]: string } = {
-            'dashboard': 'Dashboard',
-            'courses': 'Courses',
-            'students': 'Students',
-            'analytics': 'Analytics',
-            'settings': 'Settings',
-            'ai-questions': 'AIQuestions',
-            'profile': 'Profile',
-            'builder': 'Builder'
-        };
-        return mapping[lastPart] || 'Dashboard';
-    };
-
-    const activePage = getActivePageFromPath(location.pathname);
+    const [activePage, setActivePage] = useState('Dashboard');
 
     // Mock User Data (In a real app, this would come from a Context or Global State)
     const userData = {
@@ -43,44 +21,45 @@ const InstructorApp: React.FC = () => {
         email: "mualla@example.com"
     };
 
-    const handleNavigate = (pageId: string) => {
-        const mapping: { [key: string]: string } = {
-            'Dashboard': '/instructor/dashboard',
-            'Courses': '/instructor/courses',
-            'Students': '/instructor/students',
-            'Analytics': '/instructor/analytics',
-            'Settings': '/instructor/settings',
-            'AIQuestions': '/instructor/ai-questions',
-            'Profile': '/instructor/profile',
-            'Builder': '/instructor/builder'
-        };
-        navigate(mapping[pageId] || '/instructor/dashboard');
+    const renderPage = () => {
+        switch (activePage) {
+            case 'Dashboard':
+                return <InstructorDashboard />;
+            case 'Courses':
+                return <InstructorCourses />;
+            case 'Students':
+                return <InstructorStudents />;
+            case 'Analytics':
+                return <InstructorRevenue />; // Using Revenue component for Analytics
+            case 'Settings':
+                return <InstructorSettings />;
+            case 'AIQuestions':
+                return <InstructorAIQuestions />;
+            case 'Profile':
+                return <InstructorProfile userData={userData} setUserData={setUserData} />;
+            default:
+                return (
+                    <div className="p-8">
+                        <h2 className="text-2xl font-bold text-gray-800">Sayfa Bulunamadı</h2>
+                        <p className="text-gray-600">{activePage} sayfası henüz hazırlanmadı.</p>
+                    </div>
+                );
+        }
     };
 
     if (activePage === 'Builder') {
-        return <LessonBuilderPage onExit={() => navigate('/instructor/dashboard')} />;
+        return <LessonBuilderPage onExit={() => setActivePage('Dashboard')} />;
     }
 
     return (
         <InstructorLayout
             activePage={activePage}
-            onNavigate={handleNavigate}
+            onNavigate={setActivePage}
             userData={userData}
         >
-            <Routes>
-                <Route path="/" element={<Navigate to="dashboard" replace />} />
-                <Route path="dashboard" element={<InstructorDashboard />} />
-                <Route path="courses" element={<InstructorCourses />} />
-                <Route path="students" element={<InstructorStudents />} />
-                <Route path="analytics" element={<InstructorRevenue />} />
-                <Route path="settings" element={<InstructorSettings />} />
-                <Route path="ai-questions" element={<InstructorAIQuestions />} />
-                <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
-                <Route path="*" element={<Navigate to="dashboard" replace />} />
-            </Routes>
+            {renderPage()}
         </InstructorLayout>
     );
 };
 
 export default InstructorApp;
-

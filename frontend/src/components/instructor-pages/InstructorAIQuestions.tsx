@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Sparkles, Brain, Plus, Trash2, Edit2, CheckCircle2, Loader2, Wand2, ArrowRight, Settings2, HelpCircle } from 'lucide-react';
-import api from '../../api';
 
 interface GeneratedQuestion {
     id: string;
@@ -19,40 +18,64 @@ const InstructorAIQuestions: React.FC = () => {
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
 
-    const handleGenerate = async () => {
+    const handleGenerate = () => {
         if (!topic.trim()) return;
         setIsGenerating(true);
         
-        try {
-            const response = await api.post('/generate_quiz', {
-                topic: topic,
-                difficulty: difficulty,
-                type: questionType
-            });
+        // Mock AI Generation delay
+        setTimeout(() => {
+            let mockResults: GeneratedQuestion[] = [];
 
-            if (response.data.success) {
-                const quizData = response.data.quiz;
-                const newQuestion: GeneratedQuestion = {
-                    id: response.data.db_id?.toString() || Date.now().toString(),
-                    text: quizData.soru,
-                    options: quizData.secenekler,
-                    correctAnswer: quizData.cevap,
-                    explanation: quizData.aciklama,
-                    difficulty: difficulty,
-                    type: questionType
-                };
-                
-                setGeneratedQuestions(prev => [newQuestion, ...prev]);
+            if (questionType === 'multiple-choice') {
+                mockResults = [
+                    {
+                        id: Date.now().toString() + '-1',
+                        text: `${topic} konusunda temel bir kavramı açıklar mısınız?`,
+                        options: ['Seçenek A', 'Seçenek B', 'Seçenek C', 'Seçenek D'],
+                        correctAnswer: 'Seçenek A',
+                        explanation: 'Bu konuyla ilgili en temel prensip budur.',
+                        difficulty: difficulty,
+                        type: 'multiple-choice'
+                    },
+                    {
+                        id: Date.now().toString() + '-2',
+                        text: `${topic} uygulama alanları nelerdir?`,
+                        options: ['Seçenek 1', 'Seçenek 2', 'Seçenek 3', 'Seçenek 4'],
+                        correctAnswer: 'Seçenek 2',
+                        explanation: 'Yaygın olarak bu alanlarda kullanılır.',
+                        difficulty: difficulty,
+                        type: 'multiple-choice'
+                    }
+                ];
+            } else if (questionType === 'true-false') {
+                mockResults = [
+                    {
+                        id: Date.now().toString() + '-1',
+                        text: `${topic} konusu ile ilgili bu ifade doğru mudur?`,
+                        options: ['Doğru', 'Yanlış'],
+                        correctAnswer: 'Doğru',
+                        explanation: 'Evet, bu teknik olarak doğru bir ifadedir.',
+                        difficulty: difficulty,
+                        type: 'true-false'
+                    }
+                ];
             } else {
-                alert("Soru üretilirken bir hata oluştu.");
+                // open-ended
+                mockResults = [
+                    {
+                        id: Date.now().toString() + '-1',
+                        text: `${topic} kavramını kendi cümlelerinizle özetleyiniz.`,
+                        correctAnswer: 'Örnek cevap: Bu kavram temel olarak...',
+                        explanation: 'Öğrencinin bu kavramın özünü anladığından emin olun.',
+                        difficulty: difficulty,
+                        type: 'open-ended'
+                    }
+                ];
             }
-        } catch (error: any) {
-            console.error("AI Soru Üretme Hatası:", error);
-            const detail = error.response?.data?.detail || "Sunucuya bağlanırken bir hata oluştu.";
-            alert(detail);
-        } finally {
+            
+            setGeneratedQuestions(mockResults);
             setIsGenerating(false);
-        }
+        }, 2000);
     };
 
     const handleRemoveQuestion = (id: string) => {

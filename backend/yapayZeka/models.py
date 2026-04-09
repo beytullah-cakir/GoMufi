@@ -17,7 +17,7 @@ class Quiz(Base):
         return {
             "id": self.id,
             "topic": self.topic,
-            "difficulty": self.difficulty,  
+            "difficulty": self.difficulty,
             "quiz": {
                 "soru": self.question_text,
                 "secenekler": self.options,

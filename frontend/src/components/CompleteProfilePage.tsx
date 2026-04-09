@@ -131,10 +131,7 @@ const CompleteProfilePage: React.FC<{
                 </label>
                 <select
                   value={educationLevel}
-                  onChange={(e) => {
-                    setEducationLevel(e.target.value);
-                    setGradeLevel(""); // Reset grade level
-                  }}
+                  onChange={(e) => setEducationLevel(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-400 font-bold text-gray-700"
                   required
                 >
@@ -156,18 +153,19 @@ const CompleteProfilePage: React.FC<{
                   onChange={(e) => setGradeLevel(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-gray-50 border border-gray-200 focus:outline-none focus:ring-2 focus:ring-green-400 font-bold text-gray-700"
                   required
-                  disabled={!educationLevel}
                 >
                   <option value="" disabled>
                     Seçiniz
                   </option>
-                  {educationLevel === 'ilkokul' && [1, 2, 3, 4].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                  {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                  {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                  {educationLevel === 'universite' && ['Hazırlık', '1. Sınıf', '2. Sınıf', '3. Sınıf', '4. Sınıf', 'Mezun'].map(n => <option key={n} value={n}>{n}</option>)}
+                  {[...Array(12)].map((_, i) => (
+                    <option key={i} value={`${i + 1}. Sınıf`}>
+                      {i + 1}. Sınıf
+                    </option>
+                  ))}
+                  <option value="hazirlik">Hazırlık</option>
+                  <option value="mezun">Mezun</option>
                 </select>
               </div>
-
             </>
           )}
 
