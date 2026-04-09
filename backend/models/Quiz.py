@@ -9,19 +9,23 @@ class Quiz(Base):
     topic = Column(String(100), nullable=False)
     difficulty = Column(String(50))
     question_text = Column(Text, nullable=False)
-    options = Column(JSON, nullable=False)
-    correct_answer = Column(String(10), nullable=False)
+    options = Column(JSON, nullable=True) # Bazı tiplerde seçenek olmayabilir
+    correct_answer = Column(Text, nullable=False)
+    explanation = Column(Text, nullable=True)
+    question_type = Column(String(50), default="multiple-choice")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     def to_dict(self):
         return {
             "id": self.id,
             "topic": self.topic,
-            "difficulty": self.difficulty,  
+            "difficulty": self.difficulty,
+            "type": self.question_type,
             "quiz": {
                 "soru": self.question_text,
                 "secenekler": self.options,
-                "cevap": self.correct_answer
+                "cevap": self.correct_answer,
+                "aciklama": self.explanation
             },
             "tarih": self.created_at.strftime("%Y-%m-%d %H:%M:%S") if self.created_at else None
         }

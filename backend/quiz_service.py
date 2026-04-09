@@ -1,51 +1,51 @@
 import json
 import google.generativeai as genai
+import re
 
-#aynı şekilde key i buraya da aldım.
+# API Key
 MY_API_KEY = "AIzaSyB9lh3skpk5o6jKsDn-EBW-SpB1tXNxf1g"
-
 genai.configure(api_key=MY_API_KEY)
 
-def generate_quiz_question(topic: str, difficulty: str = "Orta"):
-    print(f"Quiz Üretiliyor: Konu={topic}, Zorluk={difficulty}")
+def generate_quiz_question(topic: str, difficulty: str = "Orta", question_type: str = "multiple-choice"):
+    print(f"DEBUG: Quiz Üretimi Başladı -> Konu: {topic}, Tip: {question_type}")
 
     try:
-        model = genai.GenerativeModel("gemini-flash-latest")
+        # En uyumlu model ismini kullanalım
+        model = genai.GenerativeModel("gemini-3-flash-preview")
 
-        user_prompt = (
-            f"Konu: '{topic}'. Zorluk: {difficulty}. "
-            "Lise seviyesinde, 4 şıklı (A,B,C,D), tek doğru cevaplı bir test sorusu hazırla."
-        )
+        # Prompt oluşturma
+        type_hint = "4 şıklı (secenekler: [A, B, C, D])" if question_type == "multiple-choice" else "Doğru/Yanlış"
+        
+        prompt = f"""
+        Sen bir eğitmensin. Konu: '{topic}', Zorluk: '{difficulty}', Tip: '{question_type}'.
+        Lütfen şu JSON formatında bir soru üret:
+        {{
+            "soru": "Soru metni buraya",
+            "secenekler": ["Seçenek 1", "Seçenek 2", ...],
+            "cevap": "Doğru seçenek veya metin",
+            "aciklama": "Çözüm açıklaması"
+        }}
+        Kurallar:
+        1. Sadece JSON döndür. 
+        2. Cevap {type_hint} formatında olsun.
+        3. Türkçe dilinde olsun.
+        """
 
-        generation_config = {
-            "temperature": 1,
-            "max_output_tokens": 1024,
-            "response_mime_type": "application/json",
-            "response_schema": {
-                "type": "object",
-                "properties": {
-                    "soru": {"type": "string"},
-                    "secenekler": {"type": "array", "items": {"type": "string"}},
-                    "cevap": {"type": "string"}
-                },
-                "required": ["soru", "secenekler", "cevap"]
-            }
-        }
+        response = model.generate_content(prompt)
+        raw_text = response.text.strip()
+        
+        # JSON'ı temizle (Markdown ```json ... ``` varsa ayıkla)
+        json_match = re.search(r'\{.*\}', raw_text, re.DOTALL)
+        if json_match:
+            clean_json = json_match.group(0)
+        else:
+            clean_json = raw_text
 
-        full_prompt = (
-            "Sen bir öğretmensin. Aşağıdaki isteğe uygun soruyu üret ve "
-            "SADECE JSON formatında çıktı ver.\n\n" + user_prompt
-        )
+        print(f"DEBUG: AI Raw Response -> {clean_json}")
 
-        response = model.generate_content(
-            full_prompt,
-            generation_config=generation_config
-        )
-
-        raw_json = response.candidates[0].content.parts[0].text
-
-        quiz_data = json.loads(raw_json)
+        quiz_data = json.loads(clean_json)
         return {"success": True, "quiz": quiz_data}
 
     except Exception as e:
-        return {"success": False, "error": f"Quiz servis hatası: {str(e)}"}
+        print(f"ERROR: Quiz servis hatası -> {str(e)}")
+        return {"success": False, "error": str(e)}
