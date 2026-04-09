@@ -15,8 +15,6 @@ interface HomePageProps {
     courses: Record<string, CourseData>;
     onCourseChange: (id: string) => void;
     setCourses: React.Dispatch<React.SetStateAction<Record<string, CourseData>>>;
-    userData?: any;
-    isUserDataLoading: boolean;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -24,9 +22,7 @@ const HomePage: React.FC<HomePageProps> = ({
     activeCourseId,
     courses,
     onCourseChange,
-    setCourses,
-    userData,
-    isUserDataLoading
+    setCourses
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -148,44 +144,6 @@ const HomePage: React.FC<HomePageProps> = ({
         handleCloseGame();
     };
 
-    if (isUserDataLoading) {
-        return (
-            <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-[100]">
-                <div className="relative">
-                    <div className="w-48 h-48 rounded-full border-8 border-indigo-100 animate-pulse"></div>
-                    <div className="absolute inset-0 border-t-8 border-indigo-600 rounded-full animate-spin"></div>
-                    <span className="absolute inset-0 flex items-center justify-center text-6xl animate-bounce">⚡</span>
-                </div>
-                <h2 className="text-2xl font-black text-gray-800 mt-8 font-display animate-pulse uppercase tracking-widest">Maceran Yükleniyor...</h2>
-                <div className="mt-4 flex gap-2">
-                    <div className="w-2 h-2 bg-indigo-600 rounded-full animate-bounce [animation-delay:-0.3s]"></div>
-                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]"></div>
-                    <div className="w-2 h-2 bg-indigo-400 rounded-full animate-bounce"></div>
-                </div>
-            </div>
-        );
-    }
-
-    if (!currentCourse) {
-        return (
-            <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-64 h-64 bg-gray-50 rounded-full flex items-center justify-center mb-8">
-                    <span className="text-8xl animate-bounce">🛒</span>
-                </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz Bir Kursun Yok!</h2>
-                <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Maceraya başlamak için Market'ten harika kurslarımızı keşfedebilir ve ilk adımını atabilirsin.
-                </p>
-                <button 
-                    onClick={() => (window as any).setActivePage ? (window as any).setActivePage('Kurslar') : window.location.reload()}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
-                >
-                    Kursları Keşfet
-                </button>
-            </div>
-        );
-    }
-
     // Calculate dynamic styles for the Course Box to match the header
     const courseBoxStyle = {
         borderColor: currentCourse.themeColor,
@@ -207,9 +165,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                         >
                             <span className="text-4xl mb-1">{currentCourse.icon}</span>
-                            <span className="font-black text-[10px] md:text-xs uppercase tracking-tighter font-display truncate w-full px-2 text-center" title={currentCourse.title}>
-                                {currentCourse.title}
-                            </span>
+                            <span className="font-black text-sm uppercase tracking-wider font-display">{currentCourse.title}</span>
                             {/* Dropdown Indicator */}
                             <div className="absolute top-2 right-2 opacity-50">
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
@@ -228,7 +184,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                         onClick={() => handleCourseChange(course.id)}
                                     >
                                         <span className="text-2xl">{course.icon}</span>
-                                        <span className={`font-black text-sm uppercase font-display truncate flex-1 ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`} title={course.title}>
+                                        <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
                                             {course.title}
                                         </span>
                                         {activeCourseId === course.id && (

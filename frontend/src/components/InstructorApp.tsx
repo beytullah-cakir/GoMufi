@@ -36,20 +36,12 @@ const InstructorApp: React.FC = () => {
 
     const activePage = getActivePageFromPath(location.pathname);
 
-    // User Data State
-    const [userData, setUserData] = useState<any>(null);
-
-    useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const response = await api.get("/profile");
-                setUserData(response.data);
-            } catch (err) {
-                console.error("Failed to fetch coach data", err);
-            }
-        };
-        fetchUserData();
-    }, []);
+    // Mock User Data (In a real app, this would come from a Context or Global State)
+    const userData = {
+        first_name: "Mualla",
+        last_name: "Yılmaz",
+        email: "mualla@example.com"
+    };
 
     const handleNavigate = (pageId: string) => {
         const mapping: { [key: string]: string } = {
