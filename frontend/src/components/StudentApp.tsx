@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './Navbar';
 import api from '../api';
 import HomePage from './HomePage';
@@ -7,6 +8,7 @@ import ProfilePage from './ProfilePage';
 import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
 import StudentPayment from './students-pages/StudentPayment';
+import CourseDetailPage from './students-pages/CourseDetailPage';
 import MufiSleep from '../assets/sprites/MufiSleep.png';
 
 
@@ -284,13 +286,82 @@ const generateCourseData = (purchasedList: string[], instructorsMap: Record<stri
 };
 
 function StudentApp() {
+    const navigate = useNavigate();
+    const location = useLocation();
+
     const [activePage, setActivePage] = useState('Ana Sayfa');
     const [activeCourseId, setActiveCourseId] = useState<string>('');
     const [userData, setUserData] = useState<any>(null);
     const [isUserDataLoading, setIsUserDataLoading] = useState(true);
+    const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
+    
+    // Page to Path mapping
+    const pageToPath: Record<string, string> = {
+        'Ana Sayfa': '/student/home',
+        'Kurslarım': '/student/my-courses',
+        'Kurslar': '/student/catalog',
+        'Soru Sor': '/student/ask',
+        'Profilim': '/student/profile',
+        'PROFILIM': '/student/profile'
+    };
+
+    const pathToPage: Record<string, string> = {
+        '/student/home': 'Ana Sayfa',
+        '/student/my-courses': 'Kurslarım',
+        '/student/catalog': 'Kurslar',
+        '/student/ask': 'Soru Sor',
+        '/student/profile': 'Profilim'
+    };
+
+    // Effect to sync URL -> State (Handle browser back/forward and initial load)
+    useEffect(() => {
+        const path = location.pathname;
+        
+        // Handle course detail specifically
+        if (path.startsWith('/student/catalog/')) {
+            const idMatch = path.match(/\/student\/catalog\/(\d+)/);
+            if (idMatch) {
+                setActivePage('Kurslar');
+                setSelectedCourseForDetail(parseInt(idMatch[1]));
+                return;
+            }
+        }
+
+        const page = pathToPage[path];
+        if (page) {
+            setActivePage(page);
+            setSelectedCourseForDetail(null);
+        } else if (path === '/student' || path === '/student/') {
+            // Default to home if at base /student
+            setActivePage('Ana Sayfa');
+            setSelectedCourseForDetail(null);
+        }
+    }, [location.pathname]);
+
+    // Effect to sync State -> URL (Update URL when user clicks menu)
+    useEffect(() => {
+        let targetPath = pageToPath[activePage] || '/student/home';
+        
+        // Override if in course detail
+        if (activePage === 'Kurslar' && selectedCourseForDetail) {
+            targetPath = `/student/catalog/${selectedCourseForDetail}`;
+        }
+
+        if (location.pathname !== targetPath) {
+            navigate(targetPath);
+        }
+    }, [activePage, selectedCourseForDetail]);
+
+    // Reset course detail view when switching pages (already covered by sync, but keep as safety)
+    useEffect(() => {
+        if (activePage !== 'Kurslar') {
+            setSelectedCourseForDetail(null);
+        }
+    }, [activePage]);
 
     // --- Purchased Courses State ---
     const [purchasedCourses, setPurchasedCourses] = useState<string[]>([]);
+    const [purchasedCourseIds, setPurchasedCourseIds] = useState<number[]>([]);
 
     // --- Shopping Cart State ---
     const [cart, setCart] = useState<CartItem[]>([]);
@@ -327,6 +398,7 @@ function StudentApp() {
 
                 // Update purchased courses (Overwrite)
                 setPurchasedCourses(titles);
+                setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
             } catch (err) {
                 console.error("Failed to fetch user data or courses", err);
             } finally {
@@ -433,7 +505,36 @@ function StudentApp() {
                             isUserDataLoading={isUserDataLoading}
                         />
                     ) : activePage === 'Kurslar' ? (
-                        <CoursesPage addToCart={addToCart} cart={cart} />
+                        selectedCourseForDetail ? (
+                            <CourseDetailPage
+                                courseId={selectedCourseForDetail}
+                                onBack={() => {
+                                    setSelectedCourseForDetail(null);
+                                }}
+                                isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
+                                onEnroll={async (id) => {
+                                    try {
+                                        await api.post(`/enroll/${id}`);
+                                        // Refresh my-content to update purchasedCourses
+                                        const contentRes = await api.get('/my-content');
+                                        const titles = contentRes.data.map((c: any) => c.title);
+                                        const ids = contentRes.data.map((c: any) => c.id);
+                                        setPurchasedCourses(titles);
+                                        setPurchasedCourseIds(ids);
+                                        alert("Kursa başarıyla kayıt olundu!");
+                                    } catch (err: any) {
+                                        alert(err.response?.data?.detail || "Kayıt başarısız.");
+                                    }
+                                }}
+                            />
+                        ) : (
+                            <CoursesPage 
+                                addToCart={addToCart} 
+                                cart={cart} 
+                                onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
+                                purchasedCourseIds={purchasedCourseIds}
+                            />
+                        )
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
                         <ProfilePage 
                             userData={userData} 
