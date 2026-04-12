@@ -1,9 +1,15 @@
 import json
 import google.generativeai as genai
 import re
+import os
+from dotenv import load_dotenv
 
-# API Key
-MY_API_KEY = "AIzaSyB9lh3skpk5o6jKsDn-EBW-SpB1tXNxf1g"
+# .env dosyasındaki değişkenleri yükle
+load_dotenv()
+
+# API Key'i ortam değişkeninden al
+MY_API_KEY = os.getenv("MY_API_KEY")
+
 genai.configure(api_key=MY_API_KEY)
 
 def generate_quiz_question(topic: str, difficulty: str = "Orta", question_type: str = "multiple-choice"):
