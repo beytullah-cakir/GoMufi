@@ -35,6 +35,7 @@ def generate_quiz_question(topic: str, difficulty: str = "Orta", question_type: 
         1. Sadece JSON döndür. 
         2. Cevap {type_hint} formatında olsun.
         3. Türkçe dilinde olsun.
+        4. Eğer soru veya seçenekler kod içeriyorsa, kodu mutlaka markdown kod bloğu (```dil ... ```) içine al.
         """
 
         response = model.generate_content(prompt)

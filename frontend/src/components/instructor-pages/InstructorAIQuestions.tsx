@@ -12,6 +12,66 @@ interface GeneratedQuestion {
     type: 'multiple-choice' | 'true-false' | 'open-ended';
 }
 
+const FormattedText: React.FC<{ text: string }> = ({ text }) => {
+    if (!text) return null;
+    
+    // Split by triple backticks for code blocks
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    
+    return (
+        <>
+            {parts.map((part, i) => {
+                if (part.startsWith('```') && part.endsWith('```')) {
+                    // It's a code block
+                    const langMatch = part.match(/```(\w+)/);
+                    const lang = langMatch ? langMatch[1] : '';
+                    const code = part
+                        .replace(/^```(\w+)?\n?/, '')
+                        .replace(/```$/, '')
+                        .trim();
+                        
+                    return (
+                        <div key={i} className="my-6 relative group">
+                            {lang && (
+                                <div className="absolute -top-3 left-6 px-3 py-1 bg-indigo-600 text-white text-[10px] font-black rounded-full uppercase tracking-widest shadow-lg z-10">
+                                    {lang}
+                                </div>
+                            )}
+                            <div className="rounded-3xl overflow-hidden border-2 border-gray-800 bg-gray-900 shadow-2xl">
+                                <div className="flex items-center gap-1.5 px-4 py-3 bg-gray-800/50 border-b border-gray-800">
+                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/50"></div>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/50"></div>
+                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500/50"></div>
+                                </div>
+                                <pre className="p-6 text-indigo-200 overflow-x-auto font-mono text-sm leading-relaxed custom-scrollbar">
+                                    <code>{code}</code>
+                                </pre>
+                            </div>
+                        </div>
+                    );
+                }
+                
+                // Handle inline code `...`
+                const inlineParts = part.split(/(`[^`]+`)/g);
+                return (
+                    <span key={i} className="whitespace-pre-wrap">
+                        {inlineParts.map((inlinePart, j) => {
+                            if (inlinePart.startsWith('`') && inlinePart.endsWith('`')) {
+                                return (
+                                    <code key={j} className="mx-1 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg font-mono text-[0.85em] font-bold border border-indigo-100">
+                                        {inlinePart.slice(1, -1)}
+                                    </code>
+                                );
+                            }
+                            return inlinePart;
+                        })}
+                    </span>
+                );
+            })}
+        </>
+    );
+};
+
 const InstructorAIQuestions: React.FC = () => {
     const [topic, setTopic] = useState('');
     const [difficulty, setDifficulty] = useState<'Kolay' | 'Orta' | 'Zor'>('Orta');
@@ -121,30 +181,6 @@ const InstructorAIQuestions: React.FC = () => {
                                 </div>
                             </div>
 
-                            {/* Question Type Toggle */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-black text-gray-400 uppercase tracking-widest block pl-1">Soru Tipi</label>
-                                <div className="space-y-2">
-                                    {[
-                                        { id: 'multiple-choice', label: 'Çoktan Seçmeli', icon: '🔘' },
-                                        { id: 'true-false', label: 'Doğru / Yanlış', icon: '🌗' },
-                                        { id: 'open-ended', label: 'Açık Uçlu', icon: '📝' }
-                                    ].map(type => (
-                                        <button 
-                                            key={type.id}
-                                            onClick={() => setQuestionType(type.id as any)}
-                                            className={`w-full flex items-center justify-between p-4 rounded-2xl border-2 transition-all group ${questionType === type.id ? 'bg-white border-indigo-400 text-indigo-600 shadow-sm' : 'bg-gray-50 border-transparent text-gray-500 hover:bg-gray-100'}`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-xl">{type.icon}</span>
-                                                <span className="text-sm font-bold">{type.label}</span>
-                                            </div>
-                                            {questionType === type.id && <div className="w-2 h-2 rounded-full bg-indigo-500 ring-4 ring-indigo-50"></div>}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
                             {/* Action Button */}
                             <button 
                                 onClick={handleGenerate}
@@ -243,9 +279,9 @@ const InstructorAIQuestions: React.FC = () => {
                                             </div>
 
                                             {/* Question Text */}
-                                            <h4 className="text-xl font-black text-gray-800 mb-8 leading-relaxed">
-                                                {question.text}
-                                            </h4>
+                                            <div className="text-xl font-black text-gray-800 mb-8 leading-relaxed">
+                                                <FormattedText text={question.text} />
+                                            </div>
 
                                             {/* Options */}
                                             {question.options && (
@@ -260,12 +296,14 @@ const InstructorAIQuestions: React.FC = () => {
                                                             }`}
                                                         >
                                                             <div className="flex items-center gap-3">
-                                                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs ${option === question.correctAnswer ? 'bg-green-500 text-white' : 'bg-white text-gray-400'}`}>
+                                                                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${option === question.correctAnswer ? 'bg-green-500 text-white' : 'bg-white text-gray-400'}`}>
                                                                     {String.fromCharCode(65 + i)}
                                                                 </span>
-                                                                {option}
+                                                                <div className="flex-1 min-w-0">
+                                                                    <FormattedText text={option} />
+                                                                </div>
                                                             </div>
-                                                            {option === question.correctAnswer && <CheckCircle2 size={18} />}
+                                                            {option === question.correctAnswer && <CheckCircle2 size={18} className="flex-shrink-0" />}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -285,9 +323,9 @@ const InstructorAIQuestions: React.FC = () => {
                                                     <Brain size={14} className="text-indigo-500"/>
                                                     Çözüm Açıklaması
                                                 </p>
-                                                <p className="text-sm font-medium text-gray-600 leading-relaxed">
-                                                    {question.explanation}
-                                                </p>
+                                                <div className="text-sm font-medium text-gray-600 leading-relaxed">
+                                                    <FormattedText text={question.explanation} />
+                                                </div>
                                             </div>
 
                                             {/* Add to System Button */}
