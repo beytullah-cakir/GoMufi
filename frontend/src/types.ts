@@ -20,6 +20,8 @@ export interface PathNode {
     isLocked?: boolean;
     lessonNumber?: number;
     lessonTopic?: string;
+    sectionId?: string;
+    localNodeIndex?: number;
     lastInLesson?: boolean;
 }
 

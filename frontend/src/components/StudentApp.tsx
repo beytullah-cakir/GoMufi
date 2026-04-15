@@ -34,7 +34,7 @@ interface CartItem {
 }
 
 // --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean): PathNode[] => {
+const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string): PathNode[] => {
     const baseId = startId;
     const isLessonLocked = isLockedStart;
 
@@ -57,7 +57,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 1
         },
         {
             id: baseId + 1,
@@ -77,7 +79,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 2
         },
         {
             id: baseId + 2,
@@ -97,7 +101,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 3
         },
         {
             id: baseId + 3,
@@ -117,7 +123,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 4
         },
         {
             id: baseId + 4,
@@ -137,7 +145,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 5
         },
         {
             id: baseId + 5,
@@ -157,7 +167,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             stars: showStars ? 0 : undefined,
             isLocked: isLessonLocked,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 6
         },
         {
             id: baseId + 6,
@@ -179,7 +191,9 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             isLocked: isLessonLocked,
             lastInLesson: true,
             lessonNumber: lessonNum,
-            lessonTopic: lessonTopic
+            lessonTopic: lessonTopic,
+            sectionId: sectionId,
+            localNodeIndex: 7
         }
     ];
 };
@@ -210,7 +224,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
             actualSections.forEach((section: any, index: number) => {
                 const sectionTitle = section.title || `Bölüm ${index + 1}`;
-                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true);
+                const sectionId = section.id || `section_${index + 1}`;
+                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true, sectionId);
                 
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
@@ -222,7 +237,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             });
 
             result[courseName] = {
-                id: courseName,
+                id: String(course.id),
                 title: courseName.toUpperCase(),
                 icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),

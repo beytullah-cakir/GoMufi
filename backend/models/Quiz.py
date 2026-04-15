@@ -7,6 +7,7 @@ class Quiz(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
+    section_id = Column(String(100), nullable=True) # ID or index of the section
     node_id = Column(Integer, nullable=True) # ID of the node in the course curriculum
     topic = Column(String(100), nullable=False)
     difficulty = Column(String(50))
@@ -21,10 +22,15 @@ class Quiz(Base):
         return {
             "id": self.id,
             "course_id": self.course_id,
+            "section_id": self.section_id,
             "node_id": self.node_id,
             "topic": self.topic,
             "difficulty": self.difficulty,
             "type": self.question_type,
+            "question_text": self.question_text,
+            "options": self.options,
+            "correct_answer": self.correct_answer,
+            "explanation": self.explanation,
             "quiz": {
                 "soru": self.question_text,
                 "secenekler": self.options,

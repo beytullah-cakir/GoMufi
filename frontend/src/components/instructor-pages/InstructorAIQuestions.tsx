@@ -84,6 +84,8 @@ const InstructorAIQuestions: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
     const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
+    const [selectedSection, setSelectedSection] = useState<any | null>(null);
+    const [selectedSectionIndex, setSelectedSectionIndex] = useState<number | null>(null);
     const [isAssigning, setIsAssigning] = useState(false);
 
     React.useEffect(() => {
@@ -142,16 +144,22 @@ const InstructorAIQuestions: React.FC = () => {
         setSelectedQuizId(quizId);
         setIsModalOpen(true);
         setSelectedCourse(null);
+        setSelectedSection(null);
+        setSelectedSectionIndex(null);
     };
 
     const handleNodeSelect = async (nodeId: number) => {
-        if (!selectedQuizId || !selectedCourse) return;
+        if (!selectedQuizId || !selectedCourse || !selectedSection) return;
         
         setIsAssigning(true);
         try {
+            // Fallback to section_X if id is missing, matching StudentApp.tsx logic
+            const sectionId = selectedSection.id || `section_${(selectedSectionIndex || 0) + 1}`;
+            
             const response = await api.post('/assign_quiz', {
-                quiz_id: parseInt(selectedQuizId),
-                course_id: selectedCourse.id,
+                quiz_id: Number(selectedQuizId),
+                course_id: Number(selectedCourse.id),
+                section_id: sectionId,
                 node_id: nodeId
             });
 
@@ -426,7 +434,7 @@ const InstructorAIQuestions: React.FC = () => {
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm border-2 border-gray-50 group-hover:scale-110 transition-transform">
-                                                        {course.category === 'Yazılım' ? '💻' : '📚'}
+                                                        {course.category === 'coding' ? '💻' : '📚'}
                                                     </div>
                                                     <div className="text-left">
                                                         <h4 className="font-black text-gray-800">{course.title}</h4>
@@ -440,7 +448,7 @@ const InstructorAIQuestions: React.FC = () => {
                                         )}
                                     </div>
                                 </div>
-                            ) : (
+                            ) : !selectedSection ? (
                                 <div className="space-y-6">
                                     <button 
                                         onClick={() => setSelectedCourse(null)}
@@ -451,11 +459,56 @@ const InstructorAIQuestions: React.FC = () => {
                                     
                                     <div className="space-y-4">
                                         <label className="text-xs font-black text-gray-400 uppercase tracking-widest block pl-1">
-                                            {selectedCourse.title} - Adım Seçin
+                                            {selectedCourse.title} - Bölüm Seçin
+                                        </label>
+                                        <div className="grid grid-cols-1 gap-3">
+                                            {selectedCourse.curriculum && selectedCourse.curriculum.filter((item: any) => item.type !== 'live_sessions_config').map((section: any, idx: number) => (
+                                                <button
+                                                    key={section.id || idx}
+                                                    onClick={() => {
+                                                        setSelectedSection(section);
+                                                        setSelectedSectionIndex(idx);
+                                                    }}
+                                                    className="flex items-center justify-between p-5 rounded-3xl border-2 border-gray-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-lg font-black text-indigo-500 border-2 border-gray-50 group-hover:bg-indigo-500 group-hover:text-white transition-all">
+                                                            {idx + 1}
+                                                        </div>
+                                                        <div className="text-left">
+                                                            <h4 className="font-black text-gray-800">{section.title}</h4>
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">BÖLÜM {idx + 1}</span>
+                                                        </div>
+                                                    </div>
+                                                    <ChevronRight className="text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <button 
+                                        onClick={() => setSelectedSection(null)}
+                                        className="text-xs font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-1 uppercase tracking-widest transition-all"
+                                    >
+                                        ← Bölüm Seçimine Dön
+                                    </button>
+                                    
+                                    <div className="space-y-4">
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest block pl-1">
+                                            {selectedSection.title} - Adım Seçin (Node)
                                         </label>
                                         <div className="grid grid-cols-1 gap-2">
-                                            {/* Always show 10 Fixed Levels to match the student roadmap */}
-                                            {Array.from({ length: 10 }, (_, i) => (
+                                            {[
+                                                { label: 'Giriş: Konuya Merhaba', type: 'step' },
+                                                { label: 'Anla: Konuyu Kavra', type: 'start' },
+                                                { label: 'Pekiştir: Detayları Gör', type: 'step' },
+                                                { label: 'Uygula: Alıştırma Yap', type: 'paw' },
+                                                { label: 'Özümse: Derinleş', type: 'step' },
+                                                { label: 'Birleştir: Parçaları Tamamla', type: 'paw' },
+                                                { label: 'Üret: Kendini Göster', type: 'chest' }
+                                            ].map((nodeInfo, i) => (
                                                 <button
                                                     key={i + 1}
                                                     onClick={() => handleNodeSelect(i + 1)}
@@ -466,7 +519,10 @@ const InstructorAIQuestions: React.FC = () => {
                                                         <div className="w-8 h-8 rounded-lg bg-white border-2 border-gray-50 flex items-center justify-center text-xs font-black text-gray-400 group-hover:text-indigo-600 group-hover:border-indigo-100 transition-all">
                                                             {i + 1}
                                                         </div>
-                                                        <span className="font-bold text-gray-700">Level {i + 1}</span>
+                                                        <div className="flex flex-col text-left">
+                                                            <span className="font-bold text-gray-800 text-sm leading-tight">{nodeInfo.label}</span>
+                                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{nodeInfo.type.toUpperCase()} DÜĞÜMÜ</span>
+                                                        </div>
                                                     </div>
                                                     {isAssigning ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <Plus className="text-gray-300 group-hover:text-indigo-500 transition-colors" />}
                                                 </button>

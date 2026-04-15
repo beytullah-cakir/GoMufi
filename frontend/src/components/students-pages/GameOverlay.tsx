@@ -6,11 +6,14 @@ interface GameOverlayProps {
     isOpen: boolean;
     level: number | null;
     lessonTitle?: string;
+    courseId?: string;
+    sectionId?: string;
+    localNodeIndex?: number;
     onClose: () => void;
     onComplete: (stars: number) => void;
 }
 
-const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, onClose, onComplete }) => {
+const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, courseId, sectionId, localNodeIndex, onClose, onComplete }) => {
     if (!isOpen || level === null) return null;
 
     return (
@@ -18,6 +21,9 @@ const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, o
             {level === 2 ? (
                 <MonsterBattleGame
                     level={level}
+                    courseId={courseId}
+                    sectionId={sectionId}
+                    localNodeIndex={localNodeIndex}
                     onClose={onClose}
                     onComplete={onComplete}
                 />
@@ -25,6 +31,9 @@ const GameOverlay: React.FC<GameOverlayProps> = ({ isOpen, level, lessonTitle, o
                 <MatchingGame
                     level={level}
                     lessonTitle={lessonTitle || ''}
+                    courseId={courseId}
+                    sectionId={sectionId}
+                    localNodeIndex={localNodeIndex}
                     onClose={onClose}
                     onComplete={onComplete}
                 />
