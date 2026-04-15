@@ -108,16 +108,19 @@ async def get_quizzes(db: AsyncSession = Depends(get_db)):
         "count": len(quizzes),
         "data": [q.to_dict() for q in quizzes]
     }
-
 @app.post("/assign_quiz")
 async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
     data = await request.json()
     quiz_id = data.get('quiz_id')
     course_id = data.get('course_id')
+    section_id = data.get('section_id')
     node_id = data.get('node_id')
 
-    if not quiz_id or not course_id or node_id is None:
-        raise HTTPException(status_code=400, detail="Eksik parametre: quiz_id, course_id veya node_id gerekli.")
+    if not quiz_id or not course_id or node_id is None or section_id is None:
+        print(f"DEBUG: assign_quiz EKSIK PARAMETRE - quiz_id: {quiz_id}, course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
+        raise HTTPException(status_code=400, detail="Eksik parametre: quiz_id, course_id, section_id veya node_id gerekli.")
+
+    print(f"DEBUG: assign_quiz basarili parametreler - quiz_id: {quiz_id}, course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
 
     from sqlalchemy.future import select
     result = await db.execute(select(Quiz).where(Quiz.id == quiz_id))
@@ -127,14 +130,39 @@ async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Quiz bulunamadı.")
 
     try:
-        quiz.course_id = course_id
-        quiz.node_id = node_id
+        # Explicit casting to ensure DB compatibility
+        quiz.course_id = int(course_id)
+        quiz.section_id = str(section_id)
+        quiz.node_id = int(node_id)
+        
         await db.commit()
         await db.refresh(quiz)
+        print(f"DEBUG: Atama BASARILI -> QuizID: {quiz.id}, Course: {quiz.course_id}, Section: {quiz.section_id}, Node: {quiz.node_id}")
         return {"success": True, "quiz": quiz.to_dict()}
     except Exception as e:
         await db.rollback()
+        print(f"DEBUG: Atama HATASI -> {str(e)}")
         raise HTTPException(status_code=500, detail=f"Atama hatası: {str(e)}")
+
+@app.get("/quiz_by_node")
+async def get_quiz_by_node(course_id: int, section_id: str, node_id: int, db: AsyncSession = Depends(get_db)):
+    print(f"DEBUG: get_quiz_by_node talep - course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
+    from sqlalchemy.future import select
+    result = await db.execute(
+        select(Quiz).where(
+            Quiz.course_id == course_id,
+            Quiz.section_id == section_id,
+            Quiz.node_id == node_id
+        ).order_by(Quiz.id.desc())
+    )
+    quiz = result.scalar_one_or_none()
+    
+    if not quiz:
+        print(f"DEBUG: get_quiz_by_node -> Soru bulunamadi (Course:{course_id}, Section:{section_id}, Node:{node_id})")
+        return {"success": False, "message": "Bu düğüm için atanmış soru bulunamadı."}
+        
+    print(f"DEBUG: get_quiz_by_node -> Soru BULUNDU (ID: {quiz.id})")
+    return {"success": True, "quiz": quiz.to_dict()}
 
 app.include_router(student_auth.router)
 app.include_router(teacher_auth.router)

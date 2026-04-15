@@ -685,6 +685,9 @@ const HomePage: React.FC<HomePageProps> = ({
                 isOpen={showGameOverlay}
                 level={gameLevel}
                 lessonTitle={currentCourse.nodes.find(n => n.id === gameLevel)?.title}
+                courseId={currentCourse.id}
+                sectionId={currentCourse.nodes.find(n => n.id === gameLevel)?.sectionId}
+                localNodeIndex={currentCourse.nodes.find(n => n.id === gameLevel)?.localNodeIndex}
                 onClose={handleCloseGame}
                 onComplete={handleGameComplete}
             />

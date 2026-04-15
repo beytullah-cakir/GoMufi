@@ -5,6 +5,9 @@ import battleBg from "../../assets/sprites/BattleBg.png";
 
 interface MonsterBattleGameProps {
   level: number;
+  courseId?: string;
+  sectionId?: string;
+  localNodeIndex?: number;
   onClose: () => void;
   onComplete: (stars: number) => void;
 }
@@ -19,6 +22,10 @@ type BattlePhase =
   | "defeat";
 
 const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
+  level,
+  courseId,
+  sectionId,
+  localNodeIndex,
   onClose,
   onComplete,
 }) => {

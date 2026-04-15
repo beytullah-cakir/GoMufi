@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useCallback } from "react";
+import api from "../../api";
 
 interface MatchingGameProps {
   level: number;
   lessonTitle: string;
+  courseId?: string;
+  sectionId?: string;
+  localNodeIndex?: number;
   onClose: () => void;
   onComplete: (stars: number) => void;
 }
@@ -16,12 +20,9 @@ type GamePhase =
   | "score";
 
 // Mock Questions Data
-const QUESTIONS = [
-  { id: 1, text: "Metin 1", correctAnswer: "A" },
-  { id: 2, text: "Metin 2", correctAnswer: "A" },
-  { id: 3, text: "Metin 3", correctAnswer: "A" },
-  { id: 4, text: "Metin 4", correctAnswer: "A" },
-  { id: 5, text: "Metin 5", correctAnswer: "A" },
+// Fallback Mock Questions Data
+const DEFAULT_QUESTIONS = [
+  { id: 1, text: "Metin 1", options: ["Şık 1", "Şık 2", "Şık 3", "Şık 4"], correctAnswer: "Şık 1" },
 ];
 
 // Random Countdown Phrases
@@ -39,9 +40,14 @@ const COUNTDOWN_PHRASES = [
 const MatchingGame: React.FC<MatchingGameProps> = ({
   level,
   lessonTitle,
+  courseId,
+  sectionId,
+  localNodeIndex,
   onClose,
   onComplete,
 }) => {
+  const [questions, setQuestions] = useState<any[]>(DEFAULT_QUESTIONS);
+  const [isLoading, setIsLoading] = useState(true);
   const [phase, setPhase] = useState<GamePhase>("intro");
   const [countdown, setCountdown] = useState(3);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -50,7 +56,56 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const currentQuestion = QUESTIONS[currentQuestionIndex];
+  const currentQuestion = questions[currentQuestionIndex];
+
+  // Fetch AI Quiz
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      // Find course by title if needed - actually the backend expects course_id as int
+      // I need to ensure courseId passed from StudentApp is the actual ID.
+      // Wait, let's assume courseId is handled.
+      try {
+        console.log(`[GameFetch] Quiz aranıyor: CourseID=${courseId}, SectionID=${sectionId}, NodeIndex=${localNodeIndex}`);
+        const response = await api.get('/quiz_by_node', {
+          params: {
+            course_id: parseInt(courseId || "1"),
+            section_id: sectionId,
+            node_id: localNodeIndex
+          }
+        });
+
+        if (response.data.success && response.data.quiz) {
+          const q = response.data.quiz;
+          console.log("[GameFetch] Quiz verisi isleniyor:", q);
+          
+          // Support both nested and flat structures for maximum resilience
+          const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
+          const options = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
+          const correctAnswer = q.quiz?.cevap || q.correct_answer || (options ? options[0] : "");
+          const explanation = q.quiz?.aciklama || q.explanation || "";
+
+          setQuestions([{
+            id: q.id,
+            text: questionText,
+            options: options,
+            correctAnswer: correctAnswer,
+            explanation: explanation
+          }]);
+          console.log("[GameFetch] Soru basariyla yüklendi:", questionText);
+        }
+      } catch (err) {
+        console.error("Quiz çekme hatası:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (sectionId && localNodeIndex) {
+      fetchQuiz();
+    } else {
+      setIsLoading(false);
+    }
+  }, [sectionId, localNodeIndex]);
 
   const [countdownPhrase] = useState(
     () =>
@@ -58,7 +113,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   );
 
   const nextQuestion = useCallback(() => {
-    if (currentQuestionIndex < QUESTIONS.length - 1) {
+    if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setTimer(100);
       setSelectedAnswer(null);
@@ -229,7 +284,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     const isCorrectResult = isCorrect === true;
 
     return (
-      <div className="w-full max-w-4xl flex flex-col items-center h-[90vh] py-8 relative">
+      <div className="w-full max-w-5xl flex flex-col h-[92vh] py-4 relative overflow-hidden">
         {/* Result Overlay */}
         {phase === "result" && (
           <div className="fixed inset-0 z-[200] flex flex-col justify-end pointer-events-none">
@@ -370,8 +425,9 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           </div>
         )}
 
+
         {/* Header (Exit & Timer) */}
-        <div className="w-full flex justify-between items-center mb-8 px-4">
+        <div className="w-full flex justify-between items-center mb-4 px-4 shrink-0">
           <button
             onClick={onClose}
             className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-2xl flex items-center justify-center transition-colors group cursor-pointer"
@@ -402,61 +458,67 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           </div>
 
           <div className="text-xl font-black text-gray-400 font-display w-12 text-right">
-            {currentQuestionIndex + 1}/{QUESTIONS.length}
+            {currentQuestionIndex + 1}/{questions.length}
           </div>
         </div>
 
-        {/* Question Area */}
-        <div className="flex-1 flex items-center justify-center mb-12 w-full">
-          <div className="bg-white border-2 border-gray-200 border-b-4 rounded-3xl p-12 shadow-sm text-center w-full mx-4">
-            <span className="text-gray-400 font-bold text-lg uppercase tracking-widest block mb-4">
+        {/* Question Area - Scrollable */}
+        <div className="flex-1 min-h-0 w-full px-4 mb-6 overflow-y-auto custom-scrollbar">
+          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-[40px] p-8 md:p-12 shadow-sm text-center w-full min-h-fit">
+            <span className="text-sky-500 font-black text-sm uppercase tracking-[0.2em] block mb-6 px-4 py-2 bg-sky-50 w-fit mx-auto rounded-full border border-sky-100">
               {lessonTitle}
             </span>
-            <h2 className="text-4xl font-black text-gray-700 font-display">
-              {currentQuestion.text}
-            </h2>
+            
+            <div className="text-left w-full space-y-4">
+              {currentQuestion.text.split(/```/).map((part: string, i: number) => {
+                if (i % 2 === 1) {
+                  const lines = part.trim().split('\n');
+                  const code = lines.length > 1 && lines[0].length < 10 && !lines[0].includes(' ') 
+                               ? lines.slice(1).join('\n') 
+                               : part.trim();
+
+                  return (
+                    <div key={i} className="my-8 relative group max-w-full">
+                      <div className="absolute -top-3 left-8 px-4 py-1.5 bg-gray-900 text-sky-400 text-[10px] font-black rounded-full z-10 border border-gray-700 shadow-xl tracking-widest uppercase">
+                        KOD EDİTÖRÜ
+                      </div>
+                      <div className="absolute top-4 right-8 flex gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-400/50"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/50"></div>
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-400/50"></div>
+                      </div>
+                      <pre className="bg-gray-950 text-sky-50 p-10 pt-12 rounded-[32px] overflow-x-auto font-mono text-lg md:text-xl leading-relaxed border-2 border-gray-800 shadow-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                        <code className="block min-w-max">{code}</code>
+                      </pre>
+                    </div>
+                  );
+                }
+                return (
+                  <h2 key={i} className="text-2xl md:text-3xl font-black text-gray-800 font-display leading-snug text-center px-4">
+                    {part.trim()}
+                  </h2>
+                );
+              })}
+            </div>
           </div>
         </div>
 
-        {/* Options Grid */}
-        <div className="grid grid-cols-2 gap-4 w-full h-80 px-4">
-          {["A", "B", "C", "D"].map((option, idx) => {
+        {/* Options Grid - Fixed Height Container */}
+        <div className="grid grid-cols-2 gap-4 w-full h-[280px] md:h-[320px] px-4 shrink-0 mb-4">
+          {(currentQuestion?.options || ["A", "B", "C", "D"]).map((option: string, idx: number) => {
             const colors = [
-              {
-                bg: "bg-red-500",
-                hover: "hover:bg-red-600",
-                border: "border-red-700",
-                box: "bg-red-700",
-              },
-              {
-                bg: "bg-blue-500",
-                hover: "hover:bg-blue-600",
-                border: "border-blue-700",
-                box: "bg-blue-700",
-              },
-              {
-                bg: "bg-yellow-400",
-                hover: "hover:bg-yellow-500",
-                border: "border-yellow-600",
-                box: "bg-yellow-600",
-              },
-              {
-                bg: "bg-green-500",
-                hover: "hover:bg-green-600",
-                border: "border-green-700",
-                box: "bg-green-700",
-              },
+              { bg: "bg-indigo-500", hover: "hover:bg-indigo-600", border: "border-indigo-700", box: "bg-indigo-700" },
+              { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
+              { bg: "bg-amber-400", hover: "hover:bg-amber-500", border: "border-amber-600", box: "bg-amber-600" },
+              { bg: "bg-emerald-500", hover: "hover:bg-emerald-600", border: "border-emerald-700", box: "bg-emerald-700" },
             ];
-            const color = colors[idx];
+            const color = colors[idx % colors.length];
 
-            // Feedback Logic
-            let opacityClass = "opacity-100";
+            let stateClass = "opacity-100 scale-100 cursor-pointer";
             if (phase === "feedback" || phase === "result") {
-              if (option === currentQuestion.correctAnswer)
-                opacityClass = "opacity-100 ring-4 ring-green-400";
-              else if (option === selectedAnswer)
-                opacityClass = "opacity-50 ring-4 ring-red-400";
-              else opacityClass = "opacity-40";
+              if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-105 shadow-2xl";
+              else if (option === selectedAnswer) stateClass = "opacity-50 grayscale scale-95";
+              else stateClass = "opacity-30 scale-90 grayscale";
             }
 
             return (
@@ -464,19 +526,13 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                 key={option}
                 disabled={phase === "feedback" || phase === "result"}
                 onClick={() => handleAnswer(option)}
-                className={`${color.bg} ${
-                  phase === "playing" ? color.hover : ""
-                } active:translate-y-1 border-b-8 ${
-                  color.border
-                } active:border-b-0 rounded-2xl flex items-center p-6 gap-6 transition-all group ${opacityClass}`}
+                className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-6 gap-4 md:gap-6 shadow-lg transition-all transform ${stateClass}`}
               >
-                <div
-                  className={`w-16 h-16 ${color.box} rounded-xl flex items-center justify-center shadow-inner text-3xl font-black text-white font-display`}
-                >
-                  {option}
+                <div className={`w-12 h-12 md:w-16 md:h-16 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-2xl md:text-3xl font-black text-white font-display flex-shrink-0`}>
+                  {String.fromCharCode(65 + idx)}
                 </div>
-                <span className="text-3xl font-black text-white font-display">
-                  Sık {idx + 1}
+                <span className="text-xl md:text-2xl font-black text-white font-display text-left line-clamp-2 leading-tight">
+                  {option}
                 </span>
               </button>
             );
