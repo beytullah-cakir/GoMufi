@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, JSON, DateTime
+from sqlalchemy import Column, Integer, String, Text, JSON, DateTime, ForeignKey
 from sqlalchemy.sql import func
 from connect_db import Base # Projenizdeki ana Base sınıfı
 
@@ -6,6 +6,8 @@ class Quiz(Base):
     __tablename__ = "quizzes"
 
     id = Column(Integer, primary_key=True, index=True)
+    course_id = Column(Integer, ForeignKey("courses.id"), nullable=True)
+    node_id = Column(Integer, nullable=True) # ID of the node in the course curriculum
     topic = Column(String(100), nullable=False)
     difficulty = Column(String(50))
     question_text = Column(Text, nullable=False)
@@ -18,6 +20,8 @@ class Quiz(Base):
     def to_dict(self):
         return {
             "id": self.id,
+            "course_id": self.course_id,
+            "node_id": self.node_id,
             "topic": self.topic,
             "difficulty": self.difficulty,
             "type": self.question_type,

@@ -221,6 +221,11 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       return;
     }
 
+    if (!sections || sections.length === 0 || sections.every(s => !s.title.trim())) {
+      alert("Lütfen en az bir ders (bölüm) başlığı giriniz.");
+      return;
+    }
+
     const category = categories.find((c) => c.id === selectedCategory);
 
     onSave({

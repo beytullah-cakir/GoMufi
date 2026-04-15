@@ -259,6 +259,10 @@ async def create_course(
     db: AsyncSession = Depends(get_db)
 ):
     print(f"DEBUG: create_course data: {course_data.dict()}")
+
+    if not course_data.curriculum or len(course_data.curriculum) == 0:
+        raise HTTPException(status_code=400, detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir.")
+
     try:
         new_course = Course(
             teacher_id=teacher_id,
@@ -296,6 +300,9 @@ async def update_course(
     if not course:
         raise HTTPException(status_code=404, detail=f"Course {course_id} not found for teacher {teacher_id}")
     
+    if course_data.curriculum is not None and len(course_data.curriculum) == 0:
+        raise HTTPException(status_code=400, detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir.")
+
     try:
         if course_data.title is not None:
             course.title = course_data.title

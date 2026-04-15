@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Brain, Plus, Trash2, Edit2, CheckCircle2, Loader2, Wand2, ArrowRight, Settings2, HelpCircle } from 'lucide-react';
+import { Sparkles, Brain, Plus, Trash2, Edit2, CheckCircle2, Loader2, Wand2, ArrowRight, Settings2, HelpCircle, X, ChevronRight, BookOpen } from 'lucide-react';
 import api from '../../api';
 
 interface GeneratedQuestion {
@@ -78,6 +78,25 @@ const InstructorAIQuestions: React.FC = () => {
     const [questionType, setQuestionType] = useState<'multiple-choice' | 'true-false' | 'open-ended'>('multiple-choice');
     const [isGenerating, setIsGenerating] = useState(false);
     const [generatedQuestions, setGeneratedQuestions] = useState<GeneratedQuestion[]>([]);
+    
+    // Node Selection State
+    const [myCourses, setMyCourses] = useState<any[]>([]);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedQuizId, setSelectedQuizId] = useState<string | null>(null);
+    const [selectedCourse, setSelectedCourse] = useState<any | null>(null);
+    const [isAssigning, setIsAssigning] = useState(false);
+
+    React.useEffect(() => {
+        const fetchCourses = async () => {
+            try {
+                const response = await api.get('/teacher/content');
+                setMyCourses(response.data);
+            } catch (error) {
+                console.error("Kurslar çekilemedi:", error);
+            }
+        };
+        fetchCourses();
+    }, []);
 
     const handleGenerate = async () => {
         if (!topic.trim()) return;
@@ -117,6 +136,37 @@ const InstructorAIQuestions: React.FC = () => {
 
     const handleRemoveQuestion = (id: string) => {
         setGeneratedQuestions(prev => prev.filter(q => q.id !== id));
+    };
+
+    const handleAssignClick = (quizId: string) => {
+        setSelectedQuizId(quizId);
+        setIsModalOpen(true);
+        setSelectedCourse(null);
+    };
+
+    const handleNodeSelect = async (nodeId: number) => {
+        if (!selectedQuizId || !selectedCourse) return;
+        
+        setIsAssigning(true);
+        try {
+            const response = await api.post('/assign_quiz', {
+                quiz_id: parseInt(selectedQuizId),
+                course_id: selectedCourse.id,
+                node_id: nodeId
+            });
+
+            if (response.data.success) {
+                alert("Soru başarıyla düğüme atandı!");
+                setIsModalOpen(false);
+                // Optionally remove from the list
+                setGeneratedQuestions(prev => prev.filter(q => q.id !== selectedQuizId));
+            }
+        } catch (error: any) {
+            console.error("Atama Hatası:", error);
+            alert(error.response?.data?.detail || "Soru atanırken bir hata oluştu.");
+        } finally {
+            setIsAssigning(false);
+        }
     };
 
     return (
@@ -329,7 +379,10 @@ const InstructorAIQuestions: React.FC = () => {
                                             </div>
 
                                             {/* Add to System Button */}
-                                            <button className="w-full mt-6 py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 border-2 border-indigo-100 group">
+                                            <button 
+                                                onClick={() => handleAssignClick(question.id)}
+                                                className="w-full mt-6 py-4 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-2xl font-black text-sm uppercase tracking-wider transition-all flex items-center justify-center gap-2 border-2 border-indigo-100 group"
+                                            >
                                                 <Plus size={20} className="group-hover:rotate-90 transition-transform" />
                                                 SİSTEME EKLE
                                             </button>
@@ -341,6 +394,91 @@ const InstructorAIQuestions: React.FC = () => {
                     )}
                 </div>
             </div>
+            {/* Node Selection Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                    <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border-2 border-gray-100 animate-in zoom-in-95 duration-300">
+                        {/* Modal Header */}
+                        <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gray-50/50">
+                            <div>
+                                <h3 className="text-2xl font-black text-gray-800">Soru Atama</h3>
+                                <p className="text-sm font-bold text-gray-400">Bu soruyu hangi dersin hangi adımına eklemek istersiniz?</p>
+                            </div>
+                            <button 
+                                onClick={() => setIsModalOpen(false)}
+                                className="p-3 bg-white border-2 border-gray-100 rounded-2xl text-gray-400 hover:text-red-500 hover:border-red-100 transition-all"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+
+                        {/* Modal Content */}
+                        <div className="p-8 max-h-[60vh] overflow-y-auto custom-scrollbar">
+                            {!selectedCourse ? (
+                                <div className="space-y-4">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-widest block pl-1">Ders Seçin</label>
+                                    <div className="grid grid-cols-1 gap-3">
+                                        {myCourses.length > 0 ? myCourses.map(course => (
+                                            <button
+                                                key={course.id}
+                                                onClick={() => setSelectedCourse(course)}
+                                                className="flex items-center justify-between p-5 rounded-3xl border-2 border-gray-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                                            >
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-2xl shadow-sm border-2 border-gray-50 group-hover:scale-110 transition-transform">
+                                                        {course.category === 'Yazılım' ? '💻' : '📚'}
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <h4 className="font-black text-gray-800">{course.title}</h4>
+                                                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{course.category}</span>
+                                                    </div>
+                                                </div>
+                                                <ChevronRight className="text-gray-300 group-hover:text-indigo-500 transition-colors" />
+                                            </button>
+                                        )) : (
+                                            <p className="text-center py-10 text-gray-400 font-bold">Hiç kursunuz bulunamadı.</p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    <button 
+                                        onClick={() => setSelectedCourse(null)}
+                                        className="text-xs font-black text-indigo-500 hover:text-indigo-600 flex items-center gap-1 uppercase tracking-widest transition-all"
+                                    >
+                                        ← Ders Seçimine Dön
+                                    </button>
+                                    
+                                    <div className="space-y-4">
+                                        <label className="text-xs font-black text-gray-400 uppercase tracking-widest block pl-1">
+                                            {selectedCourse.title} - Adım Seçin
+                                        </label>
+                                        <div className="grid grid-cols-1 gap-2">
+                                            {/* Always show 10 Fixed Levels to match the student roadmap */}
+                                            {Array.from({ length: 10 }, (_, i) => (
+                                                <button
+                                                    key={i + 1}
+                                                    onClick={() => handleNodeSelect(i + 1)}
+                                                    disabled={isAssigning}
+                                                    className="flex items-center justify-between p-4 rounded-2xl border-2 border-gray-100 hover:border-indigo-400 hover:bg-indigo-50 transition-all group disabled:opacity-50"
+                                                >
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-8 h-8 rounded-lg bg-white border-2 border-gray-50 flex items-center justify-center text-xs font-black text-gray-400 group-hover:text-indigo-600 group-hover:border-indigo-100 transition-all">
+                                                            {i + 1}
+                                                        </div>
+                                                        <span className="font-bold text-gray-700">Level {i + 1}</span>
+                                                    </div>
+                                                    {isAssigning ? <Loader2 className="w-5 h-5 animate-spin text-indigo-500" /> : <Plus className="text-gray-300 group-hover:text-indigo-500 transition-colors" />}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

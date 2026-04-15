@@ -459,6 +459,22 @@ const HomePage: React.FC<HomePageProps> = ({
 
                                 return (
                                     <React.Fragment key={node.id}>
+                                        {/* STARTING LESSON HEADER */}
+                                        {index === 0 && node.lessonTopic && (
+                                            <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
+                                                {/* Vertical Dashed Line */}
+                                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
+
+                                                {/* Main Divider Body */}
+                                                <div className="relative w-full flex flex-col items-center">
+                                                    {/* Topic Badge */}
+                                                    <div className="bg-white px-8 py-3 rounded-2xl shadow-none border-2 border-gray-100 flex flex-col items-center transform hover:scale-105 transition-transform cursor-pointer z-10">
+                                                        <span className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">DERS {node.lessonNumber}</span>
+                                                        <span className="text-lg font-black font-display tracking-tight text-gray-800">{node.lessonTopic}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         {/* Node Container */}
                                         <div
                                             className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'} ${node.isLocked ? 'grayscale opacity-75 pointer-events-none' : ''}`}

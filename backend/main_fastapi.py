@@ -109,6 +109,33 @@ async def get_quizzes(db: AsyncSession = Depends(get_db)):
         "data": [q.to_dict() for q in quizzes]
     }
 
+@app.post("/assign_quiz")
+async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
+    data = await request.json()
+    quiz_id = data.get('quiz_id')
+    course_id = data.get('course_id')
+    node_id = data.get('node_id')
+
+    if not quiz_id or not course_id or node_id is None:
+        raise HTTPException(status_code=400, detail="Eksik parametre: quiz_id, course_id veya node_id gerekli.")
+
+    from sqlalchemy.future import select
+    result = await db.execute(select(Quiz).where(Quiz.id == quiz_id))
+    quiz = result.scalar_one_or_none()
+
+    if not quiz:
+        raise HTTPException(status_code=404, detail="Quiz bulunamadı.")
+
+    try:
+        quiz.course_id = course_id
+        quiz.node_id = node_id
+        await db.commit()
+        await db.refresh(quiz)
+        return {"success": True, "quiz": quiz.to_dict()}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail=f"Atama hatası: {str(e)}")
+
 app.include_router(student_auth.router)
 app.include_router(teacher_auth.router)
 app.include_router(profile.router)
