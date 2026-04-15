@@ -184,7 +184,7 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
     ];
 };
 
-const generateCourseData = (purchasedList: string[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
+const generateCourseData = (purchasedList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
     const getProgress = (courseId: string) => {
         const saved = localStorage.getItem(`progress_${courseId}`);
         return saved ? parseInt(saved) : 0; // Default to 0
@@ -192,75 +192,63 @@ const generateCourseData = (purchasedList: string[], instructorsMap: Record<stri
 
     const result: Record<string, CourseData> = {};
 
-    purchasedList.forEach(courseName => {
+    purchasedList.forEach(course => {
+        const courseName = course.title;
         const titleLower = courseName.toLowerCase();
         const progress = getProgress(courseName);
         const instructorName = instructorsMap[courseName] || 'Mufi Eğitmen';
 
-        if (titleLower.includes('python')) {
-            const pythonTopics = ['Değişkenler', 'Veri Tipleri', 'Koşullar', 'Döngüler', 'Fonksiyonlar'];
-            const pythonNodes: PathNode[] = [];
+        // Check if curriculum exists and has sections
+        const curriculum = course.curriculum || [];
+        
+        if (curriculum.length > 0) {
+            const dynamicNodes: PathNode[] = [];
             let currentId = 1;
 
-            pythonTopics.forEach((topic, index) => {
-                const lessonNodes = generateLessonNodes(currentId, index + 1, false, topic, true);
+            // Filter out metadata objects like 'live_sessions_config'
+            const actualSections = curriculum.filter((item: any) => item.type !== 'live_sessions_config');
+
+            actualSections.forEach((section: any, index: number) => {
+                const sectionTitle = section.title || `Bölüm ${index + 1}`;
+                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true);
+                
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
                     isLocked: node.id > 1 && node.id > (progress + 1)
                 }));
-                pythonNodes.push(...processedNodes);
+                
+                dynamicNodes.push(...processedNodes);
                 currentId += 7;
             });
 
-            result['Python'] = {
-                id: 'Python',
-                title: 'PYTHON',
-                icon: '🐍',
-                themeColor: '#58cc02',
-                nodes: pythonNodes,
+            result[courseName] = {
+                id: courseName,
+                title: courseName.toUpperCase(),
+                icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
+                themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
+                nodes: dynamicNodes,
                 instructor: {
                     name: instructorName,
-                    avatar: '👨‍🏫',
+                    avatar: titleLower.includes('python') ? '👨‍🏫' : (titleLower.includes('matematik') ? '👩‍🏫' : '👤'),
                     status: 'Çevrimiçi',
                     isOnline: true
                 },
-                stats: { league: 'Bronz Lig', xp: '120 XP', streak: 8, gems: 500 },
-                defaultHeader: { title: 'Python temellerini at', subtitle: 'BÖLÜM 1, ÜNİTE 1' }
-            };
-        } else if (titleLower.includes('matematik')) {
-            const mathNodes: PathNode[] = generateLessonNodes(1, 1, false, 'Temel Aritmetik', true).map(node => ({
-                ...node,
-                isLocked: node.id > 1 && node.id > (progress + 1)
-            }));
-
-            result['Matematik'] = {
-                id: 'Matematik',
-                title: 'MATEMATİK',
-                icon: '📐',
-                themeColor: '#3b82f6',
-                nodes: mathNodes,
-                instructor: {
-                    name: instructorName,
-                    avatar: '👩‍🏫',
-                    status: 'Meşgul',
-                    isOnline: false
-                },
-                stats: { league: 'Gümüş Lig', xp: '2400 XP', streak: 12, gems: 1200 },
-                defaultHeader: { title: 'Sayılarla Dans Et', subtitle: 'BÖLÜM 1, ÜNİTE 1' }
+                stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
+                defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' }
             };
         } else {
-            // GENERIC COURSE ROADMAP (Using the requested "fixed" layout)
-            const genericTopics = ['Giriş', 'Temel Kavramlar', 'Uygulamalar', 'İleri Seviye', 'Final Projesi'];
-            const genericNodes: PathNode[] = [];
+            // FALLBACK: If no curriculum, show at least one default section
+            const fallbackTopics = ['Giriş'];
+            const fallbackNodes: PathNode[] = [];
             let currentId = 1;
 
-            genericTopics.forEach((topic, index) => {
+            fallbackTopics.forEach((topic, index) => {
                 const lessonNodes = generateLessonNodes(currentId, index + 1, false, topic, true);
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
                     isLocked: node.id > 1 && node.id > (progress + 1)
                 }));
-                genericNodes.push(...processedNodes);
+                fallbackNodes.push(...processedNodes);
                 currentId += 7;
             });
 
@@ -268,8 +256,8 @@ const generateCourseData = (purchasedList: string[], instructorsMap: Record<stri
                 id: courseName,
                 title: courseName.toUpperCase(),
                 icon: '🚀',
-                themeColor: '#8b5cf6', // Purple theme for others
-                nodes: genericNodes,
+                themeColor: '#8b5cf6',
+                nodes: fallbackNodes,
                 instructor: {
                     name: instructorName,
                     avatar: '👤',
@@ -360,7 +348,7 @@ function StudentApp() {
     }, [activePage]);
 
     // --- Purchased Courses State ---
-    const [purchasedCourses, setPurchasedCourses] = useState<string[]>([]);
+    const [purchasedCourses, setPurchasedCourses] = useState<any[]>([]);
     const [purchasedCourseIds, setPurchasedCourseIds] = useState<number[]>([]);
 
     // --- Shopping Cart State ---
@@ -396,8 +384,8 @@ function StudentApp() {
                 
                 setInstructorsMap(newMap);
 
-                // Update purchased courses (Overwrite)
-                setPurchasedCourses(titles);
+                // Update purchased courses (Overwrite with full objects)
+                setPurchasedCourses(contentRes.data);
                 setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
             } catch (err) {
                 console.error("Failed to fetch user data or courses", err);
@@ -439,7 +427,14 @@ function StudentApp() {
     };
 
     const completePurchase = () => {
-        const newPurchased = [...purchasedCourses, ...cart.map(item => item.title)];
+        // Construct mock objects for the newly purchased items from cart
+        const newPurchasedFromCart = cart.map(item => ({
+            id: item.id,
+            title: item.title,
+            curriculum: [{ title: 'Giriş', lectures: [] }] // Default curriculum for new purchase
+        }));
+        
+        const newPurchased = [...purchasedCourses, ...newPurchasedFromCart];
         
         // Save instructors from cart
         const newMap = { ...instructorsMap };
@@ -453,7 +448,7 @@ function StudentApp() {
         setPurchasedCourses(uniquePurchased);
 
         // CRITICAL: Update roadmap data state IMMEDIATELY for instant UI feedback
-        const updatedCourseData = generateCourseData(uniquePurchased, newMap);
+        const updatedCourseData = generateCourseData(newPurchased, newMap);
         setCourses(updatedCourseData);
 
         // Clear cart
@@ -463,10 +458,9 @@ function StudentApp() {
         setActivePage('Ana Sayfa');
         
         // Update active course if currently empty
-        if (activeCourseId === '' && uniquePurchased.length > 0) {
-            const title = uniquePurchased[0];
-            const courseKey = title.includes('Python') ? 'Python' : (title.includes('Matematik') ? 'Matematik' : title);
-            setActiveCourseId(courseKey);
+        if (activeCourseId === '' && newPurchased.length > 0) {
+            const course = newPurchased[0];
+            setActiveCourseId(course.title);
         }
     };
 
@@ -517,10 +511,8 @@ function StudentApp() {
                                         await api.post(`/enroll/${id}`);
                                         // Refresh my-content to update purchasedCourses
                                         const contentRes = await api.get('/my-content');
-                                        const titles = contentRes.data.map((c: any) => c.title);
-                                        const ids = contentRes.data.map((c: any) => c.id);
-                                        setPurchasedCourses(titles);
-                                        setPurchasedCourseIds(ids);
+                                        setPurchasedCourses(contentRes.data);
+                                        setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
                                         alert("Kursa başarıyla kayıt olundu!");
                                     } catch (err: any) {
                                         alert(err.response?.data?.detail || "Kayıt başarısız.");
