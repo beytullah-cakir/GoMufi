@@ -63,7 +63,7 @@ const NavItem: React.FC<NavItemProps> = ({
 
       {!isCollapsed && (
         <span
-          className={`ml-4 text-sm font-black tracking-wider uppercase font-sans transition-colors duration-200
+          className={`ml-4 text-sm font-black tracking-wider uppercase font-display transition-colors duration-200
           ${
             isActive
               ? "text-sky-500"

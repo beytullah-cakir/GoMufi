@@ -37,6 +37,8 @@ class CourseResponse(BaseModel):
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
     teacher: Optional[TeacherResponse] = None
+    students_count: int = 0
+    rating: Optional[int] = 5
 
     class Config:
         from_attributes = True
@@ -62,6 +64,7 @@ class TeacherStudentResponse(BaseModel):
     course_title: str
     progress: int = 0
     enrolled_at: Optional[datetime] = None
+    status: str = "active"
 
 async def get_current_user_info(request: Request):
     token = request.cookies.get("access_token")
@@ -178,19 +181,22 @@ async def get_current_teacher_id(request: Request):
 @router.get("/courses", response_model=List[CourseResponse])
 async def read_courses(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Course).options(joinedload(Course.teacher))
+        select(Course).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
-    courses = result.scalars().all()
+    courses = result.unique().scalars().all()
+    for course in courses:
+        course.students_count = len(course.enrollments)
     return courses
 
 @router.get("/courses/{course_id}", response_model=CourseResponse)
 async def read_course(course_id: int, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(Course).where(Course.id == course_id).options(joinedload(Course.teacher))
+        select(Course).where(Course.id == course_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
-    course = result.scalar_one_or_none()
+    course = result.unique().scalar_one_or_none()
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
+    course.students_count = len(course.enrollments)
     return course
 
 @router.get("/teacher/content", response_model=List[CourseResponse])
@@ -199,9 +205,11 @@ async def read_my_courses(
     db: AsyncSession = Depends(get_db)
 ):
     result = await db.execute(
-        select(Course).where(Course.teacher_id == teacher_id).options(joinedload(Course.teacher))
+        select(Course).where(Course.teacher_id == teacher_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
-    courses = result.scalars().all()
+    courses = result.unique().scalars().all()
+    for course in courses:
+        course.students_count = len(course.enrollments)
     return courses
 
 @router.get("/teacher/students", response_model=List[TeacherStudentResponse])
@@ -230,7 +238,8 @@ async def read_teacher_students(
                 email=student.email,
                 course_title=course.title,
                 progress=0, # İleride gerçek progress hesaplanabilir
-                enrolled_at=enrollment.enrolled_at
+                enrolled_at=enrollment.enrolled_at,
+                status="active"
             )
         )
     return response
@@ -243,6 +252,7 @@ class CreateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
+    rating: Optional[int] = 5
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -252,6 +262,7 @@ class UpdateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     curriculum: Optional[List[dict]] = None
+    rating: Optional[int] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -274,7 +285,8 @@ async def create_course(
             price=course_data.price,
             learning_outcomes=course_data.learning_outcomes,
             requirements=course_data.requirements,
-            curriculum=course_data.curriculum
+            curriculum=course_data.curriculum,
+            rating=course_data.rating if course_data.rating is not None else 5
         )
         db.add(new_course)
         await db.commit()
@@ -322,6 +334,9 @@ async def update_course(
         if course_data.curriculum is not None:
             course.curriculum = course_data.curriculum
             flag_modified(course, "curriculum")
+            
+        if course_data.rating is not None:
+            course.rating = course_data.rating
             
         await db.commit()
         await db.refresh(course)

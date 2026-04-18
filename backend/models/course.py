@@ -16,6 +16,7 @@ class Course(Base):
     learning_outcomes = Column(JSON, default=[])
     requirements = Column(JSON, default=[])
     curriculum = Column(JSON, default=[])
+    rating = Column(Integer, default=5) # 0-5 arası puan
 
 
     teacher = relationship("Teacher", back_populates="courses")
