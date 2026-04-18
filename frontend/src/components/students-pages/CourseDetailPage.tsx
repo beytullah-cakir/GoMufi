@@ -97,13 +97,17 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
     // Use global jsPDF from CDN
     // @ts-ignore
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    const title = course.title || "Kurs Notları";
+    if (!course?.curriculum) return;
+    const curriculum = course.curriculum;
+    const slides = Array.isArray(curriculum) ? curriculum : (curriculum.slides || []);
+    const pdfTitle = (!Array.isArray(curriculum) && curriculum.noteTitle) ? curriculum.noteTitle : course.title;
+
+    const doc = new window.jspdf.jsPDF();
     
-    // PDF Styling
+    // Title
     doc.setFontSize(22);
-    doc.setTextColor(40, 40, 40);
-    doc.text(title, 20, 20);
+    doc.setTextColor(79, 70, 229); // indigo-600
+    doc.text(pdfTitle, 20, 20);
     
     doc.setFontSize(12);
     doc.setTextColor(100, 100, 100);
@@ -115,7 +119,6 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
     let yOffset = 45;
 
     // Extract notes from curriculum
-    const slides = Array.isArray(course.curriculum) ? course.curriculum : [];
     
     slides.forEach((slide: any, index: number) => {
       if (yOffset > 270) {

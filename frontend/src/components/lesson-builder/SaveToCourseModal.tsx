@@ -55,10 +55,12 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
     setIsSaving(true);
     setSaveStatus("idle");
     try {
-      // API call to update course curriculum and title
+      // API call to update course curriculum
       await api.put(`/update_course/${selectedCourseId}`, {
-        title: title,
-        curriculum: slides
+        curriculum: {
+          noteTitle: title,
+          slides: slides
+        }
       });
       setSaveStatus("success");
       // Clear Lesson Builder draft from localStorage on successful save
