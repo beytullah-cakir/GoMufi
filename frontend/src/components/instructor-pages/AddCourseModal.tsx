@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   X,
   Book,
@@ -40,15 +40,18 @@ export interface CourseData {
   price: number;
   isLive?: boolean;
   liveSessions?: {date: string, time: string}[];
+  instructorNotes?: { title: string; type: string }[];
 }
 
 interface AddCourseModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (courseData: CourseData) => void;
-  initialData?: Partial<CourseData> | null;
   isSubmitting?: boolean;
+  initialData?: Partial<CourseData> | null;
 }
+
+const STORAGE_KEY = "gomufi_new_course_draft";
 
 const AddCourseModal: React.FC<AddCourseModalProps> = ({
   isOpen,
@@ -57,38 +60,89 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   initialData,
   isSubmitting = false,
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    "general" | "details" | "curriculum"
-  >("general");
+  // Taslak Geri Yükleme Mantığı
+  const savedDraft = !initialData ? (() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  })() : null;
+
+  const [activeTab, setActiveTab] = useState<"general" | "details" | "curriculum">(
+    savedDraft?.activeTab || "general"
+  );
 
   // General State
-  const [title, setTitle] = useState(initialData?.title || "");
+  const [title, setTitle] = useState(initialData?.title || savedDraft?.title || "");
   const [selectedCategory, setSelectedCategory] = useState(
-    initialData?.category || ""
+    initialData?.category || savedDraft?.selectedCategory || ""
   );
   const [description, setDescription] = useState(
-    initialData?.description || ""
+    initialData?.description || savedDraft?.description || ""
   );
-  const [price, setPrice] = useState<number | string>(initialData?.price ?? 0);
-  const [isLive, setIsLive] = useState(initialData?.isLive || false);
+  const [price, setPrice] = useState<number | string>(
+    initialData?.price ?? savedDraft?.price ?? 0
+  );
+  const [isLive, setIsLive] = useState(initialData?.isLive || savedDraft?.isLive || false);
   const [liveSessions, setLiveSessions] = useState<{date: string, time: string}[]>(
-    initialData?.liveSessions?.length ? initialData.liveSessions : [{date: "", time: ""}]
+    initialData?.liveSessions?.length ? initialData.liveSessions : 
+    (savedDraft?.liveSessions?.length ? savedDraft.liveSessions : [{date: "", time: ""}])
   );
 
   // Details State
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(
-    initialData?.learningOutcomes?.length ? initialData.learningOutcomes : [""]
+    initialData?.learningOutcomes?.length ? initialData.learningOutcomes : 
+    (savedDraft?.learningOutcomes?.length ? savedDraft.learningOutcomes : [""])
   );
   const [requirements, setRequirements] = useState<string[]>(
-    initialData?.requirements?.length ? initialData.requirements : [""]
+    initialData?.requirements?.length ? initialData.requirements : 
+    (savedDraft?.requirements?.length ? savedDraft.requirements : [""])
   );
 
   // Curriculum State
   const [sections, setSections] = useState<Section[]>(
-    initialData?.curriculum?.length
-      ? initialData.curriculum
-      : [{ id: "str_1", title: "Giriş", lectures: [] }]
+    initialData?.curriculum?.length ? initialData.curriculum : 
+    (savedDraft?.sections?.length ? savedDraft.sections : [{ id: "str_1", title: "Giriş", lectures: [] }])
   );
+
+  // Otomatik Taslak Kaydetme
+  useEffect(() => {
+    if (!initialData && isOpen) {
+      const draft = {
+        title,
+        selectedCategory,
+        description,
+        price,
+        isLive,
+        liveSessions,
+        learningOutcomes,
+        requirements,
+        instructorNotes,
+        sections,
+        activeTab
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
+    }
+  }, [title, selectedCategory, description, price, isLive, liveSessions, learningOutcomes, requirements, sections, activeTab, initialData, isOpen]);
+
+  const clearDraft = () => {
+    if (confirm("Taslağı silmek ve baştan başlamak istediğinize emin misiniz?")) {
+      localStorage.removeItem(STORAGE_KEY);
+      setTitle("");
+      setSelectedCategory("");
+      setDescription("");
+      setPrice(0);
+      setIsLive(false);
+      setLiveSessions([{date: "", time: ""}]);
+      setLearningOutcomes([""]);
+      setRequirements([""]);
+      setInstructorNotes([{ title: "", type: "PDF" }]);
+      setSections([{ id: "str_1", title: "Giriş", lectures: [] }]);
+      setActiveTab("general");
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -228,6 +282,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
 
     const category = categories.find((c) => c.id === selectedCategory);
 
+    if (!initialData) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
     onSave({
       title,
       category: selectedCategory,
@@ -239,6 +297,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       price: Number(price) || 0,
       isLive,
       liveSessions: isLive ? liveSessions.filter(s => s.date && s.time) : [],
+      instructorNotes: instructorNotes.filter(n => n.title.trim()),
     });
   };
 
@@ -255,12 +314,22 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               Harika bir eğitim deneyimi tasarlayın
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center gap-3">
+            {!initialData && (
+              <button
+                onClick={clearDraft}
+                className="px-4 py-2 text-xs font-black text-red-500 hover:bg-red-50 rounded-xl transition-colors border border-red-100 uppercase tracking-wider"
+              >
+                Taslağı Sıfırla
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -625,6 +694,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     />
                   </div>
                 </div>
+
               </div>
             )}
 
@@ -676,7 +746,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
 
                     {/* Lectures */}
                     <div className="p-4 space-y-3">
-                      {section.lectures.map((lecture, lIdx) => (
+                      {section.lectures?.map((lecture, lIdx) => (
                         <div
                           key={lecture.id}
                           className="flex items-center gap-3 pl-4 border-l-2 border-gray-100"

@@ -65,9 +65,6 @@ const InstructorApp: React.FC = () => {
         navigate(mapping[pageId] || '/instructor/dashboard');
     };
 
-    if (activePage === 'Builder') {
-        return <LessonBuilderPage onExit={() => navigate('/instructor/dashboard')} />;
-    }
 
     return (
         <InstructorLayout
@@ -84,6 +81,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="settings" element={<InstructorSettings />} />
                 <Route path="ai-questions" element={<InstructorAIQuestions />} />
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
+                <Route path="builder" element={<LessonBuilderPage onExit={() => navigate('/instructor/courses')} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
         </InstructorLayout>

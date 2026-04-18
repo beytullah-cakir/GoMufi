@@ -24,8 +24,11 @@ import {
     Circle,
     Triangle,
     Hexagon,
-    Sparkles
+    Sparkles,
+    Info
 } from 'lucide-react';
+
+import CourseInfoModal from './shared/CourseInfoModal';
 
 // Import Assets (Reusing existing or placeholders if needed)
 import PythonIcon from '../assets/sprites/PythonIcon.png';
@@ -47,6 +50,11 @@ interface Course {
     nextLesson: string;
     instructor: string;
     liveSessions: {date: string, time: string}[];
+    description?: string;
+    learning_outcomes?: string[];
+    requirements?: string[];
+    curriculum?: any[];
+    instructor_notes?: { title: string; type: string }[];
 }
 
 interface ScheduleSlot {
@@ -72,6 +80,7 @@ const ContentPage: React.FC = () => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
+    const [infoCourseId, setInfoCourseId] = useState<string | null>(null);
 
     // --- Mock Data ---
     const [courses, setCourses] = useState<Course[]>([]);
@@ -95,11 +104,29 @@ const ContentPage: React.FC = () => {
     useEffect(() => {
         const fetchAllData = async () => {
             try {
-                // Fetch courses and schedule in PARALLEL
-                const [contentRes, scheduleRes] = await Promise.all([
+                // Fetch courses, schedule and profile in PARALLEL
+                const [contentRes, scheduleRes, profileRes] = await Promise.all([
                     api.get('/my-content'),
-                    api.get('/my-schedule')
+                    api.get('/my-schedule'),
+                    api.get('/profile')
                 ]);
+
+                if (profileRes.data) {
+                    setUserProfile({
+                        firstName: profileRes.data.first_name,
+                        lastName: profileRes.data.last_name
+                    });
+                }
+
+                const getDayName = (dateStr: string) => {
+                    if (!dateStr) return '';
+                    const parts = dateStr.split('-');
+                    if (parts.length !== 3) return '';
+                    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+                    const days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+                    return days[date.getDay()];
+                };
+
 
                 // 1. Handle Courses
                 const mappedCourses: Course[] = contentRes.data.map((c: any) => {
@@ -122,7 +149,12 @@ const ContentPage: React.FC = () => {
                         lightColor: style.lightColor,
                         nextLesson: 'Hemen İzle!',
                         instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : style.instructor,
-                        liveSessions: liveSessions
+                        liveSessions: liveSessions,
+                        description: c.description,
+                        learning_outcomes: c.learning_outcomes,
+                        requirements: c.requirements,
+                        curriculum: finalCurriculum,
+                        instructor_notes: c.instructor_notes || []
                     };
                 });
                 
@@ -157,8 +189,9 @@ const ContentPage: React.FC = () => {
                         if (c.liveSessions) {
                             c.liveSessions.forEach((sess: any) => {
                                 mappedSchedule.push({
-                                    id: `auto-${c.id}-${sess.day}`,
-                                    day: sess.day,
+                                    id: `auto-${c.id}-${sess.day || sess.date}`,
+                                    day: sess.day || getDayName(sess.date),
+                                    fullDate: sess.date,
                                     time: sess.time,
                                     title: c.title,
                                     type: 'live',
@@ -188,6 +221,11 @@ const ContentPage: React.FC = () => {
     const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string} | null>(null);
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [timeOffsetMs, setTimeOffsetMs] = useState<number>(0);
+    const [userProfile, setUserProfile] = useState<{firstName: string, lastName: string} | null>(null);
+    const [isInstructorIn, setIsInstructorIn] = useState<boolean>(false);
+    
+    
+    const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
 
 
     // Uygulama yüklendiğinde, öğrenci pc saatini değiştirip hile yapamasın diye ve
@@ -206,6 +244,28 @@ const ContentPage: React.FC = () => {
         };
         fetchRealTime();
     }, []);
+    
+    // Eğitmenin girip girmediğini kontrol eden poller
+    useEffect(() => {
+        let interval: any;
+        if (isClassActive && activeCourseData?.id) {
+            const checkStatus = async () => {
+                try {
+                    const res = await api.get(`/session-status/${activeCourseData.id}`);
+                    setIsInstructorIn(res.data.is_live);
+                } catch (err) {
+                    console.error("Ders durumu kontrol edilemedi:", err);
+                }
+            };
+            checkStatus();
+            interval = setInterval(checkStatus, 5000); // 5 saniyede bir kontrol et
+        } else {
+            setIsInstructorIn(false);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [isClassActive, activeCourseData?.id]);
 
     useEffect(() => {
         const updateCountdown = () => {
@@ -221,12 +281,33 @@ const ContentPage: React.FC = () => {
              let minDiff = Infinity;
 
              for (const s of schedule) {
-                 if (s.type === 'live' && s.status !== 'completed' && s.fullDate && s.time) {
+                 if (s.type === 'live' && s.status !== 'completed' && s.time) {
                      const [hours, minutes] = s.time.split(':').map(Number);
-                     const [year, month, day] = s.fullDate.split('-').map(Number);
-                     
-                     // UTC kaymalarını engellemek için yerel Date üzerinden inşa ediyoruz
-                     const lessonTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                     let lessonTime: Date;
+
+                     if (s.fullDate) {
+                         const [year, month, day] = s.fullDate.split('-').map(Number);
+                         // Yerel tarih oluşturup saatleri giriyoruz
+                         lessonTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
+                     } else if (s.day) {
+                         // Eğer sadece gün varsa, içinde bulunduğumuz haftadaki o günün tarihini buluyoruz
+                         const targetDayIndex = dayMap[s.day];
+                         if (targetDayIndex === undefined) continue;
+
+                         lessonTime = new Date(now);
+                         lessonTime.setHours(hours, minutes, 0, 0);
+
+                         const currentDayIndex = (now.getDay() + 6) % 7; // 0=Pzt, 6=Paz
+                         const dayDiff = targetDayIndex - currentDayIndex;
+                         lessonTime.setDate(lessonTime.getDate() + dayDiff);
+                         
+                         // Eğer ders 2 saatten daha önce bittiyse (geçtiyse), bir sonraki haftaya bak
+                         if (lessonTime.getTime() - now.getTime() < -7200000) {
+                             lessonTime.setDate(lessonTime.getDate() + 7);
+                         }
+                     } else {
+                         continue;
+                     }
                      
                      // Diff in ms (lessonTime - now)
                      const diff = lessonTime.getTime() - now.getTime();
@@ -300,7 +381,6 @@ const ContentPage: React.FC = () => {
         { id: 3, title: 'İlk İngilizce Sunum', views: 240, date: '2 hafta önce' },
     ];
 
-    const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
 
     if (isLoading) {
         return (
@@ -455,12 +535,18 @@ const ContentPage: React.FC = () => {
                                     <div className="absolute inset-0 bg-indigo-50/30 pointer-events-none"></div>
                                 )}
 
-                                <div className="flex items-center gap-4 mb-3 relative z-10">
-                                    <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform`}>
+                                <div 
+                                    className="flex items-center gap-4 mb-3 relative z-10"
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setInfoCourseId(course.id);
+                                    }}
+                                >
+                                    <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform cursor-pointer`}>
                                         <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
                                     </div>
-                                    <div>
-                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate max-w-[140px] md:max-w-[160px] ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'}`} title={course.title}>
+                                    <div className="cursor-pointer group/title">
+                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate max-w-[140px] md:max-w-[160px] ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
                                             {course.title}
                                         </h3>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
@@ -488,7 +574,7 @@ const ContentPage: React.FC = () => {
                                     </div>
                                 </div>
 
-                                {/* Selected Checkmark (Optional visual reinforcement) */}
+                                 {/* Selected Checkmark (Optional visual reinforcement) */}
                                 {selectedCourse === course.id && (
                                     <div className="absolute top-2 right-2 text-indigo-500">
                                         <CheckCircle size={16} fill="currentColor" className="text-white" />
@@ -582,22 +668,23 @@ const ContentPage: React.FC = () => {
                                         <p className="text-orange-100 font-bold text-lg">{nextLessonData?.subtitle || activeCourseData?.nextLesson || "Marketten yeni kurslar keşfedebilirsin."}</p>
                                     </div>
                                     <button 
-                                        disabled={!isClassActive}
+                                        disabled={!isClassActive || !isInstructorIn}
                                         onClick={() => {
-                                            if (isClassActive) {
+                                            if (isClassActive && isInstructorIn) {
                                                 const roomName = `GoMufi-${activeCourseData?.id}-${(nextLessonData?.title || "Class").replace(/[^a-zA-Z0-9]/g, "")}`;
-                                                const url = `https://meet.element.io/${roomName}#userInfo.displayName=%C3%96%C4%9Frenci&config.prejoinPageEnabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22hangup%22]`;
+                                                const displayName = userProfile ? encodeURIComponent(`${userProfile.firstName} ${userProfile.lastName}`) : '%C3%96%C4%9Frenci';
+                                                const url = `https://meet.element.io/${roomName}#userInfo.displayName=${displayName}&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.disableHangupConfirmation=true&config.remoteVideoMenu.disableHostActions=true&config.disableModeratorIndicator=true&config.buttonsWithConfirmation=[]&config.hideEndConferenceButton=true&config.hideEndMeetingButton=true&config.moderatorPermissions.endConference=false&config.disableModeratorActions=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22]`;
                                                 window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
                                             }
                                         }}
                                         className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
-                                            isClassActive 
+                                            (isClassActive && isInstructorIn)
                                             ? 'bg-white text-orange-600 animate-bounce hover:scale-105' 
                                             : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
                                         }`}
                                     >
                                         <Play fill="currentColor" />
-                                        {isClassActive ? 'SINIFA GİR' : 'BEKLENİYOR'}
+                                        {isClassActive ? (isInstructorIn ? 'SINIFA GİR' : 'EĞİTMEN BEKLENİYOR') : 'BEKLENİYOR'}
                                     </button>
                                 </div>
                             </div>
@@ -857,6 +944,13 @@ const ContentPage: React.FC = () => {
             </div>
 
 
+            {/* --- INFO MODAL --- */}
+            <CourseInfoModal
+                isOpen={infoCourseId !== null}
+                onClose={() => setInfoCourseId(null)}
+                course={courses.find(c => c.id === infoCourseId) || null}
+                mode="student"
+            />
         </div>
     );
 };

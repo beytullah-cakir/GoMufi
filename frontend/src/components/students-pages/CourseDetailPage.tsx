@@ -80,10 +80,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               lessons: [{ title: "Numbers & Strings" }, { title: "Lists & Dictionaries" }]
             }
           ],
-          instructor_notes: [
-            { title: "Python Hızlı Başvuru Klavuzu", type: "PDF" },
-            { title: "Bölüm 1 - Özet Notlar", type: "PDF" }
-          ],
+          instructor_notes: [],
           teacher: { first_name: "Mufi", last_name: "Bilgin" }
         });
       } finally {
@@ -93,6 +90,66 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
     };
     fetchCourseDetail();
   }, [courseId]);
+
+  const handleDownloadPDF = () => {
+    if (!course || !course.curriculum) return;
+
+    // Use global jsPDF from CDN
+    // @ts-ignore
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF();
+    const title = course.title || "Kurs Notları";
+    
+    // PDF Styling
+    doc.setFontSize(22);
+    doc.setTextColor(40, 40, 40);
+    doc.text(title, 20, 20);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Oluşturulma Tarihi: ${new Date().toLocaleDateString('tr-TR')}`, 20, 30);
+    
+    doc.setLineWidth(0.5);
+    doc.line(20, 35, 190, 35);
+
+    let yOffset = 45;
+
+    // Extract notes from curriculum
+    const slides = Array.isArray(course.curriculum) ? course.curriculum : [];
+    
+    slides.forEach((slide: any, index: number) => {
+      if (yOffset > 270) {
+        doc.addPage();
+        yOffset = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(63, 63, 191); // Purple
+      doc.text(`Bölüm/Slayt ${index + 1}`, 20, yOffset);
+      yOffset += 10;
+
+      const elements = slide.elements || [];
+      elements.forEach((el: any) => {
+        if (el.type === 'text' || el.type === 'sticky') {
+          if (yOffset > 270) {
+            doc.addPage();
+            yOffset = 20;
+          }
+          doc.setFontSize(11);
+          doc.setTextColor(60, 60, 60);
+          
+          // Wrap text
+          const splitText = doc.splitTextToSize(el.content || "", 160);
+          doc.text(splitText, 25, yOffset);
+          yOffset += (splitText.length * 6) + 5;
+        }
+      });
+      
+      yOffset += 10;
+    });
+
+    doc.save(`${title.replace(/\s+/g, '_')}_notlari.pdf`);
+  };
 
   const toggleSection = (index: number) => {
     if (expandedSections.includes(index)) {
@@ -248,40 +305,42 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
             </div>
           </div>
 
-          {/* Instructor Notes */}
-          <div className={`p-8 rounded-2xl border-2 transition-all ${isEnrolled ? 'border-purple-200 bg-purple-50/30' : 'border-dashed border-gray-200 bg-gray-50'}`}>
+          {/* PDF Download Section */}
+          <div className={`p-8 rounded-2xl border-2 transition-all ${isEnrolled ? 'border-indigo-200 bg-indigo-50/30' : 'border-dashed border-gray-200 bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Eğitmen Notları & Kaynaklar</h2>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 ${isEnrolled ? 'bg-indigo-500' : 'bg-gray-400'} rounded-xl flex items-center justify-center text-white shadow-lg`}>
+                  <FileText size={20} />
+                </div>
+                <h2 className="text-2xl font-black text-gray-900 uppercase tracking-tight">Ders Notları & Kaynaklar</h2>
+              </div>
               {!isEnrolled && <Lock className="w-6 h-6 text-gray-400" />}
             </div>
             
             {isEnrolled ? (
               <div className="space-y-4">
-                {(course.instructor_notes && course.instructor_notes.length > 0) ? (
-                  course.instructor_notes.map((note, i) => (
-                    <div key={i} className="flex items-center justify-between p-4 bg-white border border-purple-100 rounded-xl shadow-sm hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                          <FileText className="w-5 h-5 text-purple-600" />
-                        </div>
-                        <div>
-                          <p className="font-bold text-gray-800">{note.title || "İsimsiz Kaynak"}</p>
-                          <p className="text-xs text-gray-500">{note.type || "Doküman"}</p>
-                        </div>
-                      </div>
-                      <button className="flex items-center gap-2 text-sm font-bold text-purple-600 hover:bg-purple-100 px-3 py-2 rounded-lg transition-colors">
-                        <Download className="w-4 h-4" />
-                        İndir
-                      </button>
+                <div 
+                  onClick={handleDownloadPDF}
+                  className="flex items-center justify-between p-6 bg-white border border-indigo-100 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600 group-hover:scale-110 transition-transform">
+                      <Download size={28} />
                     </div>
-                  ))
-                ) : (
-                  <p className="text-gray-500 italic">Henüz not bulunmuyor.</p>
-                )}
+                    <div>
+                      <h4 className="font-black text-gray-800 text-lg group-hover:text-indigo-700">ders_notlari.pdf</h4>
+                      <p className="text-xs font-black text-indigo-400 uppercase tracking-widest mt-1">Tüm ders içeriklerini PDF olarak indir</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 px-6 py-3 bg-indigo-600 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-100 group-hover:bg-indigo-700 transition-colors">
+                    <Download size={16} />
+                    İndir
+                  </div>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-6">
-                <p className="text-gray-600 font-medium">Notları görmek için kursa kayıt olmalısınız.</p>
+              <div className="p-12 text-center bg-white/50 rounded-3xl border-2 border-dashed border-gray-100">
+                <p className="text-sm font-black text-gray-400 uppercase tracking-widest">Notları indirmek için kursa kayıt olmalısınız.</p>
               </div>
             )}
           </div>

@@ -1,4 +1,7 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
+import { createPortal } from "react-dom";
+import { Rocket, Play, CheckCircle2, Loader2, Save, X } from "lucide-react";
 import type { Slide, SlideElement, ElementStyle } from "./lesson-builder/types";
 import Toolbar from "./lesson-builder/Toolbar";
 import ContextMenu from "./lesson-builder/ContextMenu";
@@ -13,17 +16,63 @@ import AddSlideModal from "./lesson-builder/AddSlideModal";
 import RightClickMenu from "./lesson-builder/RightClickMenu";
 import LayersPanel from "./lesson-builder/LayersPanel";
 import SelectionOverlay from "./lesson-builder/SelectionOverlay";
+import SaveToCourseModal from "./lesson-builder/SaveToCourseModal";
+import api from "../api";
 
 interface LessonBuilderProps {
   onExit: () => void;
 }
 
+const BUILDER_STORAGE_KEY = "gomufi_lesson_builder_draft";
+
 const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
+  const [searchParams] = useSearchParams();
+  const courseId = searchParams.get("courseId");
+  const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId);
+
+  // -- Taslak Geri Yükleme Mantığı --
+  const savedDraft = (() => {
+    try {
+      const saved = localStorage.getItem(BUILDER_STORAGE_KEY);
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  })();
+
   // -- State --
-  const [slides, setSlides] = useState<Slide[]>([
-    { id: 1, elements: [], connections: [] },
-  ]);
-  const [currentSlideId, setCurrentSlideId] = useState<number>(1);
+  const [slides, setSlides] = useState<Slide[]>(
+    savedDraft?.slides || [{ id: 1, elements: [], connections: [] }]
+  );
+
+  // -- Effect to load course from DB --
+  useEffect(() => {
+    if (courseId) {
+      const fetchCourse = async () => {
+        try {
+          const response = await api.get(`/courses/${courseId}`);
+          if (response.data && response.data.curriculum) {
+            // Check if curriculum is builder data (array of slides)
+            const curriculum = response.data.curriculum;
+            if (Array.isArray(curriculum) && curriculum.length > 0 && (curriculum[0].elements || curriculum[0].type)) {
+              console.log("DEBUG: Loading curriculum from DB", curriculum);
+              setSlides(curriculum);
+              if (response.data.title) setProjectName(response.data.title);
+              if (curriculum.length > 0) setCurrentSlideId(curriculum[0].id);
+            }
+          }
+        } catch (error) {
+          console.error("Error loading course for builder:", error);
+        } finally {
+          setIsLoadingCourse(false);
+        }
+      };
+      fetchCourse();
+    }
+  }, [courseId]);
+  const [currentSlideId, setCurrentSlideId] = useState<number>(
+    savedDraft?.currentSlideId || 1
+  );
   const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
   const [isCanvasSelected, setIsCanvasSelected] = useState<boolean>(false);
   const [selectionBox, setSelectionBox] = useState<{
@@ -40,14 +89,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const [showAddSlideModal, setShowAddSlideModal] = useState(false);
 
   // -- Header State --
-  const [projectName, setProjectName] = useState("Yeni Ders Projesi");
+  const [projectName, setProjectName] = useState(
+    savedDraft?.projectName || "Yeni Ders Projesi"
+  );
+  const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveStatus] = useState<"saved" | "saving">("saved");
   // const [lastSavedTime, setLastSavedTime] = useState<Date>(new Date());
 
   // -- Stage Indicator State --
   const [activeStage, setActiveStage] = useState<
     "ANLA" | "UYGULA" | "BİRLEŞTİR" | "ÜRET"
-  >("ANLA");
+  >(savedDraft?.activeStage || "ANLA");
 
   // -- History & Clipboard State --
   const [past, setPast] = useState<Slide[][]>([]);
@@ -134,6 +186,15 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const currentSlide = slides.find((s) => s.id === currentSlideId) || slides[0];
 
   // -- Persistence --
+  useEffect(() => {
+    const draft = {
+      slides,
+      projectName,
+      currentSlideId,
+      activeStage
+    };
+    localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
+  }, [slides, projectName, currentSlideId, activeStage]);
   const saveProject = () => {
     const data = JSON.stringify(slides, null, 2);
     const blob = new Blob([data], { type: "application/json" });
@@ -1887,11 +1948,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
   const bounds = getSelectionBounds(); // For Group Overlay
 
+
   return (
     <div
       ref={containerRef}
       tabIndex={-1}
-      className="w-full h-screen bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700 outline-none"
+      className="w-full h-full bg-[#f5f5f7] font-sans flex flex-col overflow-hidden relative selection:bg-indigo-100 selection:text-indigo-700 outline-none"
       onMouseUp={(e) => handleMouseUp(e)}
       onMouseMove={handleMouseMove}
       onDoubleClick={(e) => {
@@ -1984,22 +2046,29 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
           onAction={handleMenuAction}
         />
       )}
-      {/* HEADER & STAGE INDICATOR */}
-      <LessonBuilderHeader
-        onExit={onExit}
-        projectName={projectName}
-        setProjectName={setProjectName}
-        saveStatus={saveStatus}
-        onSave={saveProject}
-        activeStage={activeStage}
-        setActiveStage={setActiveStage}
-        onUndo={handleUndo}
-        onRedo={handleRedo}
-        onCopy={handleCopy}
-        onPaste={handlePaste}
-      />
-
       <div className="flex-1 w-full flex overflow-hidden relative">
+        {/* STAGES FLOATING BAR */}
+        <div className="absolute left-1/2 -translate-x-1/2 top-4 z-40 bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-xl border-2 border-gray-100 flex items-center gap-1">
+          {[
+            { id: 'ANLA', label: 'ANLA', color: 'rgb(217, 70, 239)' },
+            { id: 'UYGULA', label: 'UYGULA', color: 'rgb(6, 182, 212)' },
+            { id: 'BİRLEŞTİR', label: 'BİRLEŞTİR', color: 'rgb(34, 197, 94)' },
+            { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)' }
+          ].map((stage) => (
+            <button
+              key={stage.id}
+              onClick={() => setActiveStage(stage.id as any)}
+              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                activeStage === stage.id 
+                ? 'bg-opacity-100 text-white shadow-lg' 
+                : 'hover:bg-gray-100 text-gray-400'
+              }`}
+              style={{ backgroundColor: activeStage === stage.id ? stage.color : undefined }}
+            >
+              {stage.label}
+            </button>
+          ))}
+        </div>
         {/* STYLES */}
         <style>{`
                 @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Comic+Neue:wght@400;700&family=Fredoka:wght@300;400;500;600&family=Pacifico&family=Patrick+Hand&family=Fira+Code:wght@400;500&family=Inter:wght@400;700&display=swap');
@@ -2056,6 +2125,25 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 } else if (type === "eraser") {
                   // Eraser now acts as a delete tool
                   // We don't need to change color/opacity, just the mode
+                }
+              }}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onCopy={handleCopy}
+              onPaste={handlePaste}
+              onSave={() => setShowSaveModal(true)}
+              onPreview={() => {}}
+              onClear={() => {
+                if (window.confirm("Bu sayfadaki tüm içeriği silmek istediğinize emin misiniz?")) {
+                  setPast((prev) => [...prev, slides]);
+                  setSlides((prev) =>
+                    prev.map((s) =>
+                      s.id === currentSlideId
+                        ? { ...s, elements: [], connections: [] }
+                        : s,
+                    ),
+                  );
+                  setFuture([]);
                 }
               }}
             />
@@ -2350,6 +2438,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             setCurrentSlideId(newSlide.id);
             setShowAddSlideModal(false);
           }}
+        />
+
+        <SaveToCourseModal 
+          isOpen={showSaveModal} 
+          onClose={() => setShowSaveModal(false)}
+          slides={slides} 
+          initialCourseId={courseId ? parseInt(courseId) : undefined}
+          courseTitle={projectName}
         />
       </div>
     </div>
