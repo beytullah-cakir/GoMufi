@@ -142,10 +142,12 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         }, 1000);
       }
     } else if (phase === "result") {
-      // Auto-advance result screen after 2 seconds
-      timeout = setTimeout(() => {
-        nextQuestion();
-      }, 2000);
+      // Auto-advance ONLY if correct. If wrong, wait for user to read explanation
+      if (isCorrect) {
+        timeout = setTimeout(() => {
+          nextQuestion();
+        }, 1500);
+      }
     }
 
     return () => clearTimeout(timeout);
@@ -375,18 +377,26 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                       : "YANLIŞ CEVAP!"}
                   </h2>
                   {!isCorrectResult && (
-                    <p
-                      className={`${
-                        selectedAnswer === null
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                      } font-bold text-lg`}
-                    >
-                      Doğru Cevap:{" "}
-                      <span className="font-black">
-                        {currentQuestion.correctAnswer}
-                      </span>
-                    </p>
+                    <div className="space-y-2">
+                      <p
+                        className={`${
+                          selectedAnswer === null
+                            ? "text-yellow-600"
+                            : "text-red-600"
+                        } font-bold text-lg`}
+                      >
+                        Doğru Cevap:{" "}
+                        <span className="font-black">
+                          {currentQuestion.correctAnswer}
+                        </span>
+                      </p>
+                      {currentQuestion.explanation && (
+                        <div className={`p-4 rounded-2xl border ${selectedAnswer === null ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-red-50 border-red-200 text-red-800'} text-sm font-medium animate-in fade-in slide-in-from-top-1`}>
+                          <span className="font-black uppercase text-[10px] tracking-widest block mb-1 opacity-60">Açıklama</span>
+                          {currentQuestion.explanation}
+                        </div>
+                      )}
+                    </div>
                   )}
                   {isCorrectResult && (
                     <p className="text-green-600 font-bold text-lg">
@@ -395,7 +405,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                   )}
                 </div>
 
-                {/* Next Arrow */}
+                {/* Next Button / Close Button */}
                 <button
                   onClick={nextQuestion}
                   className={`w-12 h-12 rounded-xl flex items-center justify-center cursor-pointer transition-transform active:scale-95 ${
@@ -406,19 +416,35 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                       : "bg-red-500 text-white hover:bg-red-600"
                   }`}
                 >
-                  <svg
-                    className="w-6 h-6 animate-pulse"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth="3"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M9 5l7 7-7 7"
-                    />
-                  </svg>
+                  {isCorrectResult ? (
+                    <svg
+                      className="w-6 h-6 animate-pulse"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-6 h-6"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -462,81 +488,85 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           </div>
         </div>
 
-        {/* Question Area - Scrollable */}
-        <div className="flex-1 min-h-0 w-full px-4 mb-6 overflow-y-auto custom-scrollbar">
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-[40px] p-8 md:p-12 shadow-sm text-center w-full min-h-fit">
-            <span className="text-sky-500 font-black text-sm uppercase tracking-[0.2em] block mb-6 px-4 py-2 bg-sky-50 w-fit mx-auto rounded-full border border-sky-100">
-              {lessonTitle}
-            </span>
-            
-            <div className="text-left w-full space-y-4">
-              {currentQuestion.text.split(/```/).map((part: string, i: number) => {
-                if (i % 2 === 1) {
-                  const lines = part.trim().split('\n');
-                  const code = lines.length > 1 && lines[0].length < 10 && !lines[0].includes(' ') 
-                               ? lines.slice(1).join('\n') 
-                               : part.trim();
+        {/* Desktop Split Layout / Mobile Stack Layout */}
+        <div className="flex-1 flex flex-col lg:flex-row gap-12 px-4 mb-4 overflow-hidden min-h-0">
+          
+          {/* Left Side: Question Area - Scrollable */}
+          <div className="flex-[1.5] flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
+            <div className="bg-white border-2 border-gray-100 border-b-4 rounded-[40px] p-6 md:p-10 shadow-sm text-center w-full min-h-fit h-full flex flex-col justify-center">
+              <span className="text-sky-500 font-black text-sm uppercase tracking-[0.2em] block mb-6 px-4 py-2 bg-sky-50 w-fit mx-auto rounded-full border border-sky-100 shrink-0">
+                {lessonTitle}
+              </span>
+              
+              <div className="text-left w-full space-y-6">
+                {currentQuestion.text.split(/```/).map((part: string, i: number) => {
+                  if (i % 2 === 1) {
+                    const lines = part.trim().split('\n');
+                    const code = lines.length > 1 && lines[0].length < 10 && !lines[0].includes(' ') 
+                                 ? lines.slice(1).join('\n') 
+                                 : part.trim();
 
+                    return (
+                      <div key={i} className="my-6 relative group max-w-full shrink-0">
+                        <div className="absolute -top-3 left-8 px-4 py-1.5 bg-gray-900 text-sky-400 text-[10px] font-black rounded-full z-10 border border-gray-700 shadow-xl tracking-widest uppercase">
+                          KOD EDİTÖRÜ
+                        </div>
+                        <div className="absolute top-4 right-8 flex gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
+                          <div className="w-2.5 h-2.5 rounded-full bg-red-400/50"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/50"></div>
+                          <div className="w-2.5 h-2.5 rounded-full bg-green-400/50"></div>
+                        </div>
+                        <pre className="bg-gray-950 text-sky-50 p-8 pt-10 rounded-[32px] overflow-x-auto font-mono text-base md:text-lg leading-relaxed border-2 border-gray-800 shadow-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                          <code className="block min-w-max">{code}</code>
+                        </pre>
+                      </div>
+                    );
+                  }
                   return (
-                    <div key={i} className="my-8 relative group max-w-full">
-                      <div className="absolute -top-3 left-8 px-4 py-1.5 bg-gray-900 text-sky-400 text-[10px] font-black rounded-full z-10 border border-gray-700 shadow-xl tracking-widest uppercase">
-                        KOD EDİTÖRÜ
-                      </div>
-                      <div className="absolute top-4 right-8 flex gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-400/50"></div>
-                        <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/50"></div>
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-400/50"></div>
-                      </div>
-                      <pre className="bg-gray-950 text-sky-50 p-10 pt-12 rounded-[32px] overflow-x-auto font-mono text-lg md:text-xl leading-relaxed border-2 border-gray-800 shadow-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
-                        <code className="block min-w-max">{code}</code>
-                      </pre>
-                    </div>
+                    <h2 key={i} className="text-xl md:text-2xl lg:text-3xl font-black text-gray-800 font-display leading-snug text-center px-4">
+                      {part.trim()}
+                    </h2>
                   );
-                }
-                return (
-                  <h2 key={i} className="text-2xl md:text-3xl font-black text-gray-800 font-display leading-snug text-center px-4">
-                    {part.trim()}
-                  </h2>
-                );
-              })}
+                })}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Options Grid - Fixed Height Container */}
-        <div className="grid grid-cols-2 gap-4 w-full h-[280px] md:h-[320px] px-4 shrink-0 mb-4">
-          {(currentQuestion?.options || ["A", "B", "C", "D"]).map((option: string, idx: number) => {
-            const colors = [
-              { bg: "bg-indigo-500", hover: "hover:bg-indigo-600", border: "border-indigo-700", box: "bg-indigo-700" },
-              { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
-              { bg: "bg-amber-400", hover: "hover:bg-amber-500", border: "border-amber-600", box: "bg-amber-600" },
-              { bg: "bg-emerald-500", hover: "hover:bg-emerald-600", border: "border-emerald-700", box: "bg-emerald-700" },
-            ];
-            const color = colors[idx % colors.length];
+          {/* Right Side: Options Grid - 2x2 Layout */}
+          <div className="flex-1 grid grid-cols-2 gap-6 h-fit lg:h-full lg:overflow-y-auto lg:pr-2 custom-scrollbar shrink-0 lg:shrink content-center">
+            {(currentQuestion?.options || ["A", "B", "C", "D"]).map((option: string, idx: number) => {
+              const colors = [
+                { bg: "bg-indigo-500", hover: "hover:bg-indigo-600", border: "border-indigo-700", box: "bg-indigo-700" },
+                { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
+                { bg: "bg-amber-400", hover: "hover:bg-amber-500", border: "border-amber-600", box: "bg-amber-600" },
+                { bg: "bg-emerald-500", hover: "hover:bg-emerald-600", border: "border-emerald-700", box: "bg-emerald-700" },
+              ];
+              const color = colors[idx % colors.length];
 
-            let stateClass = "opacity-100 scale-100 cursor-pointer";
-            if (phase === "feedback" || phase === "result") {
-              if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-105 shadow-2xl";
-              else if (option === selectedAnswer) stateClass = "opacity-50 grayscale scale-95";
-              else stateClass = "opacity-30 scale-90 grayscale";
-            }
+              let stateClass = "opacity-100 scale-100 cursor-pointer";
+              if (phase === "feedback" || phase === "result") {
+                if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-105 shadow-2xl";
+                else if (option === selectedAnswer) stateClass = "opacity-50 grayscale scale-95";
+                else stateClass = "opacity-30 scale-90 grayscale";
+              }
 
-            return (
-              <button
-                key={option}
-                disabled={phase === "feedback" || phase === "result"}
-                onClick={() => handleAnswer(option)}
-                className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-6 gap-4 md:gap-6 shadow-lg transition-all transform ${stateClass}`}
-              >
-                <div className={`w-12 h-12 md:w-16 md:h-16 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-2xl md:text-3xl font-black text-white font-display flex-shrink-0`}>
-                  {String.fromCharCode(65 + idx)}
-                </div>
-                <span className="text-xl md:text-2xl font-black text-white font-display text-left line-clamp-2 leading-tight">
-                  {option}
-                </span>
-              </button>
-            );
-          })}
+              return (
+                <button
+                  key={option}
+                  disabled={phase === "feedback" || phase === "result"}
+                  onClick={() => handleAnswer(option)}
+                  className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-6 gap-4 md:gap-6 shadow-lg transition-all transform ${stateClass} w-full lg:min-h-[100px]`}
+                >
+                  <div className={`w-10 h-10 md:w-14 md:h-14 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl md:text-2xl font-black text-white font-display flex-shrink-0`}>
+                    {String.fromCharCode(65 + idx)}
+                  </div>
+                  <span className="text-lg md:text-xl font-black text-white font-display text-left line-clamp-2 leading-tight">
+                    {option}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
     );
