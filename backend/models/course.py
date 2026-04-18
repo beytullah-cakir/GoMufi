@@ -16,7 +16,6 @@ class Course(Base):
     learning_outcomes = Column(JSON, default=[])
     requirements = Column(JSON, default=[])
     curriculum = Column(JSON, default=[])
-    instructor_notes = Column(JSON, default=[])
 
 
     teacher = relationship("Teacher", back_populates="courses")

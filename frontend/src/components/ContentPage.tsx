@@ -28,7 +28,7 @@ import {
     Info
 } from 'lucide-react';
 
-import CourseInfoModal from './shared/CourseInfoModal';
+import CourseInfoModal from './shared/CourseInfoModal.tsx';
 
 // Import Assets (Reusing existing or placeholders if needed)
 import PythonIcon from '../assets/sprites/PythonIcon.png';
@@ -54,7 +54,6 @@ interface Course {
     learning_outcomes?: string[];
     requirements?: string[];
     curriculum?: any[];
-    instructor_notes?: { title: string; type: string }[];
 }
 
 interface ScheduleSlot {
@@ -153,8 +152,7 @@ const ContentPage: React.FC = () => {
                         description: c.description,
                         learning_outcomes: c.learning_outcomes,
                         requirements: c.requirements,
-                        curriculum: finalCurriculum,
-                        instructor_notes: c.instructor_notes || []
+                        curriculum: c.curriculum || []
                     };
                 });
                 
