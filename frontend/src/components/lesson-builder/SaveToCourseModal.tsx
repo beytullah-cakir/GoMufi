@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { X, Search, BookOpen, CheckCircle2, Loader2, AlertCircle, Save, Type } from "lucide-react";
+import {
+  X,
+  Search,
+  BookOpen,
+  CheckCircle2,
+  Loader2,
+  AlertCircle,
+  Save,
+  Type,
+} from "lucide-react";
 import api from "../../api";
 
 interface Course {
@@ -16,13 +25,23 @@ interface SaveToCourseModalProps {
   courseTitle?: string;
 }
 
-const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, slides, initialCourseId, courseTitle }) => {
+const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({
+  isOpen,
+  onClose,
+  slides,
+  initialCourseId,
+  courseTitle,
+}) => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | string | null>(initialCourseId || null);
+  const [selectedCourseId, setSelectedCourseId] = useState<
+    number | string | null
+  >(initialCourseId || null);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">(
+    "idle",
+  );
   const [title, setTitle] = useState(courseTitle || "");
 
   useEffect(() => {
@@ -55,21 +74,64 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
     setIsSaving(true);
     setSaveStatus("idle");
     try {
-      // API call to update course curriculum
-      await api.put(`/update_course/${selectedCourseId}`, {
-        curriculum: {
-          noteTitle: title,
-          slides: slides
+      // 1. Mevcut müfredatı çek (listeyi korumak için)
+      const courseRes = await api.get(`/courses/${selectedCourseId}`);
+      let currentCurriculum = courseRes.data?.curriculum || [];
+
+      // Legacy desteği: Eğer liste değilse listeye çevir
+      if (!Array.isArray(currentCurriculum)) {
+        if (currentCurriculum.slides || currentCurriculum.noteTitle) {
+          currentCurriculum = [{ id: "default", ...currentCurriculum }];
+        } else {
+          currentCurriculum = [];
         }
+      }
+
+      // URL'den noteId al
+      const searchParams = new URLSearchParams(window.location.search);
+      const noteId = searchParams.get("noteId");
+
+      let updatedCurriculum;
+
+      if (noteId) {
+        // Mevcut olanı güncelle
+        updatedCurriculum = currentCurriculum.map((n: any) =>
+          String(n.id) === String(noteId)
+            ? { ...n, noteTitle: title, slides: slides }
+            : n,
+        );
+        // Eğer ID listede yoksa (örneğin 'default' idi ama listede id yoktu) ekle
+        const exists = currentCurriculum.some(
+          (n: any) => String(n.id) === String(noteId),
+        );
+        if (!exists) {
+          updatedCurriculum = [
+            ...currentCurriculum,
+            { id: noteId, noteTitle: title, slides: slides },
+          ];
+        }
+      } else {
+        // Yeni not ekle
+        updatedCurriculum = [
+          ...currentCurriculum,
+          {
+            id: Date.now().toString(),
+            noteTitle: title,
+            slides: slides,
+          },
+        ];
+      }
+
+      // 2. Güncel listeyi kaydet
+      await api.put(`/update_course/${selectedCourseId}`, {
+        curriculum: updatedCurriculum,
       });
+
       setSaveStatus("success");
-      // Clear Lesson Builder draft from localStorage on successful save
       localStorage.removeItem("gomufi_lesson_builder_draft");
-      
-      setTimeout(() => {
-        onClose();
-        setSaveStatus("idle");
-      }, 1500);
+
+      onClose();
+      setSaveStatus("idle");
     } catch (error) {
       console.error("Error saving curriculum", error);
       setSaveStatus("error");
@@ -81,20 +143,19 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
   if (!isOpen) return null;
 
   const filteredCourses = courses.filter((c) =>
-    c.title.toLowerCase().includes(searchQuery.toLowerCase())
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()),
   );
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
+      <div
         className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300"
         onClick={onClose}
       />
 
       {/* Modal Content */}
       <div className="relative bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[80vh]">
-        
         {/* Header */}
         <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-sky-50 to-white">
           <div className="flex items-center gap-3">
@@ -103,10 +164,12 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             </div>
             <div>
               <h2 className="text-xl font-black text-gray-800">Derse Kaydet</h2>
-              <p className="text-sm text-gray-500 font-bold tracking-tight">Bu çalışmayı hangi derse kaydetmek istersiniz?</p>
+              <p className="text-sm text-gray-500 font-bold tracking-tight">
+                Bu çalışmayı hangi derse kaydetmek istersiniz?
+              </p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-xl transition-colors text-gray-400"
           >
@@ -116,10 +179,11 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
 
         {/* Body */}
         <div className="p-6 flex-1 overflow-hidden flex flex-col gap-4">
-          
           {/* Lesson Title Input */}
           <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Ders Notu Başlığı</label>
+            <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+              Ders Notu Başlığı
+            </label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Type className="h-5 w-5 text-gray-400 group-focus-within:text-indigo-500 transition-colors" />
@@ -138,7 +202,9 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
 
           {/* Search */}
           <div className="space-y-2">
-            <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">Kursa Kaydet</label>
+            <label className="text-xs font-black text-gray-400 uppercase tracking-widest ml-1">
+              Kursa Kaydet
+            </label>
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
                 <Search className="h-5 w-5 text-gray-400 group-focus-within:text-sky-500 transition-colors" />
@@ -158,7 +224,9 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             {isLoading ? (
               <div className="flex flex-col items-center justify-center py-12 gap-4">
                 <Loader2 className="w-10 h-10 animate-spin text-sky-500" />
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Derslerin yükleniyor...</p>
+                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">
+                  Derslerin yükleniyor...
+                </p>
               </div>
             ) : filteredCourses.length > 0 ? (
               <div className="grid gap-3">
@@ -172,13 +240,19 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
                         : "bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50"
                     }`}
                   >
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                      selectedCourseId === course.id ? "bg-sky-500 text-white" : "bg-gray-100 text-gray-400"
-                    }`}>
+                    <div
+                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                        selectedCourseId === course.id
+                          ? "bg-sky-500 text-white"
+                          : "bg-gray-100 text-gray-400"
+                      }`}
+                    >
                       <BookOpen className="w-5 h-5" />
                     </div>
                     <div className="text-left flex-1">
-                      <p className={`font-black tracking-tight ${selectedCourseId === course.id ? "text-sky-900" : "text-gray-800"}`}>
+                      <p
+                        className={`font-black tracking-tight ${selectedCourseId === course.id ? "text-sky-900" : "text-gray-800"}`}
+                      >
                         {course.title}
                       </p>
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mt-0.5">
@@ -194,7 +268,9 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             ) : (
               <div className="flex flex-col items-center justify-center py-12 gap-4 text-center">
                 <AlertCircle className="w-10 h-10 text-gray-300" />
-                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">Ders bulunamadı.</p>
+                <p className="text-sm text-gray-500 font-bold uppercase tracking-widest">
+                  Ders bulunamadı.
+                </p>
               </div>
             )}
           </div>
@@ -206,17 +282,21 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             {saveStatus === "success" && (
               <div className="flex items-center gap-2 text-green-600 animate-in slide-in-from-left">
                 <CheckCircle2 className="w-5 h-5" />
-                <span className="text-sm font-black uppercase tracking-tight">Başarıyla Kaydedildi!</span>
+                <span className="text-sm font-black uppercase tracking-tight">
+                  Başarıyla Kaydedildi!
+                </span>
               </div>
             )}
             {saveStatus === "error" && (
               <div className="flex items-center gap-2 text-red-600 animate-in slide-in-from-left">
                 <AlertCircle className="w-5 h-5" />
-                <span className="text-sm font-black uppercase tracking-tight">Kaydetme Hatası.</span>
+                <span className="text-sm font-black uppercase tracking-tight">
+                  Kaydetme Hatası.
+                </span>
               </div>
             )}
           </div>
-          
+
           <div className="flex gap-3">
             <button
               onClick={onClose}
@@ -226,7 +306,9 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             </button>
             <button
               onClick={handleSave}
-              disabled={!selectedCourseId || isSaving || saveStatus === "success"}
+              disabled={
+                !selectedCourseId || isSaving || saveStatus === "success"
+              }
               className={`flex items-center gap-3 px-8 py-3 font-black rounded-2xl transition-all uppercase tracking-widest text-xs shadow-lg ${
                 !selectedCourseId || isSaving || saveStatus === "success"
                   ? "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed"
@@ -247,7 +329,6 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
             </button>
           </div>
         </div>
-
       </div>
     </div>
   );

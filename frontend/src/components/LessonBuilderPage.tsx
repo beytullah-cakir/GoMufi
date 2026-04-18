@@ -29,6 +29,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const courseId = searchParams.get("courseId");
+  const noteId = searchParams.get("noteId");
   
   // Pre-fetched data from location state (passed from modal)
   const initialCurriculum = location.state?.curriculum;
@@ -48,11 +49,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   // -- State --
   const [slides, setSlides] = useState<Slide[]>(() => {
     if (initialCurriculum) {
-      if (initialCurriculum.slides && Array.isArray(initialCurriculum.slides)) {
-        return initialCurriculum.slides;
-      } else if (Array.isArray(initialCurriculum)) {
-        return initialCurriculum;
-      }
+      // Normalize to array
+      const notes = Array.isArray(initialCurriculum) 
+        ? initialCurriculum 
+        : (initialCurriculum.slides || initialCurriculum.noteTitle) ? [initialCurriculum] : [];
+        
+      const targetNote = noteId 
+        ? notes.find((n: any) => String(n.id) === String(noteId))
+        : null; // noteId yoksa yeni bir not oluşturuluyor demektir, ilkini yükleme.
+
+      if (targetNote?.slides && Array.isArray(targetNote.slides)) return targetNote.slides;
+      if (Array.isArray(targetNote)) return targetNote;
     }
     return savedDraft?.slides || [{ id: 1, elements: [], connections: [] }];
   });
@@ -66,31 +73,25 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
           if (response.data && response.data.curriculum) {
             const curriculum = response.data.curriculum;
 
-            // Handle new object structure { noteTitle, slides }
-            if (curriculum.slides && Array.isArray(curriculum.slides)) {
-              console.log(
-                "DEBUG: Loading curriculum object from DB",
-                curriculum,
-              );
-              setSlides(curriculum.slides);
-              if (curriculum.noteTitle) setProjectName(curriculum.noteTitle);
-              if (curriculum.slides.length > 0)
-                setCurrentSlideId(curriculum.slides[0].id);
-            }
-            // Handle old array structure [slide, slide, ...] (Check specifically for slide-like properties)
-            else if (
-              Array.isArray(curriculum) &&
-              curriculum.length > 0 &&
-              (curriculum[0].elements ||
-                ["normal", "game", "coding"].includes(curriculum[0].type))
-            ) {
-              console.log(
-                "DEBUG: Loading curriculum array from DB",
-                curriculum,
-              );
-              setSlides(curriculum);
-              if (response.data.title) setProjectName(response.data.title);
-              if (curriculum.length > 0) setCurrentSlideId(curriculum[0].id);
+            // Handle potential multi-note structure
+            const notes = Array.isArray(curriculum) 
+              ? curriculum 
+              : (curriculum.slides || curriculum.noteTitle) ? [curriculum] : [];
+
+            const targetNote = noteId 
+              ? notes.find((n: any) => String(n.id) === String(noteId))
+              : null;
+
+            if (targetNote) {
+              if (targetNote.slides && Array.isArray(targetNote.slides)) {
+                setSlides(targetNote.slides);
+                if (targetNote.noteTitle) setProjectName(targetNote.noteTitle);
+                if (targetNote.slides.length > 0) setCurrentSlideId(targetNote.slides[0].id);
+              } else if (Array.isArray(targetNote)) {
+                setSlides(targetNote);
+                if (response.data.title) setProjectName(response.data.title);
+                if (targetNote.length > 0) setCurrentSlideId(targetNote[0].id);
+              }
             }
           }
         } catch (error) {
@@ -122,7 +123,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
   // -- Header State --
   const [projectName, setProjectName] = useState(() => {
-    if (initialCurriculum?.noteTitle) return initialCurriculum.noteTitle;
+    if (initialCurriculum) {
+      const notes = Array.isArray(initialCurriculum) 
+        ? initialCurriculum 
+        : (initialCurriculum.slides || initialCurriculum.noteTitle) ? [initialCurriculum] : [];
+      
+      const targetNote = noteId 
+        ? notes.find((n: any) => String(n.id) === String(noteId))
+        : null;
+        
+      if (targetNote?.noteTitle) return targetNote.noteTitle;
+    }
     return savedDraft?.projectName || "Yeni Ders Projesi";
   });
   const [showSaveModal, setShowSaveModal] = useState(false);

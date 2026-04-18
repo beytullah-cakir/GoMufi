@@ -64,17 +64,24 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
   const [preFetchedData, setPreFetchedData] = React.useState<any>(null);
   const isFetchingRef = React.useRef(false);
 
-  // Modal açıldığı anda arka planda veriyi çekmeye başla
-  React.useEffect(() => {
-    if (isOpen && course?.id && !preFetchedData && !isFetchingRef.current) {
-      preFetchCurriculum();
+  // Müfredatı liste yapısına normalize et (Legacy desteği ile)
+  const notes = React.useMemo(() => {
+    if (!course?.curriculum) return [];
+    const raw = course.curriculum;
+    if (Array.isArray(raw)) return raw;
+
+    // Eski tekli nesne yapısı
+    if (raw.slides || raw.noteTitle) {
+      return [
+        {
+          id: "default",
+          noteTitle: raw.noteTitle || course.title,
+          slides: raw.slides || [],
+        },
+      ];
     }
-    // Modal kapandığında veya kurs değiştiğinde ön yüklemeyi sıfırla
-    if (!isOpen) {
-      setPreFetchedData(null);
-      isFetchingRef.current = false;
-    }
-  }, [isOpen, course?.id]);
+    return [];
+  }, [course?.curriculum, course?.title]);
 
   const preFetchCurriculum = async () => {
     if (isFetchingRef.current || preFetchedData || !course?.id) return;
@@ -88,6 +95,18 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
       isFetchingRef.current = false;
     }
   };
+
+  // Modal açıldığı anda arka planda veriyi çekmeye başla
+  React.useEffect(() => {
+    if (isOpen && course?.id && !preFetchedData && !isFetchingRef.current) {
+      preFetchCurriculum();
+    }
+    // Modal kapandığında veya kurs değiştiğinde ön yüklemeyi sıfırla
+    if (!isOpen) {
+      setPreFetchedData(null);
+      isFetchingRef.current = false;
+    }
+  }, [isOpen, course?.id]);
 
   if (!isOpen || !course) return null;
 
@@ -337,56 +356,81 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                 </h3>
               </div>
 
-              <div className="flex items-center justify-between p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 group hover:border-amber-200 transition-all">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-amber-500 shadow-sm">
-                    <StickyNote size={20} />
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                      Kayıtlı JSON Dosyası
-                    </p>
-                    <p className="text-xl font-black text-gray-800 leading-none">
-                      {(curriculum?.noteTitle || course.title)
-                        .toLowerCase()
-                        .replace(/\s+/g, "_")}
-                      .json
-                    </p>
-                  </div>
-                </div>
+              <div className="space-y-4">
+                {notes.length > 0 ? (
+                  notes.map((note) => (
+                    <div
+                      key={note.id}
+                      className="flex items-center justify-between p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 group hover:border-amber-200 transition-all"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-amber-500 shadow-sm">
+                          <StickyNote size={20} />
+                        </div>
+                        <div>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                            Kayıtlı Ders Notu
+                          </p>
+                          <p className="text-xl font-black text-gray-800 leading-none">
+                            {note.noteTitle || "İsimsiz Not"}
+                          </p>
+                        </div>
+                      </div>
 
-                <button
-                  disabled={isNavigating}
-                  onMouseEnter={preFetchCurriculum}
-                  onClick={async () => {
-                    setIsNavigating(true);
-                    let data = preFetchedData;
-                    if (!data) {
-                      try {
-                        const response = await api.get(`/courses/${course.id}`);
-                        data = response.data?.curriculum;
-                      } catch (e) {
-                        console.error("Veri çekme hatası:", e);
+                      <button
+                        disabled={isNavigating}
+                        onMouseEnter={preFetchCurriculum}
+                        onClick={async () => {
+                          setIsNavigating(true);
+                          let data = preFetchedData;
+                          if (!data) {
+                            try {
+                              const response = await api.get(
+                                `/courses/${course.id}`,
+                              );
+                              data = response.data?.curriculum;
+                            } catch (e) {
+                              console.error("Veri çekme hatası:", e);
+                            }
+                          }
+                          navigate(
+                            `/instructor/builder?courseId=${course.id}&noteId=${note.id}`,
+                            {
+                              state: { curriculum: data },
+                            },
+                          );
+                          setIsNavigating(false);
+                        }}
+                        className={`px-6 py-3 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
+                          isNavigating
+                            ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
+                            : "bg-white border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white shadow-amber-100"
+                        }`}
+                      >
+                        {isNavigating ? (
+                          <Zap className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Edit3 size={14} />
+                        )}
+                        {isNavigating ? "Yükleniyor..." : "Düzenle"}
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200">
+                    <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">
+                      Henüz ders notu eklenmemiş.
+                    </p>
+                    <button
+                      onClick={() =>
+                        navigate(`/instructor/builder?courseId=${course.id}`)
                       }
-                    }
-                    navigate(`/instructor/builder?courseId=${course.id}`, {
-                      state: { curriculum: data },
-                    });
-                    setIsNavigating(false);
-                  }}
-                  className={`px-6 py-3 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
-                    isNavigating
-                      ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
-                      : "bg-white border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white shadow-amber-100"
-                  }`}
-                >
-                  {isNavigating ? (
-                    <Zap className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Edit3 size={14} />
-                  )}
-                  {isNavigating ? "Yükleniyor..." : "Düzenle"}
-                </button>
+                      className="mt-4 text-xs font-black text-amber-600 hover:text-amber-700 underline underline-offset-4"
+                    >
+                      + Yeni Ders Notu Oluştur
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -403,13 +447,15 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
 
               <div className="border border-gray-100 rounded-[2rem] overflow-hidden">
                 {(() => {
-                  if (Array.isArray(curriculum)) {
-                    const sections = curriculum.filter(
-                      (s) => s.type !== "live_sessions_config",
-                    );
-                    return sections.length > 0 ? (
+                  // Sadece standart müfredat öğelerini (lectures olanları) filtrele
+                  const standardSections = Array.isArray(curriculum)
+                    ? curriculum.filter((s: any) => s.lectures)
+                    : [];
+
+                  if (standardSections.length > 0) {
+                    return (
                       <div className="divide-y divide-gray-50">
-                        {sections.map((s, idx) => (
+                        {standardSections.map((s, idx) => (
                           <div
                             key={idx}
                             className="p-6 flex items-center justify-between hover:bg-gray-50 transition-all cursor-default group"
@@ -431,43 +477,9 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                           </div>
                         ))}
                       </div>
-                    ) : (
-                      <div className="p-16 text-center text-gray-300 font-bold italic">
-                        İçerik Bulunamadı
-                      </div>
-                    );
-                  } else if (
-                    curriculum &&
-                    (curriculum.slides || curriculum.noteTitle)
-                  ) {
-                    return (
-                      <div
-                        onClick={() =>
-                          mode === "instructor" &&
-                          navigate(`/instructor/builder?courseId=${course.id}`)
-                        }
-                        className="p-10 bg-sky-50/50 flex flex-col sm:flex-row items-center justify-between gap-8 group cursor-pointer hover:bg-sky-50 transition-all"
-                      >
-                        <div className="flex items-center gap-8">
-                          <div className="w-20 h-20 bg-sky-500 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-sky-100 group-hover:rotate-6 transition-transform">
-                            <Zap size={36} fill="currentColor" />
-                          </div>
-                          <div>
-                            <h4 className="text-2xl font-black text-gray-900 mb-1">
-                              {curriculum.noteTitle || "İnteraktif Sunum"}
-                            </h4>
-                            <p className="text-xs font-black text-sky-500 uppercase tracking-[0.3em]">
-                              {(curriculum.slides || []).length} PROFESYONEL
-                              SLAYT İÇERİĞİ
-                            </p>
-                          </div>
-                        </div>
-                        <div className="px-8 py-4 bg-white border-2 border-sky-500 text-sky-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-500 hover:text-white transition-all shadow-lg shadow-sky-100">
-                          Görüntüle
-                        </div>
-                      </div>
                     );
                   }
+
                   return (
                     <div className="p-16 text-center text-gray-300 font-bold italic">
                       Ders müfredatı henüz oluşturulmamış.
