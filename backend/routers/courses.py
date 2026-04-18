@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, attributes
+from sqlalchemy.orm.attributes import flag_modified
 from models.course import Course
 from models.teacher import Teacher
 from models.enrollment import Enrollment
@@ -35,6 +36,7 @@ class CourseResponse(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
+    instructor_notes: Optional[List[dict]] = []
     teacher: Optional[TeacherResponse] = None
 
     class Config:
@@ -242,6 +244,7 @@ class CreateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
+    instructor_notes: Optional[List[dict]] = []
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -251,6 +254,7 @@ class UpdateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     curriculum: Optional[List[dict]] = None
+    instructor_notes: Optional[List[dict]] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -273,7 +277,8 @@ async def create_course(
             price=course_data.price,
             learning_outcomes=course_data.learning_outcomes,
             requirements=course_data.requirements,
-            curriculum=course_data.curriculum
+            curriculum=course_data.curriculum,
+            instructor_notes=course_data.instructor_notes
         )
         db.add(new_course)
         await db.commit()
@@ -314,10 +319,16 @@ async def update_course(
             course.price = course_data.price
         if course_data.learning_outcomes is not None:
             course.learning_outcomes = course_data.learning_outcomes
+            flag_modified(course, "learning_outcomes")
         if course_data.requirements is not None:
             course.requirements = course_data.requirements
+            flag_modified(course, "requirements")
         if course_data.curriculum is not None:
             course.curriculum = course_data.curriculum
+            flag_modified(course, "curriculum")
+        if course_data.instructor_notes is not None:
+            course.instructor_notes = course_data.instructor_notes
+            flag_modified(course, "instructor_notes")
             
         await db.commit()
         await db.refresh(course)
@@ -346,4 +357,50 @@ async def delete_course(
     await db.delete(course)
     await db.commit()
     return {"message": "Course deleted successfully"}
+
+@router.post("/start-session/{course_id}")
+async def start_session(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Dersi kontrol et
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Mevcut canlı oturumu bul veya yeni oluştur
+    stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
+    result = await db.execute(stmt)
+    session = result.scalars().first()
+
+    if not session:
+        session = LiveSession(
+            course_id=course_id,
+            title=f"{course.title} - Canlı Oturum",
+            status='live',
+            type='live'
+        )
+        db.add(session)
+    else:
+        session.status = 'live'
+    
+    await db.commit()
+    return {"message": "Session started", "session_id": session.id}
+
+@router.get("/session-status/{course_id}")
+async def get_session_status(
+    course_id: int,
+    db: AsyncSession = Depends(get_db)
+):
+    stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
+    result = await db.execute(stmt)
+    session = result.scalars().first()
+    
+    if session:
+        return {"is_live": True, "session_id": session.id}
+    return {"is_live": False}
 

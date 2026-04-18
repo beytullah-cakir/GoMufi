@@ -139,8 +139,10 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
     await api.post("/auth/logout");
     
     // 2. Başarılıysa kullanıcıyı LandingPage veya Auth sayfasına yönlendir
-    // window.location.href kullanmak state'i sıfırlamak için en güvenli yoldur
-    window.location.href = "/"; 
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("gomufi_lesson_builder_draft");
+    window.location.href = "/";
   } catch (error) {
     console.error("Logout failed", error);
     // Hata olsa bile kullanıcıyı ana sayfaya atmak iyi bir pratiktir

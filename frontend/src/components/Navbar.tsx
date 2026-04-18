@@ -88,6 +88,9 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
     const handleLogout = async () => {
         try {
             await api.post('/auth/logout');
+            localStorage.removeItem('token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('gomufi_lesson_builder_draft');
             
             // Redirect to landing page
             window.location.href = '/';

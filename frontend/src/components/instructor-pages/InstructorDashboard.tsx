@@ -9,6 +9,7 @@ const InstructorDashboard: React.FC = () => {
 
     const [timeOffsetMs, setTimeOffsetMs] = useState(0);
     const [upcomingSession, setUpcomingSession] = useState<{courseId: number, courseTitle: string, date: string, time: string, isActive: boolean, timeLeftStr: string} | null>(null);
+    const [userProfile, setUserProfile] = useState<{firstName: string, lastName: string} | null>(null);
 
     useEffect(() => {
         const fetchRealTime = async () => {
@@ -27,11 +28,19 @@ const InstructorDashboard: React.FC = () => {
     useEffect(() => {
         const fetchDashboardData = async () => {
             try {
-                const [coursesRes, studentsRes] = await Promise.all([
+                const [coursesRes, studentsRes, profileRes] = await Promise.all([
                     api.get('/teacher/content'),
-                    api.get('/teacher/students')
+                    api.get('/teacher/students'),
+                    api.get('/profile')
                 ]);
                 setCourses(coursesRes.data);
+                
+                if (profileRes.data) {
+                    setUserProfile({
+                        firstName: profileRes.data.first_name,
+                        lastName: profileRes.data.last_name
+                    });
+                }
                 const uniqueStudents = new Set();
                 studentsRes.data.forEach((s: any) => {
                     if (s.student_id) uniqueStudents.add(s.student_id);
@@ -132,11 +141,18 @@ const InstructorDashboard: React.FC = () => {
                         </div>
                         <button
                             disabled={!upcomingSession.isActive}
-                            onClick={() => {
+                            onClick={async () => {
                                 if (upcomingSession.isActive) {
-                                    const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, '')}`;
-                                    const url = `https://meet.element.io/${room}#userInfo.displayName=E%C4%9Fitmen&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`;
-                                    window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
+                                    try {
+                                        await api.post(`/start-session/${upcomingSession.courseId}`);
+                                        const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, '')}`;
+                                        const displayName = userProfile ? encodeURIComponent(`${userProfile.firstName} ${userProfile.lastName}`) : 'E%C4%9Fitmen';
+                                        const url = `https://meet.element.io/${room}#userInfo.displayName=${displayName}&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`;
+                                        window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
+                                    } catch (err) {
+                                        console.error("Ders başlatılamadı:", err);
+                                        alert("Ders başlatılırken bir hata oluştu. Lütfen tekrar deneyin.");
+                                    }
                                 }
                             }}
                             className={`flex items-center gap-3 px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all whitespace-nowrap ${

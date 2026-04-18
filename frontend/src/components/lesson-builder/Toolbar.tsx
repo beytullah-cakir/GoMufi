@@ -1,7 +1,7 @@
-import React from 'react';
 import {
     MousePointer2, Pencil, Type, Square, Code, Image as ImageIcon, Video,
-    PenTool, Highlighter, Eraser, StickyNote, CircleIcon, Link as LinkIcon, ArrowRight
+    PenTool, Highlighter, Eraser, StickyNote, CircleIcon, Link as LinkIcon, ArrowRight,
+    Undo, Redo, Copy, Clipboard, Play, Save, Plus
 } from 'lucide-react';
 
 interface ToolbarProps {
@@ -14,6 +14,12 @@ interface ToolbarProps {
     setBrushSize: (s: number) => void;
     brushType: 'pen' | 'highlighter' | 'eraser';
     setBrushType: (t: 'pen' | 'highlighter' | 'eraser') => void;
+    onUndo?: () => void;
+    onRedo?: () => void;
+    onPaste?: () => void;
+    onSave?: () => void;
+    onPreview?: () => void;
+    onClear?: () => void;
 }
 
 const COLORS = ['#1f2937', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899', '#ffffff'];
@@ -21,7 +27,9 @@ const COLORS = ['#1f2937', '#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6'
 const Toolbar: React.FC<ToolbarProps> = ({
     activeTool, setTool, onDragStart,
     brushColor, setBrushColor, brushSize, setBrushSize,
-    brushType, setBrushType
+    brushType, setBrushType,
+    onUndo, onRedo, onCopy, onPaste,
+    onSave, onPreview, onClear
 }) => {
     return (
         <div
@@ -123,6 +131,30 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     </div>
                 </div>
             )}
+            {/* Admin Actions */}
+            <div className="flex flex-col gap-2 mt-2 pt-2 border-t-2 border-gray-100">
+                <button
+                    onClick={onPreview}
+                    title="Önizle"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-indigo-50 border-2 border-indigo-100 text-indigo-600 hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all"
+                >
+                    <Play className="w-5 h-5" />
+                </button>
+                <button
+                    onClick={onSave}
+                    title="Derse Kaydet"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-sky-500 border-2 border-sky-400 text-white hover:bg-sky-600 hover:border-sky-500 transition-all shadow-lg shadow-sky-100 group"
+                >
+                    <Save className="w-5 h-5 transition-transform group-hover:scale-110" />
+                </button>
+                <button
+                    onClick={onClear}
+                    title="Temizle"
+                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-red-50 border-2 border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm group"
+                >
+                    <Plus className="w-6 h-6 transition-transform group-hover:rotate-45" />
+                </button>
+            </div>
         </div>
     );
 };

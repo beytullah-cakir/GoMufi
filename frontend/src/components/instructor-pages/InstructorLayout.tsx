@@ -8,6 +8,7 @@ interface InstructorLayoutProps {
   onNavigate: (page: string) => void;
   children?: React.ReactNode;
   userData: any;
+  headerSlot?: React.ReactNode;
 }
 
 const InstructorLayout: React.FC<InstructorLayoutProps> = ({
@@ -15,6 +16,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   onNavigate,
   children,
   userData,
+  headerSlot,
 }) => {
   const firstname = userData?.first_name || "Eğitmen";
   const lastname = userData?.last_name || "";
@@ -25,9 +27,9 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
       <InstructorSidebar activePage={activePage} onNavigate={onNavigate} />
-      <div className="flex-1 overflow-auto relative">
+      <div className="flex-1 overflow-auto relative flex flex-col">
         {/* Top Bar */}
-        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
+        <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center h-[73px] shrink-0">
           <div className="flex items-center gap-8 flex-1">
             <h1 className="text-2xl font-black text-gray-800 tracking-tight whitespace-nowrap min-w-[150px]">
               {activePage === "Dashboard"
@@ -55,17 +57,22 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
                 : activePage}
             </h1>
 
-            {/* Global Search */}
-            <div className="relative max-w-md w-full hidden md:block group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400 group-focus-within:text-sky-500 transition-colors" />
+            {/* Global Header Portal Target */}
+            <div id="header-portal-target" className="flex items-center gap-4 flex-1"></div>
+
+            {/* Global Search - Hidden in Builder to save space for builder-specific actions */}
+            {activePage !== "Builder" && (
+              <div className="relative max-w-md w-full hidden md:block group">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Search className="h-5 w-5 text-gray-400 group-focus-within:text-sky-500 transition-colors" />
+                </div>
+                <input
+                  type="text"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all duration-200 sm:text-sm font-bold"
+                  placeholder="Kurs, öğrenci veya içerik ara..."
+                />
               </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 text-gray-900 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all duration-200 sm:text-sm font-bold"
-                placeholder="Kurs, öğrenci veya içerik ara..."
-              />
-            </div>
+            )}
           </div>
 
           <div className="flex items-center gap-6">
@@ -88,7 +95,9 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
           </div>
         </div>
 
-        <div className="p-8">{children}</div>
+        <div className={`flex-1 overflow-hidden relative ${activePage === "Builder" ? "" : "p-8"}`}>
+          {children}
+        </div>
       </div>
     </div>
   );

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, MoreVertical, Plus, Users, Star } from "lucide-react";
+import { Search, Filter, MoreVertical, Plus, Users, Star, Info, Layout, Loader2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
 import api from "../../api";
+import CourseInfoModal from "../shared/CourseInfoModal";
 
 interface Course {
   id: number;
@@ -19,6 +21,8 @@ interface Course {
   curriculum?: any[];
   isLive?: boolean;
   liveSessions?: {date: string, time: string}[];
+  instructor?: string;
+  instructor_notes?: { title: string; type: string }[];
 }
 
 const InstructorCourses: React.FC = () => {
@@ -28,7 +32,10 @@ const InstructorCourses: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [infoCourseId, setInfoCourseId] = useState<number | string | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [loadingContentId, setLoadingContentId] = useState<number | string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let isMounted = true;
@@ -36,6 +43,7 @@ const InstructorCourses: React.FC = () => {
       try {
         // Backend provides /teacher/content for instructor's courses
         const response = await api.get("/teacher/content");
+        console.log("DEBUG: Fetch Courses Response:", response.data);
         if (isMounted) {
           // Map API response to local Course interface if necessary
           // (Assuming API returns status, progress etc. based on schema)
@@ -73,6 +81,8 @@ const InstructorCourses: React.FC = () => {
             lastUpdated: "Yakın zamanda",
             isLive: isLive,
             liveSessions: liveSessions,
+            instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : "Mufi Eğitmen",
+            instructor_notes: c.instructor_notes || [],
           }});
           setCourses(mappedCourses);
         }
@@ -99,6 +109,11 @@ const InstructorCourses: React.FC = () => {
           ...(courseData.curriculum || [])
         ];
 
+        console.log("DEBUG: Updating course with payload:", {
+          title: courseData.title,
+          instructor_notes: courseData.instructorNotes,
+        });
+
         await api.put(`/update_course/${editingCourse.id}`, {
           title: courseData.title,
           description: courseData.description,
@@ -107,6 +122,7 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
+          instructor_notes: courseData.instructorNotes,
         });
 
         setCourses(
@@ -124,6 +140,7 @@ const InstructorCourses: React.FC = () => {
                   lastUpdated: "Şimdi",
                   isLive: courseData.isLive,
                   liveSessions: courseData.liveSessions,
+                  instructor_notes: courseData.instructorNotes,
                 }
               : c
           )
@@ -144,6 +161,7 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
+          instructor_notes: courseData.instructorNotes,
         });
 
         const newCourse: Course = {
@@ -162,6 +180,7 @@ const InstructorCourses: React.FC = () => {
           status: "active",
           color: courseData.color,
           lastUpdated: "Şimdi",
+          instructor_notes: response.data.instructor_notes || [],
         };
         setCourses([newCourse, ...courses]);
       }
@@ -281,7 +300,8 @@ const InstructorCourses: React.FC = () => {
           : filteredCourses.map((course) => (
               <div
                 key={course.id}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all group"
+                onClick={() => setInfoCourseId(course.id)}
+                className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:border-sky-100 transition-all group cursor-pointer active:scale-[0.98]"
               >
                 <div className="flex flex-col md:flex-row items-center gap-6">
                   {/* Icon / Thumbnail */}
@@ -369,12 +389,6 @@ const InstructorCourses: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex items-center gap-2 border-t md:border-t-0 border-gray-100 pt-4 md:pt-0 w-full md:w-auto justify-end relative">
-                    <button
-                      onClick={() => handleEditClick(course)}
-                      className="px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-600 rounded-xl font-bold text-sm transition-colors"
-                    >
-                      Düzenle
-                    </button>
                     <div className="relative">
                       <button
                         onClick={() =>
@@ -389,6 +403,21 @@ const InstructorCourses: React.FC = () => {
 
                       {openMenuId === course.id && (
                         <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden animate-fade-in">
+                          <button
+                            onClick={() => {
+                              setLoadingContentId(course.id);
+                              navigate(`/instructor/builder?courseId=${course.id}`);
+                            }}
+                            disabled={loadingContentId === course.id}
+                            className="w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-sky-50 font-bold transition-colors border-b border-gray-50 flex items-center gap-2 disabled:opacity-50"
+                          >
+                            {loadingContentId === course.id ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Layout size={14} />
+                            )}
+                            {loadingContentId === course.id ? "Yükleniyor..." : "Ders İçeriğini Düzenle"}
+                          </button>
                           <button
                             onClick={() => handleDeleteCourse(course.id)}
                             className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 font-bold transition-colors"
@@ -441,9 +470,21 @@ const InstructorCourses: React.FC = () => {
                 color: editingCourse.color,
                 isLive: editingCourse.isLive,
                 liveSessions: editingCourse.liveSessions,
+                instructorNotes: editingCourse.instructor_notes,
               }
             : null
         }
+      />
+
+      <CourseInfoModal
+        isOpen={infoCourseId !== null}
+        onClose={() => setInfoCourseId(null)}
+        course={courses.find(c => c.id === infoCourseId) || null}
+        onEdit={() => {
+          const course = courses.find(c => c.id === infoCourseId);
+          if (course) handleEditClick(course);
+        }}
+        mode="instructor"
       />
     </div>
   );
