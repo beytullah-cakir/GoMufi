@@ -119,7 +119,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         liveSessions,
         learningOutcomes,
         requirements,
-        instructorNotes,
         sections,
         activeTab
       };
@@ -138,7 +137,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       setLiveSessions([{date: "", time: ""}]);
       setLearningOutcomes([""]);
       setRequirements([""]);
-      setInstructorNotes([{ title: "", type: "PDF" }]);
       setSections([{ id: "str_1", title: "Giriş", lectures: [] }]);
       setActiveTab("general");
     }
@@ -275,7 +273,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       return;
     }
 
-    if (!sections || sections.length === 0 || sections.every(s => !s.title.trim())) {
+    // Only validate sections if they are expected (not for builder-managed content)
+    const isBuilderContent = initialData?.curriculum && !Array.isArray(initialData.curriculum);
+    
+    if (!isBuilderContent && (!sections || sections.length === 0 || sections.every(s => !s.title?.trim()))) {
       alert("Lütfen en az bir ders (bölüm) başlığı giriniz.");
       return;
     }
@@ -297,7 +298,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       price: Number(price) || 0,
       isLive,
       liveSessions: isLive ? liveSessions.filter(s => s.date && s.time) : [],
-      instructorNotes: instructorNotes.filter(n => n.title.trim()),
+      // instructorNotes removed as they are now managed via Lesson Builder JSON
     });
   };
 

@@ -52,10 +52,18 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         try {
           const response = await api.get(`/courses/${courseId}`);
           if (response.data && response.data.curriculum) {
-            // Check if curriculum is builder data (array of slides)
             const curriculum = response.data.curriculum;
-            if (Array.isArray(curriculum) && curriculum.length > 0 && (curriculum[0].elements || curriculum[0].type)) {
-              console.log("DEBUG: Loading curriculum from DB", curriculum);
+            
+            // Handle new object structure { noteTitle, slides }
+            if (curriculum.slides && Array.isArray(curriculum.slides)) {
+              console.log("DEBUG: Loading curriculum object from DB", curriculum);
+              setSlides(curriculum.slides);
+              if (curriculum.noteTitle) setProjectName(curriculum.noteTitle);
+              if (curriculum.slides.length > 0) setCurrentSlideId(curriculum.slides[0].id);
+            }
+            // Handle old array structure [slide, slide, ...]
+            else if (Array.isArray(curriculum) && curriculum.length > 0 && (curriculum[0].elements || curriculum[0].type)) {
+              console.log("DEBUG: Loading curriculum array from DB", curriculum);
               setSlides(curriculum);
               if (response.data.title) setProjectName(response.data.title);
               if (curriculum.length > 0) setCurrentSlideId(curriculum[0].id);
@@ -2134,15 +2142,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
               onSave={() => setShowSaveModal(true)}
               onPreview={() => {}}
               onClear={() => {
-                if (window.confirm("Bu sayfadaki tüm içeriği silmek istediğinize emin misiniz?")) {
+                if (window.confirm("Tüm projeyi (tüm sayfaları) silmek ve sıfırdan başlamak istediğinize emin misiniz?")) {
                   setPast((prev) => [...prev, slides]);
-                  setSlides((prev) =>
-                    prev.map((s) =>
-                      s.id === currentSlideId
-                        ? { ...s, elements: [], connections: [] }
-                        : s,
-                    ),
-                  );
+                  const initialSlide = { id: 1, elements: [], connections: [] };
+                  setSlides([initialSlide]);
+                  setCurrentSlideId(1);
                   setFuture([]);
                 }
               }}

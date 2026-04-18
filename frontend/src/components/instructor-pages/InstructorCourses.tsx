@@ -104,10 +104,12 @@ const InstructorCourses: React.FC = () => {
     try {
       if (editingCourse) {
         // Update existing course via API
-        const curriculumPayload = [
-          { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-          ...(courseData.curriculum || [])
-        ];
+        const curriculumPayload = Array.isArray(courseData.curriculum)
+          ? [
+              { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
+              ...courseData.curriculum
+            ]
+          : courseData.curriculum;
 
         console.log("DEBUG: Updating course with payload:", {
           title: courseData.title,
@@ -122,7 +124,6 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
-          instructor_notes: courseData.instructorNotes,
         });
 
         setCourses(
@@ -148,10 +149,12 @@ const InstructorCourses: React.FC = () => {
         setEditingCourse(null);
       } else {
         // Add new course via API
-        const curriculumPayload = [
-          { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-          ...(courseData.curriculum || [])
-        ];
+        const curriculumPayload = Array.isArray(courseData.curriculum)
+          ? [
+              { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
+              ...courseData.curriculum
+            ]
+          : courseData.curriculum;
 
         const response = await api.post("/create_course", {
           title: courseData.title,
@@ -161,7 +164,6 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
-          instructor_notes: courseData.instructorNotes,
         });
 
         const newCourse: Course = {
