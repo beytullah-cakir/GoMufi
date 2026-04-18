@@ -5,10 +5,10 @@ import type { Slide } from './types';
 
 interface LessonBuilderSlideStripProps {
     slides: Slide[];
-    currentSlideId: number;
-    setCurrentSlideId: (id: number) => void;
+    currentSlideId: number | string;
+    setCurrentSlideId: (id: number | string) => void;
     onAddSlide: () => void;
-    onDeleteSlide: (e: React.MouseEvent, id: number) => void;
+    onDeleteSlide: (e: React.MouseEvent, id: number | string) => void;
     onReorderSlides: (slides: Slide[]) => void;
 }
 

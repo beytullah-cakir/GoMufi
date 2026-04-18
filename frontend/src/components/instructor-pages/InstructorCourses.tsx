@@ -1,5 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, MoreVertical, Plus, Users, Star, Info, Layout, Loader2 } from "lucide-react";
+import {
+  Search,
+  Filter,
+  MoreVertical,
+  Plus,
+  Users,
+  Star,
+  Info,
+  Layout,
+  Loader2,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
 import api from "../../api";
@@ -20,7 +30,7 @@ interface Course {
   requirements?: string[];
   curriculum?: any[];
   isLive?: boolean;
-  liveSessions?: {date: string, time: string}[];
+  liveSessions?: { date: string; time: string }[];
   instructor?: string;
 }
 
@@ -31,9 +41,13 @@ const InstructorCourses: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [infoCourseId, setInfoCourseId] = useState<number | string | null>(null);
+  const [infoCourseId, setInfoCourseId] = useState<number | string | null>(
+    null,
+  );
   const [courses, setCourses] = useState<Course[]>([]);
-  const [loadingContentId, setLoadingContentId] = useState<number | string | null>(null);
+  const [loadingContentId, setLoadingContentId] = useState<
+    number | string | null
+  >(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -51,37 +65,43 @@ const InstructorCourses: React.FC = () => {
             let liveSessions = c.live_sessions || [];
             let finalCurriculum = c.curriculum || [];
 
-            if (finalCurriculum.length > 0 && finalCurriculum[0]?.type === "live_sessions_config") {
+            if (
+              finalCurriculum.length > 0 &&
+              finalCurriculum[0]?.type === "live_sessions_config"
+            ) {
               isLive = finalCurriculum[0].is_live;
               liveSessions = finalCurriculum[0].sessions;
               finalCurriculum = finalCurriculum.slice(1);
             }
 
             return {
-            id: c.id,
-            title: c.title,
-            description: c.description || "",
-            price: c.price || 0,
-            students: c.students_count || 0,
-            rating: c.rating || 5,
-            progress: c.progress || 0,
-            status: c.status || "active",
-            learning_outcomes: c.learning_outcomes || [],
-            requirements: c.requirements || [],
-            curriculum: finalCurriculum,
-            color:
-              c.category === "coding"
-                ? "blue"
-                : c.category === "web"
-                ? "purple"
-                : c.category === "design"
-                ? "orange"
-                : "gray",
-            lastUpdated: "Yakın zamanda",
-            isLive: isLive,
-            liveSessions: liveSessions,
-            instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : "Mufi Eğitmen",
-          }});
+              id: c.id,
+              title: c.title,
+              description: c.description || "",
+              price: c.price || 0,
+              students: c.students_count || 0,
+              rating: c.rating || 5,
+              progress: c.progress || 0,
+              status: c.status || "active",
+              learning_outcomes: c.learning_outcomes || [],
+              requirements: c.requirements || [],
+              curriculum: finalCurriculum,
+              color:
+                c.category === "coding"
+                  ? "blue"
+                  : c.category === "web"
+                    ? "purple"
+                    : c.category === "design"
+                      ? "orange"
+                      : "gray",
+              lastUpdated: "Yakın zamanda",
+              isLive: isLive,
+              liveSessions: liveSessions,
+              instructor: c.teacher
+                ? `${c.teacher.first_name} ${c.teacher.last_name}`
+                : "Mufi Eğitmen",
+            };
+          });
           setCourses(mappedCourses);
         }
       } catch (error) {
@@ -104,19 +124,29 @@ const InstructorCourses: React.FC = () => {
         // Update existing course via API
         // Construct curriculum payload carefully
         let curriculumPayload;
-        if (courseData.curriculum && !Array.isArray(courseData.curriculum) && courseData.curriculum.slides) {
+        if (
+          courseData.curriculum &&
+          !Array.isArray(courseData.curriculum) &&
+          courseData.curriculum.slides
+        ) {
           // It's a Builder object, inject live_sessions_config into it
           curriculumPayload = {
             ...courseData.curriculum,
-            live_sessions_config: { 
-              is_live: courseData.isLive, 
-              sessions: courseData.liveSessions 
-            }
+            live_sessions_config: {
+              is_live: courseData.isLive,
+              sessions: courseData.liveSessions,
+            },
           };
         } else {
           curriculumPayload = [
-            { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-            ...(Array.isArray(courseData.curriculum) ? courseData.curriculum : [])
+            {
+              type: "live_sessions_config",
+              is_live: courseData.isLive,
+              sessions: courseData.liveSessions,
+            },
+            ...(Array.isArray(courseData.curriculum)
+              ? courseData.curriculum
+              : []),
           ];
         }
 
@@ -146,26 +176,36 @@ const InstructorCourses: React.FC = () => {
                   isLive: courseData.isLive,
                   liveSessions: courseData.liveSessions,
                 }
-              : c
-          )
+              : c,
+          ),
         );
         setEditingCourse(null);
       } else {
         // Add new course via API
         // Construct curriculum payload for new course
         let curriculumPayload;
-        if (courseData.curriculum && !Array.isArray(courseData.curriculum) && courseData.curriculum.slides) {
+        if (
+          courseData.curriculum &&
+          !Array.isArray(courseData.curriculum) &&
+          courseData.curriculum.slides
+        ) {
           curriculumPayload = {
             ...courseData.curriculum,
-            live_sessions_config: { 
-              is_live: courseData.isLive, 
-              sessions: courseData.liveSessions 
-            }
+            live_sessions_config: {
+              is_live: courseData.isLive,
+              sessions: courseData.liveSessions,
+            },
           };
         } else {
           curriculumPayload = [
-            { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-            ...(Array.isArray(courseData.curriculum) ? courseData.curriculum : [])
+            {
+              type: "live_sessions_config",
+              is_live: courseData.isLive,
+              sessions: courseData.liveSessions,
+            },
+            ...(Array.isArray(courseData.curriculum)
+              ? courseData.curriculum
+              : []),
           ];
         }
 
@@ -325,10 +365,10 @@ const InstructorCourses: React.FC = () => {
                     {course.title.toLowerCase().includes("python")
                       ? "🐍"
                       : course.title.toLowerCase().includes("web")
-                      ? "🌐"
-                      : course.title.toLowerCase().includes("oyun")
-                      ? "🎮"
-                      : "📘"}
+                        ? "🌐"
+                        : course.title.toLowerCase().includes("oyun")
+                          ? "🎮"
+                          : "📘"}
                   </div>
 
                   {/* Main Info */}
@@ -340,16 +380,21 @@ const InstructorCourses: React.FC = () => {
                       <p className="text-xs font-bold text-gray-400">
                         Son güncelleme: {course.lastUpdated}
                       </p>
-                      {course.isLive && course.liveSessions && course.liveSessions.length > 0 && (
-                        <div className="flex flex-col gap-1">
-                          {course.liveSessions.map((session, idx) => (
-                            <div key={idx} className="flex items-center gap-1.5 px-2 py-0.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-100">
-                              <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
-                              Canlı: {session.date} @ {session.time}
-                            </div>
-                          ))}
-                        </div>
-                      )}
+                      {course.isLive &&
+                        course.liveSessions &&
+                        course.liveSessions.length > 0 && (
+                          <div className="flex flex-col gap-1">
+                            {course.liveSessions.map((session, idx) => (
+                              <div
+                                key={idx}
+                                className="flex items-center gap-1.5 px-2 py-0.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-100"
+                              >
+                                <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+                                Canlı: {session.date} @ {session.time}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                     </div>
                   </div>
 
@@ -386,7 +431,6 @@ const InstructorCourses: React.FC = () => {
                         Puan
                       </p>
                     </div>
-
                   </div>
 
                   {/* Actions */}
@@ -395,7 +439,7 @@ const InstructorCourses: React.FC = () => {
                       <button
                         onClick={() =>
                           setOpenMenuId(
-                            openMenuId === course.id ? null : course.id
+                            openMenuId === course.id ? null : course.id,
                           )
                         }
                         className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors"
@@ -408,7 +452,9 @@ const InstructorCourses: React.FC = () => {
                           <button
                             onClick={() => {
                               setLoadingContentId(course.id);
-                              navigate(`/instructor/builder?courseId=${course.id}`);
+                              navigate(
+                                `/instructor/builder?courseId=${course.id}`,
+                              );
                             }}
                             disabled={loadingContentId === course.id}
                             className="w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-sky-50 font-bold transition-colors border-b border-gray-50 flex items-center gap-2 disabled:opacity-50"
@@ -418,7 +464,9 @@ const InstructorCourses: React.FC = () => {
                             ) : (
                               <Layout size={14} />
                             )}
-                            {loadingContentId === course.id ? "Yükleniyor..." : "Ders İçeriğini Düzenle"}
+                            {loadingContentId === course.id
+                              ? "Yükleniyor..."
+                              : "Ders İçeriğini Düzenle"}
                           </button>
                           <button
                             onClick={() => handleDeleteCourse(course.id)}
@@ -465,10 +513,10 @@ const InstructorCourses: React.FC = () => {
                   editingCourse.color === "blue"
                     ? "coding"
                     : editingCourse.color === "purple"
-                    ? "web"
-                    : editingCourse.color === "orange"
-                    ? "design"
-                    : "other",
+                      ? "web"
+                      : editingCourse.color === "orange"
+                        ? "design"
+                        : "other",
                 color: editingCourse.color,
                 isLive: editingCourse.isLive,
                 liveSessions: editingCourse.liveSessions,
@@ -480,9 +528,9 @@ const InstructorCourses: React.FC = () => {
       <CourseInfoModal
         isOpen={infoCourseId !== null}
         onClose={() => setInfoCourseId(null)}
-        course={courses.find(c => c.id === infoCourseId) || null}
+        course={courses.find((c) => c.id === infoCourseId) || null}
         onEdit={() => {
-          const course = courses.find(c => c.id === infoCourseId);
+          const course = courses.find((c) => c.id === infoCourseId);
           if (course) handleEditClick(course);
         }}
         mode="instructor"

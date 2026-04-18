@@ -78,7 +78,7 @@ export interface MatchingGameConfig {
 }
 
 export interface Slide {
-    id: number;
+    id: number | string;
     // 'normal' is default if undefined
     type?: 'normal' | 'game' | 'coding';
     gameType?: 'matching' | 'monster';

@@ -3,7 +3,7 @@ import { X, Search, BookOpen, CheckCircle2, Loader2, AlertCircle, Save, Type } f
 import api from "../../api";
 
 interface Course {
-  id: number;
+  id: number | string;
   title: string;
   category: string;
 }
@@ -12,7 +12,7 @@ interface SaveToCourseModalProps {
   isOpen: boolean;
   onClose: () => void;
   slides: any[];
-  initialCourseId?: number;
+  initialCourseId?: number | string;
   courseTitle?: string;
 }
 
@@ -20,7 +20,7 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({ isOpen, onClose, 
   const [courses, setCourses] = useState<Course[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedCourseId, setSelectedCourseId] = useState<number | null>(initialCourseId || null);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | string | null>(initialCourseId || null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
   const [title, setTitle] = useState(courseTitle || "");
