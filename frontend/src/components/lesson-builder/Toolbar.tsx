@@ -17,6 +17,7 @@ interface ToolbarProps {
     onUndo?: () => void;
     onRedo?: () => void;
     onPaste?: () => void;
+    onCopy?: () => void;
     onSave?: () => void;
     onPreview?: () => void;
     onClear?: () => void;

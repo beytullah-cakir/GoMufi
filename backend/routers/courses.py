@@ -8,7 +8,7 @@ from models.teacher import Teacher
 from models.enrollment import Enrollment
 from connect_db import get_db
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Any
 import jwt
 from core.config import settings
 
@@ -35,7 +35,7 @@ class CourseResponse(BaseModel):
     price: Optional[int] = 0
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
-    curriculum: Optional[List[dict]] = []
+    curriculum: Optional[Any] = []
     teacher: Optional[TeacherResponse] = None
     students_count: int = 0
     rating: Optional[int] = 5
@@ -251,7 +251,7 @@ class CreateCourseRequest(BaseModel):
     price: int = 0
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
-    curriculum: Optional[List[dict]] = []
+    curriculum: Optional[Any] = []
     rating: Optional[int] = 5
 
 class UpdateCourseRequest(BaseModel):
@@ -261,7 +261,7 @@ class UpdateCourseRequest(BaseModel):
     price: Optional[int] = None
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
-    curriculum: Optional[List[dict]] = None
+    curriculum: Optional[Any] = None
     rating: Optional[int] = None
 
 @router.post("/create_course")

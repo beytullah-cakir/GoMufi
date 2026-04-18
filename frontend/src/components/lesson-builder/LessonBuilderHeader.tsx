@@ -100,7 +100,7 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         ) : (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                <span className="text-xs font-bold text-white">Kaydediliyor...</span>
+                                <span className="text-xs font-bold text-white">Kaydedilmedi</span>
                             </>
                         )}
                     </div>

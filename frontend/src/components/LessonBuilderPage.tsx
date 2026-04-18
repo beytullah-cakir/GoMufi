@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { Rocket, Play, CheckCircle2, Loader2, Save, X } from "lucide-react";
 import type { Slide, SlideElement, ElementStyle } from "./lesson-builder/types";
@@ -27,8 +27,13 @@ const BUILDER_STORAGE_KEY = "gomufi_lesson_builder_draft";
 
 const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const courseId = searchParams.get("courseId");
-  const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId);
+  
+  // Pre-fetched data from location state (passed from modal)
+  const initialCurriculum = location.state?.curriculum;
+  
+  const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId && !initialCurriculum);
 
   // -- Taslak Geri Yükleme Mantığı --
   const savedDraft = (() => {
@@ -41,29 +46,48 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   })();
 
   // -- State --
-  const [slides, setSlides] = useState<Slide[]>(
-    savedDraft?.slides || [{ id: 1, elements: [], connections: [] }]
-  );
+  const [slides, setSlides] = useState<Slide[]>(() => {
+    if (initialCurriculum) {
+      if (initialCurriculum.slides && Array.isArray(initialCurriculum.slides)) {
+        return initialCurriculum.slides;
+      } else if (Array.isArray(initialCurriculum)) {
+        return initialCurriculum;
+      }
+    }
+    return savedDraft?.slides || [{ id: 1, elements: [], connections: [] }];
+  });
 
-  // -- Effect to load course from DB --
+  // -- Effect to load course from DB (only if not pre-fetched) --
   useEffect(() => {
-    if (courseId) {
+    if (courseId && !initialCurriculum) {
       const fetchCourse = async () => {
         try {
           const response = await api.get(`/courses/${courseId}`);
           if (response.data && response.data.curriculum) {
             const curriculum = response.data.curriculum;
-            
+
             // Handle new object structure { noteTitle, slides }
             if (curriculum.slides && Array.isArray(curriculum.slides)) {
-              console.log("DEBUG: Loading curriculum object from DB", curriculum);
+              console.log(
+                "DEBUG: Loading curriculum object from DB",
+                curriculum,
+              );
               setSlides(curriculum.slides);
               if (curriculum.noteTitle) setProjectName(curriculum.noteTitle);
-              if (curriculum.slides.length > 0) setCurrentSlideId(curriculum.slides[0].id);
+              if (curriculum.slides.length > 0)
+                setCurrentSlideId(curriculum.slides[0].id);
             }
-            // Handle old array structure [slide, slide, ...]
-            else if (Array.isArray(curriculum) && curriculum.length > 0 && (curriculum[0].elements || curriculum[0].type)) {
-              console.log("DEBUG: Loading curriculum array from DB", curriculum);
+            // Handle old array structure [slide, slide, ...] (Check specifically for slide-like properties)
+            else if (
+              Array.isArray(curriculum) &&
+              curriculum.length > 0 &&
+              (curriculum[0].elements ||
+                ["normal", "game", "coding"].includes(curriculum[0].type))
+            ) {
+              console.log(
+                "DEBUG: Loading curriculum array from DB",
+                curriculum,
+              );
               setSlides(curriculum);
               if (response.data.title) setProjectName(response.data.title);
               if (curriculum.length > 0) setCurrentSlideId(curriculum[0].id);
@@ -78,8 +102,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
       fetchCourse();
     }
   }, [courseId]);
-  const [currentSlideId, setCurrentSlideId] = useState<number>(
-    savedDraft?.currentSlideId || 1
+  const [currentSlideId, setCurrentSlideId] = useState<number | string>(
+    savedDraft?.currentSlideId || 1,
   );
   const [selectedElementIds, setSelectedElementIds] = useState<string[]>([]);
   const [isCanvasSelected, setIsCanvasSelected] = useState<boolean>(false);
@@ -97,17 +121,54 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const [showAddSlideModal, setShowAddSlideModal] = useState(false);
 
   // -- Header State --
-  const [projectName, setProjectName] = useState(
-    savedDraft?.projectName || "Yeni Ders Projesi"
-  );
+  const [projectName, setProjectName] = useState(() => {
+    if (initialCurriculum?.noteTitle) return initialCurriculum.noteTitle;
+    return savedDraft?.projectName || "Yeni Ders Projesi";
+  });
   const [showSaveModal, setShowSaveModal] = useState(false);
-  const [saveStatus] = useState<"saved" | "saving">("saved");
+
   // const [lastSavedTime, setLastSavedTime] = useState<Date>(new Date());
 
   // -- Stage Indicator State --
   const [activeStage, setActiveStage] = useState<
     "ANLA" | "UYGULA" | "BİRLEŞTİR" | "ÜRET"
   >(savedDraft?.activeStage || "ANLA");
+
+  const [saveStatus, setSaveStatus] = useState<"saved" | "saving">("saved");
+  const isFirstRender = useRef(true);
+
+  // -- Track Changes for Save Status --
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    setSaveStatus("saving");
+  }, [slides, projectName, activeStage]);
+
+  // -- Navigation Guard & Unmount Save --
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (saveStatus === "saving") {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+
+      // Auto-save on unmount to prevent data loss when navigating within SPA
+      const draft = {
+        slides: stateRef.current.slides,
+        projectName: stateRef.current.projectName,
+        currentSlideId: stateRef.current.currentSlideId,
+        activeStage: stateRef.current.activeStage,
+      };
+      localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
+    };
+  }, [saveStatus]);
 
   // -- History & Clipboard State --
   const [past, setPast] = useState<Slide[][]>([]);
@@ -191,17 +252,28 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   // const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const currentSlide = slides.find((s) => s.id === currentSlideId) || slides[0];
+  const currentSlide = slides.find((s) => s.id === currentSlideId) ||
+    slides[0] || { id: 1, elements: [], connections: [] };
 
-  // -- Persistence --
+  // -- Manual Persistence (Ctrl+S) --
   useEffect(() => {
-    const draft = {
-      slides,
-      projectName,
-      currentSlideId,
-      activeStage
+    const handleSaveShortcut = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        const draft = {
+          slides,
+          projectName,
+          currentSlideId,
+          activeStage,
+        };
+        localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
+        setSaveStatus("saved");
+        console.log("Proje kaydedildi (Draft)");
+      }
     };
-    localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
+
+    window.addEventListener("keydown", handleSaveShortcut);
+    return () => window.removeEventListener("keydown", handleSaveShortcut);
   }, [slides, projectName, currentSlideId, activeStage]);
   const saveProject = () => {
     const data = JSON.stringify(slides, null, 2);
@@ -282,6 +354,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     selectedElementIds,
     currentSlideId,
     clipboard: clipboard.current,
+    projectName,
+    activeStage,
   });
 
   React.useEffect(() => {
@@ -292,8 +366,18 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
       selectedElementIds,
       currentSlideId,
       clipboard: clipboard.current,
+      projectName,
+      activeStage,
     };
-  }, [slides, past, future, selectedElementIds, currentSlideId]);
+  }, [
+    slides,
+    past,
+    future,
+    selectedElementIds,
+    currentSlideId,
+    projectName,
+    activeStage,
+  ]);
 
   // Ensure mutually exclusive selection
   React.useEffect(() => {
@@ -552,7 +636,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     setShowAddSlideModal(true);
   };
 
-  const deleteSlide = (e: React.MouseEvent, id: number) => {
+  const deleteSlide = (e: React.MouseEvent, id: number | string) => {
     e.stopPropagation();
     if (slides.length <= 1) {
       alert("Cannot delete the only slide!");
@@ -1956,7 +2040,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
   const bounds = getSelectionBounds(); // For Group Overlay
 
-
   return (
     <div
       ref={containerRef}
@@ -2058,20 +2141,23 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         {/* STAGES FLOATING BAR */}
         <div className="absolute left-1/2 -translate-x-1/2 top-4 z-40 bg-white/90 backdrop-blur-md p-1 rounded-2xl shadow-xl border-2 border-gray-100 flex items-center gap-1">
           {[
-            { id: 'ANLA', label: 'ANLA', color: 'rgb(217, 70, 239)' },
-            { id: 'UYGULA', label: 'UYGULA', color: 'rgb(6, 182, 212)' },
-            { id: 'BİRLEŞTİR', label: 'BİRLEŞTİR', color: 'rgb(34, 197, 94)' },
-            { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)' }
+            { id: "ANLA", label: "ANLA", color: "rgb(217, 70, 239)" },
+            { id: "UYGULA", label: "UYGULA", color: "rgb(6, 182, 212)" },
+            { id: "BİRLEŞTİR", label: "BİRLEŞTİR", color: "rgb(34, 197, 94)" },
+            { id: "ÜRET", label: "ÜRET", color: "rgb(234, 179, 8)" },
           ].map((stage) => (
             <button
               key={stage.id}
               onClick={() => setActiveStage(stage.id as any)}
               className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest font-display transition-all ${
-                activeStage === stage.id 
-                ? 'bg-opacity-100 text-white shadow-lg' 
-                : 'hover:bg-gray-100 text-gray-400'
+                activeStage === stage.id
+                  ? "bg-opacity-100 text-white shadow-lg"
+                  : "hover:bg-gray-100 text-gray-400"
               }`}
-              style={{ backgroundColor: activeStage === stage.id ? stage.color : undefined }}
+              style={{
+                backgroundColor:
+                  activeStage === stage.id ? stage.color : undefined,
+              }}
             >
               {stage.label}
             </button>
@@ -2142,7 +2228,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
               onSave={() => setShowSaveModal(true)}
               onPreview={() => {}}
               onClear={() => {
-                if (window.confirm("Tüm projeyi (tüm sayfaları) silmek ve sıfırdan başlamak istediğinize emin misiniz?")) {
+                if (
+                  window.confirm(
+                    "Tüm projeyi (tüm sayfaları) silmek ve sıfırdan başlamak istediğinize emin misiniz?",
+                  )
+                ) {
                   setPast((prev) => [...prev, slides]);
                   const initialSlide = { id: 1, elements: [], connections: [] };
                   setSlides([initialSlide]);
@@ -2333,8 +2423,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                 {/* CONNECTOR LAYER */}
                 <ConnectorRenderer
-                  connections={currentSlide.connections || []}
-                  elements={currentSlide.elements}
+                  connections={currentSlide?.connections || []}
+                  elements={currentSlide?.elements || []}
                 />
 
                 {/* ALIGNMENT GUIDES */}
@@ -2354,16 +2444,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                       width:
                         guide.type === "vertical"
                           ? "1px"
-                          : guide.end - guide.start,
+                          : (guide.end || 0) - (guide.start || 0),
                       height:
                         guide.type === "horizontal"
                           ? "1px"
-                          : guide.end - guide.start,
+                          : (guide.end || 0) - (guide.start || 0),
                     }}
                   />
                 ))}
 
-                {currentSlide.elements.map((el) => (
+                {(currentSlide?.elements || []).map((el) => (
                   <CanvasElement
                     key={el.id}
                     el={el}
@@ -2444,10 +2534,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
           }}
         />
 
-        <SaveToCourseModal 
-          isOpen={showSaveModal} 
+        <SaveToCourseModal
+          isOpen={showSaveModal}
           onClose={() => setShowSaveModal(false)}
-          slides={slides} 
+          slides={slides}
           initialCourseId={courseId ? parseInt(courseId) : undefined}
           courseTitle={projectName}
         />

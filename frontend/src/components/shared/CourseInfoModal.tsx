@@ -25,8 +25,10 @@ import {
   Globe,
   Palette,
   GraduationCap,
+  StickyNote,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import api from "../../api";
 
 interface CourseInfoModalProps {
   isOpen: boolean;
@@ -58,6 +60,34 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
   mode,
 }) => {
   const navigate = useNavigate();
+  const [isNavigating, setIsNavigating] = React.useState(false);
+  const [preFetchedData, setPreFetchedData] = React.useState<any>(null);
+  const isFetchingRef = React.useRef(false);
+
+  // Modal açıldığı anda arka planda veriyi çekmeye başla
+  React.useEffect(() => {
+    if (isOpen && course?.id && !preFetchedData && !isFetchingRef.current) {
+      preFetchCurriculum();
+    }
+    // Modal kapandığında veya kurs değiştiğinde ön yüklemeyi sıfırla
+    if (!isOpen) {
+      setPreFetchedData(null);
+      isFetchingRef.current = false;
+    }
+  }, [isOpen, course?.id]);
+
+  const preFetchCurriculum = async () => {
+    if (isFetchingRef.current || preFetchedData || !course?.id) return;
+    isFetchingRef.current = true;
+    try {
+      const response = await api.get(`/courses/${course.id}`);
+      setPreFetchedData(response.data?.curriculum);
+    } catch (error) {
+      console.error("Ön yükleme hatası:", error);
+    } finally {
+      isFetchingRef.current = false;
+    }
+  };
 
   if (!isOpen || !course) return null;
 
@@ -296,7 +326,71 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
               </section>
             </div>
 
-            {/* SECTION 4: CURRICULUM CARD */}
+            {/* SECTION 4: KURS NOTLARI */}
+            <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                  <FileJson size={24} />
+                </div>
+                <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                  Kurs Notları
+                </h3>
+              </div>
+
+              <div className="flex items-center justify-between p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 group hover:border-amber-200 transition-all">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-amber-500 shadow-sm">
+                    <StickyNote size={20} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                      Kayıtlı JSON Dosyası
+                    </p>
+                    <p className="text-xl font-black text-gray-800 leading-none">
+                      {(curriculum?.noteTitle || course.title)
+                        .toLowerCase()
+                        .replace(/\s+/g, "_")}
+                      .json
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  disabled={isNavigating}
+                  onMouseEnter={preFetchCurriculum}
+                  onClick={async () => {
+                    setIsNavigating(true);
+                    let data = preFetchedData;
+                    if (!data) {
+                      try {
+                        const response = await api.get(`/courses/${course.id}`);
+                        data = response.data?.curriculum;
+                      } catch (e) {
+                        console.error("Veri çekme hatası:", e);
+                      }
+                    }
+                    navigate(`/instructor/builder?courseId=${course.id}`, {
+                      state: { curriculum: data },
+                    });
+                    setIsNavigating(false);
+                  }}
+                  className={`px-6 py-3 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
+                    isNavigating
+                      ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
+                      : "bg-white border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white shadow-amber-100"
+                  }`}
+                >
+                  {isNavigating ? (
+                    <Zap className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Edit3 size={14} />
+                  )}
+                  {isNavigating ? "Yükleniyor..." : "Düzenle"}
+                </button>
+              </div>
+            </section>
+
+            {/* SECTION 5: CURRICULUM CARD */}
             <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
               <div className="flex items-center gap-3 mb-10">
                 <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
@@ -342,7 +436,10 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                         İçerik Bulunamadı
                       </div>
                     );
-                  } else if (curriculum && curriculum.slides) {
+                  } else if (
+                    curriculum &&
+                    (curriculum.slides || curriculum.noteTitle)
+                  ) {
                     return (
                       <div
                         onClick={() =>
@@ -360,8 +457,8 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                               {curriculum.noteTitle || "İnteraktif Sunum"}
                             </h4>
                             <p className="text-xs font-black text-sky-500 uppercase tracking-[0.3em]">
-                              {curriculum.slides.length} PROFESYONEL SLAYT
-                              İÇERİĞİ
+                              {(curriculum.slides || []).length} PROFESYONEL
+                              SLAYT İÇERİĞİ
                             </p>
                           </div>
                         </div>
@@ -371,7 +468,11 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                       </div>
                     );
                   }
-                  return null;
+                  return (
+                    <div className="p-16 text-center text-gray-300 font-bold italic">
+                      Ders müfredatı henüz oluşturulmamış.
+                    </div>
+                  );
                 })()}
               </div>
             </section>
