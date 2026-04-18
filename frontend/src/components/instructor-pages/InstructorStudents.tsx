@@ -36,7 +36,7 @@ const InstructorStudents: React.FC = () => {
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <div>
                     <h2 className="text-xl font-black text-gray-800">Öğrenci Yönetimi</h2>
-                    <p className="text-sm font-bold text-gray-400">Toplam 1,234 Öğrenci</p>
+                    <p className="text-sm font-bold text-gray-400">Toplam {students.length.toLocaleString()} Öğrenci</p>
                 </div>
                 <div className="flex items-center gap-2 w-full md:w-auto">
                     <div className="relative flex-1 md:w-64">

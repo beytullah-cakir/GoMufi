@@ -2066,7 +2066,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             <button
               key={stage.id}
               onClick={() => setActiveStage(stage.id as any)}
-              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+              className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest font-display transition-all ${
                 activeStage === stage.id 
                 ? 'bg-opacity-100 text-white shadow-lg' 
                 : 'hover:bg-gray-100 text-gray-400'

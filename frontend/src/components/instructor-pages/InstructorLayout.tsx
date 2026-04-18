@@ -31,7 +31,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
         {/* Top Bar */}
         <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center h-[73px] shrink-0">
           <div className="flex items-center gap-8 flex-1">
-            <h1 className="text-2xl font-black text-gray-800 tracking-tight whitespace-nowrap min-w-[150px]">
+            <h1 className="text-2xl font-black text-gray-800 tracking-tight whitespace-nowrap min-w-[150px] font-display">
               {activePage === "Dashboard"
                 ? "Panel"
                 : activePage === "Courses"
@@ -84,8 +84,8 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
 
             <div className="flex items-center gap-3 pl-6 border-l-2 border-gray-100">
               <div className="text-right hidden md:block">
-                <p className="text-sm font-black text-gray-800">
-                  {firstname} {lastname.charAt(0).toUpperCase()}.
+                <p className="text-sm font-bold text-gray-800 font-display">
+                  {firstname}
                 </p>                
               </div>
               <div className="w-10 h-10 rounded-full bg-sky-100 border-2 border-sky-200 flex items-center justify-center text-sky-600 font-bold cursor-pointer hover:bg-sky-200 transition-colors">
