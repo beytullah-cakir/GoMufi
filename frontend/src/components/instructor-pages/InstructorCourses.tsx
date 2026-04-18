@@ -387,18 +387,6 @@ const InstructorCourses: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="text-center w-24 hidden sm:block">
-                      <div className="flex items-center justify-between text-xs font-bold text-gray-500 mb-1">
-                        <span>İlerleme</span>
-                        <span>{course.progress}%</span>
-                      </div>
-                      <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full bg-${course.color}-500 rounded-full`}
-                          style={{ width: `${course.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
                   </div>
 
                   {/* Actions */}

@@ -63,7 +63,6 @@ const InstructorStudents: React.FC = () => {
                         <tr>
                             <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Öğrenci</th>
                             <th className="text-left py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Kayıtlı Kurs</th>
-                            <th className="text-center py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">İlerleme</th>
                             <th className="text-center py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Durum</th>
                             <th className="text-right py-4 px-6 text-xs font-bold text-gray-400 uppercase tracking-wider">Eylem</th>
                         </tr>
@@ -96,17 +95,6 @@ const InstructorStudents: React.FC = () => {
                                     </td>
                                     <td className="py-4 px-6">
                                         <span className="text-sm font-semibold text-gray-600">{student.course_title}</span>
-                                    </td>
-                                    <td className="py-4 px-6">
-                                        <div className="flex items-center justify-center gap-2">
-                                            <div className="w-24 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full ${student.progress > 80 ? 'bg-green-500' : student.progress < 30 ? 'bg-red-500' : 'bg-blue-500'}`}
-                                                    style={{ width: `${student.progress || 0}%` }}
-                                                ></div>
-                                            </div>
-                                            <span className="text-xs font-bold text-gray-500 w-8">{student.progress || 0}%</span>
-                                        </div>
                                     </td>
                                     <td className="py-4 px-6 text-center">
                                         {getStatusBadge(student.status || 'active')}
