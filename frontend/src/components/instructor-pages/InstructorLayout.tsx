@@ -95,7 +95,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
           </div>
         </div>
 
-        <div className={`flex-1 overflow-hidden relative ${activePage === "Builder" ? "" : "p-8"}`}>
+        <div className={`flex-1 overflow-y-auto relative ${activePage === "Builder" ? "" : "p-8"}`}>
           {children}
         </div>
       </div>

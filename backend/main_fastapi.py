@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import SessionLocal, engine, Base, get_db
 from starlette.middleware.sessions import SessionMiddleware
-from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment
+from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
 import os
 from models import Student, Teacher, Course, Enrollment, Quiz 
 
@@ -153,16 +153,16 @@ async def get_quiz_by_node(course_id: int, section_id: str, node_id: int, db: As
             Quiz.course_id == course_id,
             Quiz.section_id == section_id,
             Quiz.node_id == node_id
-        ).order_by(Quiz.id.desc())
+        ).order_by(Quiz.id.asc()) # Eskiden desc idi, şimdi sırayla gitsin diye asc yapıyoruz
     )
-    quiz = result.scalar_one_or_none()
+    quizzes = result.scalars().all()
     
-    if not quiz:
+    if not quizzes:
         print(f"DEBUG: get_quiz_by_node -> Soru bulunamadi (Course:{course_id}, Section:{section_id}, Node:{node_id})")
         return {"success": False, "message": "Bu düğüm için atanmış soru bulunamadı."}
         
-    print(f"DEBUG: get_quiz_by_node -> Soru BULUNDU (ID: {quiz.id})")
-    return {"success": True, "quiz": quiz.to_dict()}
+    print(f"DEBUG: get_quiz_by_node -> {len(quizzes)} Soru BULUNDU")
+    return {"success": True, "quizzes": [q.to_dict() for q in quizzes]}
 
 app.include_router(student_auth.router)
 app.include_router(teacher_auth.router)
@@ -171,6 +171,7 @@ app.include_router(courses.router)
 app.include_router(oauth.router)
 app.include_router(builder.router)
 app.include_router(payment.router)
+app.include_router(utils.router)
 
 # Railway'de uvicorn genellikle Dockerfile CMD üzerinden başlatılır.
 # Eğer yerelde çalıştıracaksanız bu blok kalabilir.

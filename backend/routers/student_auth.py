@@ -84,7 +84,7 @@ async def login_user(
     }
 
 
-@router.post("/student/logout")
+@router.post("/auth/logout")
 async def logout_user(response: Response):
     response.delete_cookie(key="access_token", path="/")
     return {"status": "logged_out"}

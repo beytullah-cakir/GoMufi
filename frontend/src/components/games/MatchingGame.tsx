@@ -58,14 +58,11 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  // Fetch AI Quiz
+  // Fetch AI Quizzes
   useEffect(() => {
     const fetchQuiz = async () => {
-      // Find course by title if needed - actually the backend expects course_id as int
-      // I need to ensure courseId passed from StudentApp is the actual ID.
-      // Wait, let's assume courseId is handled.
       try {
-        console.log(`[GameFetch] Quiz aranıyor: CourseID=${courseId}, SectionID=${sectionId}, NodeIndex=${localNodeIndex}`);
+        console.log(`[GameFetch] Quiz listesi aranıyor: CourseID=${courseId}, SectionID=${sectionId}, NodeIndex=${localNodeIndex}`);
         const response = await api.get('/quiz_by_node', {
           params: {
             course_id: parseInt(courseId || "1"),
@@ -74,24 +71,27 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           }
         });
 
-        if (response.data.success && response.data.quiz) {
-          const q = response.data.quiz;
-          console.log("[GameFetch] Quiz verisi isleniyor:", q);
+        if (response.data.success && response.data.quizzes) {
+          const quizList = response.data.quizzes;
+          console.log(`[GameFetch] ${quizList.length} adet soru yüklendi.`);
           
-          // Support both nested and flat structures for maximum resilience
-          const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
-          const options = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
-          const correctAnswer = q.quiz?.cevap || q.correct_answer || (options ? options[0] : "");
-          const explanation = q.quiz?.aciklama || q.explanation || "";
+          const mappedQuestions = quizList.map((q: any) => {
+             // Support both nested and flat structures
+             const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
+             const options = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
+             const correctAnswer = q.quiz?.cevap || q.correct_answer || (options ? options[0] : "");
+             const explanation = q.quiz?.aciklama || q.explanation || "";
 
-          setQuestions([{
-            id: q.id,
-            text: questionText,
-            options: options,
-            correctAnswer: correctAnswer,
-            explanation: explanation
-          }]);
-          console.log("[GameFetch] Soru basariyla yüklendi:", questionText);
+             return {
+               id: q.id,
+               text: questionText,
+               options: options,
+               correctAnswer: correctAnswer,
+               explanation: explanation
+             };
+          });
+
+          setQuestions(mappedQuestions);
         }
       } catch (err) {
         console.error("Quiz çekme hatası:", err);
@@ -100,12 +100,12 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
       }
     };
 
-    if (sectionId && localNodeIndex) {
+    if (sectionId && localNodeIndex !== undefined) {
       fetchQuiz();
     } else {
       setIsLoading(false);
     }
-  }, [sectionId, localNodeIndex]);
+  }, [sectionId, localNodeIndex, courseId]);
 
   const [countdownPhrase] = useState(
     () =>
@@ -122,7 +122,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     } else {
       setPhase("score");
     }
-  }, [currentQuestionIndex]);
+  }, [currentQuestionIndex, questions.length]);
 
   // Phase Management
   useEffect(() => {
@@ -151,25 +151,26 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     }
 
     return () => clearTimeout(timeout);
-  }, [phase, countdown, nextQuestion]);
+  }, [phase, countdown, nextQuestion, isCorrect]);
 
   const handleAnswer = useCallback(
     (answer: string | null) => {
       setSelectedAnswer(answer);
-      const correct = answer === currentQuestion.correctAnswer;
+      const correct = answer === currentQuestion?.correctAnswer;
       setIsCorrect(correct);
       setPhase("feedback");
 
       if (correct) {
-        setScore((prev) => prev + 20);
+        // Soru sayısına göre puanı bölüştür (Toplam 100 üzerinden)
+        const pointsPerQuestion = Math.ceil(100 / questions.length);
+        setScore((prev) => Math.min(100, prev + pointsPerQuestion));
       }
 
-      // Show Result Screen immediately (almost)
       setTimeout(() => {
         setPhase("result");
       }, 50);
     },
-    [currentQuestion.correctAnswer]
+    [currentQuestion?.correctAnswer, questions.length]
   );
 
   // Game Timer

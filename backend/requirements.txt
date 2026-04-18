@@ -16,4 +16,5 @@ python-multipart
 iyzipay
 alembic
 google-generativeai
-email-validator
+email-validator
+pytz

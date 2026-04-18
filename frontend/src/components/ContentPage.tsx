@@ -232,13 +232,13 @@ const ContentPage: React.FC = () => {
     useEffect(() => {
         const fetchRealTime = async () => {
              try {
-                 const res = await fetch("http://worldtimeapi.org/api/timezone/Europe/Istanbul");
-                 const data = await res.json();
-                 const realTime = new Date(data.datetime).getTime();
+                 // Kendi sunucumuzdan güvenli saati alıyoruz
+                 const res = await api.get("/utils/time");
+                 const realTime = res.data.timestamp;
                  const localTime = new Date().getTime();
                  setTimeOffsetMs(realTime - localTime);
              } catch (err) {
-                 console.error("Gerçek saat alınamadı, cihaz saati kullanılacak.", err);
+                 console.error("Sunucu saati alınamadı, cihaz saati kullanılacak.", err);
              }
         };
         fetchRealTime();

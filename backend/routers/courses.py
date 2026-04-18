@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
+from sqlalchemy import func, JSON
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, attributes
@@ -92,18 +93,26 @@ async def read_my_content(
     
     if role == "teacher":
         result = await db.execute(
-            select(Course).where(Course.teacher_id == user_id).options(joinedload(Course.teacher))
+            select(Course)
+            .where(Course.teacher_id == user_id)
+            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
         )
-        return result.scalars().all()
+        courses = result.unique().scalars().all()
+        for course in courses:
+            course.students_count = len(course.enrollments)
+        return courses
     elif role == "student":
         stmt = (
-    select(Course)
-            .join(Enrollment)
+            select(Course)
+            .join(Enrollment, Enrollment.course_id == Course.id)
             .where(Enrollment.student_id == user_id)
-            .options(joinedload(Course.teacher))
+            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
         )
         result = await db.execute(stmt)
-        return result.scalars().all()
+        courses = result.unique().scalars().all()
+        for course in courses:
+            course.students_count = len(course.enrollments)
+        return courses
     else:
         return []
 
