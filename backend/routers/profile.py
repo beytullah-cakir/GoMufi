@@ -7,8 +7,8 @@ from models.teacher import Teacher
 from models.student import Student
 from models.parent import Parent
 from models.tag import Tag
-from pydantic import BaseModel
-from typing import Optional
+from schemas.user import ProfileUpdate, LinkStudentRequest
+from schemas.course import TagCreate
 
 router = APIRouter()
 
@@ -25,8 +25,6 @@ async def get_tags(db: AsyncSession = Depends(get_db)):
     tags = result.scalars().all()
     return [{"id": t.id, "name": t.name} for t in tags]
 
-class TagCreate(BaseModel):
-    name: str
 
 @router.post("/profile/tags")
 async def create_tag(tag_data: TagCreate, db: AsyncSession = Depends(get_db)):
@@ -128,14 +126,6 @@ async def get_profile(
     raise HTTPException(status_code=400, detail="Invalid user role")
 
 
-class ProfileUpdate(BaseModel):
-    nickname: Optional[str] = None
-    grade_level: Optional[str] = None
-    education_level: Optional[str] = None
-    expertises: Optional[str] = None
-    bio: Optional[str] = None
-    first_name: Optional[str] = None
-    last_name: Optional[str] = None
 
 @router.put("/profile/update")
 async def update_profile(
@@ -197,8 +187,6 @@ async def update_profile(
     raise HTTPException(status_code=400, detail="Invalid role")
 
 
-class LinkStudentRequest(BaseModel):
-    student_code: str
 
 @router.post("/profile/link-student")
 async def link_student(
