@@ -358,6 +358,33 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               Mastery Rozeti
             </span>
           </div>
+
+          {/* Student Code for Parent Link - NEW */}
+          {profileData?.student_code && (
+            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 border-2 border-purple-400 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-md hover:-translate-y-1 transition-transform group relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Users size={40} className="text-white" />
+              </div>
+              <div className="flex items-center gap-2 mb-1 z-10">
+                <span className="text-xl">🔑</span>
+                <span className="text-2xl font-black text-white font-mono tracking-tighter">
+                  {profileData.student_code}
+                </span>
+              </div>
+              <span className="text-[10px] font-black text-purple-100 uppercase tracking-widest z-10">
+                Ebeveyn Bağlantı Kodu
+              </span>
+              <button 
+                onClick={() => {
+                    navigator.clipboard.writeText(profileData.student_code);
+                    alert("Kod kopyalandı!");
+                }}
+                className="mt-2 text-[9px] font-black text-white/80 hover:text-white underline underline-offset-2 z-10"
+              >
+                KOPYALA
+              </button>
+            </div>
+          )}
         </div>
 
         {/* TAB NAVIGATION */}
