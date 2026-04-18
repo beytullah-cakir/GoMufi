@@ -36,7 +36,6 @@ class CourseResponse(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
-    instructor_notes: Optional[List[dict]] = []
     teacher: Optional[TeacherResponse] = None
 
     class Config:
@@ -244,7 +243,6 @@ class CreateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[List[dict]] = []
-    instructor_notes: Optional[List[dict]] = []
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -254,7 +252,6 @@ class UpdateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     curriculum: Optional[List[dict]] = None
-    instructor_notes: Optional[List[dict]] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -277,8 +274,7 @@ async def create_course(
             price=course_data.price,
             learning_outcomes=course_data.learning_outcomes,
             requirements=course_data.requirements,
-            curriculum=course_data.curriculum,
-            instructor_notes=course_data.instructor_notes
+            curriculum=course_data.curriculum
         )
         db.add(new_course)
         await db.commit()
@@ -326,9 +322,6 @@ async def update_course(
         if course_data.curriculum is not None:
             course.curriculum = course_data.curriculum
             flag_modified(course, "curriculum")
-        if course_data.instructor_notes is not None:
-            course.instructor_notes = course_data.instructor_notes
-            flag_modified(course, "instructor_notes")
             
         await db.commit()
         await db.refresh(course)

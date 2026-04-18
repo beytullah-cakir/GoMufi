@@ -22,7 +22,6 @@ interface CourseDetail {
   learning_outcomes: string[];
   requirements: string[];
   curriculum: any[];
-  instructor_notes: any[];
   teacher?: {
     first_name: string;
     last_name: string;
@@ -80,7 +79,6 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
               lessons: [{ title: "Numbers & Strings" }, { title: "Lists & Dictionaries" }]
             }
           ],
-          instructor_notes: [],
           teacher: { first_name: "Mufi", last_name: "Bilgin" }
         });
       } finally {

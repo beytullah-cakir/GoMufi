@@ -22,7 +22,6 @@ interface Course {
   isLive?: boolean;
   liveSessions?: {date: string, time: string}[];
   instructor?: string;
-  instructor_notes?: { title: string; type: string }[];
 }
 
 const InstructorCourses: React.FC = () => {
@@ -82,7 +81,6 @@ const InstructorCourses: React.FC = () => {
             isLive: isLive,
             liveSessions: liveSessions,
             instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : "Mufi Eğitmen",
-            instructor_notes: c.instructor_notes || [],
           }});
           setCourses(mappedCourses);
         }
@@ -104,17 +102,23 @@ const InstructorCourses: React.FC = () => {
     try {
       if (editingCourse) {
         // Update existing course via API
-        const curriculumPayload = Array.isArray(courseData.curriculum)
-          ? [
-              { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-              ...courseData.curriculum
-            ]
-          : courseData.curriculum;
-
-        console.log("DEBUG: Updating course with payload:", {
-          title: courseData.title,
-          instructor_notes: courseData.instructorNotes,
-        });
+        // Construct curriculum payload carefully
+        let curriculumPayload;
+        if (courseData.curriculum && !Array.isArray(courseData.curriculum) && courseData.curriculum.slides) {
+          // It's a Builder object, inject live_sessions_config into it
+          curriculumPayload = {
+            ...courseData.curriculum,
+            live_sessions_config: { 
+              is_live: courseData.isLive, 
+              sessions: courseData.liveSessions 
+            }
+          };
+        } else {
+          curriculumPayload = [
+            { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
+            ...(Array.isArray(courseData.curriculum) ? courseData.curriculum : [])
+          ];
+        }
 
         await api.put(`/update_course/${editingCourse.id}`, {
           title: courseData.title,
@@ -141,7 +145,6 @@ const InstructorCourses: React.FC = () => {
                   lastUpdated: "Şimdi",
                   isLive: courseData.isLive,
                   liveSessions: courseData.liveSessions,
-                  instructor_notes: courseData.instructorNotes,
                 }
               : c
           )
@@ -149,12 +152,22 @@ const InstructorCourses: React.FC = () => {
         setEditingCourse(null);
       } else {
         // Add new course via API
-        const curriculumPayload = Array.isArray(courseData.curriculum)
-          ? [
-              { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
-              ...courseData.curriculum
-            ]
-          : courseData.curriculum;
+        // Construct curriculum payload for new course
+        let curriculumPayload;
+        if (courseData.curriculum && !Array.isArray(courseData.curriculum) && courseData.curriculum.slides) {
+          curriculumPayload = {
+            ...courseData.curriculum,
+            live_sessions_config: { 
+              is_live: courseData.isLive, 
+              sessions: courseData.liveSessions 
+            }
+          };
+        } else {
+          curriculumPayload = [
+            { type: "live_sessions_config", is_live: courseData.isLive, sessions: courseData.liveSessions },
+            ...(Array.isArray(courseData.curriculum) ? courseData.curriculum : [])
+          ];
+        }
 
         const response = await api.post("/create_course", {
           title: courseData.title,
@@ -182,7 +195,6 @@ const InstructorCourses: React.FC = () => {
           status: "active",
           color: courseData.color,
           lastUpdated: "Şimdi",
-          instructor_notes: response.data.instructor_notes || [],
         };
         setCourses([newCourse, ...courses]);
       }
@@ -472,7 +484,6 @@ const InstructorCourses: React.FC = () => {
                 color: editingCourse.color,
                 isLive: editingCourse.isLive,
                 liveSessions: editingCourse.liveSessions,
-                instructorNotes: editingCourse.instructor_notes,
               }
             : null
         }

@@ -1,6 +1,30 @@
-import { 
-  X, CheckCircle, Info, BookOpen, Users, Star, Clock, 
-  ChevronRight, Target, Award, List, FileJson, Download, Edit3
+import React from "react";
+import {
+  X,
+  CheckCircle,
+  Info,
+  BookOpen,
+  Users,
+  Star,
+  Clock,
+  ChevronRight,
+  Target,
+  Award,
+  List,
+  FileJson,
+  Download,
+  Edit3,
+  Calendar,
+  Video,
+  Layers,
+  BadgeCheck,
+  Zap,
+  Trophy,
+  Layout,
+  Code,
+  Globe,
+  Palette,
+  GraduationCap,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -18,240 +42,341 @@ interface CourseInfoModalProps {
     rating?: number;
     learning_outcomes?: string[];
     requirements?: string[];
-    curriculum?: any[];
+    curriculum?: any;
     instructor?: string;
-    instructor_notes?: { title: string; type: string }[];
+    isLive?: boolean;
+    liveSessions?: { date: string; time: string }[];
   } | null;
-  mode: 'student' | 'instructor';
+  mode: "student" | "instructor";
 }
 
-const CourseInfoModal: React.FC<CourseInfoModalProps> = ({ isOpen, onClose, onEdit, course, mode }) => {
+const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
+  isOpen,
+  onClose,
+  onEdit,
+  course,
+  mode,
+}) => {
   const navigate = useNavigate();
+
   if (!isOpen || !course) return null;
+
+  const curriculum = course.curriculum;
+  const liveConfigFromCurriculum = Array.isArray(curriculum)
+    ? curriculum.find((c) => c.type === "live_sessions_config")
+    : curriculum?.live_sessions_config;
+
+  const isLive = course.isLive || liveConfigFromCurriculum?.is_live;
+  const sessions =
+    course.liveSessions || liveConfigFromCurriculum?.sessions || [];
+
+  // Category Icon Resolver
+  const getCategoryIcon = (category?: string) => {
+    switch (category?.toLowerCase()) {
+      case "coding":
+        return <Code size={24} />;
+      case "web":
+        return <Globe size={24} />;
+      case "design":
+        return <Palette size={24} />;
+      default:
+        return <GraduationCap size={24} />;
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
         onClick={onClose}
       />
 
-      {/* Modal Content */}
-      <div className="relative bg-white w-full max-w-4xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
-        
-        {/* Header Section */}
-        <div className="relative p-8 pb-6 border-b border-gray-100 overflow-hidden">
-          {/* Decorative gradients */}
-          <div className="absolute top-0 right-0 w-64 h-64 bg-sky-100 rounded-full blur-3xl opacity-30 -mr-32 -mt-32"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-100 rounded-full blur-3xl opacity-20 -ml-32 -mb-32"></div>
-
-          <div className="relative z-10 flex justify-between items-start">
-            <div className="flex-1">
-              <h2 className="text-3xl font-black text-gray-800 leading-tight mb-2 tracking-tight mt-4">
+      {/* Modern Card-Based Modal */}
+      <div className="relative bg-white w-full max-w-5xl h-full sm:h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col border border-gray-100">
+        {/* HEADER AREA (Sticky) */}
+        <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white z-20 shrink-0">
+          <div className="flex items-center gap-5">
+            <div className="w-14 h-14 bg-sky-500 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-100 transition-transform hover:scale-105">
+              {getCategoryIcon(course.category)}
+            </div>
+            <div>
+              <h2 className="text-2xl font-black text-gray-900 tracking-tighter leading-none">
                 {course.title}
               </h2>
-              <p className="text-gray-500 font-bold flex items-center gap-2">
-                <Users size={18} className="text-gray-400" />
-                <span>{course.instructor || ""}</span>
-              </p>
+              <div className="flex items-center gap-2 mt-1.5">
+                <span className="text-[10px] font-black text-sky-500 uppercase tracking-[0.2em]">
+                  {course.category || "Eğitim"}
+                </span>
+                <span className="w-1 h-1 bg-gray-200 rounded-full" />
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em]">
+                  Kurs Detayları
+                </span>
+              </div>
             </div>
-            <button 
-              onClick={onClose}
-              className="p-3 hover:bg-gray-100 rounded-2xl transition-all text-gray-400 hover:text-gray-600 hover:rotate-90"
-            >
-              <X className="w-6 h-6" />
-            </button>
           </div>
 
-          {/* Stats Bar (Instructor Mode or Detailed) */}
-          <div className="relative z-10 flex items-center gap-8 mt-6 py-4 px-6 bg-gray-50/50 rounded-2xl border border-gray-100">
-             <div className="flex flex-col">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Öğrenciler</span>
-                <span className="text-sm font-black text-gray-800">{course.students || 0}</span>
-             </div>
-             <div className="w-px h-8 bg-gray-200"></div>
-             <div className="flex flex-col">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Puan</span>
-                <div className="flex items-center gap-1">
-                  <Star size={14} className="text-yellow-400 fill-current" />
-                  <span className="text-sm font-black text-gray-800">{course.rating || "4.8"}</span>
-                </div>
-             </div>
-             <div className="w-px h-8 bg-gray-200"></div>
-             <div className="flex flex-col text-right ml-auto">
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Kurs Ücreti</span>
-                <span className="text-sm font-black text-sky-600">₺{course.price || 0}</span>
-             </div>
+          <div className="flex items-center gap-3">
+            {mode === "instructor" && onEdit && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onEdit();
+                }}
+                className="px-5 py-3 text-[10px] font-black text-sky-600 hover:bg-sky-50 rounded-xl transition-all border border-sky-100 uppercase tracking-widest flex items-center gap-2 bg-white"
+              >
+                <Edit3 size={14} /> Düzenle
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <X size={24} />
+            </button>
           </div>
         </div>
 
-        {/* Scrollable Content Body */}
-        <div className="flex-1 overflow-y-auto p-8 pt-6 space-y-10 custom-scrollbar">
-          
-          {/* Description */}
-          <section>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-sky-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-sky-100">
-                <Info size={18} />
-              </div>
-              <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Kurs Hakkında</h3>
-            </div>
-            <div className="text-gray-600 font-bold leading-relaxed text-sm bg-gray-50/50 p-6 rounded-3xl border border-gray-100">
-              {course.description || "Bu kurs için henüz bir açıklama girilmemiş."}
-            </div>
-          </section>
-
-          {/* Grid: Outcomes & Requirements */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {/* Outcomes */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-green-100">
-                  <Target size={18} />
+        {/* SCROLLABLE CONTENT AREA */}
+        <div className="flex-1 overflow-y-auto p-10 sm:p-12 space-y-8 custom-scrollbar">
+          <div className="max-w-4xl mx-auto space-y-8">
+            {/* SECTION 1: OVERVIEW CARD */}
+            <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 space-y-10">
+              <div className="flex flex-wrap items-center gap-10">
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    Eğitmen
+                  </span>
+                  <p className="font-bold text-gray-800 flex items-center gap-2">
+                    <Users size={16} className="text-gray-400" />
+                    {course.instructor || "Mufi Academy"}
+                    <BadgeCheck size={16} className="text-sky-500" />
+                  </p>
                 </div>
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Kazanımlar</h3>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    Puan
+                  </span>
+                  <p className="font-black text-gray-800 flex items-center gap-2">
+                    <Star size={16} className="text-yellow-400 fill-current" />
+                    {course.rating || "4.8"}
+                  </p>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    Öğrenci
+                  </span>
+                  <p className="font-black text-gray-800 flex items-center gap-2">
+                    <Users size={16} className="text-gray-400" />
+                    {Number(course.students).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex flex-col ml-auto text-right">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                    Kurs Ücreti
+                  </span>
+                  <p className="text-3xl font-black text-sky-600 tracking-tighter">
+                    ₺{Number(course.price).toLocaleString()}
+                  </p>
+                </div>
               </div>
-              <div className="space-y-3">
-                {course.learning_outcomes && course.learning_outcomes.length > 0 ? (
-                  course.learning_outcomes.map((item, i) => (
-                    <div key={i} className="flex gap-3 items-start p-3 bg-white border border-gray-100 rounded-2xl hover:border-green-200 transition-colors group">
-                      <CheckCircle className="w-5 h-5 text-green-500 shrink-0 group-hover:scale-110 transition-transform" />
-                      <span className="text-sm font-bold text-gray-600">{item}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs font-bold text-gray-400 italic ml-2">Girilmemiş.</p>
-                )}
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Info size={18} className="text-sky-500" />
+                  <h3 className="text-sm font-black text-gray-900 uppercase tracking-widest">
+                    Kurs Hakkında
+                  </h3>
+                </div>
+                <div className="p-8 bg-gray-50 rounded-[2rem] border border-gray-100 text-gray-600 font-medium leading-relaxed italic text-lg">
+                  "
+                  {course.description ||
+                    "Bu kurs için henüz bir açıklama metni girilmemiş."}
+                  "
+                </div>
               </div>
             </section>
 
-            {/* Requirements */}
-            <section>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-orange-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-orange-100">
-                  <Award size={18} />
+            {/* SECTION 2: LIVE SCHEDULE CARD */}
+            {isLive && sessions.length > 0 && (
+              <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-rose-50 text-rose-600 rounded-2xl flex items-center justify-center">
+                    <Video size={24} />
+                  </div>
+                  <h3 className="text-xl font-black text-gray-900 uppercase tracking-tight">
+                    Canlı Oturum Saatleri
+                  </h3>
                 </div>
-                <h3 className="text-sm font-black text-gray-800 uppercase tracking-tight">Gereksinimler</h3>
-              </div>
-              <div className="space-y-3">
-                {course.requirements && course.requirements.length > 0 ? (
-                  course.requirements.map((item, i) => (
-                    <div key={i} className="flex gap-3 items-start p-3 bg-white border border-gray-100 rounded-2xl hover:border-orange-200 transition-colors group">
-                      <ChevronRight className="w-5 h-5 text-orange-400 shrink-0 group-hover:translate-x-1 transition-transform" />
-                      <span className="text-sm font-bold text-gray-600">{item}</span>
-                    </div>
-                  ))
-                ) : (
-                  <p className="text-xs font-bold text-gray-400 italic ml-2">Ön koşul belirtilmemiş.</p>
-                )}
-              </div>
-            </section>
-          </div>
-
-          {/* Curriculum Preview */}
-          <section className="pb-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-purple-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-purple-100">
-                <BookOpen size={18} />
-              </div>
-              <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">Müfredat Özeti</h3>
-            </div>
-            <div className="border-2 border-gray-100 rounded-[2rem] overflow-hidden">
-              {course.curriculum && course.curriculum.length > 0 ? (
-                <div className="divide-y divide-gray-100">
-                  {course.curriculum.filter(s => s.type !== "live_sessions_config").map((section, idx) => (
-                    <div key={idx} className="p-5 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
-                          <List size={20} />
-                        </div>
-                        <div>
-                          <p className="font-black text-gray-800 text-sm">{section.title || `Bölüm ${idx + 1}`}</p>
-                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                            {(section.lectures?.length || section.lessons?.length || 0)} Ders Mevcut
-                          </p>
-                        </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {sessions.map((s: any, i: number) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-5 p-6 bg-slate-50 rounded-[1.5rem] border border-slate-100 group hover:border-rose-200 transition-colors"
+                    >
+                      <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-rose-500 shadow-sm">
+                        <Calendar size={20} />
                       </div>
-                      <ChevronRight className="w-5 h-5 text-gray-300" />
+                      <div>
+                        <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
+                          Oturum {i + 1} • {s.date}
+                        </p>
+                        <p className="text-xl font-black text-gray-800 leading-none">
+                          {s.time}
+                        </p>
+                      </div>
                     </div>
                   ))}
                 </div>
-              ) : (
-                <div className="p-12 text-center">
-                  <p className="text-sm font-bold text-gray-400 italic uppercase tracking-widest">Henüz içerik eklenmemiş.</p>
-                </div>
-              )}
-            </div>
-          </section>
+              </section>
+            )}
 
-          {/* Builder Content Section */}
-          <section className="pb-4">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 bg-indigo-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-100">
-                {mode === 'instructor' ? <FileJson size={18} /> : <Download size={18} />}
-              </div>
-              <h3 className="text-lg font-black text-gray-800 uppercase tracking-tight">
-                {mode === 'instructor' ? "Ders İçeriği (JSON)" : "Ders Notları (PDF)"}
-              </h3>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div 
-                onClick={() => {
-                  if (mode === 'instructor') {
-                    onClose();
-                    navigate(`/instructor/builder?courseId=${course.id}`);
-                  } else {
-                    // PDF Download logic handled in CourseDetailPage
-                    // For now, show a placeholder or alert
-                    alert("PDF indirme özelliği yakında!");
-                  }
-                }}
-                className={`flex items-center justify-between p-5 ${mode === 'instructor' ? 'bg-indigo-50/50 border-indigo-200' : 'bg-pink-50/50 border-pink-200'} border-2 border-dashed rounded-2xl hover:bg-white transition-all cursor-pointer group`}
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 bg-white rounded-xl flex items-center justify-center ${mode === 'instructor' ? 'text-indigo-600' : 'text-pink-600'} shadow-sm border border-indigo-100 group-hover:scale-110 transition-transform`}>
-                    {mode === 'instructor' ? <FileJson size={24} /> : <Download size={24} />}
+            {/* SECTION 3: OUTCOMES & REQUIREMENTS */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center">
+                    <Target size={24} />
                   </div>
-                  <div>
-                    <h4 className="font-bold text-gray-800">
-                      {mode === 'instructor' ? "kurs_icerigi.json" : "ders_notlari.pdf"}
-                    </h4>
-                    <p className={`text-xs font-bold ${mode === 'instructor' ? 'text-indigo-500' : 'text-pink-500'} uppercase tracking-widest mt-1`}>
-                      {mode === 'instructor' ? "Ders Oluşturucu Dosyası" : "İndirmek için tıklayın"}
+                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
+                    Kazanımlar
+                  </h3>
+                </div>
+                <div className="space-y-4">
+                  {course.learning_outcomes?.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex gap-4 p-5 bg-gray-50 rounded-2xl border border-gray-100"
+                    >
+                      <CheckCircle
+                        size={18}
+                        className="text-emerald-500 shrink-0 mt-0.5"
+                      />
+                      <span className="text-sm font-bold text-gray-700 leading-snug">
+                        {item}
+                      </span>
+                    </div>
+                  )) || (
+                    <p className="text-xs font-bold text-gray-400 italic">
+                      Girilmemiş.
                     </p>
+                  )}
+                </div>
+              </section>
+
+              <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+                <div className="flex items-center gap-3 mb-8">
+                  <div className="w-12 h-12 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center">
+                    <Award size={24} />
                   </div>
+                  <h3 className="text-lg font-black text-gray-900 uppercase tracking-tight">
+                    Gereksinimler
+                  </h3>
                 </div>
-                <div className={`flex items-center gap-2 ${mode === 'instructor' ? 'text-indigo-600' : 'text-pink-600'} font-black text-xs uppercase tracking-widest`}>
-                  {mode === 'instructor' ? <><Edit3 size={16} /> Düzenle</> : <><Download size={16} /> İndir</>}
+                <div className="space-y-4">
+                  {course.requirements?.map((item, i) => (
+                    <div
+                      key={i}
+                      className="flex gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-100"
+                    >
+                      <Zap
+                        size={18}
+                        className="text-amber-500 shrink-0 mt-0.5"
+                      />
+                      <span className="text-sm font-bold text-gray-700 leading-snug">
+                        {item}
+                      </span>
+                    </div>
+                  )) || (
+                    <p className="text-xs font-bold text-gray-400 italic">
+                      Belirtilmemiş.
+                    </p>
+                  )}
                 </div>
-              </div>
+              </section>
             </div>
-          </section>
-        </div>
 
-        {/* Footer */}
-        <div className="p-8 border-t border-gray-100 bg-gray-50 flex items-center justify-center gap-4">
-          {mode === 'instructor' && onEdit && (
-            <button 
-              onClick={() => {
-                onClose();
-                onEdit();
-              }}
-              className="px-8 py-4 bg-white border-2 border-gray-900 text-gray-900 font-black rounded-3xl transition-all hover:bg-gray-50 active:scale-95 uppercase tracking-widest text-xs"
-            >
-              Düzenle
-            </button>
-          )}
-          <button 
-            onClick={onClose}
-            className="px-12 py-4 bg-gray-900 text-white font-black rounded-3xl shadow-xl shadow-gray-200 transition-all hover:scale-105 active:scale-95 uppercase tracking-widest text-xs"
-          >
-            Harika, Anladım!
-          </button>
-        </div>
+            {/* SECTION 4: CURRICULUM CARD */}
+            <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100">
+              <div className="flex items-center gap-3 mb-10">
+                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center">
+                  <List size={24} />
+                </div>
+                <h3 className="text-2xl font-black text-gray-900 uppercase tracking-tight">
+                  Eğitim Müfredatı
+                </h3>
+              </div>
 
+              <div className="border border-gray-100 rounded-[2rem] overflow-hidden">
+                {(() => {
+                  if (Array.isArray(curriculum)) {
+                    const sections = curriculum.filter(
+                      (s) => s.type !== "live_sessions_config",
+                    );
+                    return sections.length > 0 ? (
+                      <div className="divide-y divide-gray-50">
+                        {sections.map((s, idx) => (
+                          <div
+                            key={idx}
+                            className="p-6 flex items-center justify-between hover:bg-gray-50 transition-all cursor-default group"
+                          >
+                            <div className="flex items-center gap-6">
+                              <span className="text-lg font-black text-gray-200 group-hover:text-purple-300 transition-colors">
+                                {(idx + 1).toString().padStart(2, "0")}
+                              </span>
+                              <div>
+                                <h4 className="font-bold text-gray-800 text-lg">
+                                  {s.title || `Bölüm ${idx + 1}`}
+                                </h4>
+                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                  {s.lectures?.length || 0} Ders İçeriği
+                                </p>
+                              </div>
+                            </div>
+                            <ChevronRight className="w-5 h-5 text-gray-200" />
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-16 text-center text-gray-300 font-bold italic">
+                        İçerik Bulunamadı
+                      </div>
+                    );
+                  } else if (curriculum && curriculum.slides) {
+                    return (
+                      <div
+                        onClick={() =>
+                          mode === "instructor" &&
+                          navigate(`/instructor/builder?courseId=${course.id}`)
+                        }
+                        className="p-10 bg-sky-50/50 flex flex-col sm:flex-row items-center justify-between gap-8 group cursor-pointer hover:bg-sky-50 transition-all"
+                      >
+                        <div className="flex items-center gap-8">
+                          <div className="w-20 h-20 bg-sky-500 text-white rounded-[2rem] flex items-center justify-center shadow-xl shadow-sky-100 group-hover:rotate-6 transition-transform">
+                            <Zap size={36} fill="currentColor" />
+                          </div>
+                          <div>
+                            <h4 className="text-2xl font-black text-gray-900 mb-1">
+                              {curriculum.noteTitle || "İnteraktif Sunum"}
+                            </h4>
+                            <p className="text-xs font-black text-sky-500 uppercase tracking-[0.3em]">
+                              {curriculum.slides.length} PROFESYONEL SLAYT
+                              İÇERİĞİ
+                            </p>
+                          </div>
+                        </div>
+                        <div className="px-8 py-4 bg-white border-2 border-sky-500 text-sky-600 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-sky-500 hover:text-white transition-all shadow-lg shadow-sky-100">
+                          Görüntüle
+                        </div>
+                      </div>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
+            </section>
+          </div>
+        </div>
       </div>
     </div>
   );
