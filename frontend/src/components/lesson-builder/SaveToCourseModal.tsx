@@ -74,46 +74,46 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({
     setIsSaving(true);
     setSaveStatus("idle");
     try {
-      // 1. Mevcut müfredatı çek (listeyi korumak için)
+      // 1. Mevcut notları çek (Müfredattan bağımsız yeni kolon)
       const courseRes = await api.get(`/courses/${selectedCourseId}`);
-      let currentCurriculum = courseRes.data?.curriculum || [];
+      let currentNotes = courseRes.data?.notes || [];
 
-      // Legacy desteği: Eğer liste değilse listeye çevir
-      if (!Array.isArray(currentCurriculum)) {
-        if (currentCurriculum.slides || currentCurriculum.noteTitle) {
-          currentCurriculum = [{ id: "default", ...currentCurriculum }];
-        } else {
-          currentCurriculum = [];
-        }
+      // Legacy desteği: Eğer notes kolonu boşsa ve curriculum'da eski notlar varsa onları taşıyalım mı?
+      // Kullanıcının "müfredat notlardan bağımsız" talebi üzerine artık sadece notes kolonuna bakıyoruz.
+      // Ancak veri kaybını önlemek için mevcut curriculum içindeki notları bir defalık çekebiliriz.
+      if (currentNotes.length === 0 && Array.isArray(courseRes.data?.curriculum)) {
+          const legacyNotes = courseRes.data.curriculum.filter((i: any) => i.slides || i.noteTitle);
+          if (legacyNotes.length > 0) currentNotes = legacyNotes;
       }
+
+      if (!Array.isArray(currentNotes)) currentNotes = [];
 
       // URL'den noteId al
       const searchParams = new URLSearchParams(window.location.search);
       const noteId = searchParams.get("noteId");
 
-      let updatedCurriculum;
+      let updatedNotes;
 
       if (noteId) {
         // Mevcut olanı güncelle
-        updatedCurriculum = currentCurriculum.map((n: any) =>
-          String(n.id) === String(noteId)
-            ? { ...n, noteTitle: title, slides: slides }
-            : n,
-        );
-        // Eğer ID listede yoksa (örneğin 'default' idi ama listede id yoktu) ekle
-        const exists = currentCurriculum.some(
-          (n: any) => String(n.id) === String(noteId),
-        );
-        if (!exists) {
-          updatedCurriculum = [
-            ...currentCurriculum,
-            { id: noteId, noteTitle: title, slides: slides },
-          ];
+        const exists = currentNotes.some((n: any) => String(n.id) === String(noteId));
+        
+        if (exists) {
+            updatedNotes = currentNotes.map((n: any) =>
+              String(n.id) === String(noteId)
+                ? { ...n, noteTitle: title, slides: slides }
+                : n
+            );
+        } else {
+            updatedNotes = [
+                ...currentNotes,
+                { id: noteId, noteTitle: title, slides: slides }
+            ];
         }
       } else {
         // Yeni not ekle
-        updatedCurriculum = [
-          ...currentCurriculum,
+        updatedNotes = [
+          ...currentNotes,
           {
             id: Date.now().toString(),
             noteTitle: title,
@@ -122,9 +122,9 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({
         ];
       }
 
-      // 2. Güncel listeyi kaydet
+      // 2. Güncel not listesini kaydet (Müfredat artık buraya karışmayacak)
       await api.put(`/update_course/${selectedCourseId}`, {
-        curriculum: updatedCurriculum,
+        notes: updatedNotes,
       });
 
       setSaveStatus("success");

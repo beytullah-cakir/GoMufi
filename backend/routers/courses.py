@@ -18,8 +18,8 @@ from datetime import datetime, time
 from models.live_session import LiveSession
 
 class TeacherResponse(BaseModel):
-    first_name: str
-    last_name: str
+    first_name: Optional[str] = "Mufi"
+    last_name: Optional[str] = "Eğitmen"
 
     class Config:
         from_attributes = True
@@ -36,6 +36,7 @@ class CourseResponse(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[Any] = []
+    notes: Optional[Any] = []
     teacher: Optional[TeacherResponse] = None
     students_count: int = 0
     rating: Optional[int] = 5
@@ -252,6 +253,7 @@ class CreateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[Any] = []
+    notes: Optional[Any] = []
     rating: Optional[int] = 5
 
 class UpdateCourseRequest(BaseModel):
@@ -262,6 +264,7 @@ class UpdateCourseRequest(BaseModel):
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     curriculum: Optional[Any] = None
+    notes: Optional[Any] = None
     rating: Optional[int] = None
 
 @router.post("/create_course")
@@ -286,6 +289,7 @@ async def create_course(
             learning_outcomes=course_data.learning_outcomes,
             requirements=course_data.requirements,
             curriculum=course_data.curriculum,
+            notes=course_data.notes if course_data.notes is not None else [],
             rating=course_data.rating if course_data.rating is not None else 5
         )
         db.add(new_course)
@@ -334,6 +338,9 @@ async def update_course(
         if course_data.curriculum is not None:
             course.curriculum = course_data.curriculum
             flag_modified(course, "curriculum")
+        if course_data.notes is not None:
+            course.notes = course_data.notes
+            flag_modified(course, "notes")
             
         if course_data.rating is not None:
             course.rating = course_data.rating

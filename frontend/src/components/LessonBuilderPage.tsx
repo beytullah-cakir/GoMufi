@@ -33,8 +33,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   
   // Pre-fetched data from location state (passed from modal)
   const initialCurriculum = location.state?.curriculum;
+  const initialNotes = location.state?.notes;
   
-  const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId && !initialCurriculum);
+  const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId && !initialCurriculum && !initialNotes);
 
   // -- Taslak Geri Yükleme Mantığı --
   const savedDraft = (() => {
@@ -48,18 +49,18 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
   // -- State --
   const [slides, setSlides] = useState<Slide[]>(() => {
-    if (initialCurriculum) {
-      // Normalize to array
-      const notes = Array.isArray(initialCurriculum) 
-        ? initialCurriculum 
-        : (initialCurriculum.slides || initialCurriculum.noteTitle) ? [initialCurriculum] : [];
+    if (initialCurriculum || initialNotes) {
+      // Normalize to array - combine both for searching the target note
+      const allItems = [
+        ...(Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : [])),
+        ...(Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []))
+      ];
         
       const targetNote = noteId 
-        ? notes.find((n: any) => String(n.id) === String(noteId))
-        : null; // noteId yoksa yeni bir not oluşturuluyor demektir, ilkini yükleme.
+        ? allItems.find((n: any) => String(n.id) === String(noteId))
+        : null; 
 
       if (targetNote?.slides && Array.isArray(targetNote.slides)) return targetNote.slides;
-      if (Array.isArray(targetNote)) return targetNote;
     }
     return savedDraft?.slides || [{ id: 1, elements: [], connections: [] }];
   });
@@ -70,16 +71,18 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
       const fetchCourse = async () => {
         try {
           const response = await api.get(`/courses/${courseId}`);
-          if (response.data && response.data.curriculum) {
-            const curriculum = response.data.curriculum;
+          if (response.data) {
+            const curriculum = response.data.curriculum || [];
+            const dbNotes = response.data.notes || [];
 
-            // Handle potential multi-note structure
-            const notes = Array.isArray(curriculum) 
-              ? curriculum 
-              : (curriculum.slides || curriculum.noteTitle) ? [curriculum] : [];
+            // Combine for searching the target note
+            const allItems = [
+              ...(Array.isArray(curriculum) ? curriculum : [curriculum]),
+              ...(Array.isArray(dbNotes) ? dbNotes : [dbNotes])
+            ];
 
             const targetNote = noteId 
-              ? notes.find((n: any) => String(n.id) === String(noteId))
+              ? allItems.find((n: any) => String(n.id) === String(noteId))
               : null;
 
             if (targetNote) {
@@ -87,10 +90,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 setSlides(targetNote.slides);
                 if (targetNote.noteTitle) setProjectName(targetNote.noteTitle);
                 if (targetNote.slides.length > 0) setCurrentSlideId(targetNote.slides[0].id);
-              } else if (Array.isArray(targetNote)) {
-                setSlides(targetNote);
-                if (response.data.title) setProjectName(response.data.title);
-                if (targetNote.length > 0) setCurrentSlideId(targetNote[0].id);
               }
             }
           }
@@ -123,13 +122,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
   // -- Header State --
   const [projectName, setProjectName] = useState(() => {
-    if (initialCurriculum) {
-      const notes = Array.isArray(initialCurriculum) 
-        ? initialCurriculum 
-        : (initialCurriculum.slides || initialCurriculum.noteTitle) ? [initialCurriculum] : [];
+    if (initialCurriculum || initialNotes) {
+      const allItems = [
+        ...(Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : [])),
+        ...(Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []))
+      ];
       
       const targetNote = noteId 
-        ? notes.find((n: any) => String(n.id) === String(noteId))
+        ? allItems.find((n: any) => String(n.id) === String(noteId))
         : null;
         
       if (targetNote?.noteTitle) return targetNote.noteTitle;

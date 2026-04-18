@@ -63,7 +63,9 @@ const InstructorCourses: React.FC = () => {
           const mappedCourses = response.data.map((c: any) => {
             let isLive = c.is_live || false;
             let liveSessions = c.live_sessions || [];
-            let finalCurriculum = c.curriculum || [];
+            let rawCurriculum = c.curriculum || [];
+            let notes = c.notes || [];
+            let finalCurriculum = Array.isArray(rawCurriculum) ? rawCurriculum : (rawCurriculum ? [rawCurriculum] : []);
 
             if (
               finalCurriculum.length > 0 &&
@@ -97,6 +99,7 @@ const InstructorCourses: React.FC = () => {
               lastUpdated: "Yakın zamanda",
               isLive: isLive,
               liveSessions: liveSessions,
+              notes: notes,
               instructor: c.teacher
                 ? `${c.teacher.first_name} ${c.teacher.last_name}`
                 : "Mufi Eğitmen",
@@ -123,32 +126,15 @@ const InstructorCourses: React.FC = () => {
       if (editingCourse) {
         // Update existing course via API
         // Construct curriculum payload carefully
-        let curriculumPayload;
-        if (
-          courseData.curriculum &&
-          !Array.isArray(courseData.curriculum) &&
-          courseData.curriculum.slides
-        ) {
-          // It's a Builder object, inject live_sessions_config into it
-          curriculumPayload = {
-            ...courseData.curriculum,
-            live_sessions_config: {
-              is_live: courseData.isLive,
-              sessions: courseData.liveSessions,
-            },
-          };
-        } else {
-          curriculumPayload = [
-            {
-              type: "live_sessions_config",
-              is_live: courseData.isLive,
-              sessions: courseData.liveSessions,
-            },
-            ...(Array.isArray(courseData.curriculum)
-              ? courseData.curriculum
-              : []),
-          ];
-        }
+        // Müfredat artık notlardan bağımsız, sadece müfredat ve canlı ders ayarlarını gönderiyoruz
+        const curriculumPayload = [
+          {
+            type: "live_sessions_config",
+            is_live: courseData.isLive,
+            sessions: courseData.liveSessions,
+          },
+          ...(Array.isArray(courseData.curriculum) ? courseData.curriculum : []),
+        ];
 
         await api.put(`/update_course/${editingCourse.id}`, {
           title: courseData.title,

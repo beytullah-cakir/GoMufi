@@ -265,36 +265,78 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
           <div>
             <h2 className="text-2xl font-black mb-6 text-gray-900 uppercase tracking-tight">Kurs Müfredatı</h2>
             <div className="border border-gray-200 rounded-xl overflow-hidden">
-              {(course.curriculum && course.curriculum.length > 0) ? (
-                course.curriculum.filter(s => s.type !== "live_sessions_config").map((section, index) => (
-                  <div key={index} className="border-b border-gray-200 last:border-0">
-                    <button 
-                      onClick={() => toggleSection(index)}
-                      className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        {expandedSections.includes(index) ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                        <span className="font-bold text-gray-800">{section.title || `Bölüm ${index + 1}`}</span>
-                      </div>
-                      <span className="text-sm text-gray-500">{(section.lessons?.length || section.lectures?.length || 0)} ders</span>
-                    </button>
-                    {expandedSections.includes(index) && (
-                      <div className="bg-white p-2">
-                        {(section.lessons || section.lectures)?.map((lesson: any, li: number) => (
-                          <div key={li} className="flex items-center justify-between p-3 hover:bg-purple-50 rounded-lg group cursor-pointer transition-colors">
-                            <div className="flex items-center gap-3">
-                              <PlayCircle className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
-                              <span className="text-gray-700 font-medium">{lesson.title || `Ders ${li + 1}`}</span>
+              {(() => {
+                const rawCurriculum = course.curriculum || [];
+                const activeCurriculum = Array.isArray(rawCurriculum)
+                  ? rawCurriculum
+                  : (rawCurriculum ? [rawCurriculum] : []);
+                
+                const standardSections = activeCurriculum.filter(s => 
+                  s.type !== "live_sessions_config" && !s.slides && !s.noteTitle
+                );
+
+                if (standardSections.length > 0) {
+                  return standardSections.map((section, index) => (
+                    <div key={index} className="border-b border-gray-200 last:border-0">
+                      <button 
+                        onClick={() => toggleSection(index)}
+                        className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="flex items-center gap-4">
+                          {expandedSections.includes(index) ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                          <span className="font-bold text-gray-800">{section.title || `Bölüm ${index + 1}`}</span>
+                        </div>
+                        <span className="text-sm text-gray-500">{(section.lessons?.length || section.lectures?.length || 0)} ders</span>
+                      </button>
+                      {expandedSections.includes(index) && (
+                        <div className="bg-white p-2">
+                          {(section.lessons || section.lectures)?.map((lesson: any, li: number) => (
+                            <div key={li} className="flex items-center justify-between p-3 hover:bg-purple-50 rounded-lg group cursor-pointer transition-colors">
+                              <div className="flex items-center gap-3">
+                                <PlayCircle className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                                <span className="text-gray-700 font-medium">{lesson.title || `Ders ${li + 1}`}</span>
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ));
+                }
+
+                return <div className="p-8 text-center text-gray-500 italic">Müfredat bilgisi bulunmuyor.</div>;
+              })()}
+            </div>
+          </div>
+
+          {/* Builder Notes Section */}
+          <div>
+            <h2 className="text-2xl font-black mb-6 text-gray-900 uppercase tracking-tight">İnteraktif Ders Notları</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {(() => {
+                const notes = (course as any).notes || [];
+
+                if (notes.length > 0) {
+                  return notes.map((note: any, index: number) => (
+                    <div key={index} className="p-6 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition-all group">
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-500">
+                          <FileText size={24} />
+                        </div>
+                        <div>
+                          <h4 className="font-black text-gray-800 group-hover:text-amber-600 transition-colors">{note.noteTitle || `Not ${index + 1}`}</h4>
+                          <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{note.slides?.length || 0} İnteraktif Slayt</p>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <div className="p-8 text-center text-gray-500 italic">Müfredat bilgisi bulunmuyor.</div>
-              )}
+                      <button className="w-full py-2 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl text-xs uppercase tracking-widest transition-colors shadow-lg shadow-amber-100">
+                        İncele
+                      </button>
+                    </div>
+                  ));
+                }
+
+                return <div className="col-span-2 p-8 text-center text-gray-400 italic border-2 border-dashed border-gray-100 rounded-2xl">Henüz not eklenmemiş.</div>;
+              })()}
             </div>
           </div>
 

@@ -62,26 +62,15 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = React.useState(false);
   const [preFetchedData, setPreFetchedData] = React.useState<any>(null);
+  const [preFetchedNotes, setPreFetchedNotes] = React.useState<any>(null);
   const isFetchingRef = React.useRef(false);
 
-  // Müfredatı liste yapısına normalize et (Legacy desteği ile)
+  // Notları çek (Yeni notes kolonu öncelikli, preFetchedNotes varsa o, yoksa course.notes)
   const notes = React.useMemo(() => {
-    if (!course?.curriculum) return [];
-    const raw = course.curriculum;
-    if (Array.isArray(raw)) return raw;
-
-    // Eski tekli nesne yapısı
-    if (raw.slides || raw.noteTitle) {
-      return [
-        {
-          id: "default",
-          noteTitle: raw.noteTitle || course.title,
-          slides: raw.slides || [],
-        },
-      ];
-    }
+    const rawNotes = preFetchedNotes || (course as any)?.notes || [];
+    if (Array.isArray(rawNotes)) return rawNotes;
     return [];
-  }, [course?.curriculum, course?.title]);
+  }, [preFetchedNotes, (course as any)?.notes]);
 
   const preFetchCurriculum = async () => {
     if (isFetchingRef.current || preFetchedData || !course?.id) return;
@@ -89,6 +78,7 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
     try {
       const response = await api.get(`/courses/${course.id}`);
       setPreFetchedData(response.data?.curriculum);
+      setPreFetchedNotes(response.data?.notes);
     } catch (error) {
       console.error("Ön yükleme hatası:", error);
     } finally {
@@ -382,24 +372,33 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                         onMouseEnter={preFetchCurriculum}
                         onClick={async () => {
                           setIsNavigating(true);
-                          let data = preFetchedData;
-                          if (!data) {
-                            try {
-                              const response = await api.get(
-                                `/courses/${course.id}`,
-                              );
+                          try {
+                            let data = preFetchedData;
+                            let currentNotes = preFetchedNotes;
+
+                            if (!data || !currentNotes) {
+                              const response = await api.get(`/courses/${course.id}`);
                               data = response.data?.curriculum;
-                            } catch (e) {
-                              console.error("Veri çekme hatası:", e);
+                              currentNotes = response.data?.notes;
+                              setPreFetchedData(data);
+                              setPreFetchedNotes(currentNotes);
                             }
+
+                            navigate(
+                              `/instructor/builder?courseId=${course.id}&noteId=${note.id}`,
+                              {
+                                state: { 
+                                  curriculum: data, 
+                                  notes: currentNotes || (course as any)?.notes 
+                                },
+                              },
+                            );
+                          } catch (e) {
+                            console.error("Navigasyon hatası:", e);
+                            alert("Veriler yüklenirken bir hata oluştu.");
+                          } finally {
+                            setIsNavigating(false);
                           }
-                          navigate(
-                            `/instructor/builder?courseId=${course.id}&noteId=${note.id}`,
-                            {
-                              state: { curriculum: data },
-                            },
-                          );
-                          setIsNavigating(false);
                         }}
                         className={`px-6 py-3 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
                           isNavigating
@@ -447,10 +446,16 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
 
               <div className="border border-gray-100 rounded-[2rem] overflow-hidden">
                 {(() => {
-                  // Sadece standart müfredat öğelerini (lectures olanları) filtrele
-                  const standardSections = Array.isArray(curriculum)
-                    ? curriculum.filter((s: any) => s.lectures)
-                    : [];
+                  const rawCurriculum = preFetchedData || course?.curriculum;
+                  const activeCurriculum = Array.isArray(rawCurriculum) 
+                    ? rawCurriculum 
+                    : (rawCurriculum ? [rawCurriculum] : []);
+                  
+                  const standardSections = activeCurriculum.filter((s: any) => 
+                        s.type !== "live_sessions_config" && 
+                        !s.slides && 
+                        !s.noteTitle
+                      );
 
                   if (standardSections.length > 0) {
                     return (
