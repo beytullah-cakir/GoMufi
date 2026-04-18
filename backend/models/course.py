@@ -12,11 +12,13 @@ class Course(Base):
     category = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     progress = Column(Integer, default=0)
-    price = Column(Integer, default=0) # Fiyat (TL cinsinden tamsayı veya float olabilir)
+    price = Column(Integer, default=0)
     learning_outcomes = Column(JSON, default=[])
     requirements = Column(JSON, default=[])
     curriculum = Column(JSON, default=[])
-    rating = Column(Integer, default=5) # 0-5 arası puan
+    notes = Column(JSON, default=[])
+    rating = Column(Integer, default=5)
+    status = Column(String, default="active")
 
 
     teacher = relationship("Teacher", back_populates="courses")

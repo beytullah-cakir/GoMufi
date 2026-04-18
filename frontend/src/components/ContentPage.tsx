@@ -152,7 +152,8 @@ const ContentPage: React.FC = () => {
                         description: c.description,
                         learning_outcomes: c.learning_outcomes,
                         requirements: c.requirements,
-                        curriculum: c.curriculum || []
+                        curriculum: c.curriculum || [],
+                        notes: c.notes || []
                     };
                 });
                 
