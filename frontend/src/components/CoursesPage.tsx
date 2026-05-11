@@ -34,6 +34,10 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
     const [courses, setCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+    const itemsPerPage = 10;
 
     useEffect(() => {
         fetchCourses();
@@ -106,6 +110,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                             <input
                                 type="text"
                                 placeholder="Ne öğrenmek istiyorsun?"
+                                value={searchQuery}
+                                onChange={(e) => { setSearchQuery(e.target.value); setCurrentPage(1); }}
                                 className="w-full bg-gray-50 border-2 border-gray-200 focus:border-gray-800 focus:bg-white rounded-full px-5 py-2 font-bold text-gray-700 outline-none transition-all placeholder:text-gray-400 text-sm"
                             />
                             <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg text-gray-400">🔍</span>
@@ -212,10 +218,22 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                         <div className="border-t border-gray-100 pt-6">
                             <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">KONU</h4>
                             <div className="flex flex-col gap-3">
-                                {['Python', 'Web Geliştirme', 'Makine Öğrenimi', 'İngilizce', 'Çizim', 'Mobil'].map((opt, i) => (
+                                {['Python', 'Web', 'React', 'JavaScript', 'İngilizce', 'Veri', 'Mobil'].map((opt, i) => (
                                     <label key={i} className="flex items-center gap-3 cursor-pointer group select-none relative">
-                                        <input type="checkbox" className="peer sr-only" />
-                                        {/* Custom Checkbox (Using different active color for variety if needed, or stick to theme) */}
+                                        <input 
+                                            type="checkbox" 
+                                            className="peer sr-only" 
+                                            checked={selectedCategories.includes(opt)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedCategories(prev => [...prev, opt]);
+                                                } else {
+                                                    setSelectedCategories(prev => prev.filter(c => c !== opt));
+                                                }
+                                                setCurrentPage(1);
+                                            }}
+                                        />
+                                        {/* Custom Checkbox */}
                                         <div className="w-6 h-6 border-2 border-gray-300 rounded-lg flex items-center justify-center peer-checked:border-indigo-500 peer-checked:bg-indigo-500 transition-all duration-200 group-hover:border-gray-400 group-hover:scale-105">
                                             <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 stroke-[4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -231,153 +249,207 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
 
                     {/* RIGHT COURSE LIST */}
                     <div className="flex-1">
-                        {/* List Header */}
-                        <div className="flex justify-between items-center mb-4">
-                            <span className="font-bold text-gray-400 text-sm">{courses.length} sonuç listeleniyor</span>
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm font-bold text-gray-500">Sırala:</span>
-                                <select className="bg-white border text-sm border-gray-200 rounded-lg px-3 py-2 font-bold text-gray-800 outline-none cursor-pointer hover:border-gray-400">
-                                    <option>En Popüler</option>
-                                    <option>En Yeni</option>
-                                    <option>En Yüksek Puanlı</option>
-                                </select>
-                            </div>
-                        </div>
+                        {/* Filter Logic */}
+                        {(() => {
+                            const filteredCourses = courses.filter(course => {
+                                const matchesSearch = course.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                                     course.description.toLowerCase().includes(searchQuery.toLowerCase());
+                                
+                                const matchesCategory = selectedCategories.length === 0 || 
+                                                       selectedCategories.some(cat => course.title.toLowerCase().includes(cat.toLowerCase()) || 
+                                                                                      course.description.toLowerCase().includes(cat.toLowerCase()));
+                                
+                                return matchesSearch && matchesCategory;
+                            });
 
-                        {/* Loading & Error States */}
-                        {isLoading && (
-                            <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
-                                <p className="font-bold text-gray-400">Kurslar Yükleniyor...</p>
-                            </div>
-                        )}
+                            const totalResults = filteredCourses.length;
+                            const totalPages = Math.ceil(totalResults / itemsPerPage);
+                            const currentItems = filteredCourses.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-                        {error && (
-                            <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-8 text-center">
-                                <p className="text-red-500 font-bold mb-4">{error}</p>
-                                <button 
-                                    onClick={fetchCourses}
-                                    className="bg-red-500 text-white px-6 py-2 rounded-xl font-black hover:bg-red-600 transition-colors"
-                                >
-                                    Tekrar Dene
-                                </button>
-                            </div>
-                        )}
-
-                        {!isLoading && !error && courses.length === 0 && (
-                            <div className="bg-gray-50 border-2 border-gray-100 rounded-2xl p-12 text-center">
-                                <div className="text-5xl mb-4">📭</div>
-                                <h3 className="text-xl font-black text-gray-800 mb-2">Henüz Kurs Bulunamadı</h3>
-                                <p className="text-gray-400 font-bold">Kriterlere uygun kurs henüz eklenmemiş.</p>
-                            </div>
-                        )}
-
-                        {/* List Items */}
-                        <div className="flex flex-col gap-4">
-                            {courses.map((course) => (
-                                <div 
-                                    key={course.id} 
-                                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 transition-all hover:shadow-lg relative overflow-hidden"
-                                >
-                                    {/* Thumbnail Area - Clickable */}
-                                    <div 
-                                        className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden cursor-pointer`}
-                                        onClick={() => onSelectCourse(course.id)}
-                                    >
-                                        <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
-                                        <img
-                                            src={course.icon}
-                                            alt={course.title}
-                                            className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
-                                        />
-                                    </div>
-
-                                    {/* Content Section - Clickable */}
-                                    <div 
-                                        className="flex-1 py-4 flex flex-col justify-between pr-4 cursor-pointer"
-                                        onClick={() => onSelectCourse(course.id)}
-                                    >
-                                        <div>
-                                            <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
-                                                {course.title}
-                                            </h3>
-                                            <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
-                                                {course.description}
-                                            </p>
-                                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
-                                                {course.instructor}
-                                            </div>
-
-                                            {/* Stats Row */}
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <span className="font-black text-yellow-600 text-sm">{course.rating}</span>
-                                                <div className="flex text-yellow-400 text-xs">⭐⭐⭐⭐⭐</div>
-                                                <span className="text-xs text-gray-400 font-medium">({course.ratingCount})</span>
-                                            </div>
-
-                                            <div className="text-xs text-gray-400 flex items-center gap-3">
-                                                <span>{course.hours}</span>
-                                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                <span>{course.lectures}</span>
-                                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                <span>{course.level}</span>
-                                            </div>
+                            return (
+                                <>
+                                    {/* List Header */}
+                                    <div className="flex justify-between items-center mb-4">
+                                        <span className="font-bold text-gray-400 text-sm">
+                                            {totalResults} sonuçtan {totalResults > 0 ? (currentPage - 1) * itemsPerPage + 1 : 0}-{Math.min(currentPage * itemsPerPage, totalResults)} arası listeleniyor
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-gray-500">Sırala:</span>
+                                            <select className="bg-white border text-sm border-gray-200 rounded-lg px-3 py-2 font-bold text-gray-800 outline-none cursor-pointer hover:border-gray-400">
+                                                <option>En Popüler</option>
+                                                <option>En Yeni</option>
+                                                <option>En Yüksek Puanlı</option>
+                                            </select>
                                         </div>
                                     </div>
 
-                                    {/* Price & Badge Section (NOT clickable for detail) */}
-                                    <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
-                                        <div className="flex flex-col items-end w-full gap-2">
-                                            <div className="flex flex-col items-end">
-                                                <div className="flex items-baseline gap-1 whitespace-nowrap">
-                                                    <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
-                                                    <span className="text-xs text-gray-400 font-bold">/ ders</span>
-                                                </div>
-                                                {course.oldPrice && (
-                                                    <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
-                                                )}
-                                            </div>
+                                    {/* Loading & Error States */}
+                                    {isLoading && (
+                                        <div className="flex flex-col items-center justify-center py-20 gap-4">
+                                            <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
+                                            <p className="font-bold text-gray-400">Kurslar Yükleniyor...</p>
+                                        </div>
+                                    )}
 
-                                            {purchasedCourseIds.includes(course.id) ? (
-                                                <div className="w-full py-2 rounded-lg font-black text-xs text-center bg-gray-100 text-gray-500 border-2 border-gray-200 cursor-default uppercase tracking-wider">
-                                                    Zaten Sahipsin ✓
-                                                </div>
-                                            ) : (
-                                                <button 
-                                                    onClick={(e) => { 
-                                                        e.preventDefault();
-                                                        e.stopPropagation(); 
-                                                        addToCart(course); 
-                                                    }}
-                                                    className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
-                                                        ${cart.some(item => item.id === course.id)
-                                                            ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
-                                                            : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
-                                                        }`}
+                                    {error && (
+                                        <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-8 text-center">
+                                            <p className="text-red-500 font-bold mb-4">{error}</p>
+                                            <button 
+                                                onClick={fetchCourses}
+                                                className="bg-red-500 text-white px-6 py-2 rounded-xl font-black hover:bg-red-600 transition-colors"
+                                            >
+                                                Tekrar Dene
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {!isLoading && !error && totalResults === 0 && (
+                                        <div className="bg-gray-50 border-2 border-gray-100 rounded-2xl p-12 text-center">
+                                            <div className="text-5xl mb-4">📭</div>
+                                            <h3 className="text-xl font-black text-gray-800 mb-2">Aramana Uygun Kurs Bulunamadı</h3>
+                                            <p className="text-gray-400 font-bold">Farklı anahtar kelimeler veya filtreler denemeye ne dersin?</p>
+                                            <button 
+                                                onClick={() => { setSearchQuery(''); setSelectedCategories([]); setCurrentPage(1); }}
+                                                className="mt-6 text-indigo-600 font-black hover:underline"
+                                            >
+                                                Tüm Filtreleri Temizle
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {/* List Items */}
+                                    <div className="flex flex-col gap-4">
+                                        {currentItems.map((course) => (
+                                            <div 
+                                                key={course.id} 
+                                                className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 transition-all hover:shadow-lg relative overflow-hidden"
+                                            >
+                                                {/* Thumbnail Area - Clickable */}
+                                                <div 
+                                                    className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden cursor-pointer`}
+                                                    onClick={() => onSelectCourse(course.id)}
                                                 >
-                                                    {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
-                                                </button>
-                                            )}
-                                        </div>
+                                                    <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
+                                                    <img
+                                                        src={course.icon}
+                                                        alt={course.title}
+                                                        className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
+                                                    />
+                                                </div>
 
-                                        {course.badge && (
-                                            <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}>
-                                                {course.badge}
-                                            </span>
-                                        )}
+                                                {/* Content Section - Clickable */}
+                                                <div 
+                                                    className="flex-1 py-4 flex flex-col justify-between pr-4 cursor-pointer"
+                                                    onClick={() => onSelectCourse(course.id)}
+                                                >
+                                                    <div>
+                                                        <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
+                                                            {course.title}
+                                                        </h3>
+                                                        <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
+                                                            {course.description}
+                                                        </p>
+                                                        <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
+                                                            {course.instructor}
+                                                        </div>
+
+                                                        {/* Stats Row */}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <span className="font-black text-yellow-600 text-sm">{course.rating}</span>
+                                                            <div className="flex text-yellow-400 text-xs">⭐⭐⭐⭐⭐</div>
+                                                            <span className="text-xs text-gray-400 font-medium">({course.ratingCount})</span>
+                                                        </div>
+
+                                                        <div className="text-xs text-gray-400 flex items-center gap-3">
+                                                            <span>{course.hours}</span>
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <span>{course.lectures}</span>
+                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                            <span>{course.level}</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Price & Badge Section (NOT clickable for detail) */}
+                                                <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
+                                                    <div className="flex flex-col items-end w-full gap-2">
+                                                        <div className="flex flex-col items-end">
+                                                            <div className="flex items-baseline gap-1 whitespace-nowrap">
+                                                                <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
+                                                                <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                                            </div>
+                                                            {course.oldPrice && (
+                                                                <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
+                                                            )}
+                                                        </div>
+
+                                                        {purchasedCourseIds.includes(course.id) ? (
+                                                            <div className="w-full py-2 rounded-lg font-black text-xs text-center bg-gray-100 text-gray-500 border-2 border-gray-200 cursor-default uppercase tracking-wider">
+                                                                Zaten Sahipsin ✓
+                                                            </div>
+                                                        ) : (
+                                                            <button 
+                                                                onClick={(e) => { 
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation(); 
+                                                                    addToCart(course); 
+                                                                }}
+                                                                className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
+                                                                    ${cart.some(item => item.id === course.id)
+                                                                        ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
+                                                                        : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
+                                                                    }`}
+                                                            >
+                                                                {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+
+                                                    {course.badge && (
+                                                        <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}>
+                                                            {course.badge}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
                                     </div>
-                                </div>
-                            ))}
-                        </div>
 
-                        {/* Pagination */}
-                        <div className="mt-8 flex justify-center gap-2">
-                            {[1, 2, 3, '...', 12].map((page, i) => (
-                                <button key={i} className={`w-10 h-10 rounded-full font-bold flex items-center justify-center transition-colors ${page === 1 ? 'bg-gray-800 text-white' : 'hover:bg-gray-100 text-gray-600'}`}>
-                                    {page}
+                                    {/* Pagination */}
+                                    {totalResults > itemsPerPage && (
+                                        <div className="mt-8 flex justify-center items-center gap-2">
+                                            <button 
+                                                onClick={() => { setCurrentPage(prev => Math.max(prev - 1, 1)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                disabled={currentPage === 1}
+                                                className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                            >
+                                                ←
+                                            </button>
+                                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                                                <button 
+                                                    key={page} 
+                                                    onClick={() => { setCurrentPage(page); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                                    className={`w-10 h-10 rounded-xl font-black flex items-center justify-center transition-all border-2
+                                                        ${page === currentPage 
+                                                            ? 'bg-gray-900 text-white border-gray-900 shadow-lg shadow-gray-200 scale-110' 
+                                                : 'bg-white text-gray-500 border-gray-100 hover:border-gray-300 hover:text-gray-900'
+                                            }`}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button 
+                                    onClick={() => { setCurrentPage(prev => Math.min(prev + 1, totalPages)); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                    disabled={currentPage === totalPages}
+                                    className="w-10 h-10 rounded-xl border-2 border-gray-100 flex items-center justify-center text-gray-400 hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                                >
+                                    →
                                 </button>
-                            ))}
-                        </div>
+                            </div>
+                        )}
+                                </>
+                            );
+                        })()}
                     </div>
                 </div >
             </div >

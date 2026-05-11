@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, X, Trash2, LogOut, Settings, User } from 'lucide-react';
+import { ShoppingCart, X, Trash2, LogOut, Settings, User, Home, Search, BookOpen, MessageSquare } from 'lucide-react';
 import api from '../api';
 
 // Import sprites
@@ -15,13 +15,13 @@ import FireIcon from '../assets/sprites/Fire.png';
 import type { CourseData } from '../types';
 
 interface NavItemProps {
-    icon: string;
+    icon: React.ElementType;
     label: string;
     isActive?: boolean;
     onClick: () => void;
 }
 
-const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => {
+const NavItem: React.FC<NavItemProps> = ({ icon: Icon, label, isActive, onClick }) => {
     return (
         <button
             onClick={onClick}
@@ -32,12 +32,11 @@ const NavItem: React.FC<NavItemProps> = ({ icon, label, isActive, onClick }) => 
                 }
       `}
         >
-            <img
-                src={icon}
-                alt={label}
-                className={`w-8 h-8 object-contain transition-transform duration-300 ${isActive ? 'scale-100' : 'grayscale opacity-70 group-hover:grayscale-0 group-hover:opacity-100 group-hover:animate-wiggle'}`}
+            <Icon
+                className={`w-5 h-5 transition-transform duration-300 ${isActive ? 'scale-110' : 'opacity-70 group-hover:opacity-100 group-hover:scale-110'}`}
+                strokeWidth={isActive ? 3 : 2.5}
             />
-            <span className="font-black tracking-wider uppercase font-sans text-sm whitespace-nowrap">
+            <span className="font-black tracking-wider uppercase font-sans text-xs md:text-sm whitespace-nowrap">
                 {label}
             </span>
         </button>
@@ -109,10 +108,10 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
     };
 
     const navItems = [
-        { label: 'Ana Sayfa', icon: HomeIcon },
-        { label: 'Kurslar', icon: ShopIcon },
-        { label: 'Kurslarım', icon: BooksIcon },
-        { label: 'Soru Sor!', icon: ChatIcon },
+        { label: 'Ana Sayfa', icon: Home },
+        { label: 'Kurslar', icon: Search },
+        { label: 'Kurslarım', icon: BookOpen },
+        { label: 'Soru Sor!', icon: MessageSquare },
     ];
 
     return (
@@ -142,27 +141,25 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
             <div className="flex items-center gap-6">
 
                 {/* Stats Row */}
-                {currentCourse && (
-                    <div className="flex items-center gap-4">
-                        {/* Fire / Streak */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Günlük Seri">
-                            <img src={FireIcon} alt="Streak" className="w-6 h-6 group-hover:scale-110 transition-transform" />
-                            <span className="text-sm font-black text-orange-500 font-display">{currentCourse.stats.streak}</span>
-                        </div>
-
-                        {/* Gems */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Elmaslar">
-                            <span className="text-lg group-hover:scale-110 transition-transform block text-sky-400">💎</span>
-                            <span className="text-sm font-black text-sky-500 font-display">{currentCourse.stats.gems}</span>
-                        </div>
-
-                        {/* Hearts */}
-                        <div className="flex items-center gap-1.5 group cursor-pointer" title="Canlar">
-                            <span className="text-lg group-hover:scale-110 transition-transform block text-red-500">❤️</span>
-                            <span className="text-sm font-black text-red-500 font-display">5</span>
-                        </div>
+                <div className="flex items-center gap-4">
+                    {/* Fire / Streak */}
+                    <div className="flex items-center gap-1.5 group cursor-pointer" title="Günlük Seri">
+                        <img src={FireIcon} alt="Streak" className="w-6 h-6 group-hover:scale-110 transition-transform" />
+                        <span className="text-sm font-black text-orange-500 font-display">{userData?.streak ?? 0}</span>
                     </div>
-                )}
+
+                    {/* Gems */}
+                    <div className="flex items-center gap-1.5 group cursor-pointer" title="Elmaslar">
+                        <span className="text-lg group-hover:scale-110 transition-transform block text-sky-400">💎</span>
+                        <span className="text-sm font-black text-sky-500 font-display">{userData?.gems ?? 0}</span>
+                    </div>
+
+                    {/* Hearts */}
+                    <div className="flex items-center gap-1.5 group cursor-pointer" title="Canlar">
+                        <span className="text-lg group-hover:scale-110 transition-transform block text-red-500">❤️</span>
+                        <span className="text-sm font-black text-red-500 font-display">{userData?.hearts ?? 5}</span>
+                    </div>
+                </div>
 
                 {/* Shopping Cart */}
                 <div className="relative" ref={cartRef}>

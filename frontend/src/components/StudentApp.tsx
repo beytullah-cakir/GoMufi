@@ -303,7 +303,7 @@ function StudentApp() {
         'Ana Sayfa': '/student/home',
         'Kurslarım': '/student/my-courses',
         'Kurslar': '/student/catalog',
-        'Soru Sor': '/student/ask',
+        'Soru Sor!': '/student/ask',
         'Profilim': '/student/profile',
         'PROFILIM': '/student/profile'
     };
@@ -312,7 +312,7 @@ function StudentApp() {
         '/student/home': 'Ana Sayfa',
         '/student/my-courses': 'Kurslarım',
         '/student/catalog': 'Kurslar',
-        '/student/ask': 'Soru Sor',
+        '/student/ask': 'Soru Sor!',
         '/student/profile': 'Profilim'
     };
 

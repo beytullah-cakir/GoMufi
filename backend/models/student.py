@@ -17,6 +17,12 @@ class Student(Base):
     password = Column(String)
     student_code = Column(String, unique=True, index=True, default=lambda: f"ST-{str(uuid.uuid4())[:6].upper()}")
     parent_id = Column(Integer, ForeignKey("parents.id"), nullable=True)
+    
+    # Gamification fields
+    gems = Column(Integer, default=0)
+    hearts = Column(Integer, default=5)
+    streak = Column(Integer, default=0)
+    xp = Column(Integer, default=0) # Adding XP too as it's common
 
     parent = relationship("Parent", back_populates="students")
     enrollments = relationship("Enrollment", back_populates="student")
