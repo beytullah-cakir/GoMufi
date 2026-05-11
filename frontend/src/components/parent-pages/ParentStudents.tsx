@@ -16,39 +16,45 @@ interface Student {
     points?: number;
 }
 
-const ParentStudents: React.FC = () => {
+interface ParentStudentsProps {
+    userData: any;
+    onSelectStudent: (student: any) => void;
+}
+
+const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStudent }) => {
     const [students, setStudents] = useState<Student[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [isLinking, setIsLinking] = useState(false);
     const [showLinkModal, setShowLinkModal] = useState(false);
     const [studentCode, setStudentCode] = useState("");
     const [linkError, setLinkError] = useState("");
 
-    const fetchStudents = async () => {
-        setIsLoading(true);
-        try {
-            const response = await api.get("/profile");
-            if (response.data && response.data.students) {
-                // Backend returns basic student info, we can add default stats for now
-                const enrichedStudents = response.data.students.map((s: any) => ({
-                    ...s,
-                    completedLessons: Math.floor(Math.random() * 10), // Mock stats for UI
-                    totalLessons: 20,
-                    badges: Math.floor(Math.random() * 5),
-                    points: Math.floor(Math.random() * 2000),
-                }));
-                setStudents(enrichedStudents);
-            }
-        } catch (err) {
-            console.error("Failed to fetch students", err);
-        } finally {
-            setIsLoading(false);
-        }
+    const enrichStudentList = (studentList: any[]) => {
+        return studentList.map((s: any) => ({
+            ...s,
+            completedLessons: Math.floor(Math.random() * 10), // Mock stats for UI
+            totalLessons: 20,
+            badges: Math.floor(Math.random() * 5),
+            points: s.xp || Math.floor(Math.random() * 2000),
+        }));
     };
 
     useEffect(() => {
-        fetchStudents();
-    }, []);
+        if (userData && userData.students) {
+            setStudents(enrichStudentList(userData.students));
+        }
+    }, [userData]);
+
+    const fetchStudents = async () => {
+        try {
+            const response = await api.get("/profile");
+            if (response.data && response.data.students) {
+                setStudents(enrichStudentList(response.data.students));
+            }
+        } catch (err) {
+            console.error("Failed to fetch students", err);
+        }
+    };
 
     const handleLinkStudent = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -159,7 +165,10 @@ const ParentStudents: React.FC = () => {
                                 </div>
                             </div>
 
-                            <button className="w-full py-3 bg-gray-50 text-gray-700 font-black rounded-xl hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2 border-b-4 border-gray-200 active:border-b-0 active:translate-y-1">
+                            <button 
+                                onClick={() => onSelectStudent(student)}
+                                className="w-full py-3 bg-gray-50 text-gray-700 font-black rounded-xl hover:bg-purple-600 hover:text-white transition-all flex items-center justify-center gap-2 border-b-4 border-gray-200 active:border-b-0 active:translate-y-1"
+                            >
                                 Gelişimi Görüntüle <ChevronRight className="w-4 h-4" />
                             </button>
                         </div>

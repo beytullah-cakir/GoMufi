@@ -108,9 +108,9 @@ const ParentSidebar: React.FC<ParentSidebarProps> = ({
             id: "Payments",
         },
         {
-            label: "Ayarlar",
+            label: "Profilim",
             icon: <Settings size={24} strokeWidth={2.5} />,
-            id: "Settings",
+            id: "Profile",
         },
     ];
 
