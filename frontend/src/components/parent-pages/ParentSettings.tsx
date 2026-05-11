@@ -1,8 +1,50 @@
-import React from 'react';
-import { User, Lock, Bell, Moon, Languages, HelpCircle, LogOut } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Lock, Bell, Moon, Languages, HelpCircle, LogOut, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import api from '../../api';
 
-const ParentSettings: React.FC = () => {
+interface ParentSettingsProps {
+    userData: any;
+}
+
+const ParentSettings: React.FC<ParentSettingsProps> = ({ userData }) => {
+    const [formData, setFormData] = useState({
+        first_name: '',
+        last_name: '',
+        email: ''
+    });
+    const [isUpdating, setIsUpdating] = useState(false);
+    const [message, setMessage] = useState({ type: '', text: '' });
+
+    useEffect(() => {
+        if (userData) {
+            setFormData({
+                first_name: userData.first_name || '',
+                last_name: userData.last_name || '',
+                email: userData.email || ''
+            });
+        }
+    }, [userData]);
+
+    const handleUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setIsUpdating(true);
+        setMessage({ type: '', text: '' });
+
+        try {
+            await api.put("/profile/update", {
+                first_name: formData.first_name,
+                last_name: formData.last_name
+            });
+            setMessage({ type: 'success', text: 'Profil başarıyla güncellendi!' });
+            // Optionally refresh the page or parent state to sync names everywhere
+            setTimeout(() => window.location.reload(), 1500);
+        } catch (error: any) {
+            console.error("Update failed", error);
+            setMessage({ type: 'error', text: 'Güncelleme sırasında bir hata oluştu.' });
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const handleLogout = async () => {
         try {
@@ -14,92 +56,80 @@ const ParentSettings: React.FC = () => {
         }
     };
 
+    const initials = userData ? `${userData.first_name?.[0] || ''}${userData.last_name?.[0] || ''}` : '??';
+
     return (
-        <div className="space-y-8 animate-fade-in max-w-4xl mx-auto">
+        <div className="space-y-8 animate-fade-in max-w-4xl mx-auto pb-12">
             <div className="mb-8">
-                <h2 className="text-3xl font-black text-gray-800 mb-2">Ayarlar</h2>
-                <p className="text-gray-500 font-medium">Hesap tercihlerinizi kişiselleştirin.</p>
+                <h2 className="text-3xl font-black text-gray-800 mb-2">Profilim</h2>
+                <p className="text-gray-500 font-medium">Kişisel bilgilerinizi yönetin ve güncelleyin.</p>
             </div>
 
-            <div className="bg-white rounded-[2rem] border border-gray-100 shadow-sm overflow-hidden">
-                {/* Profile Section */}
-                <div className="p-8 border-b border-gray-100 flex flex-col md:flex-row items-center gap-6">
-                    <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center text-3xl font-black text-purple-600 border-4 border-white shadow-lg">
-                        MY
+            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm overflow-hidden">
+                {/* Header Section */}
+                <div className="p-8 bg-gradient-to-r from-purple-50 to-indigo-50 border-b border-gray-100 flex flex-col md:flex-row items-center gap-6">
+                    <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center text-3xl font-black text-purple-600 border-4 border-purple-200 shadow-lg uppercase">
+                        {initials}
                     </div>
                     <div className="flex-1 text-center md:text-left">
-                        <h3 className="text-2xl font-black text-gray-800">Mualla Şahin</h3>
-                        <p className="text-gray-400 font-medium">mualla@example.com</p>
-                    </div>
-                    <button className="px-6 py-2.5 bg-gray-900 text-white font-bold rounded-xl hover:bg-gray-800 transition-colors">
-                        Profili Düzenle
-                    </button>
-                </div>
-
-                {/* Settings List */}
-                <div className="divide-y divide-gray-50">
-                    <div className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group flex items-center gap-6">
-                        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <User className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 text-lg">Hesap Bilgileri</h4>
-                            <p className="text-gray-400 text-sm font-medium">Ad, soyad ve iletişim bilgileri</p>
-                        </div>
-                    </div>
-
-                    <div className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group flex items-center gap-6">
-                        <div className="w-12 h-12 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Lock className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 text-lg">Şifre ve Güvenlik</h4>
-                            <p className="text-gray-400 text-sm font-medium">Şifre değiştirme ve 2FA</p>
-                        </div>
-                    </div>
-
-                    <div className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group flex items-center gap-6">
-                        <div className="w-12 h-12 bg-yellow-50 text-yellow-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Bell className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 text-lg">Bildirimler</h4>
-                            <p className="text-gray-400 text-sm font-medium">E-posta ve uygulama bildirimleri</p>
-                        </div>
-                    </div>
-
-                    <div className="p-6 hover:bg-gray-50 transition-colors cursor-pointer group flex items-center gap-6">
-                        <div className="w-12 h-12 bg-green-50 text-green-600 rounded-2xl flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Languages className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                            <h4 className="font-bold text-gray-800 text-lg">Dil ve Bölge</h4>
-                            <p className="text-gray-400 text-sm font-medium">Türkçe (TR)</p>
-                        </div>
+                        <h3 className="text-2xl font-black text-gray-800">{formData.first_name} {formData.last_name}</h3>
+                        <p className="text-purple-500 font-bold uppercase tracking-widest text-xs">Ebeveyn Hesabı</p>
                     </div>
                 </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <button className="p-6 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center gap-4 hover:shadow-md transition-all group">
-                    <div className="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 group-hover:bg-purple-100 group-hover:text-purple-600 transition-colors">
-                        <HelpCircle className="w-5 h-5" />
+                {/* Form Section */}
+                <form onSubmit={handleUpdate} className="p-8 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Adınız</label>
+                            <input 
+                                type="text"
+                                value={formData.first_name}
+                                onChange={(e) => setFormData({...formData, first_name: e.target.value})}
+                                className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold focus:border-purple-400 focus:bg-white outline-none transition-all"
+                                required
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Soyadınız</label>
+                            <input 
+                                type="text"
+                                value={formData.last_name}
+                                onChange={(e) => setFormData({...formData, last_name: e.target.value})}
+                                className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold focus:border-purple-400 focus:bg-white outline-none transition-all"
+                                required
+                            />
+                        </div>
                     </div>
-                    <div className="text-left">
-                        <div className="font-bold text-gray-800">Yardım Merkezi</div>
-                        <div className="text-xs text-gray-400 font-medium">SSS ve İletişim</div>
-                    </div>
-                </button>
 
-                <button onClick={handleLogout} className="p-6 bg-red-50 rounded-2xl border border-red-100 shadow-sm flex items-center gap-4 hover:bg-red-100 transition-all group">
-                    <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-red-500 shadow-sm">
-                        <LogOut className="w-5 h-5" />
+                    <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">E-Posta Adresiniz (Değiştirilemez)</label>
+                        <input 
+                            type="email"
+                            value={formData.email}
+                            disabled
+                            className="w-full px-6 py-4 bg-gray-100 border-2 border-transparent rounded-2xl font-bold text-gray-500 cursor-not-allowed"
+                        />
                     </div>
-                    <div className="text-left">
-                        <div className="font-bold text-red-600">Çıkış Yap</div>
-                        <div className="text-xs text-red-400 font-medium">Hesaptan güvenle ayrıl</div>
+
+                    {message.text && (
+                        <div className={`p-4 rounded-xl flex items-center gap-3 font-bold text-sm ${message.type === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-700 border border-red-100'}`}>
+                            {message.type === 'success' ? <CheckCircle2 className="w-5 h-5" /> : <HelpCircle className="w-5 h-5" />}
+                            {message.text}
+                        </div>
+                    )}
+
+                    <div className="pt-4 flex justify-end">
+                        <button 
+                            type="submit"
+                            disabled={isUpdating}
+                            className="px-8 py-4 bg-purple-600 text-white font-black rounded-2xl shadow-lg shadow-purple-100 hover:bg-purple-700 transition-all flex items-center gap-2 disabled:bg-gray-300 transform active:scale-95"
+                        >
+                            {isUpdating ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
+                            BİLGİLERİ GÜNCELLE
+                        </button>
                     </div>
-                </button>
+                </form>
             </div>
         </div>
     );

@@ -45,9 +45,10 @@ is_production = FRONTEND_URL and "localhost" not in FRONTEND_URL and FRONTEND_UR
 # 2. SESSION MIDDLEWARE
 app.add_middleware(
     SessionMiddleware, 
-    secret_key=os.getenv("SECRET_KEY", "fallback-cok-gizli-anahtar"),
-    same_site="none" if is_production else "lax", 
-    https_only=is_production,  # Local'de HTTP (False), Production'da HTTPS (True)
+    secret_key=os.getenv("SECRET_KEY", "gomufi-ozel-guvenli-anahtar-123"),
+    session_cookie="gomufi_session",
+    same_site="lax", 
+    https_only=is_production, 
     max_age=3600
 )
 

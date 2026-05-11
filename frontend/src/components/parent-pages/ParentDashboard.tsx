@@ -1,20 +1,36 @@
-import React from "react";
-import { Star, TrendingUp, Calendar, CreditCard, ChevronRight, AlertCircle, CheckCircle2, Award } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { Star, TrendingUp, Calendar, CreditCard, ChevronRight, AlertCircle, CheckCircle2, Award, Mail, MessageSquare } from "lucide-react";
+import api from "../../api";
 
-const ParentDashboard: React.FC = () => {
+interface ParentDashboardProps {
+    userData: any;
+}
+
+const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData }) => {
+    const [instructors, setInstructors] = useState<any[]>([]);
+
+    useEffect(() => {
+        const fetchInstructors = async () => {
+            try {
+                const response = await api.get("/profile/parent/teachers");
+                setInstructors(response.data);
+            } catch (error) {
+                console.error("Dashboard eğitmen yükleme hatası:", error);
+            }
+        };
+        fetchInstructors();
+    }, []);
+
     return (
         <div className="space-y-8 animate-fade-in">
             {/* Welcome & Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                 <div className="md:col-span-4 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl shadow-purple-200">
                     <div className="relative z-10">
-                        <h2 className="text-3xl font-black mb-2">Hoşgeldin, Sayın Veli! 👋</h2>
+                        <h2 className="text-3xl font-black mb-2">Hoşgeldin, {userData?.first_name || 'Sayın Veli'}! 👋</h2>
                         <p className="text-purple-100 font-medium text-lg max-w-xl">
-                            Çocuğunuz bu hafta harika bir ilerleme kaydetti! Matematik dersindeki başarısı %15 arttı.
+                            Çocuklarınız bu hafta harika bir ilerleme kaydetti! Tüm derslerdeki başarı ortalaması yükseliyor.
                         </p>
-                        <button className="mt-6 px-6 py-3 bg-white text-purple-600 font-bold rounded-xl hover:bg-purple-50 transition-colors shadow-sm">
-                            Detaylı Raporu Gör
-                        </button>
                     </div>
                     {/* Decorative Circles */}
                     <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>
@@ -40,58 +56,8 @@ const ParentDashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Lesson Summary Module */}
+                {/* Left Column: Quick Actions & Achievements */}
                 <div className="lg:col-span-2 space-y-8">
-                    <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm">
-                        <div className="flex justify-between items-center mb-6">
-                            <h3 className="text-xl font-black text-gray-800 flex items-center gap-2">
-                                <div className="w-2 h-8 bg-purple-500 rounded-full"></div>
-                                Son Ders Özeti
-                            </h3>
-                            <span className="text-sm font-bold text-gray-400">12 Şubat 2024 • Matematik</span>
-                        </div>
-
-                        <div className="flex flex-col md:flex-row gap-8">
-                            {/* Focus Score */}
-                            <div className="flex-1 bg-purple-50 rounded-2xl p-6 flex flex-col items-center justify-center text-center">
-                                <div className="relative w-32 h-32 mb-4">
-                                    <svg className="w-full h-full transform -rotate-90">
-                                        <circle cx="64" cy="64" r="56" stroke="#e5e7eb" strokeWidth="12" fill="none" />
-                                        <circle cx="64" cy="64" r="56" stroke="#9333ea" strokeWidth="12" fill="none" strokeDasharray="351" strokeDashoffset="70" strokeLinecap="round" />
-                                    </svg>
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <span className="text-3xl font-black text-purple-600">80</span>
-                                        <span className="text-xs font-bold text-gray-400">Odak Puanı</span>
-                                    </div>
-                                </div>
-                                <p className="text-sm font-medium text-gray-600">
-                                    "Derse katılımı yüksekti, özellikle problem çözme kısmında çok istekliydi."
-                                </p>
-                            </div>
-
-                            {/* Critical Notes */}
-                            <div className="flex-[2] space-y-4">
-                                <div className="p-4 bg-green-50 rounded-2xl border border-green-100">
-                                    <h4 className="font-bold text-green-700 mb-2 flex items-center gap-2">
-                                        <CheckCircle2 className="w-5 h-5" /> Neleri İyi Yaptı?
-                                    </h4>
-                                    <p className="text-sm text-green-800 font-medium leading-relaxed">
-                                        Karmaşık problemleri parçalara ayırarak çözme mantığını kavradı. Çarpım tablosunda hız kazandı.
-                                    </p>
-                                </div>
-
-                                <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
-                                    <h4 className="font-bold text-orange-700 mb-2 flex items-center gap-2">
-                                        <AlertCircle className="w-5 h-5" /> Geliştirilmesi Gerekenler
-                                    </h4>
-                                    <p className="text-sm text-orange-800 font-medium leading-relaxed">
-                                        İşlem hatası yapmamak için soruyu daha dikkatli okumalı. Gelecek ders bunun üzerine pratik yapacağız.
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Quick Actions / Notifications */}
                     <div className="grid md:grid-cols-2 gap-6">
                         <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
@@ -154,25 +120,26 @@ const ParentDashboard: React.FC = () => {
                     <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm">
                         <h3 className="font-black text-gray-800 mb-4">Eğitmenlerimiz</h3>
                         <div className="space-y-4">
-                            {[
-                                { name: "Ahmet Y.", subject: "Matematik", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Brian" },
-                                { name: "Zeynep K.", subject: "Piyano", img: "https://api.dicebear.com/7.x/avataaars/svg?seed=Senorita" },
-                            ].map((inst, idx) => (
-                                <div key={idx} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group">
-                                    <img src={inst.img} className="w-12 h-12 bg-gray-100 rounded-full" />
-                                    <div className="flex-1">
-                                        <div className="font-bold text-gray-800 text-sm group-hover:text-purple-600">{inst.name}</div>
-                                        <div className="text-xs text-gray-500 font-bold">{inst.subject}</div>
+                            {instructors.length === 0 ? (
+                                <p className="text-gray-400 text-sm font-medium italic p-2">Henüz bir eğitmen bulunmuyor.</p>
+                            ) : (
+                                instructors.slice(0, 3).map((inst, idx) => (
+                                    <div key={idx} className="flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors cursor-pointer group">
+                                        <img 
+                                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${inst.first_name}${inst.id}`} 
+                                            className="w-12 h-12 bg-gray-100 rounded-full border border-gray-100" 
+                                            alt={inst.first_name}
+                                        />
+                                        <div className="flex-1">
+                                            <div className="font-bold text-gray-800 text-sm group-hover:text-purple-600">{inst.first_name} {inst.last_name}</div>
+                                            <div className="text-[10px] text-gray-400 font-black uppercase tracking-wider line-clamp-1">{inst.expertises || "Eğitmen"}</div>
+                                        </div>
+                                        <button className="p-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-600 hover:text-white transition-all">
+                                            <MessageSquare className="w-4 h-4" />
+                                        </button>
                                     </div>
-                                    <button className="p-2 bg-purple-50 text-purple-600 rounded-full hover:bg-purple-600 hover:text-white transition-colors">
-                                        <span className="sr-only">Mesaj</span>
-                                        ✉️
-                                    </button>
-                                </div>
-                            ))}
-                            <button className="w-full py-3 mt-2 border-2 border-dashed border-gray-200 text-gray-400 font-bold rounded-xl hover:border-purple-300 hover:text-purple-500 transition-colors">
-                                + Yeni Eğitmen Bul
-                            </button>
+                                ))
+                            )}
                         </div>
                     </div>
 

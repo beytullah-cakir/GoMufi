@@ -7,6 +7,8 @@ from models.teacher import Teacher
 from models.student import Student
 from models.parent import Parent
 from models.tag import Tag
+from models.enrollment import Enrollment
+from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
 from schemas.course import TagCreate
 
@@ -238,3 +240,88 @@ async def unlink_student(
     await db.commit()
     
     return {"message": "Öğrenci başarıyla hesabınızdan ayrıldı"}
+
+@router.get("/profile/parent/teachers")
+async def get_parent_teachers(
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Sadece ebeveynler bu veriye erişebilir")
+    
+    parent_id = int(user["user_id"])
+    
+    # Query to get teachers of students belonging to this parent
+    # Parent -> Student -> Enrollment -> Course -> Teacher
+    query = (
+        select(Teacher)
+        .join(Course, Teacher.id == Course.teacher_id)
+        .join(Enrollment, Course.id == Enrollment.course_id)
+        .join(Student, Enrollment.student_id == Student.id)
+        .where(Student.parent_id == parent_id)
+        .distinct()
+    )
+    
+    result = await db.execute(query)
+    teachers = result.scalars().all()
+    
+    return [
+        {
+            "id": t.id,
+            "first_name": t.first_name,
+            "last_name": t.last_name,
+            "email": t.email,
+            "expertises": t.expertises,
+            "bio": t.bio
+        } for t in teachers
+    ]
+
+@router.get("/profile/parent/student/{student_id}")
+async def get_parent_student_detail(
+    student_id: int,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if user["role"] != "parent":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    parent_id = int(user["user_id"])
+    
+    # Check if student belongs to this parent
+    result = await db.execute(
+        select(Student).where(Student.id == student_id, Student.parent_id == parent_id)
+    )
+    student = result.scalars().first()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found or not linked to you")
+    
+    # Get enrollments and courses to calculate progress
+    result_courses = await db.execute(
+        select(Course)
+        .join(Enrollment, Course.id == Enrollment.course_id)
+        .where(Enrollment.student_id == student.id)
+    )
+    courses = result_courses.scalars().all()
+    
+    return {
+        "id": student.id,
+        "first_name": student.first_name,
+        "last_name": student.last_name,
+        "nickname": student.nickname,
+        "student_code": student.student_code,
+        "grade_level": student.grade_level,
+        "education_level": student.education_level,
+        "xp": student.xp,
+        "gems": student.gems,
+        "hearts": student.hearts,
+        "streak": student.streak,
+        "courses": [
+            {
+                "id": c.id,
+                "title": c.title,
+                "progress": c.progress,
+                "category": c.category
+            } for c in courses
+        ]
+    }
