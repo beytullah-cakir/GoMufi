@@ -17,6 +17,7 @@ interface HomePageProps {
     setCourses: React.Dispatch<React.SetStateAction<Record<string, CourseData>>>;
     userData?: any;
     isUserDataLoading: boolean;
+    refreshUserData: () => Promise<void>;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -26,7 +27,8 @@ const HomePage: React.FC<HomePageProps> = ({
     onCourseChange,
     setCourses,
     userData,
-    isUserDataLoading
+    isUserDataLoading,
+    refreshUserData
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -718,6 +720,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 localNodeIndex={currentCourse.nodes.find(n => n.id === gameLevel)?.localNodeIndex}
                 onClose={handleCloseGame}
                 onComplete={handleGameComplete}
+                onStatsUpdate={refreshUserData}
             />
 
         </div>

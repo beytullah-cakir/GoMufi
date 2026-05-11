@@ -15,6 +15,7 @@ import {
   Calendar,
   Clock,
   Video,
+  Info,
 } from "lucide-react";
 
 export interface Lecture {
@@ -39,7 +40,8 @@ export interface CourseData {
   curriculum: Section[];
   price: number;
   isLive?: boolean;
-  liveSessions?: {date: string, time: string}[];
+  liveSessions?: { date: string; time: string }[];
+  schedule?: { day: string; time: string }[];
   instructorNotes?: { title: string; type: string }[];
 }
 
@@ -61,50 +63,77 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   isSubmitting = false,
 }) => {
   // Taslak Geri Yükleme Mantığı
-  const savedDraft = !initialData ? (() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch (e) {
-      return null;
-    }
-  })() : null;
+  const savedDraft = !initialData
+    ? (() => {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+          return null;
+        }
+      })()
+    : null;
 
-  const [activeTab, setActiveTab] = useState<"general" | "details" | "curriculum">(
-    savedDraft?.activeTab || "general"
-  );
+  const [activeTab, setActiveTab] = useState<
+    "general" | "details" | "curriculum" | "schedule"
+  >(savedDraft?.activeTab || "general");
 
   // General State
-  const [title, setTitle] = useState(initialData?.title || savedDraft?.title || "");
+  const [title, setTitle] = useState(
+    initialData?.title || savedDraft?.title || "",
+  );
   const [selectedCategory, setSelectedCategory] = useState(
-    initialData?.category || savedDraft?.selectedCategory || ""
+    initialData?.category || savedDraft?.selectedCategory || "",
   );
   const [description, setDescription] = useState(
-    initialData?.description || savedDraft?.description || ""
+    initialData?.description || savedDraft?.description || "",
   );
   const [price, setPrice] = useState<number | string>(
-    initialData?.price ?? savedDraft?.price ?? 0
+    initialData?.price ?? savedDraft?.price ?? 0,
   );
-  const [isLive, setIsLive] = useState(initialData?.isLive || savedDraft?.isLive || false);
-  const [liveSessions, setLiveSessions] = useState<{date: string, time: string}[]>(
-    initialData?.liveSessions?.length ? initialData.liveSessions : 
-    (savedDraft?.liveSessions?.length ? savedDraft.liveSessions : [{date: "", time: ""}])
+  const [isLive, setIsLive] = useState(
+    initialData?.isLive || savedDraft?.isLive || false,
+  );
+  const [liveSessions, setLiveSessions] = useState<
+    { date: string; time: string }[]
+  >(
+    initialData?.liveSessions?.length
+      ? initialData.liveSessions
+      : savedDraft?.liveSessions?.length
+        ? savedDraft.liveSessions
+        : [{ date: "", time: "" }],
   );
 
   // Details State
   const [learningOutcomes, setLearningOutcomes] = useState<string[]>(
-    initialData?.learningOutcomes?.length ? initialData.learningOutcomes : 
-    (savedDraft?.learningOutcomes?.length ? savedDraft.learningOutcomes : [""])
+    initialData?.learningOutcomes?.length
+      ? initialData.learningOutcomes
+      : savedDraft?.learningOutcomes?.length
+        ? savedDraft.learningOutcomes
+        : [""],
   );
   const [requirements, setRequirements] = useState<string[]>(
-    initialData?.requirements?.length ? initialData.requirements : 
-    (savedDraft?.requirements?.length ? savedDraft.requirements : [""])
+    initialData?.requirements?.length
+      ? initialData.requirements
+      : savedDraft?.requirements?.length
+        ? savedDraft.requirements
+        : [""],
   );
 
   // Curriculum State
   const [sections, setSections] = useState<Section[]>(
-    initialData?.curriculum?.length ? initialData.curriculum : 
-    (savedDraft?.sections?.length ? savedDraft.sections : [{ id: "str_1", title: "Giriş", lectures: [] }])
+    initialData?.curriculum?.length
+      ? initialData.curriculum
+      : savedDraft?.sections?.length
+        ? savedDraft.sections
+        : [{ id: "str_1", title: "Giriş", lectures: [] }],
+  );
+  const [schedule, setSchedule] = useState<{ day: string; time: string }[]>(
+    initialData?.schedule?.length
+      ? initialData.schedule
+      : savedDraft?.schedule?.length
+        ? savedDraft.schedule
+        : [{ day: "Pazartesi", time: "10:00" }],
   );
 
   // Otomatik Taslak Kaydetme
@@ -120,24 +149,42 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         learningOutcomes,
         requirements,
         sections,
-        activeTab
+        schedule,
+        activeTab,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
     }
-  }, [title, selectedCategory, description, price, isLive, liveSessions, learningOutcomes, requirements, sections, activeTab, initialData, isOpen]);
+  }, [
+    title,
+    selectedCategory,
+    description,
+    price,
+    isLive,
+    liveSessions,
+    learningOutcomes,
+    requirements,
+    sections,
+    schedule,
+    activeTab,
+    initialData,
+    isOpen,
+  ]);
 
   const clearDraft = () => {
-    if (confirm("Taslağı silmek ve baştan başlamak istediğinize emin misiniz?")) {
+    if (
+      confirm("Taslağı silmek ve baştan başlamak istediğinize emin misiniz?")
+    ) {
       localStorage.removeItem(STORAGE_KEY);
       setTitle("");
       setSelectedCategory("");
       setDescription("");
       setPrice(0);
       setIsLive(false);
-      setLiveSessions([{date: "", time: ""}]);
+      setLiveSessions([{ date: "", time: "" }]);
       setLearningOutcomes([""]);
       setRequirements([""]);
       setSections([{ id: "str_1", title: "Giriş", lectures: [] }]);
+      setSchedule([{ day: "Pazartesi", time: "10:00" }]);
       setActiveTab("general");
     }
   };
@@ -167,7 +214,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     index: number,
     value: string,
     list: string[],
-    setList: React.Dispatch<React.SetStateAction<string[]>>
+    setList: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
     const newList = [...list];
     newList[index] = value;
@@ -175,7 +222,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   };
 
   const addListItem = (
-    setList: React.Dispatch<React.SetStateAction<string[]>>
+    setList: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
     setList((prev) => [...prev, ""]);
   };
@@ -183,7 +230,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const removeListItem = (
     index: number,
     list: string[],
-    setList: React.Dispatch<React.SetStateAction<string[]>>
+    setList: React.Dispatch<React.SetStateAction<string[]>>,
   ) => {
     if (list.length > 1) {
       setList(list.filter((_, i) => i !== index));
@@ -200,14 +247,14 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
 
   const updateSectionTitle = (id: string, newTitle: string) => {
     setSections(
-      sections.map((s) => (s.id === id ? { ...s, title: newTitle } : s))
+      sections.map((s) => (s.id === id ? { ...s, title: newTitle } : s)),
     );
   };
 
   const removeSection = (id: string) => {
     if (
       confirm(
-        "Bu bölümü ve içindeki dersleri silmek istediğinize emin misiniz?"
+        "Bu bölümü ve içindeki dersleri silmek istediğinize emin misiniz?",
       )
     ) {
       setSections(sections.filter((s) => s.id !== id));
@@ -227,7 +274,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           };
         }
         return s;
-      })
+      }),
     );
   };
 
@@ -235,7 +282,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     sectionId: string,
     lectureId: string,
     field: keyof Lecture,
-    value: string
+    value: string,
   ) => {
     setSections(
       sections.map((s) => {
@@ -243,12 +290,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           return {
             ...s,
             lectures: s.lectures.map((l) =>
-              l.id === lectureId ? { ...l, [field]: value } : l
+              l.id === lectureId ? { ...l, [field]: value } : l,
             ),
           };
         }
         return s;
-      })
+      }),
     );
   };
 
@@ -262,7 +309,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           };
         }
         return s;
-      })
+      }),
     );
   };
 
@@ -274,9 +321,15 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     }
 
     // Only validate sections if they are expected (not for builder-managed content)
-    const isBuilderContent = initialData?.curriculum && !Array.isArray(initialData.curriculum);
-    
-    if (!isBuilderContent && (!sections || sections.length === 0 || sections.every(s => !s.title?.trim()))) {
+    const isBuilderContent =
+      initialData?.curriculum && !Array.isArray(initialData.curriculum);
+
+    if (
+      !isBuilderContent &&
+      (!sections ||
+        sections.length === 0 ||
+        sections.every((s) => !s.title?.trim()))
+    ) {
       alert("Lütfen en az bir ders (bölüm) başlığı giriniz.");
       return;
     }
@@ -297,7 +350,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       curriculum: sections,
       price: Number(price) || 0,
       isLive,
-      liveSessions: isLive ? liveSessions.filter(s => s.date && s.time) : [],
+      liveSessions: isLive ? liveSessions.filter((s) => s.date && s.time) : [],
+      schedule: schedule.filter((s) => s.day && s.time),
       // instructorNotes removed as they are now managed via Lesson Builder JSON
     });
   };
@@ -356,6 +410,17 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           >
             <List size={18} />
             Detaylar & Gereksinimler
+          </button>
+          <button
+            onClick={() => setActiveTab("schedule")}
+            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
+              activeTab === "schedule"
+                ? "border-sky-500 text-sky-600"
+                : "border-transparent text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Calendar size={18} />
+            Ders Saatleri
           </button>
           <button
             onClick={() => setActiveTab("curriculum")}
@@ -435,93 +500,31 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     />
                   </div>
 
-                  {/* LIVE LESSON SETTINGS */}
-                  <div className="pt-4 border-t border-gray-100">
-                    <div className="flex items-center justify-between p-4 bg-sky-50 rounded-2xl border border-sky-100">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 bg-sky-500 text-white rounded-xl flex items-center justify-center shadow-lg shadow-sky-200">
-                          <Video size={24} />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-sky-900">Canlı Kurs Modu</h4>
-                          <p className="text-sky-600 text-xs font-bold">Öğrencilerle eş zamanlı buluşun</p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setIsLive(!isLive)}
-                        className={`w-14 h-8 rounded-full transition-all relative ${
-                          isLive ? "bg-sky-500" : "bg-gray-200"
-                        }`}
-                      >
-                        <div
-                          className={`absolute top-1 w-6 h-6 bg-white rounded-full transition-all shadow-sm ${
-                            isLive ? "left-7" : "left-1"
-                          }`}
-                        />
-                      </button>
+                  {/* Pricing */}
+                  <div className="pt-6 border-t border-gray-100">
+                    <label className="block text-sm font-bold text-gray-700 mb-2">
+                      Kurs Ücreti (TL)
+                    </label>
+                    <div className="relative max-w-[200px]">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                        ₺
+                      </span>
+                      <input
+                        type="number"
+                        value={price}
+                        onChange={(e) =>
+                          setPrice(
+                            e.target.value === "" ? "" : Number(e.target.value),
+                          )
+                        }
+                        placeholder="0"
+                        min="0"
+                        className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                      />
                     </div>
-
-                    {isLive && (
-                      <div className="space-y-4 mt-6 animate-slide-down">
-                        <div className="flex items-center justify-between">
-                          <label className="text-sm font-bold text-gray-700">Canlı Ders Oturumları</label>
-                          <button
-                            type="button"
-                            onClick={() => setLiveSessions([...liveSessions, {date: "", time: ""}])}
-                            className="bg-sky-100 text-sky-600 px-3 py-1.5 rounded-lg flex items-center gap-1 text-xs font-bold hover:bg-sky-200"
-                          >
-                            <Plus size={14} /> Oturum Ekle
-                          </button>
-                        </div>
-                        
-                        <div className="space-y-3">
-                          {liveSessions.map((session, sIdx) => (
-                            <div key={sIdx} className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl relative border border-gray-100 hover:border-sky-100 transition-colors">
-                              {liveSessions.length > 1 && (
-                                <button
-                                  type="button"
-                                  onClick={() => setLiveSessions(liveSessions.filter((_, i) => i !== sIdx))}
-                                  className="absolute -top-2 -right-2 bg-red-100 text-red-500 rounded-full p-1.5 hover:bg-red-200 transition-colors shadow-sm"
-                                >
-                                  <X size={14} />
-                                </button>
-                              )}
-                              <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 flex items-center gap-2">
-                                  <Calendar size={14} className="text-sky-500" /> {sIdx + 1}. Başlangıç Tarihi
-                                </label>
-                                <input
-                                  type="date"
-                                  value={session.date}
-                                  onChange={(e) => {
-                                    const newS = [...liveSessions];
-                                    newS[sIdx].date = e.target.value;
-                                    setLiveSessions(newS);
-                                  }}
-                                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
-                                />
-                              </div>
-                              <div className="space-y-2">
-                                <label className="text-xs font-bold text-gray-500 flex items-center gap-2">
-                                  <Clock size={14} className="text-sky-500" /> {sIdx + 1}. Başlangıç Saati
-                                </label>
-                                <input
-                                  type="time"
-                                  value={session.time}
-                                  onChange={(e) => {
-                                    const newS = [...liveSessions];
-                                    newS[sIdx].time = e.target.value;
-                                    setLiveSessions(newS);
-                                  }}
-                                  className="w-full px-4 py-2 bg-white border border-gray-200 rounded-lg font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm"
-                                />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <p className="text-xs text-gray-400 mt-2 font-bold italic">
+                      * Ücretsiz yapmak için 0 bırakın.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -565,7 +568,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                               idx,
                               e.target.value,
                               learningOutcomes,
-                              setLearningOutcomes
+                              setLearningOutcomes,
                             )
                           }
                           placeholder="Örn: Python ile veri analizi yapabileceksiniz"
@@ -578,7 +581,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                               removeListItem(
                                 idx,
                                 learningOutcomes,
-                                setLearningOutcomes
+                                setLearningOutcomes,
                               )
                             }
                             className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
@@ -635,7 +638,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                               idx,
                               e.target.value,
                               requirements,
-                              setRequirements
+                              setRequirements,
                             )
                           }
                           placeholder="Örn: Temel bilgisayar kullanma becerisi"
@@ -663,39 +666,153 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
 
-                {/* Pricing */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <h4 className="text-lg font-black text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-600 flex items-center justify-center">
-                      <span className="text-xl font-bold">₺</span>
+            {/* SCHEDULE TAB */}
+            {activeTab === "schedule" && (
+              <div className="space-y-6 animate-fade-in pb-20">
+                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
+                  <div className="flex items-center gap-5 mb-8">
+                    <div className="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200">
+                      <Calendar size={28} />
                     </div>
-                    Kurs Ücreti
-                  </h4>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Öğrencilerin bu kursa erişmek için ödeyeceği tutar (TL).
-                    Ücretsiz yapmak için 0 bırakın.
-                  </p>
+                    <div>
+                      <h4 className="text-2xl font-black text-gray-800">
+                        Ders Programı
+                      </h4>
+                      <p className="text-sm text-gray-500 font-medium">
+                        Haftalık canlı ders saatlerinizi planlayın
+                      </p>
+                    </div>
+                  </div>
 
-                  <div className="relative max-w-[200px]">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                      ₺
-                    </span>
-                    <input
-                      type="number"
-                      value={price}
-                      onChange={(e) =>
-                        setPrice(
-                          e.target.value === "" ? "" : Number(e.target.value)
-                        )
-                      }
-                      placeholder="0"
-                      min="0"
-                      className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
-                    />
+                  {/* Weekly Grid View */}
+                  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
+                    {[
+                      "Pazartesi",
+                      "Salı",
+                      "Çarşamba",
+                      "Perşembe",
+                      "Cuma",
+                      "Cumartesi",
+                      "Pazar",
+                    ].map((day) => {
+                      const daySlots = schedule.filter((s) => s.day === day);
+                      return (
+                        <div key={day} className="flex flex-col gap-3">
+                          <div className="text-center py-2 bg-gray-100 rounded-xl">
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                              {day}
+                            </span>
+                          </div>
+
+                          <div className="space-y-2 min-h-[100px] p-2 rounded-2xl border-2 border-dashed border-gray-50 hover:border-sky-100 transition-colors">
+                            {daySlots.map((slot, sIdx) => (
+                              <div
+                                key={sIdx}
+                                className="group relative bg-white border border-gray-200 p-2 rounded-xl shadow-sm hover:shadow-md transition-all"
+                              >
+                                <div className="flex items-center justify-center gap-1">
+                                  <input 
+                                    type="text"
+                                    maxLength={2}
+                                    value={slot.time.split(":")[0]}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      if (val === "" || Number(val) <= 23) {
+                                        const actualIdx = schedule.indexOf(slot);
+                                        const newS = [...schedule];
+                                        const [_, m] = slot.time.split(":");
+                                        newS[actualIdx].time = `${val}:${m}`;
+                                        setSchedule(newS);
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const actualIdx = schedule.indexOf(slot);
+                                      const newS = [...schedule];
+                                      const [h, m] = slot.time.split(":");
+                                      newS[actualIdx].time = `${h.padStart(2, '0')}:${m}`;
+                                      setSchedule(newS);
+                                    }}
+                                    className="w-7 text-center bg-transparent text-sm font-black text-sky-600 focus:outline-none placeholder-sky-200"
+                                    placeholder="00"
+                                  />
+                                  <span className="text-sky-300 font-bold">:</span>
+                                  <input 
+                                    type="text"
+                                    maxLength={2}
+                                    value={slot.time.split(":")[1]}
+                                    onChange={(e) => {
+                                      const val = e.target.value.replace(/[^0-9]/g, '');
+                                      if (val === "" || Number(val) <= 59) {
+                                        const actualIdx = schedule.indexOf(slot);
+                                        const newS = [...schedule];
+                                        const [h, _] = slot.time.split(":");
+                                        newS[actualIdx].time = `${h}:${val}`;
+                                        setSchedule(newS);
+                                      }
+                                    }}
+                                    onBlur={(e) => {
+                                      const actualIdx = schedule.indexOf(slot);
+                                      const newS = [...schedule];
+                                      const [h, m] = slot.time.split(":");
+                                      newS[actualIdx].time = `${h}:${m.padStart(2, '0')}`;
+                                      setSchedule(newS);
+                                    }}
+                                    className="w-7 text-center bg-transparent text-sm font-black text-sky-600 focus:outline-none placeholder-sky-200"
+                                    placeholder="00"
+                                  />
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setSchedule(
+                                      schedule.filter((s) => s !== slot),
+                                    )
+                                  }
+                                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setSchedule([
+                                  ...schedule,
+                                  { day, time: "10:00" },
+                                ])
+                              }
+                              className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-gray-400 hover:text-sky-500 hover:border-sky-200 hover:bg-sky-50 transition-all flex items-center justify-center"
+                              title="Saat Ekle"
+                            >
+                              <Plus size={16} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-10 p-6 bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] border border-sky-100 flex gap-5">
+                    <div className="w-12 h-12 bg-white text-sky-500 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
+                      <Info size={24} />
+                    </div>
+                    <div className="space-y-1">
+                      <h5 className="font-black text-sky-900 text-sm">
+                        Takvim Senkronizasyonu
+                      </h5>
+                      <p className="text-sky-700 text-xs font-bold leading-relaxed opacity-80">
+                        Burada belirlediğiniz saatler otomatik olarak eğitmen
+                        takviminize işlenir. Öğrenciler kurs sayfasında bu
+                        saatleri görerek randevu oluşturabilirler.
+                      </p>
+                    </div>
                   </div>
                 </div>
-
               </div>
             )}
 
@@ -764,7 +881,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                                   section.id,
                                   lecture.id,
                                   "title",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               placeholder="Ders Başlığı"
@@ -778,7 +895,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                                   section.id,
                                   lecture.id,
                                   "duration",
-                                  e.target.value
+                                  e.target.value,
                                 )
                               }
                               placeholder="Süre (dk)"
@@ -816,10 +933,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         <div className="p-6 border-t border-gray-100 bg-white flex justify-between items-center z-10">
           <div className="text-sm font-bold text-gray-400">
             {activeTab === "general"
-              ? "1/3 Genel Bilgiler"
+              ? "1/4 Genel Bilgiler"
               : activeTab === "details"
-              ? "2/3 Detaylar"
-              : "3/3 Müfredat"}
+                ? "2/4 Detaylar"
+                : activeTab === "schedule"
+                  ? "3/4 Ders Saatleri"
+                  : "4/4 Müfredat"}
           </div>
           <div className="flex gap-3">
             <button
@@ -835,7 +954,11 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                 type="button"
                 onClick={() =>
                   setActiveTab(
-                    activeTab === "general" ? "details" : "curriculum"
+                    activeTab === "general"
+                      ? "details"
+                      : activeTab === "details"
+                        ? "schedule"
+                        : "curriculum",
                   )
                 }
                 className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl transition-colors flex items-center gap-2"

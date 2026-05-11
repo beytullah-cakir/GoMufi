@@ -11,6 +11,8 @@ from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
 from schemas.course import TagCreate
+from pydantic import BaseModel
+from typing import Optional
 
 router = APIRouter()
 
@@ -324,4 +326,41 @@ async def get_parent_student_detail(
                 "category": c.category
             } for c in courses
         ]
+    }
+
+class StatsUpdate(BaseModel):
+    xp_gain: int = 0
+    gems_gain: int = 0
+    hearts_change: int = 0
+
+@router.post("/profile/student/stats")
+async def update_student_stats(
+    stats: StatsUpdate,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Forbidden")
+    
+    student_id = int(user["user_id"])
+    result = await db.execute(select(Student).where(Student.id == student_id))
+    student = result.scalar_one_or_none()
+    
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+    
+    student.xp += stats.xp_gain
+    student.gems += stats.gems_gain
+    
+    # Update hearts and ensure it's within 0-5
+    new_hearts = (student.hearts or 0) + stats.hearts_change
+    student.hearts = max(0, min(5, new_hearts))
+    
+    await db.commit()
+    await db.refresh(student)
+    
+    return {
+        "xp": student.xp,
+        "gems": student.gems,
+        "hearts": student.hearts
     }

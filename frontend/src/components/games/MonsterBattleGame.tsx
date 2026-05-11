@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import api from "../../api";
 import dragonSprite from "../../assets/sprites/DragonMonster.png";
 import mufiArmorSprite from "../../assets/sprites/MufiArmor.png";
 import battleBg from "../../assets/sprites/BattleBg.png";
@@ -10,6 +11,7 @@ interface MonsterBattleGameProps {
   localNodeIndex?: number;
   onClose: () => void;
   onComplete: (stars: number) => void;
+  onStatsUpdate?: () => void;
 }
 
 type BattlePhase =
@@ -28,6 +30,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
   localNodeIndex,
   onClose,
   onComplete,
+  onStatsUpdate,
 }) => {
   // Game State
   const [phase, setPhase] = useState<BattlePhase>("intro");
@@ -61,7 +64,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     setPhase("question");
   };
 
-  const handleAnswer = (option: string) => {
+  const handleAnswer = async (option: string) => {
     const isCorrect = option === currentQuestion.answer;
 
     if (isCorrect) {
@@ -78,6 +81,10 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
           setMonsterAnimation("");
           if (monsterHP - 50 <= 0) {
             setPhase("victory");
+            // Victory rewards
+            api.post("/profile/student/stats", { xp_gain: 30, gems_gain: 2 })
+              .then(() => onStatsUpdate?.())
+              .catch(console.error);
           } else {
             setPhase("monster_turn");
           }
@@ -86,6 +93,15 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     } else {
       setPhase("effect");
       setEffectMessage("Iskaladın! 💨");
+      
+      // Decrease hearts on wrong answer
+      try {
+        await api.post("/profile/student/stats", { hearts_change: -1 });
+        onStatsUpdate?.();
+      } catch (err) {
+        console.error("Can güncellenemedi:", err);
+      }
+
       setTimeout(() => setPhase("monster_turn"), 1500);
     }
   };

@@ -41,6 +41,7 @@ class CourseResponse(BaseModel):
     teacher: Optional[TeacherResponse] = None
     students_count: int = 0
     rating: Optional[int] = 5
+    schedule: Optional[List[Any]] = []
 
     class Config:
         from_attributes = True
@@ -264,6 +265,7 @@ class CreateCourseRequest(BaseModel):
     curriculum: Optional[Any] = []
     notes: Optional[Any] = []
     rating: Optional[int] = 5
+    schedule: Optional[List[Any]] = []
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -275,6 +277,7 @@ class UpdateCourseRequest(BaseModel):
     curriculum: Optional[Any] = None
     notes: Optional[Any] = None
     rating: Optional[int] = None
+    schedule: Optional[List[Any]] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -299,7 +302,8 @@ async def create_course(
             requirements=course_data.requirements,
             curriculum=course_data.curriculum,
             notes=course_data.notes if course_data.notes is not None else [],
-            rating=course_data.rating if course_data.rating is not None else 5
+            rating=course_data.rating if course_data.rating is not None else 5,
+            schedule=course_data.schedule if course_data.schedule is not None else []
         )
         db.add(new_course)
         await db.commit()
@@ -353,6 +357,10 @@ async def update_course(
             
         if course_data.rating is not None:
             course.rating = course_data.rating
+
+        if course_data.schedule is not None:
+            course.schedule = course_data.schedule
+            flag_modified(course, "schedule")
             
         await db.commit()
         await db.refresh(course)

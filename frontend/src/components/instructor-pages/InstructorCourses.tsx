@@ -31,6 +31,7 @@ interface Course {
   curriculum?: any[];
   isLive?: boolean;
   liveSessions?: { date: string; time: string }[];
+  schedule?: { day: string; time: string }[];
   instructor?: string;
 }
 
@@ -99,6 +100,7 @@ const InstructorCourses: React.FC = () => {
               lastUpdated: "Yakın zamanda",
               isLive: isLive,
               liveSessions: liveSessions,
+              schedule: c.schedule || [],
               notes: notes,
               instructor: c.teacher
                 ? `${c.teacher.first_name} ${c.teacher.last_name}`
@@ -144,6 +146,7 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
+          schedule: courseData.schedule,
         });
 
         setCourses(
@@ -161,6 +164,7 @@ const InstructorCourses: React.FC = () => {
                   lastUpdated: "Şimdi",
                   isLive: courseData.isLive,
                   liveSessions: courseData.liveSessions,
+                  schedule: courseData.schedule,
                 }
               : c,
           ),
@@ -203,6 +207,7 @@ const InstructorCourses: React.FC = () => {
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
+          schedule: courseData.schedule,
         });
 
         const newCourse: Course = {
@@ -215,6 +220,7 @@ const InstructorCourses: React.FC = () => {
           curriculum: response.data.curriculum || [],
           isLive: courseData.isLive,
           liveSessions: courseData.liveSessions,
+          schedule: response.data.schedule || [],
           students: 0,
           rating: 0,
           progress: 0,
@@ -506,6 +512,7 @@ const InstructorCourses: React.FC = () => {
                 color: editingCourse.color,
                 isLive: editingCourse.isLive,
                 liveSessions: editingCourse.liveSessions,
+                schedule: editingCourse.schedule,
               }
             : null
         }
