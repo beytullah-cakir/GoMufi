@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 
 
@@ -31,6 +31,33 @@ const HomePage: React.FC<HomePageProps> = ({
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
+
+    // Refs for outside click detection
+    const courseDropdownRef = useRef<HTMLDivElement>(null);
+    const clanDropdownRef = useRef<HTMLDivElement>(null);
+    const nodesContainerRef = useRef<HTMLDivElement>(null);
+
+    // Outside click listener
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            // Course Dropdown
+            if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+            // Clan Dropdown
+            if (clanDropdownRef.current && !clanDropdownRef.current.contains(event.target as Node)) {
+                setIsClanDropdownOpen(false);
+            }
+            // Level Bubble (Active Node)
+            // If click is not inside the nodes container, clear active node
+            if (nodesContainerRef.current && !nodesContainerRef.current.contains(event.target as Node)) {
+                setActiveNodeId(null);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const squadMembers = [
         { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
@@ -196,11 +223,11 @@ const HomePage: React.FC<HomePageProps> = ({
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
+            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap xl:flex-nowrap items-start gap-4 z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
                     {/* Course Info Box (Dropdown Enabled) */}
-                    <div className="relative">
+                    <div className="relative" ref={courseDropdownRef}>
                         <div
                             className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
                             style={courseBoxStyle}
@@ -242,24 +269,24 @@ const HomePage: React.FC<HomePageProps> = ({
 
                     {/* Unit Header (Left) */}
                     <div
-                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
+                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[280px] lg:max-w-[350px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
                         style={{ backgroundColor: headerColor }}
                     >
                         {/* Status Bar Top Line */}
                         <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
 
-                        <div className="relative z-10">
-                            <h2 className="text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display">{headerSubtitle}</h2>
-                            <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm">{headerTitle}</h1>
+                        <div className="relative z-10 flex-1 min-w-0 pr-4">
+                            <h2 className="text-[10px] md:text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display truncate">{headerSubtitle}</h2>
+                            <h1 className="text-xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm truncate">{headerTitle}</h1>
                         </div>
 
-                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-5 py-3 rounded-xl text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
-                            <span className="text-xl">📖</span> REHBER
+                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-3 rounded-xl text-[10px] md:text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent shrink-0">
+                            <span className="text-lg md:text-xl">📖</span> REHBER
                         </button>
                     </div>
 
                     {/* Instructor Widget */}
-                    <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
+                    <div className="hidden xl:flex h-28 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3 shadow-sm ml-2 shrink-0">
                         {/* Avatar */}
                         <div className="relative">
                             <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
@@ -272,10 +299,10 @@ const HomePage: React.FC<HomePageProps> = ({
                         </div>
 
                         {/* Info */}
-                        <div className="flex flex-col justify-center">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Eğitmen</span>
-                            <span className="text-lg font-black text-gray-800 font-display leading-none mb-1">{currentCourse.instructor.name}</span>
-                            <span className={`text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
+                        <div className="flex flex-col justify-center min-w-0">
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 hidden 2xl:block">Eğitmen</span>
+                            <span className="text-sm md:text-lg font-black text-gray-800 font-display leading-none mb-1 truncate">{currentCourse.instructor.name}</span>
+                            <span className={`text-[10px] md:text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
                                 {currentCourse.instructor.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
                                 {currentCourse.instructor.status}
                             </span>
@@ -289,8 +316,9 @@ const HomePage: React.FC<HomePageProps> = ({
 
                     {/* CLAN WIDGET (New - Matches Instructor Height) */}
                     <div
-                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700"
+                        className="hidden xl:flex h-28 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-3 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0"
                         onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
+                        ref={clanDropdownRef}
                     >
                         {/* Background Deco */}
                         <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
@@ -305,13 +333,13 @@ const HomePage: React.FC<HomePageProps> = ({
                         </div>
 
                         {/* Info */}
-                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[140px]">
+                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[100px] max-w-[140px]">
                             <div className="flex items-center gap-2 mb-0.5">
-                                <span className="font-black text-lg font-display leading-none">Kod Korsanları</span>
+                                <span className="font-black text-base md:text-lg font-display leading-none truncate">Kod Korsanları</span>
                             </div>
                             <div className="flex items-center gap-2 text-indigo-100 mb-1">
                                 <Users size={12} />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Lvl 5 Klan</span>
+                                <span className="text-[10px] font-bold uppercase tracking-wider truncate">Lvl 5</span>
                             </div>
                         </div>
 
@@ -319,7 +347,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         <div className="h-12 w-px bg-white/20 relative z-10"></div>
 
                         {/* Stats / Role */}
-                        <div className="flex flex-col items-center justify-center relative z-10 text-white">
+                        <div className="hidden 2xl:flex flex-col items-center justify-center relative z-10 text-white">
                             <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
                             <span className="text-xl font-black text-yellow-300 font-display leading-tight">24.5k</span>
                         </div>
@@ -354,9 +382,9 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
 
                 {/* Right Column: Stats + Widgets */}
-                <div className="flex flex-col items-end relative z-50">
+                <div className="flex flex-col items-end relative z-50 ml-auto shrink-0">
                     {/* User Stats Row */}
-                    <div className="flex flex-col gap-3 w-80">
+                    <div className="flex flex-col gap-3 w-64 2xl:w-80">
 
                         {/* REDESIGNED XP BAR */}
                         <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
@@ -373,7 +401,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">{currentCourse.stats.league}</span>
-                                    <span className="text-sm font-black text-gray-700 font-display">{currentCourse.stats.xp}</span>
+                                    <span className="text-sm font-black text-gray-700 font-display">{userData?.xp ?? 0}</span>
                                 </div>
                             </div>
 
@@ -391,12 +419,12 @@ const HomePage: React.FC<HomePageProps> = ({
                     </div>
 
                     {/* Right Sidebar Widgets */}
-                    <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-80">
+                    <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64 2xl:w-80">
                         {/* Daily Quest Widget */}
                         <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex justify-between items-center mb-5">
-                                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">Günlük Görevler</h3>
-                                <a href="#" className="font-bold text-xs text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg">TÜMÜ</a>
+                            <div className="flex justify-between items-center mb-5 gap-2">
+                                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight truncate">Günlük Görevler</h3>
+                                <a href="#" className="font-bold text-[10px] text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg shrink-0">TÜMÜ</a>
                             </div>
                             <div className="space-y-5">
                                 <div className="flex items-center gap-4">
@@ -447,10 +475,10 @@ const HomePage: React.FC<HomePageProps> = ({
                         animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                     }
                 `}</style>
-                <div className="w-full overflow-x-auto flex items-center px-24 no-scrollbar pt-64 pb-40 select-none">
+                <div className="w-full overflow-x-auto flex items-center px-12 md:px-24 no-scrollbar pt-48 pb-32 select-none" ref={nodesContainerRef}>
                     <div
                         key={activeCourseId}
-                        className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
+                        className="flex items-center min-w-max relative pl-10 pr-10 animate-course-change"
                     >
                         {(() => {
                             const currentNodes = courses[activeCourseId].nodes;
@@ -548,7 +576,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             <div className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${node.ringColor} ${node.isLocked ? 'hidden' : ''}`}></div>
 
                                             {/* Button Sprite */}
-                                            <img src={node.button} alt="Button" className="w-40 relative z-10" />
+                                            <img src={node.button} alt="Button" className="w-36 relative z-10" />
 
                                             {/* Ground Shadow - Independent from floating icon */}
                                             {node.icon && (
@@ -636,7 +664,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                     </div>
                                                 ) : (
                                                     // STANDARD CONNECTOR
-                                                    <div className="w-32 h-24 -mx-6 relative z-0 flex items-center justify-center">
+                                                    <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
                                                         <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                             <path
                                                                 d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}

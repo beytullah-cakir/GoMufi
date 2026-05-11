@@ -88,6 +88,10 @@ async def get_profile(
             "student_code": student.student_code,
             "grade_level": student.grade_level,
             "education_level": student.education_level,
+            "gems": student.gems,
+            "hearts": student.hearts,
+            "streak": student.streak,
+            "xp": student.xp,
         }
     
     elif role == "parent":

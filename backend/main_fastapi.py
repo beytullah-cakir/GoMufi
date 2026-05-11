@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import SessionLocal, engine, Base, get_db
 from starlette.middleware.sessions import SessionMiddleware
+from alembic.config import Config
+from alembic import command
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
 import os
 from models import Student, Teacher, Course, Enrollment, Quiz 
@@ -16,6 +18,15 @@ import quiz_service
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Run Alembic migrations automatically
+    try:
+        print("DEBUG: Running database migrations...")
+        alembic_cfg = Config("alembic.ini")
+        command.upgrade(alembic_cfg, "head")
+        print("DEBUG: Migrations completed successfully.")
+    except Exception as e:
+        print(f"DEBUG: Migration error: {e}")
+
     async with engine.begin() as conn:        
         await conn.run_sync(Base.metadata.create_all) 
     yield
