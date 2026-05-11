@@ -35,13 +35,15 @@ const InstructorDashboard: React.FC = () => {
     const fetchRealTime = async () => {
       try {
         const res = await fetch(
-          "http://worldtimeapi.org/api/timezone/Europe/Istanbul",
+          "https://worldtimeapi.org/api/timezone/Europe/Istanbul",
         );
+        if (!res.ok) throw new Error("API response not ok");
         const data = await res.json();
         const realTime = new Date(data.datetime).getTime();
         setTimeOffsetMs(realTime - new Date().getTime());
       } catch (err) {
-        console.error("Gerçek saat alınamadı", err);
+        console.warn("Gerçek saat sunucudan alınamadı, yerel saat kullanılıyor:", err);
+        setTimeOffsetMs(0); // Fallback to local time
       }
     };
     fetchRealTime();

@@ -19,6 +19,7 @@ class Course(Base):
     notes = Column(JSON, default=[])
     rating = Column(Integer, default=5)
     status = Column(String, default="active")
+    schedule = Column(JSON, default=[])
 
 
     teacher = relationship("Teacher", back_populates="courses")

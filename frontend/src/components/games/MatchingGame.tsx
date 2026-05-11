@@ -9,6 +9,7 @@ interface MatchingGameProps {
   localNodeIndex?: number;
   onClose: () => void;
   onComplete: (stars: number) => void;
+  onStatsUpdate?: () => void;
 }
 
 type GamePhase =
@@ -45,6 +46,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   localNodeIndex,
   onClose,
   onComplete,
+  onStatsUpdate,
 }) => {
   const [questions, setQuestions] = useState<any[]>(DEFAULT_QUESTIONS);
   const [isLoading, setIsLoading] = useState(true);
@@ -154,7 +156,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   }, [phase, countdown, nextQuestion, isCorrect]);
 
   const handleAnswer = useCallback(
-    (answer: string | null) => {
+    async (answer: string | null) => {
       setSelectedAnswer(answer);
       const correct = answer === currentQuestion?.correctAnswer;
       setIsCorrect(correct);
@@ -164,6 +166,11 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         // Soru sayısına göre puanı bölüştür (Toplam 100 üzerinden)
         const pointsPerQuestion = Math.ceil(100 / questions.length);
         setScore((prev) => Math.min(100, prev + pointsPerQuestion));
+      } else {
+        // Can kaybet
+        api.post("/profile/student/stats", { hearts_change: -1 })
+          .then(() => onStatsUpdate?.())
+          .catch(console.error);
       }
 
       setTimeout(() => {
@@ -197,6 +204,21 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     if (score >= 20) return 1;  // 20-40% = 1 star
     return 0;
   };
+
+  // Grant rewards on completion
+  useEffect(() => {
+    if (phase === "score") {
+      const stars = getStars();
+      if (stars > 0) {
+        api.post("/profile/student/stats", { 
+          xp_gain: stars * 15, 
+          gems_gain: stars 
+        })
+        .then(() => onStatsUpdate?.())
+        .catch(console.error);
+      }
+    }
+  }, [phase]);
 
   // --- RENDERERS ---
 

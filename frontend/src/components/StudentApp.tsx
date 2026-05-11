@@ -296,6 +296,15 @@ function StudentApp() {
     const [activeCourseId, setActiveCourseId] = useState<string>('');
     const [userData, setUserData] = useState<any>(null);
     const [isUserDataLoading, setIsUserDataLoading] = useState(true);
+
+    const refreshUserData = async () => {
+        try {
+            const profileRes = await api.get("/profile");
+            setUserData(profileRes.data);
+        } catch (err) {
+            console.error("Failed to refresh user data", err);
+        }
+    };
     const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
     
     // Page to Path mapping
@@ -512,6 +521,7 @@ function StudentApp() {
                             setCourses={setCourses}
                             userData={userData}
                             isUserDataLoading={isUserDataLoading}
+                            refreshUserData={refreshUserData}
                         />
                     ) : activePage === 'Kurslar' ? (
                         selectedCourseForDetail ? (
