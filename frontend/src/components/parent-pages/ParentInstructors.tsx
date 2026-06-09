@@ -14,30 +14,52 @@ interface Instructor {
     avatar: string;
 }
 
-const ParentInstructors: React.FC = () => {
-    const [instructors, setInstructors] = useState<Instructor[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+interface ParentInstructorsProps {
+    teachersData?: any[];
+}
+
+const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) => {
+    const [instructors, setInstructors] = useState<Instructor[]>(() => {
+        if (!teachersData) return [];
+        return teachersData.map((t: any) => ({
+            ...t,
+            rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
+            nextLesson: "-",
+            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+        }));
+    });
+    const [isLoading, setIsLoading] = useState(!teachersData);
 
     useEffect(() => {
-        const fetchInstructors = async () => {
-            try {
-                const response = await api.get("/profile/parent/teachers");
-                const enrichedData = response.data.map((t: any) => ({
-                    ...t,
-                    rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
-                    nextLesson: "-", // This could be fetched from live sessions in the future
-                    avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
-                }));
-                setInstructors(enrichedData);
-            } catch (error) {
-                console.error("Failed to fetch instructors:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchInstructors();
-    }, []);
+        if (teachersData) {
+            const enrichedData = teachersData.map((t: any) => ({
+                ...t,
+                rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
+                nextLesson: "-",
+                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+            }));
+            setInstructors(enrichedData);
+            setIsLoading(false);
+        } else {
+            const fetchInstructors = async () => {
+                try {
+                    const response = await api.get("/profile/parent/teachers");
+                    const enrichedData = response.data.map((t: any) => ({
+                        ...t,
+                        rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
+                        nextLesson: "-", // This could be fetched from live sessions in the future
+                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+                    }));
+                    setInstructors(enrichedData);
+                } catch (error) {
+                    console.error("Failed to fetch instructors:", error);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchInstructors();
+        }
+    }, [teachersData]);
 
     if (isLoading) {
         return (

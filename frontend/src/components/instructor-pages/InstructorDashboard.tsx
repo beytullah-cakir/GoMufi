@@ -12,10 +12,20 @@ import {
 } from "lucide-react";
 import api from "../../api";
 
-const InstructorDashboard: React.FC = () => {
-  const [courses, setCourses] = useState<any[]>([]);
-  const [students, setStudents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+interface InstructorDashboardProps {
+  userData?: any;
+  coursesData?: any[];
+  studentsData?: any[];
+}
+
+const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, coursesData, studentsData }) => {
+  const [courses, setCourses] = useState<any[]>(coursesData || []);
+  
+  // Calculate unique students
+  const initialUniqueStudents = Array.from(new Set((studentsData || []).filter(s => s.student_id).map(s => s.student_id)));
+  const [students, setStudents] = useState<any[]>(initialUniqueStudents);
+  
+  const [isLoading, setIsLoading] = useState(!coursesData && !studentsData);
 
   const [timeOffsetMs, setTimeOffsetMs] = useState(0);
   const [upcomingSession, setUpcomingSession] = useState<{
@@ -29,7 +39,7 @@ const InstructorDashboard: React.FC = () => {
   const [userProfile, setUserProfile] = useState<{
     firstName: string;
     lastName: string;
-  } | null>(null);
+  } | null>(userData ? { firstName: userData.first_name, lastName: userData.last_name } : null);
 
   useEffect(() => {
     const fetchRealTime = async () => {
@@ -50,34 +60,38 @@ const InstructorDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        const [coursesRes, studentsRes, profileRes] = await Promise.all([
-          api.get("/teacher/content"),
-          api.get("/teacher/students"),
-          api.get("/profile"),
-        ]);
-        setCourses(coursesRes.data);
-
-        if (profileRes.data) {
-          setUserProfile({
-            firstName: profileRes.data.first_name,
-            lastName: profileRes.data.last_name,
-          });
-        }
-        const uniqueStudents = new Set();
-        studentsRes.data.forEach((s: any) => {
-          if (s.student_id) uniqueStudents.add(s.student_id);
-        });
-        setStudents(Array.from(uniqueStudents));
-      } catch (err) {
-        console.error("Failed to fetch dashboard data:", err);
-      } finally {
+    if (coursesData && studentsData) {
         setIsLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, []);
+    } else {
+        const fetchDashboardData = async () => {
+          try {
+            const [coursesRes, studentsRes, profileRes] = await Promise.all([
+              api.get("/teacher/content"),
+              api.get("/teacher/students"),
+              api.get("/profile"),
+            ]);
+            setCourses(coursesRes.data);
+
+            if (profileRes.data) {
+              setUserProfile({
+                firstName: profileRes.data.first_name,
+                lastName: profileRes.data.last_name,
+              });
+            }
+            const uniqueStudents = new Set();
+            studentsRes.data.forEach((s: any) => {
+              if (s.student_id) uniqueStudents.add(s.student_id);
+            });
+            setStudents(Array.from(uniqueStudents));
+          } catch (err) {
+            console.error("Failed to fetch dashboard data:", err);
+          } finally {
+            setIsLoading(false);
+          }
+        };
+        fetchDashboardData();
+    }
+  }, [coursesData, studentsData]);
 
   // Kurslar veya zaman offset'i değişince, en yakın oturumu hesapla
   useEffect(() => {

@@ -4,22 +4,27 @@ import api from "../../api";
 
 interface ParentDashboardProps {
     userData: any;
+    teachersData?: any[];
 }
 
-const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData }) => {
-    const [instructors, setInstructors] = useState<any[]>([]);
+const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData, teachersData }) => {
+    const [instructors, setInstructors] = useState<any[]>(teachersData || []);
 
     useEffect(() => {
-        const fetchInstructors = async () => {
-            try {
-                const response = await api.get("/profile/parent/teachers");
-                setInstructors(response.data);
-            } catch (error) {
-                console.error("Dashboard eğitmen yükleme hatası:", error);
-            }
-        };
-        fetchInstructors();
-    }, []);
+        if (teachersData) {
+            setInstructors(teachersData);
+        } else {
+            const fetchInstructors = async () => {
+                try {
+                    const response = await api.get("/profile/parent/teachers");
+                    setInstructors(response.data);
+                } catch (error) {
+                    console.error("Dashboard eğitmen yükleme hatası:", error);
+                }
+            };
+            fetchInstructors();
+        }
+    }, [teachersData]);
 
     return (
         <div className="space-y-8 animate-fade-in">

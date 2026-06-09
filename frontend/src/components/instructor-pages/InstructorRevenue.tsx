@@ -2,28 +2,39 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, Download, CheckCircle, Clock } from 'lucide-react';
 import api from '../../api';
 
-const InstructorRevenue: React.FC = () => {
-    const [courses, setCourses] = useState<any[]>([]);
-    const [students, setStudents] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+interface InstructorRevenueProps {
+    coursesData?: any[];
+    studentsData?: any[];
+}
+
+const InstructorRevenue: React.FC<InstructorRevenueProps> = ({ coursesData, studentsData }) => {
+    const [courses, setCourses] = useState<any[]>(coursesData || []);
+    const [students, setStudents] = useState<any[]>(studentsData || []);
+    const [isLoading, setIsLoading] = useState(!coursesData && !studentsData);
 
     useEffect(() => {
-        const fetchRevenueData = async () => {
-            try {
-                const [coursesRes, studentsRes] = await Promise.all([
-                    api.get('/teacher/content'),
-                    api.get('/teacher/students')
-                ]);
-                setCourses(coursesRes.data);
-                setStudents(studentsRes.data);
-            } catch (err) {
-                console.error("Failed to fetch revenue data:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchRevenueData();
-    }, []);
+        if (coursesData && studentsData) {
+            setCourses(coursesData);
+            setStudents(studentsData);
+            setIsLoading(false);
+        } else {
+            const fetchRevenueData = async () => {
+                try {
+                    const [coursesRes, studentsRes] = await Promise.all([
+                        api.get('/teacher/content'),
+                        api.get('/teacher/students')
+                    ]);
+                    setCourses(coursesRes.data);
+                    setStudents(studentsRes.data);
+                } catch (err) {
+                    console.error("Failed to fetch revenue data:", err);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchRevenueData();
+        }
+    }, [coursesData, studentsData]);
 
     const courseMap = React.useMemo(() => {
         const map = new Map();

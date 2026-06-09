@@ -72,7 +72,11 @@ const FormattedText: React.FC<{ text: string }> = ({ text }) => {
     );
 };
 
-const InstructorAIQuestions: React.FC = () => {
+interface InstructorAIQuestionsProps {
+    coursesData?: any[];
+}
+
+const InstructorAIQuestions: React.FC<InstructorAIQuestionsProps> = ({ coursesData }) => {
     const [topic, setTopic] = useState('');
     const [difficulty, setDifficulty] = useState<'Kolay' | 'Orta' | 'Zor'>('Orta');
     const [questionType, setQuestionType] = useState<'multiple-choice' | 'true-false' | 'open-ended'>('multiple-choice');
@@ -89,16 +93,20 @@ const InstructorAIQuestions: React.FC = () => {
     const [isAssigning, setIsAssigning] = useState(false);
 
     React.useEffect(() => {
-        const fetchCourses = async () => {
-            try {
-                const response = await api.get('/teacher/content');
-                setMyCourses(response.data);
-            } catch (error) {
-                console.error("Kurslar çekilemedi:", error);
-            }
-        };
-        fetchCourses();
-    }, []);
+        if (coursesData) {
+            setMyCourses(coursesData);
+        } else {
+            const fetchCourses = async () => {
+                try {
+                    const response = await api.get('/teacher/content');
+                    setMyCourses(response.data);
+                } catch (error) {
+                    console.error("Kurslar çekilemedi:", error);
+                }
+            };
+            fetchCourses();
+        }
+    }, [coursesData]);
 
     const handleGenerate = async () => {
         if (!topic.trim()) return;

@@ -2,23 +2,32 @@ import React, { useState, useEffect } from 'react';
 import { Search, Filter, MoreVertical, Mail, TrendingUp, AlertCircle, CheckCircle } from 'lucide-react';
 import api from '../../api';
 
-const InstructorStudents: React.FC = () => {
-    const [students, setStudents] = useState<any[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+interface InstructorStudentsProps {
+    studentsData?: any[];
+}
+
+const InstructorStudents: React.FC<InstructorStudentsProps> = ({ studentsData }) => {
+    const [students, setStudents] = useState<any[]>(studentsData || []);
+    const [isLoading, setIsLoading] = useState(!studentsData);
 
     useEffect(() => {
-        const fetchStudents = async () => {
-            try {
-                const response = await api.get('/teacher/students');
-                setStudents(response.data);
-            } catch (err) {
-                console.error("Failed to fetch students:", err);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchStudents();
-    }, []);
+        if (studentsData) {
+            setStudents(studentsData);
+            setIsLoading(false);
+        } else {
+            const fetchStudents = async () => {
+                try {
+                    const response = await api.get('/teacher/students');
+                    setStudents(response.data);
+                } catch (err) {
+                    console.error("Failed to fetch students:", err);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchStudents();
+        }
+    }, [studentsData]);
 
     const getStatusBadge = (status: string) => {
         switch (status) {
