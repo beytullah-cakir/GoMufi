@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Navbar from './Navbar';
+import Sidebar from './Sidebar';
+import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User } from 'lucide-react';
 import api from '../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
@@ -314,7 +315,9 @@ function StudentApp() {
         'Kurslar': '/student/catalog',
         'Soru Sor!': '/student/ask',
         'Profilim': '/student/profile',
-        'PROFILIM': '/student/profile'
+        'PROFILIM': '/student/profile',
+        'Sepetim': '/student/cart',
+        'Ödeme': '/student/cart'
     };
 
     const pathToPage: Record<string, string> = {
@@ -322,7 +325,8 @@ function StudentApp() {
         '/student/my-courses': 'Kurslarım',
         '/student/catalog': 'Kurslar',
         '/student/ask': 'Soru Sor!',
-        '/student/profile': 'Profilim'
+        '/student/profile': 'Profilim',
+        '/student/cart': 'Sepetim'
     };
 
     // Effect to sync URL -> State (Handle browser back/forward and initial load)
@@ -494,24 +498,29 @@ function StudentApp() {
 
     const currentCourse = courses[activeCourseId];
 
+    const navItems = [
+        { id: 'Ana Sayfa', label: 'Ana Sayfa', icon: Home },
+        { id: 'Kurslar', label: 'Kurslar', icon: Search },
+        { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
+        { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
+        { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
+        { id: 'Profilim', label: 'Profilim', icon: User },
+    ];
+
     return (
         <>
-            <div className="flex flex-col h-screen bg-white font-sans text-gray-900 overflow-hidden">
+            <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
                 {activePage !== 'Builder' && (
-                    <Navbar
+                    <Sidebar
+                        role="student"
                         activePage={activePage}
                         onNavigate={setActivePage}
-                        currentCourse={currentCourse}
-                        activeCourseId={activeCourseId}
-                        courses={courses}
-                        onCourseChange={handleCourseChange}
-                        cart={cart}
-                        removeFromCart={removeFromCart}
+                        items={navItems}
                         userData={userData}
                     />
                 )}
 
-                <div className="flex-1 overflow-y-auto relative w-full">
+                <div className="flex-1 flex flex-col relative w-full overflow-hidden">
                     {activePage === 'Ana Sayfa' ? (
                         <HomePage
                             currentCourse={currentCourse}
@@ -564,7 +573,7 @@ function StudentApp() {
                         <ContentPage />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
-                    ) : activePage === 'Ödeme' ? (
+                    ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
                         <StudentPayment
                             cart={cart}
                             removeFromCart={removeFromCart}

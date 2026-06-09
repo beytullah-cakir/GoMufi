@@ -210,99 +210,46 @@ const HomePage: React.FC<HomePageProps> = ({
     return (
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
-            {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-4 md:px-12 pt-4 md:pt-6 flex flex-col lg:flex-row items-center lg:items-start gap-4 z-30 relative">
-                {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
-                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 flex-1 min-w-0 w-full">
-                    {/* Course Info Box (Dropdown Enabled) */}
-                    <div className="relative" ref={courseDropdownRef}>
-                        <div
-                            className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
-                            style={courseBoxStyle}
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        >
-                            <span className="text-4xl mb-1">{currentCourse.icon}</span>
-                            <span className="font-black text-[10px] md:text-xs uppercase tracking-tighter font-display truncate w-full px-2 text-center" title={currentCourse.title}>
-                                {currentCourse.title}
-                            </span>
-                            {/* Dropdown Indicator */}
-                            <div className="absolute top-2 right-2 opacity-50">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M6 9l6 6 6-6" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        {/* DROPDOWN MENU */}
-                        {isDropdownOpen && (
-                            <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                {Object.values(courses).map((course) => (
-                                    <div
-                                        key={course.id}
-                                        className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
-                                        onClick={() => handleCourseChange(course.id)}
-                                    >
-                                        <span className="text-2xl">{course.icon}</span>
-                                        <span className={`font-black text-sm uppercase font-display truncate flex-1 ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`} title={course.title}>
-                                            {course.title}
-                                        </span>
-                                        {activeCourseId === course.id && (
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Unit Header (Left) */}
+            {/* Top Center: Course Selector */}
+            <div className="w-full px-4 pt-6 flex justify-center z-30 relative">
+                <div className="relative" ref={courseDropdownRef}>
                     <div
-                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[280px] lg:max-w-[350px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
-                        style={{ backgroundColor: headerColor }}
+                        className="w-auto min-w-[240px] max-w-[400px] h-16 px-6 rounded-2xl border-4 flex items-center justify-center gap-4 bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+                        style={courseBoxStyle}
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                     >
-                        {/* Status Bar Top Line */}
-                        <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
-
-                        <div className="relative z-10 flex-1 min-w-0 pr-4">
-                            <h2 className="text-[10px] md:text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display truncate">{headerSubtitle}</h2>
-                            <h1 className="text-xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm truncate">{headerTitle}</h1>
+                        <span className="text-3xl flex-shrink-0">{currentCourse.icon}</span>
+                        <span className="font-black text-sm md:text-base uppercase tracking-wider font-display truncate w-full text-left" title={currentCourse.title}>
+                            {currentCourse.title}
+                        </span>
+                        {/* Dropdown Indicator */}
+                        <div className="opacity-50 ml-2 flex-shrink-0">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M6 9l6 6 6-6" />
+                            </svg>
                         </div>
-
-                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-3 rounded-xl text-[10px] md:text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent shrink-0">
-                            <span className="text-lg md:text-xl">📖</span> REHBER
-                        </button>
                     </div>
 
-                    {/* Instructor Widget */}
-                    <div className="hidden xl:flex h-28 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3 shadow-sm ml-2 shrink-0">
-                        {/* Avatar */}
-                        <div className="relative">
-                            <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
-                                {currentCourse.instructor.avatar}
-                            </div>
-                            {/* Online Status Dot */}
-                            {currentCourse.instructor.isOnline && (
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
-                            )}
+                    {/* DROPDOWN MENU */}
+                    {isDropdownOpen && (
+                        <div className="absolute top-[110%] left-0 w-full min-w-[240px] bg-white border-4 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                            {Object.values(courses).map((course) => (
+                                <div
+                                    key={course.id}
+                                    className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 border-b-2 last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-indigo-50/50' : ''}`}
+                                    onClick={() => handleCourseChange(course.id)}
+                                >
+                                    <span className="text-2xl flex-shrink-0 grayscale-[0.2] group-hover:grayscale-0 transition-all">{course.icon}</span>
+                                    <span className={`font-black text-sm uppercase font-display truncate flex-1 ${activeCourseId === course.id ? 'text-indigo-900' : 'text-gray-500'}`} title={course.title}>
+                                        {course.title}
+                                    </span>
+                                    {activeCourseId === course.id && (
+                                        <div className="ml-auto w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
+                                    )}
+                                </div>
+                            ))}
                         </div>
-
-                        {/* Info */}
-                        <div className="flex flex-col justify-center min-w-0">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5 hidden 2xl:block">Eğitmen</span>
-                            <span className="text-sm md:text-lg font-black text-gray-800 font-display leading-none mb-1 truncate">{currentCourse.instructor.name}</span>
-                            <span className={`text-[10px] md:text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
-                                {currentCourse.instructor.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
-                                {currentCourse.instructor.status}
-                            </span>
-                        </div>
-
-                        {/* Chat Action */}
-                        <button className="w-10 h-10 ml-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
-                            <span className="text-xl">💬</span>
-                        </button>
-                    </div>
-
-
+                    )}
                 </div>
             </div>
 
