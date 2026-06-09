@@ -1,15 +1,15 @@
 
-FROM node:22
+FROM node:22-alpine
 
 WORKDIR /app
 
+# Bağımlılıkları önce kopyala — katman cache'ini etkin kullan
 COPY package*.json ./
 
-RUN npm install
+# npm ci: package-lock.json'a bağlı, tekrarlanabilir, daha hızlı
+RUN npm ci
 
 COPY . .
-
-# RUN npm run build
 
 EXPOSE 5173
 

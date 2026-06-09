@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 
 # Import all models to register them with Base.metadata
 from connect_db import Base
-from models import Student, Course, Enrollment, Teacher, Parent, LiveSession
+from models import Student, Course, Enrollment, Teacher, Parent, LiveSession, Quiz
 
 load_dotenv()
 
@@ -25,12 +25,14 @@ def get_url():
     url = os.getenv("DATABASE_URL")
     if not url:
         raise ValueError("DATABASE_URL environment variable is not set")
-    # SQLAlchemy 1.4+ async uses postgresql+asyncpg:// but Alembic migrations are often synchronous
-    # If using async engine, you might need special setup, but since migrations run in a separate process,
-    # we can use the sync driver for migrations. 
-    # psycopg2-binary is usually required for this.
+    # Alembic uses synchronous psycopg2 driver
+    # Convert asyncpg URL to psycopg2 URL if needed
     if url.startswith("postgresql+asyncpg"):
-         return url.replace("postgresql+asyncpg", "postgresql")
+        url = url.replace("postgresql+asyncpg", "postgresql")
+    # Supabase session pooler (port 6543) may have DNS issues in Docker.
+    # Switch to transaction pooler (port 5432) for Alembic migrations.
+    if ":6543/" in url:
+        url = url.replace(":6543/", ":5432/")
     return url
 
 def run_migrations_offline() -> None:

@@ -1,7 +1,7 @@
 services:
   backend:
     build: ./backend
-    container_name: my-backend
+    container_name: gomufi-backend
     ports:
       - "8000:8000"
     volumes:
@@ -9,11 +9,19 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Buradaki değerler .env dosyasındakileri GEÇİCİ OLARAK (sadece bilgisayarınızda) ezer
+      # Yerel geliştirme için URL'leri .env'den gelen değerlerin üzerine yaz
       - FRONTEND_URL=http://localhost:5173
       - BACKEND_URL=http://localhost:8000
-    command: sh -c "alembic upgrade head && uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload"
+    command: >
+      sh -c "alembic upgrade head || echo 'WARNING: Alembic migration failed, starting server anyway...' ;
+             uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload"
     restart: "no"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     develop:
       watch:
         - action: sync
@@ -22,7 +30,7 @@ services:
 
   frontend:
     build: ./frontend
-    container_name: my-frontend
+    container_name: gomufi-frontend
     ports:
       - "5173:5173"
     environment:
@@ -31,6 +39,8 @@ services:
       - ./frontend:/app
       - /app/node_modules
     restart: "no"
+    depends_on:
+      - backend
     develop:
       watch:
         - action: sync

@@ -142,14 +142,12 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         print(f"DEBUG: Redirecting to {redirect_url}")
         response = RedirectResponse(url=redirect_url)
         
-        is_production = "localhost" not in FRONTEND_URL
-        
         response.set_cookie(
             key="access_token", 
             value=access_token, 
             httponly=True,
-            secure=is_production, # Local'de HTTP (False), Production'da HTTPS (True)
-            samesite='None' if is_production else 'Lax', # None for cross-site (prod), Lax for local
+            secure=settings.IS_PRODUCTION,
+            samesite='None' if settings.IS_PRODUCTION else 'Lax',
             max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/"
         )
@@ -165,14 +163,12 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
 @router.post("/auth/logout")
 async def logout(response: Response):
     try:
-        is_production = "localhost" not in FRONTEND_URL
-    
         response.delete_cookie(
             key="access_token",
             path="/",
-            secure=is_production,
+            secure=settings.IS_PRODUCTION,
             httponly=True,
-            samesite='None' if is_production else 'Lax'
+            samesite='None' if settings.IS_PRODUCTION else 'Lax'
         )
         
         return {"message": "Successfully logged out"}

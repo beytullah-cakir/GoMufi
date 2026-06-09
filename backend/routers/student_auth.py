@@ -13,8 +13,6 @@ import jwt
 
 router = APIRouter()
 
-current_student = None
-
 
 @router.post("/student/register")
 async def register_user(
@@ -49,7 +47,6 @@ async def register_user(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
 @router.post("/student/login")
 async def login_user(
     data: LoginRequest,
@@ -66,14 +63,12 @@ async def login_user(
 
     access_token = create_access_token(str(student.id), role="student")
 
-    is_production ="localhost" not in settings.FRONTEND_URL
-
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="None" if is_production else "lax",
-        secure=is_production,
+        samesite="None" if settings.IS_PRODUCTION else "lax",
+        secure=settings.IS_PRODUCTION,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/"
     )
@@ -84,27 +79,21 @@ async def login_user(
     }
 
 
-@router.post("/auth/logout")
-async def logout_user(response: Response):
-    response.delete_cookie(key="access_token", path="/")
-    return {"status": "logged_out"}
-
-
 @router.post("/complete-profile")
 async def complete_profile(
     request: Request,
-    data: dict, # Simplified for demo, should be a Pydantic model
+    data: dict,  # Simplified for demo, should be a Pydantic model
     db: AsyncSession = Depends(get_db)
 ):
     token = request.cookies.get("access_token")
     if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
-    
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_id = int(payload["sub"])
         role = payload["role"]
-        
+
         if role == "student":
             result = await db.execute(select(Student).where(Student.id == user_id))
             user = result.scalar_one_or_none()
@@ -118,12 +107,8 @@ async def complete_profile(
             if user:
                 user.expertises = data.get("expertises", user.expertises)
                 user.bio = data.get("bio", user.bio)
-        
+
         await db.commit()
         return {"status": "success"}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
-
-def get_current_student():
-    return current_student
-

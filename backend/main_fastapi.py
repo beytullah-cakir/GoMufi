@@ -1,181 +1,78 @@
+"""
+GoMufi — FastAPI ana uygulama dosyası.
+"""
+import os
+import logging
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-from connect_db import SessionLocal, engine, Base, get_db
 from starlette.middleware.sessions import SessionMiddleware
-from alembic.config import Config
-from alembic import command
-from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-import os
-from models import Student, Teacher, Course, Enrollment, Quiz 
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-#yz için 
-from fastapi import Request, HTTPException, Depends
-from sqlalchemy.ext.asyncio import AsyncSession
-import quiz_service
+from connect_db import engine, Base
+from core.config import settings
+from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
+from routers import quiz
+
+# Logging seviyesi env'den kontrol edilebilir
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run Alembic migrations automatically
+    """Uygulama başladığında tabloları oluştur."""
+    logger.info("Uygulama başlatılıyor — tablo oluşturma kontrol ediliyor...")
     try:
-        print("DEBUG: Running database migrations...")
-        alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
-        print("DEBUG: Migrations completed successfully.")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Tablolar hazır.")
     except Exception as e:
-        print(f"DEBUG: Migration error: {e}")
-
-    async with engine.begin() as conn:        
-        await conn.run_sync(Base.metadata.create_all) 
+        logger.error(f"Tablo oluşturma hatası: {e}")
     yield
+    logger.info("Uygulama kapatılıyor.")
 
-app = FastAPI(lifespan=lifespan)
 
-# get_db artık connect_db'den alınıyor.
-
-# 1. PROXY HEADERS (Railway için zorunlu)
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
-
-# Production veya Local tespiti
-FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-is_production = FRONTEND_URL and "localhost" not in FRONTEND_URL and FRONTEND_URL.startswith("https")
-
-# 2. SESSION MIDDLEWARE
-app.add_middleware(
-    SessionMiddleware, 
-    secret_key=os.getenv("SECRET_KEY", "gomufi-ozel-guvenli-anahtar-123"),
-    session_cookie="gomufi_session",
-    same_site="lax", 
-    https_only=is_production, 
-    max_age=3600
+app = FastAPI(
+    lifespan=lifespan,
+    title="GoMufi API",
+    description="Eğitim platformu backend API",
+    version="1.0.0",
 )
 
-# lifespan bloğu kalsın; Supabase'e bağlandığında tabloları otomatik oluşturur.
+# 1. Proxy headers (Railway / production reverse proxy için)
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+
+# 2. Session middleware (Google OAuth için)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    session_cookie="gomufi_session",
+    same_site="lax",
+    https_only=settings.IS_PRODUCTION,
+    max_age=3600,
+)
 
 # 3. CORS
+_allowed_origins = [
+    "https://www.gomufi.com",
+    "https://gomufi.com",
+    "https://go-mufi.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://0.0.0.0:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://www.gomufi.com",         
-        "https://gomufi.com",             
-        "https://go-mufi.vercel.app",     
-        "http://localhost:5173",    
-        "http://127.0.0.1:5173",
-        "http://0.0.0.0:5173", # Docker veya harici host erişimi için
-    ],
+    allow_origins=_allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-
-@app.post("/generate_quiz")
-async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
-    data = await request.json()
-    topic = data.get('topic')
-    difficulty = data.get('difficulty', 'Orta')
-    question_type = data.get('type', 'multiple-choice')
-
-    if not topic:
-        raise HTTPException(status_code=400, detail='Lütfen "topic" parametresi gönderin')
-
-    # Note: quiz_service is sync, so it might block. 
-    # But for now we continue like this for simplicity.
-    result = quiz_service.generate_quiz_question(topic, difficulty, question_type)
-
-    if result.get('success'):
-        try:
-            new_quiz = Quiz(
-                topic=topic,
-                difficulty=difficulty,
-                question_type=question_type,
-                question_text=result['quiz']['soru'],
-                options=result['quiz'].get('secenekler'),
-                correct_answer=result['quiz']['cevap'],
-                explanation=result['quiz'].get('aciklama')
-            )
-            db.add(new_quiz)
-            await db.commit()
-            await db.refresh(new_quiz)
-            
-            result['db_id'] = new_quiz.id
-            return result
-        except Exception as e:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Veritabanı kayıt hatası: {str(e)}")
-    else:
-        # Error detail from the service
-        error_msg = result.get('error', 'Bilinmeyen quiz servis hatası')
-        raise HTTPException(status_code=500, detail=f"Quiz üretilemedi: {error_msg}")
-
-@app.get("/quizzes")
-async def get_quizzes(db: AsyncSession = Depends(get_db)):
-    from sqlalchemy.future import select
-    result = await db.execute(select(Quiz).order_by(Quiz.id.desc()))
-    quizzes = result.scalars().all()
-    return {
-        "success": True,
-        "count": len(quizzes),
-        "data": [q.to_dict() for q in quizzes]
-    }
-@app.post("/assign_quiz")
-async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
-    data = await request.json()
-    quiz_id = data.get('quiz_id')
-    course_id = data.get('course_id')
-    section_id = data.get('section_id')
-    node_id = data.get('node_id')
-
-    if not quiz_id or not course_id or node_id is None or section_id is None:
-        print(f"DEBUG: assign_quiz EKSIK PARAMETRE - quiz_id: {quiz_id}, course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
-        raise HTTPException(status_code=400, detail="Eksik parametre: quiz_id, course_id, section_id veya node_id gerekli.")
-
-    print(f"DEBUG: assign_quiz basarili parametreler - quiz_id: {quiz_id}, course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
-
-    from sqlalchemy.future import select
-    result = await db.execute(select(Quiz).where(Quiz.id == quiz_id))
-    quiz = result.scalar_one_or_none()
-
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz bulunamadı.")
-
-    try:
-        # Explicit casting to ensure DB compatibility
-        quiz.course_id = int(course_id)
-        quiz.section_id = str(section_id)
-        quiz.node_id = int(node_id)
-        
-        await db.commit()
-        await db.refresh(quiz)
-        print(f"DEBUG: Atama BASARILI -> QuizID: {quiz.id}, Course: {quiz.course_id}, Section: {quiz.section_id}, Node: {quiz.node_id}")
-        return {"success": True, "quiz": quiz.to_dict()}
-    except Exception as e:
-        await db.rollback()
-        print(f"DEBUG: Atama HATASI -> {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Atama hatası: {str(e)}")
-
-@app.get("/quiz_by_node")
-async def get_quiz_by_node(course_id: int, section_id: str, node_id: int, db: AsyncSession = Depends(get_db)):
-    print(f"DEBUG: get_quiz_by_node talep - course_id: {course_id}, section_id: {section_id}, node_id: {node_id}")
-    from sqlalchemy.future import select
-    result = await db.execute(
-        select(Quiz).where(
-            Quiz.course_id == course_id,
-            Quiz.section_id == section_id,
-            Quiz.node_id == node_id
-        ).order_by(Quiz.id.asc()) # Eskiden desc idi, şimdi sırayla gitsin diye asc yapıyoruz
-    )
-    quizzes = result.scalars().all()
-    
-    if not quizzes:
-        print(f"DEBUG: get_quiz_by_node -> Soru bulunamadi (Course:{course_id}, Section:{section_id}, Node:{node_id})")
-        return {"success": False, "message": "Bu düğüm için atanmış soru bulunamadı."}
-        
-    print(f"DEBUG: get_quiz_by_node -> {len(quizzes)} Soru BULUNDU")
-    return {"success": True, "quizzes": [q.to_dict() for q in quizzes]}
-
+# Router'ları kaydet
 app.include_router(student_auth.router)
 app.include_router(teacher_auth.router)
 app.include_router(profile.router)
@@ -184,10 +81,45 @@ app.include_router(oauth.router)
 app.include_router(builder.router)
 app.include_router(payment.router)
 app.include_router(utils.router)
+app.include_router(quiz.router)
 
-# Railway'de uvicorn genellikle Dockerfile CMD üzerinden başlatılır.
-# Eğer yerelde çalıştıracaksanız bu blok kalabilir.
+# Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
+# /generate_quiz -> /quiz/generate
+# /quizzes       -> /quiz/list
+# /assign_quiz   -> /quiz/assign
+# /quiz_by_node  -> /quiz/by-node
+from fastapi import Request, HTTPException, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from connect_db import get_db
+
+@app.post("/generate_quiz", include_in_schema=False)
+async def generate_quiz_legacy(request: Request, db: AsyncSession = Depends(get_db)):
+    """Eski endpoint — geriye dönük uyumluluk için korunuyor."""
+    from routers.quiz import generate_quiz
+    return await generate_quiz(request, db)
+
+@app.get("/quizzes", include_in_schema=False)
+async def get_quizzes_legacy(db: AsyncSession = Depends(get_db)):
+    from routers.quiz import get_quizzes
+    return await get_quizzes(db)
+
+@app.post("/assign_quiz", include_in_schema=False)
+async def assign_quiz_legacy(request: Request, db: AsyncSession = Depends(get_db)):
+    from routers.quiz import assign_quiz
+    return await assign_quiz(request, db)
+
+@app.get("/quiz_by_node", include_in_schema=False)
+async def get_quiz_by_node_legacy(
+    course_id: int,
+    section_id: str,
+    node_id: int,
+    db: AsyncSession = Depends(get_db),
+):
+    from routers.quiz import get_quiz_by_node
+    return await get_quiz_by_node(course_id, section_id, node_id, db)
+
+
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000)) # Railway'in portunu oku
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    port = int(os.getenv("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port, reload=False)
