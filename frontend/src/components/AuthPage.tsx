@@ -412,7 +412,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                           >
                             <option value="" disabled>Uzmanlık Alanı / Branş Seçin</option>
                             {techData.languages.map((tech) => (
-                              <option key={tech.id} value={tech.label}>
+                              <option key={tech.label} value={tech.label}>
                                 {tech.emoji} {tech.label}
                               </option>
                             ))}

@@ -18,7 +18,7 @@ const EDITOR_STYLES: React.CSSProperties = {
 
 interface CodingSlideBuilderProps {
     slide: Slide;
-    updateSlide: (id: number, updates: Partial<Slide>) => void;
+    updateSlide: (id: number | string, updates: Partial<Slide>) => void;
 }
 
 const CodingSlideBuilder: React.FC<CodingSlideBuilderProps> = ({ slide, updateSlide }) => {

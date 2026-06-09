@@ -21,7 +21,7 @@ interface CourseDetail {
   price: number;
   learning_outcomes: string[];
   requirements: string[];
-  curriculum: any[];
+  curriculum: any;
   teacher?: {
     first_name: string;
     last_name: string;
@@ -100,7 +100,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
     const slides = Array.isArray(curriculum) ? curriculum : (curriculum.slides || []);
     const pdfTitle = (!Array.isArray(curriculum) && curriculum.noteTitle) ? curriculum.noteTitle : course.title;
 
-    const doc = new window.jspdf.jsPDF();
+    const doc = new jsPDF();
     
     // Title
     doc.setFontSize(22);
@@ -149,7 +149,7 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
       yOffset += 10;
     });
 
-    doc.save(`${title.replace(/\s+/g, '_')}_notlari.pdf`);
+    doc.save(`${pdfTitle.replace(/\s+/g, '_')}_notlari.pdf`);
   };
 
   const toggleSection = (index: number) => {

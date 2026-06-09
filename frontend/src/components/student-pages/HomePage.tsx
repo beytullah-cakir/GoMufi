@@ -2,11 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 
 
 
-import GrassIcon from '../assets/sprites/grass.png';
+import GrassIcon from '../../assets/sprites/grass.png';
 
-import GameOverlay from './students-pages/GameOverlay';
+import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
-import type { CourseData, PathNode } from '../types';
+import type { CourseData, PathNode } from '../../types';
 
 interface HomePageProps {
     currentCourse: CourseData;

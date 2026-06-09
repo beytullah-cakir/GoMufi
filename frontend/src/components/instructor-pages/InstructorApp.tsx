@@ -1,15 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation, Navigate } from 'react-router-dom';
-import InstructorLayout from './instructor-pages/InstructorLayout';
-import InstructorDashboard from './instructor-pages/InstructorDashboard';
-import InstructorCourses from './instructor-pages/InstructorCourses';
-import InstructorStudents from './instructor-pages/InstructorStudents';
-import InstructorRevenue from './instructor-pages/InstructorRevenue';
-import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
-import InstructorMessages from './instructor-pages/InstructorMessages';
-import LessonBuilderPage from './LessonBuilderPage';
-import InstructorProfile from './instructor-pages/InstructorProfile';
-import api from '../api';
+import InstructorLayout from './InstructorLayout';
+import InstructorDashboard from './InstructorDashboard';
+import InstructorCourses from './InstructorCourses';
+import InstructorStudents from './InstructorStudents';
+import InstructorRevenue from './InstructorRevenue';
+import InstructorAIQuestions from './InstructorAIQuestions';
+import InstructorMessages from './InstructorMessages';
+import LessonBuilderPage from '../LessonBuilderPage';
+import InstructorProfile from './InstructorProfile';
+import api from '../../api';
 
 const InstructorApp: React.FC = () => {
     const navigate = useNavigate();

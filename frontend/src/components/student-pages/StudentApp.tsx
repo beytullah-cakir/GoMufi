@@ -1,30 +1,30 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import Sidebar from './Sidebar';
+import Sidebar from '../Sidebar';
 import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User } from 'lucide-react';
-import api from '../api';
+import api from '../../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
 import ProfilePage from './ProfilePage';
 import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
-import StudentPayment from './students-pages/StudentPayment';
-import CourseDetailPage from './students-pages/CourseDetailPage';
-import MufiSleep from '../assets/sprites/MufiSleep.png';
+import StudentPayment from './StudentPayment';
+import CourseDetailPage from './CourseDetailPage';
+import MufiSleep from '../../assets/sprites/MufiSleep.png';
 
 
 // Import Types
-import type { CourseData, PathNode } from '../types';
+import type { CourseData, PathNode } from '../../types';
 
 // Import Assets for Course Data
-import ButtonCyan from '../assets/sprites/ButtonCyan.png';
-import ButtonPurple from '../assets/sprites/ButtonPurple.png';
-import ButtonYellow from '../assets/sprites/ButtonYellow.png';
-import ButtonGreen from '../assets/sprites/ButtonGreen.png';
-import BrainIcon from '../assets/sprites/Brain.png';
-import PencilIcon from '../assets/sprites/Pencil.png';
-import PuzzleIcon from '../assets/sprites/Puzzle.png';
-import TrophyIcon from '../assets/sprites/Trophy.png';
+import ButtonCyan from '../../assets/sprites/ButtonCyan.png';
+import ButtonPurple from '../../assets/sprites/ButtonPurple.png';
+import ButtonYellow from '../../assets/sprites/ButtonYellow.png';
+import ButtonGreen from '../../assets/sprites/ButtonGreen.png';
+import BrainIcon from '../../assets/sprites/Brain.png';
+import PencilIcon from '../../assets/sprites/Pencil.png';
+import PuzzleIcon from '../../assets/sprites/Puzzle.png';
+import TrophyIcon from '../../assets/sprites/Trophy.png';
 
 interface CartItem {
     id: number;

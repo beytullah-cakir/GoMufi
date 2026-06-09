@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
+import api from '../../api';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -29,14 +29,14 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import CourseInfoModal from './shared/CourseInfoModal.tsx';
+import CourseInfoModal from '../shared/CourseInfoModal';
 
 // Import Assets (Reusing existing or placeholders if needed)
-import PythonIcon from '../assets/sprites/PythonIcon.png';
-import ReactIcon from '../assets/sprites/ReactIcon.png';
-import JsIcon from '../assets/sprites/JsIcon.png';
-import EnglishIcon from '../assets/sprites/EnglishIcon.png';
-import DataIcon from '../assets/sprites/DataIcon.png';
+import PythonIcon from '../../assets/sprites/PythonIcon.png';
+import ReactIcon from '../../assets/sprites/ReactIcon.png';
+import JsIcon from '../../assets/sprites/JsIcon.png';
+import EnglishIcon from '../../assets/sprites/EnglishIcon.png';
+import DataIcon from '../../assets/sprites/DataIcon.png';
 
 // Mock Data Types
 interface Course {
