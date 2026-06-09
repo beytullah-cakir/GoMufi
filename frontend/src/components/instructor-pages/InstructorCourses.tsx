@@ -35,7 +35,11 @@ interface Course {
   instructor?: string;
 }
 
-const InstructorCourses: React.FC = () => {
+interface InstructorCoursesProps {
+    coursesData?: any[];
+}
+
+const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) => {
   const [filter, setFilter] = useState("active");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -53,74 +57,79 @@ const InstructorCourses: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    const fetchCourses = async () => {
-      try {
-        // Backend provides /teacher/content for instructor's courses
-        const response = await api.get("/teacher/content");
-        console.log("DEBUG: Fetch Courses Response:", response.data);
-        if (isMounted) {
-          // Map API response to local Course interface if necessary
-          // (Assuming API returns status, progress etc. based on schema)
-          const mappedCourses = response.data.map((c: any) => {
-            let isLive = c.is_live || false;
-            let liveSessions = c.live_sessions || [];
-            let rawCurriculum = c.curriculum || [];
-            let notes = c.notes || [];
-            let finalCurriculum = Array.isArray(rawCurriculum) ? rawCurriculum : (rawCurriculum ? [rawCurriculum] : []);
+    
+    const mapCourses = (data: any[]) => {
+      return data.map((c: any) => {
+        let isLive = c.is_live || false;
+        let liveSessions = c.live_sessions || [];
+        let rawCurriculum = c.curriculum || [];
+        let notes = c.notes || [];
+        let finalCurriculum = Array.isArray(rawCurriculum) ? rawCurriculum : (rawCurriculum ? [rawCurriculum] : []);
 
-            if (
-              finalCurriculum.length > 0 &&
-              finalCurriculum[0]?.type === "live_sessions_config"
-            ) {
-              isLive = finalCurriculum[0].is_live;
-              liveSessions = finalCurriculum[0].sessions;
-              finalCurriculum = finalCurriculum.slice(1);
-            }
-
-            return {
-              id: c.id,
-              title: c.title,
-              description: c.description || "",
-              price: c.price || 0,
-              students: c.students_count || 0,
-              rating: c.rating || 5,
-              progress: c.progress || 0,
-              status: c.status || "active",
-              learning_outcomes: c.learning_outcomes || [],
-              requirements: c.requirements || [],
-              curriculum: finalCurriculum,
-              color:
-                c.category === "coding"
-                  ? "blue"
-                  : c.category === "web"
-                    ? "purple"
-                    : c.category === "design"
-                      ? "orange"
-                      : "gray",
-              lastUpdated: "Yakın zamanda",
-              isLive: isLive,
-              liveSessions: liveSessions,
-              schedule: c.schedule || [],
-              notes: notes,
-              instructor: c.teacher
-                ? `${c.teacher.first_name} ${c.teacher.last_name}`
-                : "Mufi Eğitmen",
-            };
-          });
-          setCourses(mappedCourses);
+        if (
+          finalCurriculum.length > 0 &&
+          finalCurriculum[0]?.type === "live_sessions_config"
+        ) {
+          isLive = finalCurriculum[0].is_live;
+          liveSessions = finalCurriculum[0].sessions || [];
         }
-      } catch (error) {
-        console.error("Error fetching courses", error);
-      } finally {
-        if (isMounted) setIsLoading(false);
-      }
+
+        return {
+          id: c.id,
+          title: c.title,
+          description: c.description || "",
+          price: c.price || 0,
+          students: c.students_count || 0,
+          rating: c.rating || 5,
+          progress: c.progress !== undefined ? c.progress : 100,
+          status: c.status || "active",
+          learning_outcomes: c.learning_outcomes || [],
+          requirements: c.requirements || [],
+          curriculum: finalCurriculum,
+          color:
+            c.category === "coding"
+              ? "blue"
+              : c.category === "web"
+                ? "purple"
+                : c.category === "design"
+                  ? "orange"
+                  : "gray",
+          lastUpdated: "Yakın zamanda",
+          isLive: isLive,
+          liveSessions: liveSessions,
+          schedule: c.schedule || [],
+          notes: notes,
+          instructor: c.teacher
+            ? `${c.teacher.first_name} ${c.teacher.last_name}`
+            : "Mufi Eğitmen",
+        };
+      });
     };
 
-    fetchCourses();
+    if (coursesData) {
+      setCourses(mapCourses(coursesData));
+      setIsLoading(false);
+    } else {
+      const fetchCourses = async () => {
+        try {
+          const response = await api.get("/teacher/content");
+          console.log("DEBUG: Fetch Courses Response:", response.data);
+          if (isMounted) {
+            setCourses(mapCourses(response.data));
+          }
+        } catch (error) {
+          console.error("Error fetching courses", error);
+        } finally {
+          if (isMounted) setIsLoading(false);
+        }
+      };
+      fetchCourses();
+    }
+    
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [coursesData]);
 
   const handleSaveCourse = async (courseData: any) => {
     setIsSubmitting(true);

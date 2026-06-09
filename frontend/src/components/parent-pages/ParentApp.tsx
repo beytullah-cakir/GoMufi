@@ -13,6 +13,7 @@ import { Loader2 } from 'lucide-react';
 const ParentApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
     const [userData, setUserData] = useState<any>(null);
+    const [teachersData, setTeachersData] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
@@ -53,8 +54,12 @@ const ParentApp: React.FC = () => {
         const fetchProfile = async () => {
             try {
                 setIsLoading(true);
-                const response = await api.get('/profile');
-                setUserData(response.data);
+                const [profileRes, teachersRes] = await Promise.all([
+                    api.get('/profile'),
+                    api.get('/profile/parent/teachers')
+                ]);
+                setUserData(profileRes.data);
+                setTeachersData(teachersRes.data);
                 setError(null);
             } catch (err: any) {
                 console.error('Profile fetch error:', err);
@@ -94,9 +99,9 @@ const ParentApp: React.FC = () => {
 
     const renderPage = () => {
         switch (activePage) {
-            case 'Dashboard': return <ParentDashboard userData={userData} />;
+            case 'Dashboard': return <ParentDashboard userData={userData} teachersData={teachersData} />;
             case 'Progress': return <ParentSkillTree />;
-            case 'Instructors': return <ParentInstructors />;
+            case 'Instructors': return <ParentInstructors teachersData={teachersData} />;
             case 'Students': 
                 return selectedStudent ? (
                     <ParentStudentDetail 
