@@ -238,7 +238,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             });
 
             result[courseName] = {
-                id: String(course.id),
+                id: courseName,
                 title: courseName.toUpperCase(),
                 icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
@@ -515,6 +515,16 @@ function StudentApp() {
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
+    if (isUserDataLoading) {
+        return (
+            <div className="min-h-screen bg-white flex flex-col items-center justify-center font-display">
+                <div className="w-16 h-16 border-4 border-yellow-200 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-black text-gray-800">Öğrenci Paneli Yükleniyor...</h2>
+                <p className="text-gray-500 font-bold text-sm">Macera başlıyor, verileriniz hazırlanıyor 🚀</p>
+            </div>
+        );
+    }
+
     return (
         <>
             <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
@@ -528,7 +538,7 @@ function StudentApp() {
                     />
                 )}
 
-                <div className="flex-1 flex flex-col relative w-full overflow-hidden">
+                <div className="flex-1 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar">
                     {activePage === 'Ana Sayfa' ? (
                         <HomePage
                             currentCourse={currentCourse}
@@ -578,7 +588,7 @@ function StudentApp() {
                             currentCourse={currentCourse} 
                         />
                     ) : activePage === 'Kurslarım' ? (
-                        <ContentPage />
+                        <ContentPage purchasedCourses={purchasedCourses} />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
                     ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (

@@ -1,5 +1,6 @@
 import React from "react";
 import InstructorSidebar from "./InstructorSidebar";
+import { LiveNotification } from "../shared/LiveNotification";
 
 interface InstructorLayoutProps {
   activePage: string;
@@ -30,6 +31,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
           {children}
         </div>
       </div>
+      <LiveNotification />
     </div>
   );
 };

@@ -9,6 +9,7 @@ import PaymentSuccess from './components/student-pages/PaymentSuccess';
 import PaymentError from './components/student-pages/PaymentError';
 
 import CompleteProfile from './components/CompleteProfile';
+import { WebSocketProvider } from './context/WebSocketContext';
 
 function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -39,30 +40,32 @@ function App() {
             </div>
         </div>
       )}
-      <Routes>
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/complete-profile" element={<CompleteProfile />} />
-      <Route
-        path="/auth"
-        element={<AuthPage onLogin={() => { }} />}
-      />
+      <WebSocketProvider>
+        <Routes>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/complete-profile" element={<CompleteProfile />} />
+        <Route
+          path="/auth"
+          element={<AuthPage onLogin={() => { }} />}
+        />
 
-      {/* Student Routes */}
-      <Route path="/student/*" element={<StudentApp />} />
+        {/* Student Routes */}
+        <Route path="/student/*" element={<StudentApp />} />
 
-      {/* Instructor Routes */}
-      <Route path="/instructor/*" element={<InstructorApp />} />
+        {/* Instructor Routes */}
+        <Route path="/instructor/*" element={<InstructorApp />} />
 
-      {/* Parent Routes */}
-      <Route path="/parent/*" element={<ParentApp />} />
+        {/* Parent Routes */}
+        <Route path="/parent/*" element={<ParentApp />} />
 
-      {/* Payment Result Routes */}
-      <Route path="/payment-success" element={<PaymentSuccess />} />
-      <Route path="/payment-error" element={<PaymentError />} />
+        {/* Payment Result Routes */}
+        <Route path="/payment-success" element={<PaymentSuccess />} />
+        <Route path="/payment-error" element={<PaymentError />} />
 
-      {/* Redirect unknown routes to Landing */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Redirect unknown routes to Landing */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      </WebSocketProvider>
     </>
   );
 }

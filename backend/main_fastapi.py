@@ -13,7 +13,8 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import engine, Base
 from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-from routers import quiz
+from routers import quiz, ws
+from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
 logging.basicConfig(level=logging.INFO)
@@ -22,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Uygulama başladığında tabloları oluştur."""
+    """Uygulama başladığında tabloları ve Redis bağlantısını oluştur."""
     logger.info("Uygulama başlatılıyor — tablo oluşturma kontrol ediliyor...")
     try:
         async with engine.begin() as conn:
@@ -30,7 +31,10 @@ async def lifespan(app: FastAPI):
         logger.info("Tablolar hazır.")
     except Exception as e:
         logger.error(f"Tablo oluşturma hatası: {e}")
+        
+    await manager.initialize_redis()
     yield
+    await manager.close_redis()
     logger.info("Uygulama kapatılıyor.")
 
 
@@ -82,6 +86,7 @@ app.include_router(builder.router)
 app.include_router(payment.router)
 app.include_router(utils.router)
 app.include_router(quiz.router)
+app.include_router(ws.router)
 
 # Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
 # /generate_quiz -> /quiz/generate
