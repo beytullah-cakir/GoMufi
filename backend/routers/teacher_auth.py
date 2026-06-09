@@ -1,10 +1,11 @@
 
-import os
 from fastapi import APIRouter, Depends, HTTPException, Response
 from auth.auth_request import LoginRequest, TeacherRegisterRequest
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from core.security import create_access_token, hash_password, verify_password
+from core.config import settings
 from connect_db import get_db
 from models.teacher import Teacher
 
@@ -59,8 +60,7 @@ async def login_user(
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 
-    FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-    is_production ="localhost" not in FRONTEND_URL
+    is_production = "localhost" not in settings.FRONTEND_URL
 
     response.set_cookie(
         key="access_token",

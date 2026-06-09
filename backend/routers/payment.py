@@ -1,5 +1,4 @@
 import iyzipay
-import os
 import uuid
 import json
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -10,7 +9,7 @@ from models.course import Course
 from models.student import Student
 from models.enrollment import Enrollment
 from connect_db import get_db
-import jwt
+from auth.dependencies import get_current_user_info
 from core.config import settings
 from pydantic import BaseModel
 from typing import List
@@ -32,15 +31,6 @@ def get_iyzico_options():
     }
     return options
 
-async def get_current_user_info(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
 
 @router.post("/initialize-checkout")
 async def initialize_checkout(

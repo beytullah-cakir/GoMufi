@@ -10,7 +10,7 @@ from models.enrollment import Enrollment
 from connect_db import get_db
 from pydantic import BaseModel
 from typing import List, Optional, Any
-import jwt
+from auth.dependencies import get_current_user_info, get_current_teacher_id
 from core.config import settings
 
 router = APIRouter()
@@ -69,20 +69,7 @@ class TeacherStudentResponse(BaseModel):
     enrolled_at: Optional[datetime] = None
     status: str = "active"
 
-async def get_current_user_info(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        return payload
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+
 
 @router.get("/my-content", response_model=List[CourseResponse])
 async def read_my_content(
@@ -91,7 +78,7 @@ async def read_my_content(
 ):
     user_id = int(user_info["sub"])
     role = user_info["role"]
-    
+
     if role == "teacher":
         result = await db.execute(
             select(Course)
@@ -124,9 +111,8 @@ async def read_my_schedule(
 ):
     user_id = int(user_info["sub"])
     role = user_info["role"]
-    
+
     if role == "student":
-        # Get all live sessions for courses the student is enrolled in
         stmt = (
             select(LiveSession)
             .join(Course)
@@ -147,10 +133,9 @@ async def enroll_student(
 ):
     if user_info["role"] != "student":
         raise HTTPException(status_code=403, detail="Only students can enroll")
-    
+
     student_id = int(user_info["sub"])
-    
-    # Check if already enrolled
+
     existing = await db.execute(
         select(Enrollment).where(
             Enrollment.student_id == student_id,
@@ -159,35 +144,11 @@ async def enroll_student(
     )
     if existing.scalars().first():
         return {"message": "Already enrolled"}
-        
+
     enrollment = Enrollment(student_id=student_id, course_id=course_id)
     db.add(enrollment)
     await db.commit()
     return {"message": "Enrolled successfully"}
-
-async def get_current_teacher_id(request: Request):
-    token = request.cookies.get("access_token")
-    if not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
-    try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        role = payload.get("role")
-        user_id = payload.get("sub")
-        if role != "teacher":
-             raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Not authorized as teacher"
-            )
-        return int(user_id)
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Token expired")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
 
 @router.get("/courses", response_model=List[CourseResponse])
 async def read_courses(db: AsyncSession = Depends(get_db)):

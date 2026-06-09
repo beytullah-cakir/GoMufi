@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class Settings:
-    SECRET_KEY: str = os.getenv("SECRET_KEY")
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "gomufi-dev-secret-key-change-in-prod")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
@@ -13,9 +13,18 @@ class Settings:
     IYZICO_API_KEY: str = os.getenv("IYZICO_API_KEY", "")
     IYZICO_SECRET_KEY: str = os.getenv("IYZICO_SECRET_KEY", "")
     IYZICO_BASE_URL: str = os.getenv("IYZICO_BASE_URL", "https://sandbox-api.iyzipay.com")
-    
+    MY_API_KEY: str = os.getenv("MY_API_KEY", "")  # Gemini AI API key
+
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
+
+    @property
+    def IS_PRODUCTION(self) -> bool:
+        return (
+            bool(self.FRONTEND_URL)
+            and "localhost" not in self.FRONTEND_URL
+            and self.FRONTEND_URL.startswith("https")
+        )
 
 settings = Settings()
