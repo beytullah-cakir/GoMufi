@@ -227,39 +227,7 @@ const InstructorDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* Smart Alerts */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex items-start gap-4 shadow-sm">
-          <div className="bg-orange-100 p-2 rounded-xl text-orange-500">
-            <AlertTriangle size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-gray-800">Düşük Tamamlanma Oranı</h4>
-            <p className="text-sm text-gray-600 mt-1">
-              "Web Geliştirme 101" kursunda son 3 gündür aktivite %15 düştü.
-              Öğrencilere motivasyon mesajı göndermeyi düşünün.
-            </p>
-            <button className="text-orange-600 text-sm font-bold mt-2 hover:underline">
-              Mesaj Gönder →
-            </button>
-          </div>
-        </div>
-        <div className="bg-sky-50 border border-sky-200 rounded-2xl p-4 flex items-start gap-4 shadow-sm">
-          <div className="bg-sky-100 p-2 rounded-xl text-sky-500">
-            <MessageSquare size={24} />
-          </div>
-          <div>
-            <h4 className="font-bold text-gray-800">Cevap Bekleyen Sorular</h4>
-            <p className="text-sm text-gray-600 mt-1">
-              Son 24 saatte 5 yeni soru geldi. Bunlardan 3 tanesi "Python
-              Döngüler" dersi ile ilgili.
-            </p>
-            <button className="text-sky-600 text-sm font-bold mt-2 hover:underline">
-              Soruları Yanıtla →
-            </button>
-          </div>
-        </div>
-      </div>
+      
 
       {/* Detailed Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">

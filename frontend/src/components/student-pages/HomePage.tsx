@@ -165,7 +165,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
     if (isUserDataLoading) {
         return (
-            <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-[100]">
+            <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center z-10">
                 <div className="relative">
                     <div className="w-48 h-48 rounded-full border-8 border-indigo-100 animate-pulse"></div>
                     <div className="absolute inset-0 border-t-8 border-indigo-600 rounded-full animate-spin"></div>

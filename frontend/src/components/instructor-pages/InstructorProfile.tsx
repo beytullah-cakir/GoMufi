@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api";
 import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus } from "lucide-react";
+import techData from "../../data/technologies.json";
 
 interface InstructorProfileProps {
   userData: any;
@@ -12,7 +13,6 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
   const [isLoading, setIsLoading] = useState(!userData);
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availableTags, setAvailableTags] = useState<string[]>([]);
   const [editForm, setEditForm] = useState({
     first_name: "",
     last_name: "",
@@ -50,19 +50,6 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
       };
       fetchProfile();
     }
-    
-    const fetchTags = async () => {
-      try {
-        const response = await api.get("/profile/tags");
-        if (Array.isArray(response.data)) {
-          setAvailableTags(response.data.map((t: any) => t.name));
-        }
-      } catch (error) {
-        console.error("Tags could not be loaded", error);
-      }
-    };
-    
-    fetchTags();
   }, [userData, setUserData]);
 
   const toggleTag = (tag: string) => {
@@ -161,14 +148,18 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
             </h3>
             <div className="flex flex-wrap gap-3">
               {expertises.length > 0 ? (
-                expertises.map((tag: string) => (
-                  <span 
-                    key={tag} 
-                    className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:border-cyan-200 hover:bg-cyan-50 transition-colors cursor-default"
-                  >
-                    {tag}
-                  </span>
-                ))
+                expertises.map((tag: string) => {
+                  const tech = techData.languages.find((t: any) => t.label.toLowerCase() === tag.trim().toLowerCase());
+                  return (
+                    <span 
+                      key={tag} 
+                      className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:border-cyan-200 hover:bg-cyan-50 transition-colors cursor-default flex items-center gap-1.5"
+                    >
+                      {tech && <span>{tech.emoji}</span>}
+                      <span>{tag}</span>
+                    </span>
+                  );
+                })
               ) : (
                 <span className="text-gray-400 font-bold italic">Henüz uzmanlık alanı eklenmemiş.</span>
               )}
@@ -257,28 +248,26 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-2 uppercase tracking-widest">Uzmanlık Alanları</label>
                 <div className="flex flex-wrap gap-2 p-4 bg-gray-50 border border-gray-200 rounded-2xl min-h-[100px]">
-                  {availableTags.length === 0 ? (
-                    <p className="text-sm text-gray-400 italic">Etiketler yükleniyor...</p>
-                  ) : (
-                    availableTags.map((tag) => {
-                      const isSelected = editForm.expertises.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          onClick={() => toggleTag(tag)}
-                          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border-2 flex items-center gap-1 ${
-                            isSelected
-                              ? "bg-cyan-500 text-white border-cyan-600 shadow-md"
-                              : "bg-white text-gray-500 border-gray-200 hover:border-cyan-200"
-                          }`}
-                        >
-                          {tag}
-                          {isSelected && <X size={12} className="ml-1" />}
-                        </button>
-                      );
-                    })
-                  )}
+                  {techData.languages.map((tech) => {
+                    const tag = tech.label;
+                    const isSelected = editForm.expertises.includes(tag);
+                    return (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => toggleTag(tag)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border-2 flex items-center gap-1.5 ${
+                          isSelected
+                            ? "bg-cyan-500 text-white border-cyan-600 shadow-md"
+                            : "bg-white text-gray-500 border-gray-200 hover:border-cyan-200"
+                        }`}
+                      >
+                        <span>{tech.emoji}</span>
+                        <span>{tag}</span>
+                        {isSelected && <X size={12} className="ml-1" />}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
