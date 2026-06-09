@@ -29,7 +29,7 @@ api.interceptors.response.use(
         console.warn("[Auth] Token süresi doldu, giriş sayfasına yönlendiriliyor...");
         // Custom event — App veya herhangi bir bileşen bu event'i dinleyebilir
         window.dispatchEvent(new CustomEvent("auth:expired"));
-        window.location.href = "/";
+        // Yönlendirmeyi artık App.tsx yapacak
       }
     }
     return Promise.reject(error);

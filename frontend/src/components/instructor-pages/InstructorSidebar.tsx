@@ -11,6 +11,7 @@ import {
   PlusCircle,
   Sparkles,
   User,
+  MessageCircle,
 } from "lucide-react";
 import api from "../../api";
 
@@ -120,6 +121,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "Öğrenciler",
       icon: <Users size={24} strokeWidth={2.5} />,
       id: "Students",
+    },
+    {
+      label: "Mesajlar",
+      icon: <MessageCircle size={24} strokeWidth={2.5} />,
+      id: "Messages",
     },
     {
       label: "İstatistikler",

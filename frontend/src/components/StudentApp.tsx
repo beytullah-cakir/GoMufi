@@ -550,6 +550,7 @@ function StudentApp() {
                                 cart={cart} 
                                 onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
                                 purchasedCourseIds={purchasedCourseIds}
+                                onGoToMyCourses={() => setActivePage('Kurslarım')}
                             />
                         )
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (

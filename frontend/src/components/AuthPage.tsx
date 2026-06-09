@@ -5,6 +5,7 @@ import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
 import Paw from "../assets/sprites/Paw.png";
 import MufiMascot from "../assets/sprites/MufiMascot.png";
 import { useNavigate, useLocation } from "react-router-dom";
+import techData from "../data/technologies.json";
 
 interface AuthPageProps {
   onLogin: () => void;
@@ -402,15 +403,23 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       )}
 
                       {role === "teacher" && (
-                        <div className="group">
-                          <input
-                            type="text"
+                        <div className="group relative">
+                          <select
                             value={department}
                             onChange={(e) => setDepartment(e.target.value)}
-                            className={getInputClass()}
-                            placeholder="Branş / Bölüm"
+                            className={`${getInputClass()} appearance-none cursor-pointer`}
                             required
-                          />
+                          >
+                            <option value="" disabled>Uzmanlık Alanı / Branş Seçin</option>
+                            {techData.languages.map((tech) => (
+                              <option key={tech.id} value={tech.label}>
+                                {tech.emoji} {tech.label}
+                              </option>
+                            ))}
+                          </select>
+                          <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                            <ChevronRight className="w-4 h-4 rotate-90" />
+                          </div>
                         </div>
                       )}
                     </>

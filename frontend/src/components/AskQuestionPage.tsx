@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Search,
     Plus,
@@ -57,43 +57,7 @@ const MOCK_INSTRUCTORS: Instructor[] = [
     { id: 'inst4', name: 'Elif Hoca', branch: 'Data Science', status: 'online', avatarSeed: 404 },
 ];
 
-const MOCK_CHATS: ChatSession[] = [
-    {
-        id: 'c1',
-        lessonTitle: 'Python Giriş',
-        topic: 'Döngülerde Hata',
-        instructorName: 'Mufi Hoca',
-        instructorId: 'inst1',
-        instructorStatus: 'online',
-        lastMessage: 'Evet, indent hatası yapmışsın.',
-        lastMessageTime: '10 dk önce',
-        unreadCount: 1,
-        status: 'active',
-        messages: [
-            { id: 'm1', senderId: 'user', senderType: 'user', content: 'Hocam merhaba, for döngüsünde hata alıyorum.', timestamp: '14:30', type: 'text' },
-            { id: 'm2', senderId: 'inst1', senderType: 'instructor', content: 'Merhaba Kadir, kodu atabilir misin?', timestamp: '14:32', type: 'text' },
-            { id: 'm3', senderId: 'inst1', senderType: 'instructor', content: 'Sanırım girintilerde kayma var.', timestamp: '14:32', type: 'text' },
-            { id: 'm4', senderId: 'inst1', senderType: 'instructor', content: 'Evet, indent hatası yapmışsın.', timestamp: '14:40', type: 'text' },
-        ]
-    },
-    {
-        id: 'c2',
-        lessonTitle: 'React Components',
-        topic: 'Props Drifting',
-        instructorName: 'Ahmet Hoca',
-        instructorId: 'inst2',
-        instructorStatus: 'offline',
-        lastMessage: 'Tamamdır, teşekkürler hocam!',
-        lastMessageTime: 'Dün',
-        unreadCount: 0,
-        status: 'archived',
-        messages: [
-            { id: 'm1', senderId: 'user', senderType: 'user', content: 'Prop drilling yerine ne kullanabilirim?', timestamp: 'Dün 10:00', type: 'text' },
-            { id: 'm2', senderId: 'inst2', senderType: 'instructor', content: 'Context API veya Redux kullanabilirsin.', timestamp: 'Dün 10:15', type: 'text' },
-            { id: 'm3', senderId: 'user', senderType: 'user', content: 'Tamamdır, teşekkürler hocam!', timestamp: 'Dün 10:20', type: 'text' },
-        ]
-    }
-];
+
 
 
 interface AskQuestionPageProps {
@@ -110,7 +74,15 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
         avatarSeed: 101 + idx
     }));
 
-    const [chats, setChats] = useState<ChatSession[]>(MOCK_CHATS);
+    const [chats, setChats] = useState<ChatSession[]>(() => {
+        const saved = localStorage.getItem('gomufi_chats');
+        if (saved) return JSON.parse(saved);
+        return [];
+    });
+
+    useEffect(() => {
+        localStorage.setItem('gomufi_chats', JSON.stringify(chats));
+    }, [chats]);
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -214,12 +186,12 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
     };
 
     return (
-        <div className="w-full h-full bg-[#F3F4F6] p-6 font-sans text-gray-800 flex flex-col overflow-hidden">
+        <div className="w-full h-full bg-[#F3F4F6] p-2 md:p-6 font-sans text-gray-800 flex flex-col overflow-hidden">
 
-            <div className="flex h-full gap-6">
+            <div className="flex flex-col md:flex-row h-full gap-4 md:gap-6">
 
                 {/* --- LEFT PANEL: CHAT LIST --- */}
-                <div className="w-1/3 min-w-[300px] flex flex-col bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden border-b-4 border-gray-200">
+                <div className={`w-full md:w-1/3 md:min-w-[300px] flex-col bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden border-b-4 border-gray-200 ${selectedChatId ? 'hidden md:flex' : 'flex flex-1'}`}>
 
                     {/* Header: Search & Filter */}
                     <div className="p-4 border-b border-gray-100 bg-gray-50/50">
@@ -311,14 +283,20 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                     </div>
                 </div>
 
-                {/* --- RIGHT PANEL: ACTIVE CHAT --- */}
-                <div className="flex-1 flex flex-col bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden border-b-4 border-gray-200 relative">
+                {/* --- RIGHT PANEL: CHAT VIEW --- */}
+                <div className={`flex-1 flex-col bg-white rounded-3xl border-2 border-gray-100 shadow-sm overflow-hidden border-b-4 border-gray-200 ${!selectedChatId ? 'hidden md:flex' : 'flex'}`}>
 
                     {activeChat ? (
                         <>
                             {/* Chat Header */}
-                            <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-white/80 backdrop-blur-md z-10">
-                                <div className="flex items-center gap-4">
+                            <div className="p-4 border-b border-gray-100 bg-white flex justify-between items-center z-10 shadow-sm">
+                                <div className="flex items-center gap-2 md:gap-4">
+                                    <button 
+                                        className="md:hidden p-2 text-gray-500 hover:bg-gray-100 rounded-lg shrink-0"
+                                        onClick={() => setSelectedChatId(null)}
+                                    >
+                                        <X size={20} />
+                                    </button>
                                     <div className="relative">
                                         <div className="w-12 h-12 bg-gray-100 rounded-2xl border-2 border-gray-100 flex items-center justify-center text-2xl">
                                             {/* Pseudo Avatar */}

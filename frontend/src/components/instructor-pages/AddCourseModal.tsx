@@ -17,6 +17,7 @@ import {
   Video,
   Info,
 } from "lucide-react";
+import categoryData from "../../data/categories.json";
 
 export interface Lecture {
   id: string;
@@ -191,23 +192,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
 
   if (!isOpen) return null;
 
-  const categories = [
-    { id: "coding", label: "Yazılım", icon: <Code size={20} />, color: "blue" },
-    {
-      id: "web",
-      label: "Web Geliştirme",
-      icon: <Globe size={20} />,
-      color: "purple",
-    },
-    {
-      id: "design",
-      label: "Tasarım",
-      icon: <Palette size={20} />,
-      color: "orange",
-    },
-    { id: "music", label: "Müzik", icon: <Music size={20} />, color: "red" },
-    { id: "other", label: "Diğer", icon: <Book size={20} />, color: "gray" },
-  ];
+  const categories = categoryData.categories.map((c) => ({
+    id: c.id,
+    label: c.label,
+    icon: <span className="text-xl" role="img" aria-label={c.label}>{c.emoji}</span>,
+    color: c.color,
+  }));
 
   // Helper functions for dynamic lists
   const handleListChange = (
@@ -357,7 +347,12 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in">
+    <div 
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white rounded-3xl w-full max-w-4xl h-[90vh] shadow-2xl overflow-hidden flex flex-col">
         {/* Header */}
         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
@@ -477,7 +472,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                           }`}
                         >
                           <div
-                            className={`p-2 rounded-lg bg-${cat.color}-100 text-${cat.color}-600`}
+                            className={`p-2 rounded-lg ${
+                              selectedCategory === cat.id ? `bg-sky-100 text-sky-600` : `bg-gray-100 text-gray-600`
+                            }`}
                           >
                             {cat.icon}
                           </div>
