@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { Star, Zap, Search, ChevronDown, MonitorPlay, Loader2 } from 'lucide-react';
-import api from '../api';
+import api from '../../api';
 
 // Import Icons
-import PythonIcon from '../assets/sprites/PythonIcon.png';
-import ReactIcon from '../assets/sprites/ReactIcon.png';
-import JsIcon from '../assets/sprites/JsIcon.png';
-import EnglishIcon from '../assets/sprites/EnglishIcon.png';
-import DataIcon from '../assets/sprites/DataIcon.png';
-import FlutterIcon from '../assets/sprites/FlutterIcon.png';
-import ChestIcon from '../assets/sprites/Chest.png';
+import PythonIcon from '../../assets/sprites/PythonIcon.png';
+import ReactIcon from '../../assets/sprites/ReactIcon.png';
+import JsIcon from '../../assets/sprites/JsIcon.png';
+import EnglishIcon from '../../assets/sprites/EnglishIcon.png';
+import DataIcon from '../../assets/sprites/DataIcon.png';
+import FlutterIcon from '../../assets/sprites/FlutterIcon.png';
+import ChestIcon from '../../assets/sprites/Chest.png';
 
 // Import JSON data
-import categoryData from '../data/categories.json';
-import techData from '../data/technologies.json';
+import categoryData from '../../data/categories.json';
+import techData from '../../data/technologies.json';
 
 interface CoursesPageProps {
     addToCart: (course: { id: number; title: string; price: string; icon: string; instructor: string; }) => void;

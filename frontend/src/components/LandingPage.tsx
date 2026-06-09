@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Music, Palette, Calculator, Languages, Dumbbell, Code, MoveRight, Star, Users, Award, CheckCircle2, ChevronDown, Sparkles, Facebook, Instagram, Twitter, Linkedin, Youtube, CheckCircle, ShieldCheck, GraduationCap, Menu, LogOut, X, Search } from 'lucide-react';
 import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
-import QuizModal from './QuizModal';
+import QuizModal from './student-pages/QuizModal';
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();

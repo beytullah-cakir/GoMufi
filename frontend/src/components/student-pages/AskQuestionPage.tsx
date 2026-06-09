@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 // --- Types ---
-import type { CourseData } from '../types';
+import type { CourseData } from '../../types';
 
 interface Message {
     id: string;

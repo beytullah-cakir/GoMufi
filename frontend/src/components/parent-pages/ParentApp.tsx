@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import api from '../api';
-import ParentLayout from './parent-pages/ParentLayout';
-import ParentDashboard from './parent-pages/ParentDashboard';
-import ParentSkillTree from './parent-pages/ParentSkillTree';
-import ParentInstructors from './parent-pages/ParentInstructors';
-import ParentStudents from './parent-pages/ParentStudents';
-import ParentPayments from './parent-pages/ParentPayments';
-import ParentSettings from './parent-pages/ParentSettings';
-import ParentStudentDetail from './parent-pages/ParentStudentDetail';
+import api from '../../api';
+import ParentLayout from './ParentLayout';
+import ParentDashboard from './ParentDashboard';
+import ParentSkillTree from './ParentSkillTree';
+import ParentInstructors from './ParentInstructors';
+import ParentStudents from './ParentStudents';
+import ParentPayments from './ParentPayments';
+import ParentSettings from './ParentSettings';
+import ParentStudentDetail from './ParentStudentDetail';
 import { Loader2 } from 'lucide-react';
 
 const ParentApp: React.FC = () => {

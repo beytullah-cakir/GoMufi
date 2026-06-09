@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import api from "../api";
+import api from "../../api";
 import {
   Settings,
   Share2,
@@ -33,9 +33,9 @@ import {
   Medal,
 } from "lucide-react";
 // Import the new character avatar
-import CharacterBody from "../sprites/CharacterProfile2.png";
-import CharacterEyes from "../sprites/eyes.png";
-import PythonIcon from "../assets/sprites/PythonIcon.png";
+import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
+import CharacterEyes from "../../assets/sprites/eyes.png";
+import PythonIcon from "../../assets/sprites/PythonIcon.png";
 
 interface ProfilePageProps {
   userData?: any;

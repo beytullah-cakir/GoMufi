@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
-import StudentApp from './components/StudentApp';
-import InstructorApp from './components/InstructorApp';
-import ParentApp from './components/ParentApp';
-import PaymentSuccess from './components/PaymentSuccess';
-import PaymentError from './components/PaymentError';
+import StudentApp from './components/student-pages/StudentApp';
+import InstructorApp from './components/instructor-pages/InstructorApp';
+import ParentApp from './components/parent-pages/ParentApp';
+import PaymentSuccess from './components/student-pages/PaymentSuccess';
+import PaymentError from './components/student-pages/PaymentError';
 
 import CompleteProfile from './components/CompleteProfile';
 
