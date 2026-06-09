@@ -105,9 +105,9 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
     };
 
     return (
-        <div className="w-full bg-white pb-20">
+        <div className="w-full h-full bg-white flex flex-col overflow-hidden">
             {/* Header / Top Bar */}
-            <div className="px-6 py-3 border-b border-gray-100 bg-white sticky top-0 z-30">
+            <div className="px-6 py-3 border-b border-gray-100 bg-white shrink-0 z-30">
                 <div className="max-w-7xl mx-auto">
                     {/* Search Bar (Mobile/Tablet visible, Desktop larger) */}
                     <div className="flex gap-4 items-center">
@@ -126,11 +126,11 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                 </div>
             </div>
 
-            {/* Main Content Area */}
-            <div className="max-w-7xl mx-auto p-8 pt-6">
+            {/* Main Content Area (Scrollable container for the layout) */}
+            <div className="flex-1 flex flex-col max-w-7xl w-full mx-auto px-8 pt-6 overflow-hidden">
 
                 {/* HERO BANNER - Compact Udemy Style */}
-                <div className="w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-6 overflow-hidden shadow-lg flex items-center justify-between relative">
+                <div className="w-full bg-gradient-to-r from-gray-900 to-gray-800 rounded-2xl p-6 mb-6 shrink-0 overflow-hidden shadow-lg flex items-center justify-between relative">
                     <div className="relative z-10 text-white max-w-xl">
                         <h2 className="text-2xl font-black font-display mb-2 tracking-tight">Öğrenme Festivali Başladı! 🚀</h2>
                         <p className="text-gray-300 font-medium text-base mb-4 leading-relaxed">
@@ -150,13 +150,29 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                     </div>
                 </div>
 
+                <style>{`
+                    .custom-scrollbar::-webkit-scrollbar {
+                        width: 8px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-track {
+                        background: #f1f5f9; 
+                        border-radius: 10px;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb {
+                        background-color: #94a3b8; 
+                        border-radius: 10px;
+                        border: 2px solid #f1f5f9;
+                    }
+                    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                        background-color: #64748b;
+                    }
+                `}</style>
 
+                {/* Content Layout: Sidebar + List (Independently Scrollable) */}
+                <div className="flex gap-8 flex-1 overflow-hidden pb-6">
 
-                {/* Content Layout: Sidebar + List */}
-                <div className="flex gap-8">
-
-                    {/* LEFT SIDEBAR FILTERS (Fixed width) */}
-                    <div className="hidden lg:flex flex-col w-64 shrink-0 gap-8">
+                    {/* LEFT SIDEBAR FILTERS (Fixed width, Scrollable) */}
+                    <div className="hidden lg:flex flex-col w-64 shrink-0 gap-8 h-full overflow-y-auto pr-4 pb-20 custom-scrollbar">
                         {/* Header */}
                         <div className="flex items-center gap-2 mb-2">
                             <Zap className="w-5 h-5 text-orange-500 fill-orange-500" />
@@ -282,8 +298,8 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                     </div>
 
 
-                    {/* RIGHT COURSE LIST */}
-                    <div className="flex-1">
+                    {/* RIGHT COURSE LIST (Scrollable) */}
+                    <div className="flex-1 h-full overflow-y-auto pr-4 pb-20 custom-scrollbar">
                         {/* Filter Logic */}
                         {(() => {
                             const filteredCourses = courses.filter(course => {

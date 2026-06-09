@@ -5,7 +5,6 @@ import InstructorDashboard from './instructor-pages/InstructorDashboard';
 import InstructorCourses from './instructor-pages/InstructorCourses';
 import InstructorStudents from './instructor-pages/InstructorStudents';
 import InstructorRevenue from './instructor-pages/InstructorRevenue';
-import InstructorSettings from './instructor-pages/InstructorSettings';
 import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
 import InstructorMessages from './instructor-pages/InstructorMessages';
 import LessonBuilderPage from './LessonBuilderPage';
@@ -28,7 +27,6 @@ const InstructorApp: React.FC = () => {
             'students': 'Students',
             'messages': 'Messages',
             'analytics': 'Analytics',
-            'settings': 'Settings',
             'ai-questions': 'AIQuestions',
             'profile': 'Profile',
             'builder': 'Builder'
@@ -63,7 +61,6 @@ const InstructorApp: React.FC = () => {
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
             'Analytics': '/instructor/analytics',
-            'Settings': '/instructor/settings',
             'AIQuestions': '/instructor/ai-questions',
             'Profile': '/instructor/profile',
             'Builder': '/instructor/builder'
@@ -94,7 +91,6 @@ const InstructorApp: React.FC = () => {
                 <Route path="students" element={<InstructorStudents />} />
                 <Route path="messages" element={<InstructorMessages />} />
                 <Route path="analytics" element={<InstructorRevenue />} />
-                <Route path="settings" element={<InstructorSettings />} />
                 <Route path="ai-questions" element={<InstructorAIQuestions />} />
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
                 <Route path="builder" element={<LessonBuilderPage onExit={() => navigate('/instructor/courses')} />} />

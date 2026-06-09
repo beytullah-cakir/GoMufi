@@ -131,7 +131,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   }, []);
 
   return (
-    <div className="w-full min-h-screen bg-gray-50 pb-24">
+    <div className="w-full h-full overflow-y-auto bg-gray-50 pb-24">
       {/* HEROLIK HEADER - Custom Color requested #d2cfff */}
       <div className="relative w-full h-[400px] bg-[#d2cfff] rounded-b-[40px] shadow-sm overflow-hidden mb-16">
         {/* Background Decorations (Pattern) - Increased Visibility & Quantity */}

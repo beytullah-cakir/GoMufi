@@ -76,6 +76,15 @@ interface SquadMember {
     avatarSeed: number;
 }
 
+const getDayName = (dateStr: string) => {
+    if (!dateStr) return '';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return '';
+    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    const days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
+    return days[date.getDay()];
+};
+
 const ContentPage: React.FC = () => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
@@ -118,15 +127,6 @@ const ContentPage: React.FC = () => {
                         lastName: profileRes.data.last_name
                     });
                 }
-
-                const getDayName = (dateStr: string) => {
-                    if (!dateStr) return '';
-                    const parts = dateStr.split('-');
-                    if (parts.length !== 3) return '';
-                    const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                    const days = ['Pazar', 'Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi'];
-                    return days[date.getDay()];
-                };
 
 
                 // 1. Handle Courses
@@ -405,80 +405,6 @@ const ContentPage: React.FC = () => {
     return (
         <div className="w-full h-full bg-[#F3F4F6] p-3 md:p-6 font-sans text-gray-800 flex flex-col overflow-x-hidden overflow-y-auto">
 
-            {/* --- DASHBOARD HEADER (Restored Style + Builder Content + Heatmap) --- */}
-            <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 rounded-[3rem] p-6 mb-6 overflow-hidden min-h-[180px] flex flex-col justify-center shadow-xl border-b-8 border-indigo-800">
-                {/* Decorative Background Elements (Restored) */}
-                <div className="absolute inset-0 pointer-events-none">
-                    <Cloud className="absolute top-8 left-12 text-white/10 transform -rotate-12" size={100} />
-                    <Cloud className="absolute -bottom-8 right-20 text-white/10 transform rotate-12" size={80} />
-                    <Sparkles className="absolute top-8 right-1/4 text-yellow-300/40 animate-pulse" size={32} />
-                    <Circle className="absolute top-1/2 left-1/4 text-white/5" size={20} />
-                    <Triangle className="absolute bottom-10 left-20 text-white/10 transform rotate-45" size={24} />
-                    <Hexagon className="absolute top-6 right-10 text-white/10" size={48} />
-
-                    {/* Decorative Dots */}
-                    <div className="absolute top-20 left-1/3 w-2 h-2 bg-white/30 rounded-full"></div>
-                    <div className="absolute bottom-10 right-1/3 w-3 h-3 bg-white/20 rounded-full"></div>
-                </div>
-
-                {/* Content Container */}
-                <div className="relative z-10 flex flex-col lg:flex-row items-center justify-between gap-8 text-white">
-
-                    {/* Left: Prompt & Motivation */}
-                    <div className="flex-1 text-center lg:text-left">
-                        <h1 className="text-4xl md:text-5xl font-black font-display tracking-tight mb-2 drop-shadow-md">
-                            Bugün Ne İnşa Ediyorsun?
-                        </h1>
-                        <p className="text-indigo-100 text-lg md:text-xl font-bold tracking-wide opacity-90">
-                            Planın hazır. Squad’ın seni bekliyor.
-                        </p>
-                    </div>
-
-                    {/* Right: Weekly Heatmap Widget (Mini Calendar) */}
-                    <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-3xl p-6 shadow-lg relative overflow-hidden min-w-[300px] group/heatmap hover:bg-white/15 transition-all">
-                        <div className="flex items-center justify-between mb-4">
-                            <div>
-                                <h3 className="text-white font-black text-xs uppercase tracking-wider opacity-90">Üretim Zinciri</h3>
-                                <p className="text-[10px] font-bold text-indigo-200 opacity-80">Son 7 Gün</p>
-                            </div>
-                            <div className="flex items-center gap-1 bg-white/10 px-2 py-1.5 rounded-lg border border-white/5">
-                                <span className="text-xs">🔥</span>
-                                <span className="font-black text-white text-[10px]">12 Gün</span>
-                            </div>
-                        </div>
-
-                        {/* Calendar Grid */}
-                        <div className="flex justify-between items-end gap-3">
-                            {[
-                                { day: 'Pzt', level: 1 },
-                                { day: 'Sal', level: 3 },
-                                { day: 'Çar', level: 0 },
-                                { day: 'Per', level: 2 },
-                                { day: 'Cum', level: 3 },
-                                { day: 'Cmt', level: 1 },
-                                { day: 'Paz', level: 0 }
-                            ].map((item, i) => (
-                                <div key={i} className="flex flex-col items-center gap-1.5 group/day cursor-pointer">
-                                    <div className="relative">
-                                        {/* Tooltip */}
-                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 opacity-0 group-hover/day:opacity-100 transition-opacity bg-gray-900 text-white text-[9px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap pointer-events-none">
-                                            {item.level === 0 ? 'Boş' : `${item.level} Saat`}
-                                        </div>
-                                        {/* Heatmap Block */}
-                                        <div className={`w-7 h-7 rounded-md border-2 border-white/10 transition-all duration-300 hover:scale-110
-                                            ${item.level === 0 ? 'bg-white/5' :
-                                                item.level === 1 ? 'bg-indigo-400/60' :
-                                                    item.level === 2 ? 'bg-indigo-300' : 'bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]'}
-                                        `}></div>
-                                    </div>
-                                    <span className={`text-[9px] font-bold uppercase transition-colors ${item.day === 'Cum' ? 'text-white' : 'text-indigo-200/70 group-hover/day:text-white'}`}>{item.day}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            </div>
-
             {/* --- MAIN GRID CONTENT --- */}
             <div className="grid grid-cols-12 gap-4 md:gap-8 flex-1 pb-20 mt-2">
 
@@ -521,9 +447,17 @@ const ContentPage: React.FC = () => {
                                         <h3 className={`font-black text-sm leading-tight mb-0.5 truncate w-full ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
                                             {course.title}
                                         </h3>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
-                                            {course.level}
-                                        </span>
+                                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 shrink-0">
+                                                {course.level}
+                                            </span>
+                                            {course.liveSessions && course.liveSessions.map((sess: any, idx: number) => (
+                                                <span key={idx} className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-indigo-100 shadow-sm shrink-0">
+                                                    <Clock className="w-3 h-3 text-indigo-400" />
+                                                    {sess.day || getDayName(sess.date)} - {sess.time}
+                                                </span>
+                                            ))}
+                                        </div>
                                     </div>
                                 </div>
 
