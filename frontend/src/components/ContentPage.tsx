@@ -27,6 +27,7 @@ import {
     Sparkles,
     Info
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from './shared/CourseInfoModal.tsx';
 
@@ -80,6 +81,7 @@ const ContentPage: React.FC = () => {
     const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
     const [infoCourseId, setInfoCourseId] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     // --- Mock Data ---
     const [courses, setCourses] = useState<Course[]>([]);
@@ -221,7 +223,6 @@ const ContentPage: React.FC = () => {
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [timeOffsetMs, setTimeOffsetMs] = useState<number>(0);
     const [userProfile, setUserProfile] = useState<{firstName: string, lastName: string} | null>(null);
-    const [isInstructorIn, setIsInstructorIn] = useState<boolean>(false);
     
     
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
@@ -243,28 +244,6 @@ const ContentPage: React.FC = () => {
         };
         fetchRealTime();
     }, []);
-    
-    // Eğitmenin girip girmediğini kontrol eden poller
-    useEffect(() => {
-        let interval: any;
-        if (isClassActive && activeCourseData?.id) {
-            const checkStatus = async () => {
-                try {
-                    const res = await api.get(`/session-status/${activeCourseData.id}`);
-                    setIsInstructorIn(res.data.is_live);
-                } catch (err) {
-                    console.error("Ders durumu kontrol edilemedi:", err);
-                }
-            };
-            checkStatus();
-            interval = setInterval(checkStatus, 5000); // 5 saniyede bir kontrol et
-        } else {
-            setIsInstructorIn(false);
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [isClassActive, activeCourseData?.id]);
 
     useEffect(() => {
         const updateCountdown = () => {
@@ -374,12 +353,6 @@ const ContentPage: React.FC = () => {
         { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
     ];
 
-    const ahaClips = [
-        { id: 1, title: 'Loop Mantığını Çözdüm!', views: 124, date: '2 gün önce' },
-        { id: 2, title: 'React State Yönetimi', views: 85, date: '1 hafta önce' },
-        { id: 3, title: 'İlk İngilizce Sunum', views: 240, date: '2 hafta önce' },
-    ];
-
 
     if (isLoading) {
         return (
@@ -430,7 +403,7 @@ const ContentPage: React.FC = () => {
     };
 
     return (
-        <div className="w-full min-h-screen bg-[#F3F4F6] p-6 font-sans text-gray-800 overflow-hidden flex flex-col">
+        <div className="w-full h-full bg-[#F3F4F6] p-3 md:p-6 font-sans text-gray-800 flex flex-col overflow-x-hidden overflow-y-auto">
 
             {/* --- DASHBOARD HEADER (Restored Style + Builder Content + Heatmap) --- */}
             <div className="relative bg-gradient-to-r from-indigo-600 to-violet-600 rounded-[3rem] p-6 mb-6 overflow-hidden min-h-[180px] flex flex-col justify-center shadow-xl border-b-8 border-indigo-800">
@@ -507,7 +480,7 @@ const ContentPage: React.FC = () => {
             </div>
 
             {/* --- MAIN GRID CONTENT --- */}
-            <div className="grid grid-cols-12 gap-8 flex-1 overflow-y-auto pb-20">
+            <div className="grid grid-cols-12 gap-4 md:gap-8 flex-1 pb-20 mt-2">
 
                 {/* LEFT COLUMN: COURSE LIST (25%) */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
@@ -544,8 +517,8 @@ const ContentPage: React.FC = () => {
                                     <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform cursor-pointer`}>
                                         <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
                                     </div>
-                                    <div className="cursor-pointer group/title">
-                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate max-w-[140px] md:max-w-[160px] ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
+                                    <div className="cursor-pointer group/title flex-1 min-w-0">
+                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate w-full ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
                                             {course.title}
                                         </h3>
                                         <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
@@ -583,40 +556,15 @@ const ContentPage: React.FC = () => {
                         ))}
 
                         {/* Add New Course Button */}
-                        <button className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group">
+                        <button 
+                            onClick={() => navigate('/student/catalog')}
+                            className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group"
+                        >
                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
                                 <span className="text-xl leading-none mb-0.5">+</span>
                             </div>
                             Yeni Kurs Ekle
                         </button>
-                    </div>
-
-                    {/* Checkpoint Matrix (Mini) */}
-                    <div className="bg-indigo-900 rounded-3xl p-6 text-white relative overflow-hidden mt-2 border-b-8 border-indigo-950">
-                        <TrendingUp className="absolute top-4 right-4 text-white/10" size={48} />
-                        <h3 className="font-black text-lg mb-4 relative z-10">Kazanım Matrisi</h3>
-                        <div className="space-y-4 relative z-10">
-                            {['Anla', 'Uygula', 'Birleştir', 'Üret'].map((step, i) => (
-                                <div key={i} className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs border-2 ${i < 3 ? 'bg-green-500 border-green-400 text-white' : 'bg-indigo-800 border-indigo-700 text-indigo-400'}`}>
-                                        {i < 3 ? <CheckCircle size={14} /> : i + 1}
-                                    </div>
-                                    <span className={`text-sm font-bold ${i < 3 ? 'text-white' : 'text-indigo-300'}`}>{step}</span>
-                                    {i === 2 && <span className="ml-auto text-xs bg-white/20 px-2 py-0.5 rounded text-white font-bold">Tamamlandı</span>}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="mt-6 pt-4 border-t border-white/10">
-                            <div className="flex items-center justify-between text-xs font-bold text-indigo-300 mb-1">
-                                <span>Boss Battle</span>
-                                <span className="text-white">5 Gün Kaldı</span>
-                            </div>
-                            <div className="flex items-center gap-2 bg-indigo-950/50 p-2 rounded-lg border border-indigo-700">
-                                <Lock size={14} className="text-indigo-400" />
-                                <span className="text-xs font-bold text-indigo-200">Kilitli: Proje Teslimi</span>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -626,7 +574,7 @@ const ContentPage: React.FC = () => {
 
 
                     {/* Switcher: Schedule vs Monthly vs Archive */}
-                    <div className="bg-white p-2 rounded-2xl border-2 border-gray-200 flex mb-6 w-fit mx-auto lg:mx-0 overflow-x-auto max-w-full">
+                    <div className="bg-white p-2 rounded-2xl border-2 border-gray-200 flex mb-6 w-full lg:w-fit overflow-x-auto overflow-y-hidden no-scrollbar">
                         <button
                             onClick={() => setActiveTab('schedule')}
                             className={`px-4 md:px-6 py-2 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'schedule' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
@@ -667,23 +615,11 @@ const ContentPage: React.FC = () => {
                                         <p className="text-orange-100 font-bold text-lg">{nextLessonData?.subtitle || activeCourseData?.nextLesson || "Marketten yeni kurslar keşfedebilirsin."}</p>
                                     </div>
                                     <button 
-                                        disabled={!isClassActive || !isInstructorIn}
-                                        onClick={() => {
-                                            if (isClassActive && isInstructorIn) {
-                                                const roomName = `GoMufi-${activeCourseData?.id}-${(nextLessonData?.title || "Class").replace(/[^a-zA-Z0-9]/g, "")}`;
-                                                const displayName = userProfile ? encodeURIComponent(`${userProfile.firstName} ${userProfile.lastName}`) : '%C3%96%C4%9Frenci';
-                                                const url = `https://meet.element.io/${roomName}#userInfo.displayName=${displayName}&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.disableHangupConfirmation=true&config.remoteVideoMenu.disableHostActions=true&config.disableModeratorIndicator=true&config.buttonsWithConfirmation=[]&config.hideEndConferenceButton=true&config.hideEndMeetingButton=true&config.moderatorPermissions.endConference=false&config.disableModeratorActions=true&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22raisehand%22]`;
-                                                window.open(url, '_blank', 'width=1280,height=720,toolbar=no,menubar=no,scrollbars=no');
-                                            }
-                                        }}
-                                        className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
-                                            (isClassActive && isInstructorIn)
-                                            ? 'bg-white text-orange-600 animate-bounce hover:scale-105' 
-                                            : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
-                                        }`}
+                                        disabled={true}
+                                        className="px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60"
                                     >
                                         <Play fill="currentColor" />
-                                        {isClassActive ? (isInstructorIn ? 'SINIFA GİR' : 'EĞİTMEN BEKLENİYOR') : 'BEKLENİYOR'}
+                                        YAKINDA!
                                     </button>
                                 </div>
                             </div>
@@ -821,24 +757,12 @@ const ContentPage: React.FC = () => {
                         </div>
                     ) : (
                         // ARCHIVE VIEW content placeholder
-                        <div className="grid grid-cols-2 gap-4">
-                            {ahaClips.map((clip) => (
-                                <div key={clip.id} className="bg-white p-4 rounded-2xl border-2 border-gray-100 hover:border-indigo-200 group cursor-pointer transition-all">
-                                    <div className="aspect-video bg-gray-900 rounded-xl relative overflow-hidden mb-3">
-                                        <div className="absolute inset-0 flex items-center justify-center">
-                                            <div className="bg-white/20 p-3 rounded-full backdrop-blur-sm group-hover:scale-110 transition-transform">
-                                                <Play size={20} className="text-white" fill="currentColor" />
-                                            </div>
-                                        </div>
-                                        <span className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">00:30</span>
-                                    </div>
-                                    <h4 className="font-bold text-gray-800 text-sm mb-1">{clip.title}</h4>
-                                    <div className="flex justify-between text-[10px] font-bold text-gray-400">
-                                        <span>{clip.views} izlenme</span>
-                                        <span>{clip.date}</span>
-                                    </div>
-                                </div>
-                            ))}
+                        <div className="bg-white rounded-3xl border-2 border-gray-100 p-10 flex flex-col items-center justify-center text-center opacity-70 h-64">
+                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4 border-2 border-gray-100">
+                                <Video size={32} />
+                            </div>
+                            <h3 className="text-xl font-black text-gray-400">Ders Arşivi Boş</h3>
+                            <p className="text-sm font-bold text-gray-300">Geçmiş canlı dersleriniz buraya yüklenecektir.</p>
                         </div>
                     )}
                 </div>

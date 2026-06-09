@@ -3,7 +3,6 @@ import React, { useState, useEffect, useRef } from 'react';
 
 
 import GrassIcon from '../assets/sprites/grass.png';
-import { Swords, Users, Shield } from 'lucide-react';
 
 import GameOverlay from './students-pages/GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -32,11 +31,9 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-    const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
 
     // Refs for outside click detection
     const courseDropdownRef = useRef<HTMLDivElement>(null);
-    const clanDropdownRef = useRef<HTMLDivElement>(null);
     const nodesContainerRef = useRef<HTMLDivElement>(null);
 
     // Outside click listener
@@ -45,10 +42,6 @@ const HomePage: React.FC<HomePageProps> = ({
             // Course Dropdown
             if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
-            }
-            // Clan Dropdown
-            if (clanDropdownRef.current && !clanDropdownRef.current.contains(event.target as Node)) {
-                setIsClanDropdownOpen(false);
             }
             // Level Bubble (Active Node)
             // If click is not inside the nodes container, clear active node
@@ -60,13 +53,6 @@ const HomePage: React.FC<HomePageProps> = ({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    const squadMembers = [
-        { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
-        { id: 2, name: 'Ayşe', status: 'in-class', avatarSeed: 456 },
-        { id: 3, name: 'Can', status: 'offline', avatarSeed: 789 },
-        { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
-    ];
 
     // Dynamic Header State
     const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
@@ -225,9 +211,9 @@ const HomePage: React.FC<HomePageProps> = ({
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap xl:flex-nowrap items-start gap-4 z-30 relative">
+            <div className="w-full px-4 md:px-12 pt-4 md:pt-6 flex flex-col lg:flex-row items-center lg:items-start gap-4 z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 flex-1 min-w-0 w-full">
                     {/* Course Info Box (Dropdown Enabled) */}
                     <div className="relative" ref={courseDropdownRef}>
                         <div
@@ -316,146 +302,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         </button>
                     </div>
 
-                    {/* CLAN WIDGET (New - Matches Instructor Height) */}
-                    <div
-                        className="hidden xl:flex h-28 px-4 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-3 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0"
-                        onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
-                        ref={clanDropdownRef}
-                    >
-                        {/* Background Deco */}
-                        <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
-                            <Swords size={24} />
-                        </div>
 
-                        {/* Icon */}
-                        <div className="relative z-10">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl shadow-md backdrop-blur-sm">
-                                🚀
-                            </div>
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[100px] max-w-[140px]">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <span className="font-black text-base md:text-lg font-display leading-none truncate">Kod Korsanları</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-indigo-100 mb-1">
-                                <Users size={12} />
-                                <span className="text-[10px] font-bold uppercase tracking-wider truncate">Lvl 5</span>
-                            </div>
-                        </div>
-
-                        {/* Separator */}
-                        <div className="h-12 w-px bg-white/20 relative z-10"></div>
-
-                        {/* Stats / Role */}
-                        <div className="hidden 2xl:flex flex-col items-center justify-center relative z-10 text-white">
-                            <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
-                            <span className="text-xl font-black text-yellow-300 font-display leading-tight">24.5k</span>
-                        </div>
-
-                        {/* SQUAD MEMBER DROPDOWN */}
-                        {isClanDropdownOpen && (
-                            <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                                    <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">Squad Üyeleri</span>
-                                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">4/5</span>
-                                </div>
-                                <div className="max-h-60 overflow-y-auto">
-                                    {squadMembers.map((member) => (
-                                        <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
-                                            <div className="relative">
-                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100" />
-                                                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-gray-800 leading-none mb-0.5">{member.name}</h4>
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'in-class' ? 'Derste' : member.status}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                <div className="p-2 border-t border-indigo-50 bg-gray-50 text-center">
-                                    <button className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-wide">Tümünü Gör</button>
-                                </div>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Column: Stats + Widgets */}
-                <div className="flex flex-col items-end relative z-50 ml-auto shrink-0">
-                    {/* User Stats Row */}
-                    <div className="flex flex-col gap-3 w-64 2xl:w-80">
-
-                        {/* REDESIGNED XP BAR */}
-                        <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
-                            {/* Background Progress Tint */}
-                            <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
-
-                            <div className="flex items-center gap-3 relative z-10">
-                                {/* Rank Icon / Badge */}
-                                <div
-                                    className="w-9 h-9 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform"
-                                    style={{ backgroundColor: currentCourse.themeColor === '#3b82f6' ? '#60a5fa' : '#facc15', borderColor: currentCourse.themeColor === '#3b82f6' ? '#3b82f6' : '#eab308', boxShadow: `0 2px 0 ${currentCourse.themeColor === '#3b82f6' ? '#2563eb' : '#ca8a04'}` }}
-                                >
-                                    <span className="text-sm font-black text-white">III</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">{currentCourse.stats.league}</span>
-                                    <span className="text-sm font-black text-gray-700 font-display">{userData?.xp ?? 0}</span>
-                                </div>
-                            </div>
-
-                            {/* Segmented Bar */}
-                            <div className="flex gap-1 relative z-10">
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
-                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
-                            </div>
-                        </div>
-
-
-                    </div>
-
-                    {/* Right Sidebar Widgets */}
-                    <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64 2xl:w-80">
-                        {/* Daily Quest Widget */}
-                        <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex justify-between items-center mb-5 gap-2">
-                                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight truncate">Günlük Görevler</h3>
-                                <a href="#" className="font-bold text-[10px] text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg shrink-0">TÜMÜ</a>
-                            </div>
-                            <div className="space-y-5">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">⚡</div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-bold text-gray-700 text-sm font-display">10 Puan kazan</span>
-                                            <span className="font-bold text-orange-500 text-xs">3/10</span>
-                                        </div>
-                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                            <div className="h-full bg-orange-400 w-[30%] rounded-full shadow-sm"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">🎯</div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-bold text-gray-700 text-sm font-display">Hatasız ders</span>
-                                            <span className="font-bold text-gray-400 text-xs">0/1</span>
-                                        </div>
-                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                            <div className="h-full bg-green-500 w-0 rounded-full"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
                 </div>
             </div>
 

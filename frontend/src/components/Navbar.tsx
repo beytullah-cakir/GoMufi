@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ShoppingCart, X, Trash2, LogOut, Settings, User, Home, Search, BookOpen, MessageSquare } from 'lucide-react';
+import { ShoppingCart, X, Trash2, LogOut, Settings, User, Home, Search, BookOpen, MessageSquare, Menu } from 'lucide-react';
 import api from '../api';
 
 // Import sprites
@@ -58,6 +58,7 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, cart, removeFromCart, userData }) => {
     const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
     const [isCartOpen, setIsCartOpen] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     
     // Refs for outside click detection
     const profileRef = useRef<HTMLDivElement>(null);
@@ -115,7 +116,7 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
     ];
 
     return (
-        <div className="w-full bg-white border-b-2 border-gray-200 px-8 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
+        <div className="w-full bg-white border-b-2 border-gray-200 px-4 md:px-8 py-3 flex items-center justify-between z-50 shadow-sm relative shrink-0 h-24 box-border">
 
             {/* LEFT SECTION: Logo */}
             <div className="flex items-center gap-2 cursor-pointer hover:scale-105 transition-transform shrink-0" onClick={() => onNavigate('Ana Sayfa')}>
@@ -125,8 +126,18 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                 <img src={LogoText} alt="GoMufi Text" className="h-28 scale-150 object-contain hidden lg:block origin-left relative z-0" />
             </div>
 
-            {/* CENTER SECTION: Navigation Items */}
-            <div className="flex items-center gap-2 overflow-x-auto overflow-y-hidden no-scrollbar h-full py-1 px-1">
+            {/* MOBILE HAMBURGER BUTTON */}
+            <div className="md:hidden flex items-center ml-2">
+                <button 
+                    onClick={() => setIsMobileMenuOpen(true)}
+                    className="p-2 text-gray-500 hover:bg-gray-100 rounded-xl transition-colors focus:outline-none"
+                >
+                    <Menu className="w-8 h-8" />
+                </button>
+            </div>
+
+            {/* CENTER SECTION: Navigation Items (Desktop) */}
+            <div className="hidden md:flex items-center gap-2 h-full py-1 px-1">
                 {navItems.map((item) => (
                     <NavItem
                         key={item.label}
@@ -137,11 +148,43 @@ const Navbar: React.FC<NavbarProps> = ({ activePage, onNavigate, currentCourse, 
                     />
                 ))}
             </div>
+
+            {/* MOBILE MENU OVERLAY */}
+            {isMobileMenuOpen && (
+                <div className="fixed inset-0 z-[200] flex md:hidden">
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)}></div>
+                    <div className="relative w-72 bg-white h-full shadow-2xl p-6 flex flex-col gap-4 animate-in slide-in-from-left duration-300">
+                        <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-100">
+                            <span className="font-black text-gray-800 text-xl font-display">Menü</span>
+                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-gray-50 text-gray-400 hover:text-gray-600 rounded-xl hover:bg-gray-100 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+                        <div className="flex flex-col gap-3">
+                            {navItems.map((item) => (
+                                <button
+                                    key={item.label}
+                                    onClick={() => { onNavigate(item.label); setIsMobileMenuOpen(false); }}
+                                    className={`flex items-center gap-4 p-4 rounded-2xl font-black text-sm transition-all border-2 ${
+                                        activePage === item.label 
+                                        ? 'bg-sky-50 text-sky-500 border-sky-400 shadow-sm' 
+                                        : 'bg-white text-gray-500 border-transparent hover:border-gray-200 hover:bg-gray-50'
+                                    }`}
+                                >
+                                    <item.icon className={`w-5 h-5 ${activePage === item.label ? 'text-sky-500' : 'text-gray-400'}`} />
+                                    {item.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* RIGHT SECTION: Profile Dropdown + Stats */}
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2 md:gap-6">
 
                 {/* Stats Row */}
-                <div className="flex items-center gap-4">
+                <div className="hidden md:flex items-center gap-4">
                     {/* Fire / Streak */}
                     <div className="flex items-center gap-1.5 group cursor-pointer" title="Günlük Seri">
                         <img src={FireIcon} alt="Streak" className="w-6 h-6 group-hover:scale-110 transition-transform" />

@@ -1,0 +1,19 @@
+{
+  "languages": [
+    { "label": "Python", "emoji": "🐍" },
+    { "label": "JavaScript", "emoji": "🟨" },
+    { "label": "TypeScript", "emoji": "🟦" },
+    { "label": "Java", "emoji": "☕" },
+    { "label": "C#", "emoji": "🔷" },
+    { "label": "C++", "emoji": "⚙️" },
+    { "label": "Go", "emoji": "🐹" },
+    { "label": "Ruby", "emoji": "♦️" },
+    { "label": "Swift", "emoji": "🍎" },
+    { "label": "Kotlin", "emoji": "🤖" },
+    { "label": "PHP", "emoji": "🐘" },
+    { "label": "Rust", "emoji": "🦀" },
+    { "label": "React", "emoji": "⚛️" },
+    { "label": "Node.js", "emoji": "🟢" },
+    { "label": "SQL", "emoji": "🗃️" }
+  ]
+}

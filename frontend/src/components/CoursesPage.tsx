@@ -11,11 +11,16 @@ import DataIcon from '../assets/sprites/DataIcon.png';
 import FlutterIcon from '../assets/sprites/FlutterIcon.png';
 import ChestIcon from '../assets/sprites/Chest.png';
 
+// Import JSON data
+import categoryData from '../data/categories.json';
+import techData from '../data/technologies.json';
+
 interface CoursesPageProps {
     addToCart: (course: { id: number; title: string; price: string; icon: string; instructor: string; }) => void;
     onSelectCourse: (id: number) => void;
     cart: { id: number; }[];
     purchasedCourseIds: number[];
+    onGoToMyCourses?: () => void;
 }
 
 interface BackendCourse {
@@ -30,7 +35,7 @@ interface BackendCourse {
     };
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, cart, purchasedCourseIds }) => {
+const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, cart, purchasedCourseIds, onGoToMyCourses }) => {
     const [courses, setCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -116,10 +121,7 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                             />
                             <span className="absolute right-5 top-1/2 -translate-y-1/2 text-lg text-gray-400">🔍</span>
                         </div>
-                        <div className="hidden md:flex gap-2 text-sm font-bold text-gray-500 cursor-pointer hover:text-gray-800">
-                            <span>Kategoriler</span>
-                            <span>▼</span>
-                        </div>
+
                     </div>
                 </div>
             </div>
@@ -214,32 +216,65 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                             </div>
                         </div>
 
-                        {/* Filter Group: Topic */}
+                        {/* Filter Group: Categories */}
                         <div className="border-t border-gray-100 pt-6">
-                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">KONU</h4>
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">KATEGORİLER</h4>
                             <div className="flex flex-col gap-3">
-                                {['Python', 'Web', 'React', 'JavaScript', 'İngilizce', 'Veri', 'Mobil'].map((opt, i) => (
-                                    <label key={i} className="flex items-center gap-3 cursor-pointer group select-none relative">
+                                {categoryData.categories.map((cat, i) => (
+                                    <label key={`cat-${i}`} className="flex items-center gap-3 cursor-pointer group select-none relative">
                                         <input 
                                             type="checkbox" 
                                             className="peer sr-only" 
-                                            checked={selectedCategories.includes(opt)}
+                                            checked={selectedCategories.includes(cat.label)}
                                             onChange={(e) => {
                                                 if (e.target.checked) {
-                                                    setSelectedCategories(prev => [...prev, opt]);
+                                                    setSelectedCategories(prev => [...prev, cat.label]);
                                                 } else {
-                                                    setSelectedCategories(prev => prev.filter(c => c !== opt));
+                                                    setSelectedCategories(prev => prev.filter(c => c !== cat.label));
                                                 }
                                                 setCurrentPage(1);
                                             }}
                                         />
-                                        {/* Custom Checkbox */}
                                         <div className="w-6 h-6 border-2 border-gray-300 rounded-lg flex items-center justify-center peer-checked:border-indigo-500 peer-checked:bg-indigo-500 transition-all duration-200 group-hover:border-gray-400 group-hover:scale-105">
                                             <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 stroke-[4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                                             </svg>
                                         </div>
-                                        <span className="text-sm text-gray-600 font-bold group-hover:text-gray-900 peer-checked:text-gray-900 transition-colors">{opt}</span>
+                                        <span className="text-sm text-gray-600 font-bold group-hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                                            {cat.emoji} {cat.label}
+                                        </span>
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Filter Group: Technologies */}
+                        <div className="border-t border-gray-100 pt-6">
+                            <h4 className="font-bold text-gray-900 mb-4 text-sm font-display tracking-wide">YAZILIM DİLLERİ</h4>
+                            <div className="flex flex-col gap-3">
+                                {techData.languages.map((tech, i) => (
+                                    <label key={`tech-${i}`} className="flex items-center gap-3 cursor-pointer group select-none relative">
+                                        <input 
+                                            type="checkbox" 
+                                            className="peer sr-only" 
+                                            checked={selectedCategories.includes(tech.label)}
+                                            onChange={(e) => {
+                                                if (e.target.checked) {
+                                                    setSelectedCategories(prev => [...prev, tech.label]);
+                                                } else {
+                                                    setSelectedCategories(prev => prev.filter(c => c !== tech.label));
+                                                }
+                                                setCurrentPage(1);
+                                            }}
+                                        />
+                                        <div className="w-6 h-6 border-2 border-gray-300 rounded-lg flex items-center justify-center peer-checked:border-indigo-500 peer-checked:bg-indigo-500 transition-all duration-200 group-hover:border-gray-400 group-hover:scale-105">
+                                            <svg className="w-3.5 h-3.5 text-white opacity-0 peer-checked:opacity-100 transition-opacity duration-200 stroke-[4]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                            </svg>
+                                        </div>
+                                        <span className="text-sm text-gray-600 font-bold group-hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                                            {tech.emoji} {tech.label}
+                                        </span>
                                     </label>
                                 ))}
                             </div>
@@ -384,9 +419,16 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                                                         </div>
 
                                                         {purchasedCourseIds.includes(course.id) ? (
-                                                            <div className="w-full py-2 rounded-lg font-black text-xs text-center bg-gray-100 text-gray-500 border-2 border-gray-200 cursor-default uppercase tracking-wider">
-                                                                Zaten Sahipsin ✓
-                                                            </div>
+                                                            <button 
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    e.stopPropagation();
+                                                                    if (onGoToMyCourses) onGoToMyCourses();
+                                                                }}
+                                                                className="w-full py-2 rounded-lg font-black text-xs text-center bg-indigo-100 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-200 uppercase tracking-wider cursor-pointer transition-colors"
+                                                            >
+                                                                Kursu Görüntüle
+                                                            </button>
                                                         ) : (
                                                             <button 
                                                                 onClick={(e) => { 

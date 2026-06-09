@@ -7,6 +7,7 @@ import InstructorStudents from './instructor-pages/InstructorStudents';
 import InstructorRevenue from './instructor-pages/InstructorRevenue';
 import InstructorSettings from './instructor-pages/InstructorSettings';
 import InstructorAIQuestions from './instructor-pages/InstructorAIQuestions';
+import InstructorMessages from './instructor-pages/InstructorMessages';
 import LessonBuilderPage from './LessonBuilderPage';
 import InstructorProfile from './instructor-pages/InstructorProfile';
 import api from '../api';
@@ -25,6 +26,7 @@ const InstructorApp: React.FC = () => {
             'dashboard': 'Dashboard',
             'courses': 'Courses',
             'students': 'Students',
+            'messages': 'Messages',
             'analytics': 'Analytics',
             'settings': 'Settings',
             'ai-questions': 'AIQuestions',
@@ -38,6 +40,7 @@ const InstructorApp: React.FC = () => {
 
     // User Data State
     const [userData, setUserData] = useState<any>(null);
+    const [isUserDataLoading, setIsUserDataLoading] = useState(true);
 
     useEffect(() => {
         const fetchUserData = async () => {
@@ -46,6 +49,8 @@ const InstructorApp: React.FC = () => {
                 setUserData(response.data);
             } catch (err) {
                 console.error("Failed to fetch coach data", err);
+            } finally {
+                setIsUserDataLoading(false);
             }
         };
         fetchUserData();
@@ -56,6 +61,7 @@ const InstructorApp: React.FC = () => {
             'Dashboard': '/instructor/dashboard',
             'Courses': '/instructor/courses',
             'Students': '/instructor/students',
+            'Messages': '/instructor/messages',
             'Analytics': '/instructor/analytics',
             'Settings': '/instructor/settings',
             'AIQuestions': '/instructor/ai-questions',
@@ -65,6 +71,15 @@ const InstructorApp: React.FC = () => {
         navigate(mapping[pageId] || '/instructor/dashboard');
     };
 
+    if (isUserDataLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center">
+                <div className="w-16 h-16 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin mb-4"></div>
+                <h2 className="text-xl font-black text-gray-700 font-display">Eğitmen Paneli Yükleniyor...</h2>
+                <p className="text-gray-400 font-bold text-sm">Verileriniz hazırlanıyor</p>
+            </div>
+        );
+    }
 
     return (
         <InstructorLayout
@@ -77,6 +92,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="dashboard" element={<InstructorDashboard />} />
                 <Route path="courses" element={<InstructorCourses />} />
                 <Route path="students" element={<InstructorStudents />} />
+                <Route path="messages" element={<InstructorMessages />} />
                 <Route path="analytics" element={<InstructorRevenue />} />
                 <Route path="settings" element={<InstructorSettings />} />
                 <Route path="ai-questions" element={<InstructorAIQuestions />} />

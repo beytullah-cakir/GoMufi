@@ -404,7 +404,12 @@ const InstructorAIQuestions: React.FC = () => {
             </div>
             {/* Node Selection Modal */}
             {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+                <div 
+                    className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-300"
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setIsModalOpen(false);
+                    }}
+                >
                     <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border-2 border-gray-100 animate-in zoom-in-95 duration-300">
                         {/* Modal Header */}
                         <div className="p-8 border-b-2 border-gray-50 flex items-center justify-between bg-gray-50/50">

@@ -1,0 +1,16 @@
+{
+  "categories": [
+    { "id": "software", "label": "Yazılım Geliştirme", "emoji": "💻", "color": "bg-indigo-100 text-indigo-700" },
+    { "id": "web", "label": "Web Geliştirme", "emoji": "🌐", "color": "bg-sky-100 text-sky-700" },
+    { "id": "mobile", "label": "Mobil Geliştirme", "emoji": "📱", "color": "bg-teal-100 text-teal-700" },
+    { "id": "data", "label": "Veri Bilimi", "emoji": "📊", "color": "bg-blue-100 text-blue-700" },
+    { "id": "ai", "label": "Yapay Zeka & Makine Öğrenimi", "emoji": "🤖", "color": "bg-purple-100 text-purple-700" },
+    { "id": "game", "label": "Oyun Geliştirme", "emoji": "🎮", "color": "bg-red-100 text-red-700" },
+    { "id": "database", "label": "Veritabanı", "emoji": "🗄️", "color": "bg-yellow-100 text-yellow-700" },
+    { "id": "design", "label": "Tasarım", "emoji": "🎨", "color": "bg-pink-100 text-pink-700" },
+    { "id": "cyber", "label": "Siber Güvenlik", "emoji": "🛡️", "color": "bg-slate-100 text-slate-700" },
+    { "id": "marketing", "label": "Pazarlama", "emoji": "📈", "color": "bg-orange-100 text-orange-700" },
+    { "id": "business", "label": "İşletme", "emoji": "💼", "color": "bg-emerald-100 text-emerald-700" },
+    { "id": "language", "label": "Yabancı Dil", "emoji": "🗣️", "color": "bg-cyan-100 text-cyan-700" }
+  ]
+}
