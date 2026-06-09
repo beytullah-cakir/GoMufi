@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api";
-import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus } from "lucide-react";
+import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus, BellRing } from "lucide-react";
 import techData from "../../data/technologies.json";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 interface InstructorProfileProps {
   userData: any;
@@ -19,6 +20,8 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
     bio: "",
     expertises: [] as string[]
   });
+  
+  const { sendMessage } = useWebSocket();
 
   useEffect(() => {
     if (userData) {
@@ -99,13 +102,28 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
           <h1 className="text-4xl font-black text-gray-800 tracking-tight">Eğitmen Profili</h1>
           <p className="text-gray-500 font-bold mt-1">Bilgilerini yönet ve uzmanlığını göster.</p>
         </div>
-        <button 
-          onClick={() => setIsEditing(true)}
-          className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 border-b-4 rounded-2xl font-black text-gray-600 hover:bg-gray-50 transition-all active:border-b-2 active:translate-y-[2px]"
-        >
-          <Edit size={20} />
-          PROFİLİ DÜZENLE
-        </button>
+        <div className="flex items-center gap-4">
+          <button 
+            onClick={() => {
+              sendMessage({
+                type: "notification",
+                title: "Oyun Bitti! 🚀",
+                message: "Öğrencilerinizden 'Ali' son uzay görevini başarıyla tamamladı ve 100 puan kazandı!"
+              });
+            }}
+            className="flex items-center gap-2 px-4 py-3 bg-amber-100 border-2 border-amber-200 border-b-4 rounded-2xl font-black text-amber-600 hover:bg-amber-200 transition-all active:border-b-2 active:translate-y-[2px]"
+          >
+            <BellRing size={20} />
+            TEST BİLDİRİMİ
+          </button>
+          <button 
+            onClick={() => setIsEditing(true)}
+            className="flex items-center gap-2 px-6 py-3 bg-white border-2 border-gray-100 border-b-4 rounded-2xl font-black text-gray-600 hover:bg-gray-50 transition-all active:border-b-2 active:translate-y-[2px]"
+          >
+            <Edit size={20} />
+            PROFİLİ DÜZENLE
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

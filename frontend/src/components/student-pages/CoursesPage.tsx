@@ -335,12 +335,6 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                                     </div>
 
                                     {/* Loading & Error States */}
-                                    {isLoading && (
-                                        <div className="flex flex-col items-center justify-center py-20 gap-4">
-                                            <Loader2 className="w-10 h-10 text-sky-500 animate-spin" />
-                                            <p className="font-bold text-gray-400">Kurslar Yükleniyor...</p>
-                                        </div>
-                                    )}
 
                                     {error && (
                                         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-8 text-center">

@@ -329,21 +329,7 @@ const InstructorCourses: React.FC = () => {
 
       {/* Courses List */}
       <div className="grid grid-cols-1 gap-4">
-        {isLoading
-          ? // Loading Skeleton
-            [1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm animate-pulse flex items-center gap-6"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-gray-100 flex-shrink-0"></div>
-                <div className="flex-1 space-y-3">
-                  <div className="h-5 bg-gray-100 rounded-lg w-1/3"></div>
-                  <div className="h-3 bg-gray-50 rounded-lg w-1/4"></div>
-                </div>
-              </div>
-            ))
-          : filteredCourses.map((course) => (
+        {filteredCourses.map((course) => (
               <div
                 key={course.id}
                 onClick={() => setInfoCourseId(course.id)}
@@ -475,7 +461,7 @@ const InstructorCourses: React.FC = () => {
             ))}
       </div>
 
-      {filteredCourses.length === 0 && (
+      {!isLoading && filteredCourses.length === 0 && (
         <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
           <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300">
             <Filter size={32} />

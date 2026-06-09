@@ -16,6 +16,7 @@ class Settings:
     MY_API_KEY: str = os.getenv("MY_API_KEY", "")  # Gemini AI API key
 
     DATABASE_URL: str = os.getenv("DATABASE_URL")
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 

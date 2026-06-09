@@ -85,7 +85,60 @@ const getDayName = (dateStr: string) => {
     return days[date.getDay()];
 };
 
-const ContentPage: React.FC = () => {
+let cachedContentCourses: Course[] = [];
+let cachedSchedule: ScheduleSlot[] = [];
+let isContentFetched = false;
+
+const getCourseStyle = (category: string | null) => {
+    const cat = (category || '').toLowerCase();
+    if (cat.includes('python') || cat.includes('yazılım') || cat.includes('coding')) {
+        return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Mufi Hoca' };
+    } else if (cat.includes('react') || cat.includes('frontend')) {
+        return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Ahmet Hoca' };
+    } else if (cat.includes('english') || cat.includes('dil') || cat.includes('ingilizce')) {
+        return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Sarah Teacher' };
+    } else if (cat.includes('ver') || cat.includes('data')) {
+        return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Mufi Hoca' };
+    }
+    return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Mufi Hoca' };
+};
+
+const mapContentCourses = (data: any[]): Course[] => {
+    return data.map((c: any) => {
+        const style = getCourseStyle(c.category);
+        
+        let liveSessions = [];
+        let finalCurriculum = c.curriculum || [];
+        if (finalCurriculum.length > 0 && finalCurriculum[0]?.type === "live_sessions_config") {
+            liveSessions = finalCurriculum[0].sessions || [];
+        }
+
+        return {
+            id: c.id.toString(),
+            title: c.title,
+            level: `Level ${Math.floor((c.progress || 0) / 5) + 1}`,
+            progress: c.progress || 0,
+            icon: style.icon,
+            color: style.color,
+            borderColor: style.borderColor,
+            lightColor: style.lightColor,
+            nextLesson: 'Hemen İzle!',
+            instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : style.instructor,
+            liveSessions: liveSessions,
+            description: c.description,
+            learning_outcomes: c.learning_outcomes,
+            requirements: c.requirements,
+            curriculum: c.curriculum || [],
+            notes: c.notes || []
+        };
+    });
+};
+
+interface ContentPageProps {
+    purchasedCourses?: any[];
+}
+
+const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
@@ -93,30 +146,32 @@ const ContentPage: React.FC = () => {
     const navigate = useNavigate();
 
     // --- Mock Data ---
-    const [courses, setCourses] = useState<Course[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [schedule, setSchedule] = useState<ScheduleSlot[]>([]);
-
-    const getCourseStyle = (category: string | null) => {
-        const cat = (category || '').toLowerCase();
-        if (cat.includes('python') || cat.includes('yazılım') || cat.includes('coding')) {
-            return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Mufi Hoca' };
-        } else if (cat.includes('react') || cat.includes('frontend')) {
-            return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Ahmet Hoca' };
-        } else if (cat.includes('english') || cat.includes('dil') || cat.includes('ingilizce')) {
-            return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Sarah Teacher' };
-        } else if (cat.includes('ver') || cat.includes('data')) {
-            return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Mufi Hoca' };
+    const [courses, setCourses] = useState<Course[]>(() => {
+        if (purchasedCourses && purchasedCourses.length > 0) {
+            const mapped = mapContentCourses(purchasedCourses);
+            cachedContentCourses = mapped;
+            return mapped;
         }
-        return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Mufi Hoca' };
-    };
+        return cachedContentCourses;
+    });
+    const [isLoading, setIsLoading] = useState(!isContentFetched && (!purchasedCourses || purchasedCourses.length === 0));
+    const [schedule, setSchedule] = useState<ScheduleSlot[]>(cachedSchedule);
 
     useEffect(() => {
         const fetchAllData = async () => {
+            if (isContentFetched && cachedContentCourses.length > 0) {
+                setCourses(cachedContentCourses);
+                setSchedule(cachedSchedule);
+                setIsLoading(false);
+                if (!selectedCourse) setSelectedCourse(cachedContentCourses[0]?.id || '');
+                return;
+            }
+
             try {
+                if (!isContentFetched && (!purchasedCourses || purchasedCourses.length === 0)) setIsLoading(true);
                 // Fetch courses, schedule and profile in PARALLEL
                 const [contentRes, scheduleRes, profileRes] = await Promise.all([
-                    api.get('/my-content'),
+                    (!purchasedCourses || purchasedCourses.length === 0) ? api.get('/my-content') : Promise.resolve({ data: purchasedCourses }),
                     api.get('/my-schedule'),
                     api.get('/profile')
                 ]);
@@ -130,34 +185,7 @@ const ContentPage: React.FC = () => {
 
 
                 // 1. Handle Courses
-                const mappedCourses: Course[] = contentRes.data.map((c: any) => {
-                    const style = getCourseStyle(c.category);
-                    
-                    let liveSessions = [];
-                    let finalCurriculum = c.curriculum || [];
-                    if (finalCurriculum.length > 0 && finalCurriculum[0]?.type === "live_sessions_config") {
-                        liveSessions = finalCurriculum[0].sessions || [];
-                    }
-
-                    return {
-                        id: c.id.toString(),
-                        title: c.title,
-                        level: `Level ${Math.floor(c.progress / 5) + 1}`,
-                        progress: c.progress || 0,
-                        icon: style.icon,
-                        color: style.color,
-                        borderColor: style.borderColor,
-                        lightColor: style.lightColor,
-                        nextLesson: 'Hemen İzle!',
-                        instructor: c.teacher ? `${c.teacher.first_name} ${c.teacher.last_name}` : style.instructor,
-                        liveSessions: liveSessions,
-                        description: c.description,
-                        learning_outcomes: c.learning_outcomes,
-                        requirements: c.requirements,
-                        curriculum: c.curriculum || [],
-                        notes: c.notes || []
-                    };
-                });
+                const mappedCourses: Course[] = mapContentCourses(contentRes.data);
                 
                 setCourses(mappedCourses);
                 if (mappedCourses.length > 0 && !selectedCourse) {
@@ -207,6 +235,11 @@ const ContentPage: React.FC = () => {
                 
                 // Sort by time
                 mappedSchedule.sort((a, b) => parseInt(a.time.replace(':', '')) - parseInt(b.time.replace(':', '')));
+                
+                cachedContentCourses = mappedCourses;
+                cachedSchedule = mappedSchedule;
+                isContentFetched = true;
+                
                 setSchedule(mappedSchedule);
 
             } catch (err) {
@@ -353,17 +386,6 @@ const ContentPage: React.FC = () => {
         { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
     ];
 
-
-    if (isLoading) {
-        return (
-            <div className="w-full min-h-screen bg-[#F3F4F6] flex items-center justify-center">
-                <div className="flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    <p className="font-black text-gray-500">Kursların Yükleniyor...</p>
-                </div>
-            </div>
-        );
-    }
 
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth(); 
