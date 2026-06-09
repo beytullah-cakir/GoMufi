@@ -415,6 +415,14 @@ function StudentApp() {
                 // Update purchased courses (Overwrite with full objects)
                 setPurchasedCourses(contentRes.data);
                 setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
+
+                // Generate course data synchronously to batch with isUserDataLoading(false)
+                const newCourseData = generateCourseData(contentRes.data, newMap);
+                setCourses(newCourseData);
+                const availableCourseKeys = Object.keys(newCourseData);
+                if (availableCourseKeys.length > 0) {
+                    setActiveCourseId(availableCourseKeys[0]);
+                }
             } catch (err) {
                 console.error("Failed to fetch user data or courses", err);
             } finally {
