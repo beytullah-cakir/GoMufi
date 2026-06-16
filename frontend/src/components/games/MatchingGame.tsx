@@ -555,8 +555,8 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
             </div>
           </div>
 
-          {/* Right Side: Options Grid - 2x2 Layout */}
-          <div className="flex-1 grid grid-cols-2 gap-6 h-fit lg:h-full lg:overflow-y-auto lg:pr-2 custom-scrollbar shrink-0 lg:shrink content-center">
+          {/* Right Side: Options Grid - 1x4 Layout (Vertical) */}
+          <div className="flex-1 grid grid-cols-1 gap-4 h-fit lg:h-full lg:overflow-y-auto lg:pr-2 custom-scrollbar shrink-0 lg:shrink content-center pb-8">
             {(currentQuestion?.options || ["A", "B", "C", "D"]).map((option: string, idx: number) => {
               const colors = [
                 { bg: "bg-indigo-500", hover: "hover:bg-indigo-600", border: "border-indigo-700", box: "bg-indigo-700" },
@@ -568,9 +568,9 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
 
               let stateClass = "opacity-100 scale-100 cursor-pointer";
               if (phase === "feedback" || phase === "result") {
-                if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-105 shadow-2xl";
+                if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-[1.02] shadow-2xl";
                 else if (option === selectedAnswer) stateClass = "opacity-50 grayscale scale-95";
-                else stateClass = "opacity-30 scale-90 grayscale";
+                else stateClass = "opacity-30 scale-95 grayscale";
               }
 
               return (
@@ -578,14 +578,16 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                   key={option}
                   disabled={phase === "feedback" || phase === "result"}
                   onClick={() => handleAnswer(option)}
-                  className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-6 gap-4 md:gap-6 shadow-lg transition-all transform ${stateClass} w-full lg:min-h-[100px]`}
+                  className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-5 gap-4 md:gap-5 shadow-lg transition-all transform ${stateClass} w-full min-h-fit`}
                 >
-                  <div className={`w-10 h-10 md:w-14 md:h-14 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl md:text-2xl font-black text-white font-display flex-shrink-0`}>
+                  <div className={`w-12 h-12 md:w-14 md:h-14 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl md:text-2xl font-black text-white font-display flex-shrink-0`}>
                     {String.fromCharCode(65 + idx)}
                   </div>
-                  <span className="text-lg md:text-xl font-black text-white font-display text-left line-clamp-2 leading-tight">
-                    {option}
-                  </span>
+                  <div className="flex-1 text-left w-full overflow-hidden">
+                    <span className="text-base md:text-lg lg:text-xl font-black text-white font-display leading-snug break-words">
+                      {option}
+                    </span>
+                  </div>
                 </button>
               );
             })}

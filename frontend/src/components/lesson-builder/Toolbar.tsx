@@ -38,7 +38,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             className="absolute left-6 top-1/2 -translate-y-1/2 z-50 flex flex-col gap-3 bg-white p-3 rounded-3xl shadow-xl border-2 border-gray-100"
         >
             {/* Tools */}
-            <div className="flex flex-col gap-2 mb-2 pb-2 border-b-2 border-gray-100">
+            <div className="grid grid-cols-2 gap-2 mb-2 pb-2 border-b-2 border-gray-100">
                 <button
                     onClick={() => setTool('select')}
                     title="Select"
@@ -56,23 +56,26 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     onClick={() => setTool('connect')}
                     title="Connect Objects"
-                    className={`w-12 h-12 flex items-center justify-center rounded-xl border-2 transition-all ${activeTool === 'connect' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+                    className={`col-span-2 h-12 flex items-center justify-center rounded-xl border-2 transition-all ${activeTool === 'connect' ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'}`}
                 >
                     <LinkIcon className="w-6 h-6" />
                 </button>
             </div>
 
             {/* Draggables */}
-            {[
-                { id: 'text', icon: Type }, { id: 'sticky', icon: StickyNote },
-                { id: 'shape', icon: Square, extra: { shapeType: 'rectangle' } }, { id: 'circle', icon: CircleIcon, typeOverride: 'shape', extra: { shapeType: 'circle' } },
-                { id: 'arrow', icon: ArrowRight },
-                { id: 'code', icon: Code }, { id: 'image', icon: ImageIcon }, { id: 'video', icon: Video }
-            ].map(tool => (
-                <div key={tool.id} draggable onDragStart={(e) => onDragStart(e, tool.typeOverride || tool.id, tool.extra)} className="w-12 h-12 flex items-center justify-center rounded-xl border-2 border-b-4 cursor-grab active:cursor-grabbing hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all text-gray-600 border-gray-200 bg-white">
-                    <tool.icon className="w-6 h-6" />
-                </div>
-            ))}
+            <div className="grid grid-cols-2 gap-2 mb-2 pb-2 border-b-2 border-gray-100">
+                {[
+                    { id: 'text', icon: Type }, { id: 'sticky', icon: StickyNote },
+                    { id: 'shape', icon: Square, extra: { shapeType: 'rectangle' } }, { id: 'circle', icon: CircleIcon, typeOverride: 'shape', extra: { shapeType: 'circle' } },
+                    { id: 'arrow', icon: ArrowRight },
+                    { id: 'code', icon: Code }, { id: 'image', icon: ImageIcon }, { id: 'video', icon: Video }
+                ].map(tool => (
+                    <div key={tool.id} draggable onDragStart={(e) => onDragStart(e, tool.typeOverride || tool.id, tool.extra)} className="w-12 h-12 flex items-center justify-center rounded-xl border-2 border-b-4 cursor-grab active:cursor-grabbing hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200 transition-all text-gray-600 border-gray-200 bg-white">
+                        <tool.icon className="w-6 h-6" />
+                    </div>
+                ))}
+            </div>
+
             {/* Brush Settings Menu (Floating) */}
             {activeTool === 'draw' && (
                 <div className="absolute left-[calc(100%+16px)] top-0 bg-white p-4 rounded-3xl shadow-xl border-2 border-gray-100 flex flex-col gap-4 w-48 animate-in slide-in-from-left-2 fade-in duration-200 z-50">
@@ -132,8 +135,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
                     </div>
                 </div>
             )}
+
             {/* Admin Actions */}
-            <div className="flex flex-col gap-2 mt-2 pt-2 border-t-2 border-gray-100">
+            <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t-2 border-gray-100">
                 <button
                     onClick={onPreview}
                     title="Önizle"
@@ -151,7 +155,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                 <button
                     onClick={onClear}
                     title="Temizle"
-                    className="w-12 h-12 flex items-center justify-center rounded-xl bg-red-50 border-2 border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm group"
+                    className="col-span-2 h-12 flex items-center justify-center rounded-xl bg-red-50 border-2 border-red-100 text-red-500 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all shadow-sm group"
                 >
                     <Plus className="w-6 h-6 transition-transform group-hover:rotate-45" />
                 </button>

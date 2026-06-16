@@ -47,12 +47,61 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
   const [monsterAnimation, setMonsterAnimation] = useState("");
   const [heroAnimation, setHeroAnimation] = useState("");
 
-  // Mock Questions for Attack
-  const [currentQuestion] = useState({
-    text: "Canavarın zayıf noktası neresi? (Sıfatı bul)",
-    options: ["Beautiful", "Run", "Quickly", "Cat"],
-    answer: "Beautiful",
-  });
+  const [questions, setQuestions] = useState<any[]>([{
+    text: "Yükleniyor...",
+    options: ["...", "...", "...", "..."],
+    answer: "...",
+  }]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const currentQuestion = questions[currentQuestionIndex];
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch AI Quizzes
+  useEffect(() => {
+    const fetchQuiz = async () => {
+      try {
+        console.log(`[MonsterBattle] Quiz listesi aranıyor: CourseID=${courseId}, SectionID=${sectionId}, NodeIndex=${localNodeIndex}`);
+        const response = await api.get('/quiz_by_node', {
+          params: {
+            course_id: parseInt(courseId || "1"),
+            section_id: sectionId,
+            node_id: localNodeIndex
+          }
+        });
+
+        if (response.data.success && response.data.quizzes) {
+          const quizList = response.data.quizzes;
+          
+          const mappedQuestions = quizList.map((q: any) => {
+             const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
+             const options = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
+             const correctAnswer = q.quiz?.cevap || q.correct_answer || (options ? options[0] : "");
+
+             return {
+               id: q.id,
+               text: questionText,
+               options: options,
+               answer: correctAnswer,
+             };
+          });
+
+          if (mappedQuestions.length > 0) {
+              setQuestions(mappedQuestions);
+          }
+        }
+      } catch (err) {
+        console.error("Quiz çekme hatası:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    if (sectionId && localNodeIndex !== undefined) {
+      fetchQuiz();
+    } else {
+      setIsLoading(false);
+    }
+  }, [sectionId, localNodeIndex, courseId]);
 
   // Intro Animation
   useEffect(() => {
@@ -75,6 +124,14 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
         setMonsterHP((prev) => Math.max(0, prev - 50));
         setMonsterAnimation("animate-flash animate-shake");
         setHeroAnimation("");
+
+        // Move to next question if correct
+        if (currentQuestionIndex < questions.length - 1) {
+            setCurrentQuestionIndex(prev => prev + 1);
+        } else {
+            // Loop back or reset
+            setCurrentQuestionIndex(0);
+        }
 
         // Slight delay then check win or monster turn
         setTimeout(() => {
@@ -352,18 +409,21 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
 
         {/* 4. Question Overlay (Takes up bottom half like Pokemon dialogue) */}
         {phase === "question" && (
-          <div className="absolute bottom-0 left-0 right-0 h-[40%] bg-white border-t-8 border-gray-800 p-8 flex flex-col animate-slide-up">
-            <h3 className="text-2xl font-black text-gray-800 mb-6">
+          <div className="absolute bottom-0 left-0 right-0 h-[50%] md:h-[45%] bg-white border-t-8 border-gray-800 p-6 md:p-8 flex flex-col animate-slide-up">
+            <h3 className="text-xl md:text-2xl font-black text-gray-800 mb-4 shrink-0">
               {currentQuestion.text}
             </h3>
-            <div className="grid grid-cols-2 gap-4 h-full">
+            <div className="grid grid-cols-1 gap-3 h-full overflow-y-auto pr-2 custom-scrollbar pb-4">
               {currentQuestion.options.map((opt, i) => (
                 <button
                   key={i}
                   onClick={() => handleAnswer(opt)}
-                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-xl rounded-xl border-2 border-gray-300 active:bg-gray-300 transition-all text-left px-6 flex items-center"
+                  className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-bold text-lg md:text-xl rounded-xl border-2 border-gray-300 active:bg-gray-300 transition-all text-left px-4 md:px-6 py-3 md:py-4 flex items-center w-full min-h-fit shrink-0"
                 >
-                  <span className="text-gray-400 mr-4 font-black">▶</span> {opt}
+                  <span className="text-gray-400 mr-4 font-black shrink-0">▶</span>
+                  <span className="break-words leading-snug w-full">
+                    {opt}
+                  </span>
                 </button>
               ))}
             </div>

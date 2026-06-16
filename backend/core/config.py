@@ -15,6 +15,12 @@ class Settings:
     IYZICO_BASE_URL: str = os.getenv("IYZICO_BASE_URL", "https://sandbox-api.iyzipay.com")
     MY_API_KEY: str = os.getenv("MY_API_KEY", "")  # Gemini AI API key
 
+    # Jitsi JWT ayarları
+    JITSI_APP_ID: str = os.getenv("JITSI_APP_ID", "gomufi")
+    JITSI_APP_SECRET: str = os.getenv("JITSI_APP_SECRET", "")
+    JITSI_API_KEY: str = os.getenv("JITSI_API_KEY", "") # JaaS Konsolundaki Key ID
+    JITSI_DOMAIN: str = os.getenv("JITSI_DOMAIN", "8x8.vc")  # Jitsi sunucu domain'i
+
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")

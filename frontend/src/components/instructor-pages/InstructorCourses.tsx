@@ -9,6 +9,9 @@ import {
   Info,
   Layout,
   Loader2,
+  Video,
+  Play,
+  Square,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
@@ -37,9 +40,10 @@ interface Course {
 
 interface InstructorCoursesProps {
     coursesData?: any[];
+    refreshData?: () => void;
 }
 
-const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) => {
+const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refreshData }) => {
   const [filter, setFilter] = useState("active");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -53,6 +57,8 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
   const [loadingContentId, setLoadingContentId] = useState<
     number | string | null
   >(null);
+  const [liveSessionCourseIds, setLiveSessionCourseIds] = useState<Set<number>>(new Set());
+  const [startingSessionId, setStartingSessionId] = useState<number | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -124,6 +130,28 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
         }
       };
       fetchCourses();
+    }
+
+    // Fetch live session statuses for all courses
+    const fetchLiveStatuses = async (courseList: any[]) => {
+      try {
+        const statuses = await Promise.all(
+          courseList.map((c: any) => api.get(`/session-status/${c.id || c.id}`).catch(() => ({ data: { is_live: false } })))
+        );
+        const liveIds = new Set<number>();
+        courseList.forEach((c: any, i: number) => {
+          if (statuses[i]?.data?.is_live) liveIds.add(c.id);
+        });
+        if (isMounted) setLiveSessionCourseIds(liveIds);
+      } catch (err) {
+        console.error('Live status fetch error:', err);
+      }
+    };
+
+    if (coursesData) {
+      fetchLiveStatuses(coursesData);
+    } else {
+      // Will be called after courses are fetched inside the else block above
     }
     
     return () => {
@@ -240,6 +268,9 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
         setCourses([newCourse, ...courses]);
       }
       setIsAddModalOpen(false);
+      if (refreshData) {
+          refreshData();
+      }
     } catch (error: any) {
       console.error("Kurs kaydedilirken hata oluştu:", error);
       const errorMsg =
@@ -256,12 +287,56 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
       try {
         await api.delete(`/delete_course/${id}`);
         setCourses(courses.filter((c) => c.id !== id));
+        if (refreshData) {
+            refreshData();
+        }
       } catch (error) {
         console.error("Kurs silinirken hata oluştu:", error);
         alert("Kurs silinemedi.");
       }
     }
     setOpenMenuId(null);
+  };
+
+  const handleStartSession = async (courseId: number) => {
+    setStartingSessionId(courseId);
+    try {
+      await api.post(`/start-session/${courseId}`);
+      setLiveSessionCourseIds(prev => new Set(prev).add(courseId));
+      
+      // Dersi başlattıktan sonra otomatik olarak Jitsi toplantısını aç
+      try {
+        const jitsiRes = await api.get(`/jitsi/token/${courseId}`);
+        const { token, room, domain } = jitsiRes.data;
+        const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+        window.open(url, "_blank");
+      } catch (jitsiErr) {
+        console.error('Toplantı açılamadı:', jitsiErr);
+        alert('Ders başlatıldı fakat toplantı penceresi açılamadı. "Toplantıya Git" butonunu kullanabilirsiniz.');
+      }
+    } catch (err) {
+      console.error('Ders başlatılamadı:', err);
+      alert('Ders başlatılırken bir hata oluştu.');
+    } finally {
+      setStartingSessionId(null);
+    }
+  };
+
+  const handleStopSession = async (courseId: number) => {
+    setStartingSessionId(courseId);
+    try {
+      await api.post(`/stop-session/${courseId}`);
+      setLiveSessionCourseIds(prev => {
+        const next = new Set(prev);
+        next.delete(courseId);
+        return next;
+      });
+    } catch (err) {
+      console.error('Ders durdurulamadı:', err);
+      alert('Ders durdurulurken bir hata oluştu.');
+    } finally {
+      setStartingSessionId(null);
+    }
   };
 
   const handleEditClick = (course: Course) => {
@@ -421,14 +496,38 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
                   </div>
 
                   {/* Actions */}
-                  <div className="flex items-center gap-2 border-t md:border-t-0 border-gray-100 pt-4 md:pt-0 w-full md:w-auto justify-end relative">
+                  <div className="flex items-center gap-3 border-t md:border-t-0 border-gray-100 pt-4 md:pt-0 w-full md:w-auto justify-end relative">
+                    {/* Dersi Başlat Butonu */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleStartSession(course.id);
+                      }}
+                      disabled={startingSessionId === course.id}
+                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm shadow-md transition-all active:scale-95 whitespace-nowrap ${
+                        startingSessionId === course.id
+                          ? 'bg-gray-200 text-gray-400 cursor-wait'
+                          : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
+                      }`}
+                    >
+                      {startingSessionId === course.id ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <>
+                          <Play size={16} fill="currentColor" />
+                          Dersi Başlat
+                        </>
+                      )}
+                    </button>
+
                     <div className="relative">
                       <button
-                        onClick={() =>
+                        onClick={(e) => {
+                          e.stopPropagation();
                           setOpenMenuId(
                             openMenuId === course.id ? null : course.id,
-                          )
-                        }
+                          );
+                        }}
                         className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors"
                       >
                         <MoreVertical size={20} />
@@ -437,7 +536,8 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
                       {openMenuId === course.id && (
                         <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden animate-fade-in">
                           <button
-                            onClick={() => {
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setLoadingContentId(course.id);
                               navigate(
                                 `/instructor/builder?courseId=${course.id}`,
@@ -456,7 +556,10 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData }) =>
                               : "Ders İçeriğini Düzenle"}
                           </button>
                           <button
-                            onClick={() => handleDeleteCourse(course.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteCourse(course.id);
+                            }}
                             className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 font-bold transition-colors"
                           >
                             Sil

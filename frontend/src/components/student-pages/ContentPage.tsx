@@ -55,6 +55,7 @@ interface Course {
     learning_outcomes?: string[];
     requirements?: string[];
     curriculum?: any[];
+    price?: number;
 }
 
 interface ScheduleSlot {
@@ -67,6 +68,7 @@ interface ScheduleSlot {
     status?: 'upcoming' | 'live_now' | 'completed';
     color?: string;
     duration?: string;
+    courseId?: string;
 }
 
 interface SquadMember {
@@ -129,7 +131,8 @@ const mapContentCourses = (data: any[]): Course[] => {
             learning_outcomes: c.learning_outcomes,
             requirements: c.requirements,
             curriculum: c.curriculum || [],
-            notes: c.notes || []
+            notes: c.notes || [],
+            price: c.price || 0
         };
     });
 };
@@ -196,7 +199,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
                 let mappedSchedule: ScheduleSlot[] = [];
                 if (scheduleRes.data && scheduleRes.data.length > 0) {
                     mappedSchedule = scheduleRes.data.map((s: any) => {
-                        const timeStr = s.start_time.substring(0, 5);
+                        const timeStr = s.start_time ? s.start_time.substring(0, 5) : '';
                         let color = 'bg-gray-100 border-gray-300 text-gray-800';
                         if (s.title.toLowerCase().includes('python')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
                         else if (s.title.toLowerCase().includes('react')) color = 'bg-sky-100 border-sky-300 text-sky-800';
@@ -204,30 +207,38 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
                         
                         return {
                             id: s.id.toString(),
-                            day: s.day_of_week,
+                            day: s.day_of_week || '',
                             time: timeStr,
                             title: s.title,
                             type: s.type as 'live' | 'empty' | 'reserved',
                             status: s.status as 'upcoming' | 'live_now' | 'completed',
                             color: color,
-                            duration: `${s.duration_minutes} dk`
+                            duration: `${s.duration_minutes || 0} dk`,
+                            courseId: s.course_id?.toString()
                         };
                     });
-                } else if (mappedCourses.length > 0) {
+                }
+                
+                if (mappedCourses.length > 0) {
                     mappedCourses.forEach((c) => {
                         if (c.liveSessions) {
                             c.liveSessions.forEach((sess: any) => {
-                                mappedSchedule.push({
-                                    id: `auto-${c.id}-${sess.day || sess.date}`,
-                                    day: sess.day || getDayName(sess.date),
-                                    fullDate: sess.date,
-                                    time: sess.time,
-                                    title: c.title,
-                                    type: 'live',
-                                    status: 'upcoming',
-                                    color: c.color.replace('bg-', 'bg-').replace('500', '100'),
-                                    duration: '60 dk'
-                                });
+                                // Sadece scheduleRes içinde olmayanları ekle
+                                const autoId = `auto-${c.id}-${sess.day || sess.date}`;
+                                if (!mappedSchedule.some(s => s.id === autoId)) {
+                                    mappedSchedule.push({
+                                        id: autoId,
+                                        day: sess.day || getDayName(sess.date),
+                                        fullDate: sess.date,
+                                        time: sess.time,
+                                        title: c.title,
+                                        type: 'live',
+                                        status: 'upcoming',
+                                        color: c.color.replace('bg-', 'bg-').replace('500', '100'),
+                                        duration: '60 dk',
+                                        courseId: c.id
+                                    });
+                                }
                             });
                         }
                     });
@@ -251,133 +262,61 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
         fetchAllData();
     }, []);
 
-    const [timeLeftStr, setTimeLeftStr] = useState<string>("Hesaplanıyor...");
-    const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string} | null>(null);
+    const [timeLeftStr, setTimeLeftStr] = useState<string>("");
+    const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string, courseId?: string} | null>(null);
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
-    const [timeOffsetMs, setTimeOffsetMs] = useState<number>(0);
+    const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<{firstName: string, lastName: string} | null>(null);
     
     
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
 
-
-    // Uygulama yüklendiğinde, öğrenci pc saatini değiştirip hile yapamasın diye ve
-    // saat farklılıklarını engellemek adına Türkiye gerçek saatini çekip, farkı (offset) hesaplıyoruz.
+    // İlk kursu göster
     useEffect(() => {
-        const fetchRealTime = async () => {
-             try {
-                 // Kendi sunucumuzdan güvenli saati alıyoruz
-                 const res = await api.get("/utils/time");
-                 const realTime = res.data.timestamp;
-                 const localTime = new Date().getTime();
-                 setTimeOffsetMs(realTime - localTime);
-             } catch (err) {
-                 console.error("Sunucu saati alınamadı, cihaz saati kullanılacak.", err);
-             }
-        };
-        fetchRealTime();
-    }, []);
+        if (courses.length > 0) {
+            const firstCourse = courses[0];
+            setNextLessonData({
+                title: firstCourse.title,
+                subtitle: firstCourse.nextLesson || '',
+                courseId: firstCourse.id
+            });
+        }
+    }, [courses]);
 
+    // Eğitmenin dersi başlatıp başlatmadığını sunucudan kontrol et (5 saniyede bir)
     useEffect(() => {
-        const updateCountdown = () => {
-             if (schedule.length === 0) {
-                 setTimeLeftStr("Ders Bulunmuyor");
-                 setNextLessonData(null);
-                 setIsClassActive(false);
-                 return;
-             }
+        if (courses.length === 0) return;
 
-             const now = new Date(new Date().getTime() + timeOffsetMs);
-             let nextValidLesson = null;
-             let minDiff = Infinity;
-
-             for (const s of schedule) {
-                 if (s.type === 'live' && s.status !== 'completed' && s.time) {
-                     const [hours, minutes] = s.time.split(':').map(Number);
-                     let lessonTime: Date;
-
-                     if (s.fullDate) {
-                         const [year, month, day] = s.fullDate.split('-').map(Number);
-                         // Yerel tarih oluşturup saatleri giriyoruz
-                         lessonTime = new Date(year, month - 1, day, hours, minutes, 0, 0);
-                     } else if (s.day) {
-                         // Eğer sadece gün varsa, içinde bulunduğumuz haftadaki o günün tarihini buluyoruz
-                         const targetDayIndex = dayMap[s.day];
-                         if (targetDayIndex === undefined) continue;
-
-                         lessonTime = new Date(now);
-                         lessonTime.setHours(hours, minutes, 0, 0);
-
-                         const currentDayIndex = (now.getDay() + 6) % 7; // 0=Pzt, 6=Paz
-                         const dayDiff = targetDayIndex - currentDayIndex;
-                         lessonTime.setDate(lessonTime.getDate() + dayDiff);
-                         
-                         // Eğer ders 2 saatten daha önce bittiyse (geçtiyse), bir sonraki haftaya bak
-                         if (lessonTime.getTime() - now.getTime() < -7200000) {
-                             lessonTime.setDate(lessonTime.getDate() + 7);
-                         }
-                     } else {
-                         continue;
-                     }
-                     
-                     // Diff in ms (lessonTime - now)
-                     const diff = lessonTime.getTime() - now.getTime();
-                     
-                     // Eğer ders geçmişteyse bile 2 saat (7200000 ms) boyunca aktif/geçerli sayılsın
-                     if (diff > -7200000 && diff < minDiff) {
-                         minDiff = diff;
-                         nextValidLesson = { ...s, lessonTime };
-                     }
-                 }
-             }
-
-             if (!nextValidLesson) {
-                 setTimeLeftStr("Yeni Ders Bekleniyor");
-                 setNextLessonData(null);
-                 setIsClassActive(false);
-                 return;
-             }
-             
-             setNextLessonData({
-                 title: nextValidLesson.title,
-                 subtitle: `Planlanan Gün: ${nextValidLesson.day}`
-             });
-
-             // Calculate remaining time
-             const diff = nextValidLesson.lessonTime.getTime() - now.getTime();
-             
-             if (diff <= 0 && diff > -7200000) {
-                 // Ders şu an yayında
-                 setTimeLeftStr("Canlı Yayında!");
-                 setIsClassActive(true);
-             } else if (diff > 0) {
-                 // Ders gelecekte
-                 const diffDays = Math.floor(diff / (1000 * 60 * 60 * 24));
-                 const diffHours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                 const diffMinutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-                 const diffSeconds = Math.floor((diff % (1000 * 60)) / 1000);
-                 
-                 setIsClassActive(false); // Ders saati tam olarak gelene kadar kapalı
-                 
-                 if (diffDays > 0) {
-                     setTimeLeftStr(`${diffDays} gün ${diffHours} s kaldı`);
-                 } else if (diffHours > 0) {
-                     setTimeLeftStr(`${diffHours} s ${diffMinutes} dk kaldı`);
-                 } else if (diffMinutes > 0) {
-                     setTimeLeftStr(`${diffMinutes} dk kaldı`);
-                 } else {
-                     setTimeLeftStr(`${diffSeconds} sn kaldı`);
-                 }
-             } else {
-                 setTimeLeftStr("Geçti");
-                 setIsClassActive(false);
-             }
+        const checkSessionStatus = async () => {
+            try {
+                // Tüm kursları kontrol et, herhangi biri canlıysa aktif et
+                for (const course of courses) {
+                    const res = await api.get(`/session-status/${course.id}`);
+                    if (res.data.is_live) {
+                        setIsClassActive(true);
+                        setLiveCourseId(course.id);
+                        setTimeLeftStr("");
+                        setNextLessonData({
+                            title: course.title,
+                            subtitle: '',
+                            courseId: course.id
+                        });
+                        return;
+                    }
+                }
+                // Hiçbir kurs canlı değilse
+                setIsClassActive(false);
+                setLiveCourseId(null);
+                setTimeLeftStr("");
+            } catch (err) {
+                console.error("Session status kontrol hatası:", err);
+            }
         };
 
-        updateCountdown();
-        const interval = setInterval(updateCountdown, 1000); // Her saniye kontrol et!
+        checkSessionStatus();
+        const interval = setInterval(checkSessionStatus, 5000);
         return () => clearInterval(interval);
-    }, [schedule, timeOffsetMs]);
+    }, [courses]);
 
     const squadMembers: SquadMember[] = [
         { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
@@ -563,19 +502,37 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki Ders</span>
-                                            <span className="flex items-center gap-1 text-xs font-bold bg-black/20 px-2 py-1 rounded-lg">
-                                                <Clock size={12} /> {timeLeftStr}
-                                            </span>
+                                            {timeLeftStr && (
+                                                <span className="flex items-center gap-1 text-xs font-bold bg-black/20 px-2 py-1 rounded-lg">
+                                                    <Clock size={12} /> {timeLeftStr}
+                                                </span>
+                                            )}
                                         </div>
                                         <h2 className="text-3xl font-black font-display mb-1">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
-                                        <p className="text-orange-100 font-bold text-lg">{nextLessonData?.subtitle || activeCourseData?.nextLesson || "Marketten yeni kurslar keşfedebilirsin."}</p>
                                     </div>
                                     <button 
-                                        disabled={true}
-                                        className="px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60"
+                                        disabled={!isClassActive}
+                                        onClick={async () => {
+                                            const courseIdToJoin = liveCourseId || nextLessonData?.courseId;
+                                            if (!isClassActive || !courseIdToJoin) return;
+                                            try {
+                                                const jitsiRes = await api.get(`/jitsi/token/${courseIdToJoin}`);
+                                                const { token, room, domain } = jitsiRes.data;
+                                                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                                                window.open(url, "_blank");
+                                            } catch (err) {
+                                                console.error("Derse katılınamadı:", err);
+                                                alert("Derse katılırken bir hata oluştu. Lütfen tekrar deneyin.");
+                                            }
+                                        }}
+                                        className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
+                                            isClassActive
+                                                ? 'bg-white text-orange-600 hover:scale-105 animate-bounce cursor-pointer'
+                                                : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
+                                        }`}
                                     >
                                         <Play fill="currentColor" />
-                                        YAKINDA!
+                                        {isClassActive ? "DERSE KATIL" : "YAKINDA!"}
                                     </button>
                                 </div>
                             </div>

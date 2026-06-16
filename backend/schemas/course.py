@@ -1,17 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional, List, Any
 
-class TagBase(BaseModel):
-    name: str
 
-class TagCreate(TagBase):
-    pass
-
-class TagSchema(TagBase):
-    id: int
-
-    class Config:
-        from_attributes = True
 
 class CourseBase(BaseModel):
     title: str

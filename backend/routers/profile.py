@@ -6,11 +6,9 @@ from connect_db import get_db
 from models.teacher import Teacher
 from models.student import Student
 from models.parent import Parent
-from models.tag import Tag
 from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
-from schemas.course import TagCreate
 from pydantic import BaseModel
 from typing import Optional
 
@@ -22,25 +20,7 @@ router = APIRouter()
 
 import os
 
-@router.get("/profile/tags")
-async def get_tags(db: AsyncSession = Depends(get_db)):
-    print("DEBUG: Fetching tags...")
-    result = await db.execute(select(Tag))
-    tags = result.scalars().all()
-    return [{"id": t.id, "name": t.name} for t in tags]
 
-
-@router.post("/profile/tags")
-async def create_tag(tag_data: TagCreate, db: AsyncSession = Depends(get_db)):
-    # Check if tag already exists
-    existing = await db.execute(select(Tag).where(Tag.name == tag_data.name))
-    if existing.scalars().first():
-        raise HTTPException(status_code=400, detail="Tag zaten mevcut")
-    
-    new_tag = Tag(name=tag_data.name)
-    db.add(new_tag)
-    await db.commit()
-    return {"message": "Tag başarıyla eklendi", "name": new_tag.name}
 
 @router.get("/profile")
 async def get_profile(

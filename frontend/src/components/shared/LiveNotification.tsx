@@ -26,14 +26,6 @@ export const LiveNotification: React.FC = () => {
 
   return (
     <div className="fixed bottom-8 right-8 z-[9999] flex flex-col gap-3 pointer-events-none">
-      {/* Bağlantı durumu göstergesi (Geliştirici testi için) */}
-      <div className="bg-white px-3 py-1.5 rounded-full shadow-md text-xs font-bold border border-gray-100 flex items-center gap-2 self-end">
-        <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-red-400'}`}></div>
-        <span className={isConnected ? "text-emerald-600" : "text-red-500"}>
-            {isConnected ? "Canlı Bağlantı Aktif" : "Bağlantı Bekleniyor..."}
-        </span>
-      </div>
-
       {/* Bildirim Kartları */}
       {notifications.map((notif) => (
         <div
