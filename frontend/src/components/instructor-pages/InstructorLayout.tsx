@@ -26,8 +26,8 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   return (
     <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
       <InstructorSidebar activePage={activePage} onNavigate={onNavigate} />
-      <div className="flex-1 overflow-auto relative flex flex-col">
-        <div className={`flex-1 overflow-y-auto relative ${activePage === "Builder" ? "" : "p-8"}`}>
+      <div className={`flex-1 relative flex flex-col ${activePage === "Builder" ? "overflow-hidden" : "overflow-auto"}`}>
+        <div className={`flex-1 relative ${activePage === "Builder" ? "overflow-hidden h-full w-full" : "overflow-y-auto p-8"}`}>
           {children}
         </div>
       </div>

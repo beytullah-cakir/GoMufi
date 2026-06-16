@@ -13,7 +13,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import engine, Base
 from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-from routers import quiz, ws
+from routers import quiz, ws, jitsi
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -87,6 +87,7 @@ app.include_router(payment.router)
 app.include_router(utils.router)
 app.include_router(quiz.router)
 app.include_router(ws.router)
+app.include_router(jitsi.router)
 
 # Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
 # /generate_quiz -> /quiz/generate

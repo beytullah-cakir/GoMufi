@@ -10,6 +10,7 @@ interface GeneratedQuestion {
     explanation: string;
     difficulty: 'Kolay' | 'Orta' | 'Zor';
     type: 'multiple-choice' | 'true-false' | 'open-ended';
+    topic?: string;
 }
 
 const FormattedText: React.FC<{ text: string }> = ({ text }) => {
@@ -122,13 +123,14 @@ const InstructorAIQuestions: React.FC<InstructorAIQuestionsProps> = ({ coursesDa
             if (response.data.success) {
                 const quizData = response.data.quiz;
                 const newQuestion: GeneratedQuestion = {
-                    id: response.data.db_id?.toString() || Date.now().toString(),
+                    id: Date.now().toString(),
                     text: quizData.soru,
                     options: quizData.secenekler,
                     correctAnswer: quizData.cevap,
                     explanation: quizData.aciklama,
                     difficulty: difficulty,
-                    type: questionType
+                    type: questionType,
+                    topic: topic
                 };
                 
                 setGeneratedQuestions(prev => [newQuestion, ...prev]);
@@ -161,11 +163,17 @@ const InstructorAIQuestions: React.FC<InstructorAIQuestionsProps> = ({ coursesDa
         
         setIsAssigning(true);
         try {
-            // Fallback to section_X if id is missing, matching StudentApp.tsx logic
             const sectionId = selectedSection.id || `section_${(selectedSectionIndex || 0) + 1}`;
+            const questionToAssign = generatedQuestions.find(q => q.id === selectedQuizId);
+            
+            if (!questionToAssign) {
+                alert("Atanacak soru bulunamadı.");
+                setIsAssigning(false);
+                return;
+            }
             
             const response = await api.post('/assign_quiz', {
-                quiz_id: Number(selectedQuizId),
+                quiz_data: questionToAssign,
                 course_id: Number(selectedCourse.id),
                 section_id: sectionId,
                 node_id: nodeId
@@ -186,23 +194,7 @@ const InstructorAIQuestions: React.FC<InstructorAIQuestionsProps> = ({ coursesDa
     };
 
     return (
-        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {/* -- HERO SECTION -- */}
-            <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-800 p-10 text-white shadow-2xl shadow-indigo-200">
-                <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
-                    <div className="flex-1 space-y-4 text-center md:text-left">
-                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/20 backdrop-blur-md text-xs font-black uppercase tracking-widest">
-                            <Sparkles className="w-4 h-4 text-yellow-300 animate-pulse" />
-                            AI Destekli Soru Üretici
-                        </div>
-                        <h1 className="text-4xl md:text-5xl font-black font-display leading-tight"> Saniyeler İçinde <br /> Soru Oluşturun </h1>
-                        <p className="text-indigo-100 text-lg font-medium max-w-xl"> Konu başlığını girin, zorluk seviyesini seçin ve GoMufi AI sizin için en kaliteli soruları hazırlasın. </p>
-                    </div>
-                    <div className="w-48 h-48 md:w-64 md:h-64 bg-white/10 rounded-full blur-3xl absolute -right-20 -top-20 animate-pulse"></div>
-                    <div className="w-48 h-48 md:w-64 md:h-64 bg-purple-500/20 rounded-full blur-3xl absolute -left-20 -bottom-20 animate-pulse delay-700"></div>
-                </div>
-            </div>
-
+        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 pt-6">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
                 
                 {/* -- SIDEBAR: CONFIGURATION -- */}

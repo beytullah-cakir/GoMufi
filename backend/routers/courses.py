@@ -397,3 +397,28 @@ async def get_session_status(
         return {"is_live": True, "session_id": session.id}
     return {"is_live": False}
 
+@router.post("/stop-session/{course_id}")
+async def stop_session(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Dersi kontrol et
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Aktif canlı oturumu bul
+    stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
+    result = await db.execute(stmt)
+    session = result.scalars().first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Aktif canlı oturum bulunamadı")
+
+    session.status = 'completed'
+    await db.commit()
+    return {"message": "Session stopped", "session_id": session.id}

@@ -115,6 +115,30 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
   } | null>(null);
   const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    // Auto-scale canvas on mount to fit the available screen height & width
+    const handleInitialScale = () => {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      
+      // Calculate available width and height for canvas (1280x720)
+      // Sidebar: 260px. Toolbar: 130px. Padding/gaps.
+      const availableW = w - 420;
+      // Header: 60px. Slide strip: 150px. Padding/gaps.
+      const availableH = h - 220;
+
+      if (availableW > 0 && availableH > 0) {
+        const scaleX = availableW / 1280;
+        const scaleY = availableH / 720;
+        // Don't scale up beyond 1.0, don't scale down below 0.2
+        const idealScale = Math.max(0.2, Math.min(scaleX, scaleY, 1));
+        setScale(parseFloat(idealScale.toFixed(2)));
+      }
+    };
+    handleInitialScale();
+  }, []);
+
   const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(
     null,
   );

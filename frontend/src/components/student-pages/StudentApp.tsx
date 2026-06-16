@@ -209,8 +209,9 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
     purchasedList.forEach(course => {
         const courseName = course.title;
+        const courseIdStr = course.id.toString();
         const titleLower = courseName.toLowerCase();
-        const progress = getProgress(courseName);
+        const progress = getProgress(courseIdStr);
         const instructorName = instructorsMap[courseName] || 'Mufi Eğitmen';
 
         // Check if curriculum exists and has sections
@@ -237,8 +238,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                 currentId += 7;
             });
 
-            result[courseName] = {
-                id: courseName,
+            result[courseIdStr] = {
+                id: courseIdStr,
                 title: courseName.toUpperCase(),
                 icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
@@ -268,8 +269,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                 currentId += 7;
             });
 
-            result[courseName] = {
-                id: courseName,
+            result[courseIdStr] = {
+                id: courseIdStr,
                 title: courseName.toUpperCase(),
                 icon: '🚀',
                 themeColor: '#8b5cf6',
@@ -558,18 +559,16 @@ function StudentApp() {
                                     setSelectedCourseForDetail(null);
                                 }}
                                 isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
-                                onEnroll={async (id) => {
-                                    try {
-                                        await api.post(`/enroll/${id}`);
-                                        // Refresh my-content to update purchasedCourses
-                                        const contentRes = await api.get('/my-content');
-                                        setPurchasedCourses(contentRes.data);
-                                        setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
-                                        alert("Kursa başarıyla kayıt olundu!");
-                                    } catch (err: any) {
-                                        alert(err.response?.data?.detail || "Kayıt başarısız.");
-                                    }
+                                onAddToCart={(course) => {
+                                    addToCart({
+                                        id: course.id,
+                                        title: course.title,
+                                        price: `₺${course.price.toLocaleString('tr-TR')}`,
+                                        icon: '🚀',
+                                        instructor: course.teacher ? `${course.teacher.first_name} ${course.teacher.last_name}` : "Anonim Eğitmen"
+                                    });
                                 }}
+                                onGoToCart={() => setActivePage('Sepetim')}
                             />
                         ) : (
                             <CoursesPage 
