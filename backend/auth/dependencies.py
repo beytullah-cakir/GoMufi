@@ -45,6 +45,11 @@ def get_current_user_info(request: Request) -> dict:
     """
     token = request.cookies.get("access_token")
     if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
@@ -62,6 +67,11 @@ def get_current_teacher_id(request: Request) -> int:
     """Yalnızca teacher rolündeki kullanıcının ID'sini döner."""
     token = request.cookies.get("access_token")
     if not token:
+        auth_header = request.headers.get("Authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ")[1]
+
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated"
@@ -70,7 +80,7 @@ def get_current_teacher_id(request: Request) -> int:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         role = payload.get("role")
         user_id = payload.get("sub")
-        if role != "teacher":
+        if role != "teacher" and role != "instructor":
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized as teacher"

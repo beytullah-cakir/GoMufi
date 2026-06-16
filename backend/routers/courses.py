@@ -357,14 +357,17 @@ async def start_session(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
+    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id}")
     # Dersi kontrol et
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
     course = result.scalar_one_or_none()
     if not course:
+        print(f"DEBUG: Course {course_id} not found for teacher {teacher_id}")
         raise HTTPException(status_code=404, detail="Course not found")
 
+    print(f"DEBUG: Course found: {course.title}")
     # Mevcut canlı oturumu bul veya yeni oluştur
     stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
     result = await db.execute(stmt)
@@ -378,10 +381,13 @@ async def start_session(
             type='live'
         )
         db.add(session)
+        print("DEBUG: Created new live session")
     else:
         session.status = 'live'
+        print("DEBUG: Reused existing live session")
     
     await db.commit()
+    print("DEBUG: start_session committed")
     return {"message": "Session started", "session_id": session.id}
 
 @router.get("/session-status/{course_id}")
