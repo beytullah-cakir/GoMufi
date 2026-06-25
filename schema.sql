@@ -1,6 +1,6 @@
 -- ============================================
 --   EDUCATION PLATFORM DATABASE SCHEMA
---   students - teachers - courses - enrollments
+--   students - teachers - courses - enrollments - quizzes
 -- ============================================
 
 -- ==============
@@ -21,15 +21,22 @@ CREATE TABLE parents (
 -- ==============
 CREATE TABLE students (
     id SERIAL PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name  VARCHAR(100) NOT NULL,
-    nickname   VARCHAR(100) UNIQUE NOT NULL,
-    email      VARCHAR(150) UNIQUE NOT NULL,
-    education_level VARCHAR(20) NOT NULL,
-    grade_level VARCHAR(20) NOT NULL,
-    password VARCHAR(255) NOT NULL,
-    student_code VARCHAR(20) UNIQUE,
+    first_name VARCHAR(100),
+    last_name  VARCHAR(100),
+    email      VARCHAR(150) UNIQUE,
+    nickname   VARCHAR(100),
+    password   VARCHAR(255),
+    student_code VARCHAR(100) UNIQUE,
+    grade_level VARCHAR(50),
+    education_level VARCHAR(50),
     parent_id INT REFERENCES parents(id),
+    
+    -- Gamification fields
+    gems INTEGER DEFAULT 0,
+    hearts INTEGER DEFAULT 5,
+    streak INTEGER DEFAULT 0,
+    xp INTEGER DEFAULT 0,
+    
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -38,13 +45,12 @@ CREATE TABLE students (
 -- ==============
 CREATE TABLE teachers (
     id SERIAL PRIMARY KEY,
-    first_name VARCHAR(100) NOT NULL,
-    last_name  VARCHAR(100) NOT NULL,
-    email      VARCHAR(150) UNIQUE NOT NULL,
+    first_name VARCHAR(100),
+    last_name  VARCHAR(100),
+    email      VARCHAR(150) UNIQUE,
     expertises VARCHAR(255),
     password   VARCHAR(255),
-    bio        TEXT,
-    department VARCHAR(150),
+    bio        VARCHAR,
     created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -53,18 +59,20 @@ CREATE TABLE teachers (
 -- ==============
 CREATE TABLE courses (
     id SERIAL PRIMARY KEY,
-    teacher_id INT NOT NULL,
-    title VARCHAR(200) NOT NULL,
+    teacher_id INT NOT NULL REFERENCES teachers(id),
+    title VARCHAR(255) NOT NULL,
     description TEXT,
     category VARCHAR(100),
     progress INT DEFAULT 0,
     price INT DEFAULT 0,
-    learning_outcomes JSONB DEFAULT '[]',
-    requirements JSONB DEFAULT '[]',
-    curriculum JSONB DEFAULT '[]',
-    created_at TIMESTAMP DEFAULT NOW(),
-
-    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
+    learning_outcomes JSON DEFAULT '[]',
+    requirements JSON DEFAULT '[]',
+    curriculum JSON DEFAULT '[]',
+    rating INT DEFAULT 5,
+    notes JSON DEFAULT '[]',
+    status VARCHAR(50) DEFAULT 'active',
+    schedule JSON DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT NOW()
 );
 
 -- =================    
@@ -72,13 +80,10 @@ CREATE TABLE courses (
 -- =================
 CREATE TABLE enrollments (
     id SERIAL PRIMARY KEY,
-    student_id INT NOT NULL,
-    course_id INT NOT NULL,
+    student_id INT REFERENCES students(id),
+    course_id INT REFERENCES courses(id),
     enrolled_at TIMESTAMP DEFAULT NOW(),
-
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (course_id) REFERENCES courses(id),
-
+    
     UNIQUE (student_id, course_id)
 );
 
@@ -94,5 +99,23 @@ CREATE TABLE live_sessions (
     duration_minutes INT DEFAULT 40,
     type VARCHAR(20) DEFAULT 'live', -- live, reserved
     status VARCHAR(20) DEFAULT 'upcoming', -- upcoming, completed, live
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+-- =================    
+--  QUIZZES
+-- =================
+CREATE TABLE quizzes (
+    id SERIAL PRIMARY KEY,
+    course_id INT REFERENCES courses(id),
+    section_id VARCHAR(100), -- ID or index of the section
+    node_id INT, -- ID of the node in the course curriculum
+    topic VARCHAR(100) NOT NULL,
+    difficulty VARCHAR(50),
+    question_text TEXT NOT NULL,
+    options JSON, -- Options list for multiple choice
+    correct_answer TEXT NOT NULL,
+    explanation TEXT,
+    question_type VARCHAR(50) DEFAULT 'multiple-choice',
     created_at TIMESTAMP DEFAULT NOW()
 );
