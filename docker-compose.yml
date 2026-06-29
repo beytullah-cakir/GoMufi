@@ -13,6 +13,7 @@ services:
       - FRONTEND_URL=http://localhost:5173
       - BACKEND_URL=http://localhost:8000
       - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://postgres:password@gomufi-db:5432/gomufi
     command: >
       sh -c "alembic upgrade head || echo 'WARNING: Alembic migration failed, starting server anyway...' ;
              uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload"
