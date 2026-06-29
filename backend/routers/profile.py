@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, Request
 from auth.dependencies import get_current_user
+from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
@@ -22,6 +23,8 @@ import os
 
 
 
+from core.config import settings
+
 @router.get("/profile")
 async def get_profile(
     user=Depends(get_current_user),
@@ -33,7 +36,32 @@ async def get_profile(
     if not str(user_id).isdigit():
         raise HTTPException(status_code=400, detail="Invalid user ID format in token")
     
-    if role =="teacher":
+    if role == "admin":
+        result_student = await db.execute(select(Student).where(Student.id == int(user_id)))
+        student = result_student.scalars().first()
+        
+        result_teacher = await db.execute(select(Teacher).where(func.lower(Teacher.email) == settings.ADMIN_EMAIL.lower()))
+        teacher = result_teacher.scalars().first()
+        
+        return {
+            "user_id": int(user_id),
+            "role": "admin",
+            "first_name": "GoMufi",
+            "last_name": "Admin",
+            "email": settings.ADMIN_EMAIL,
+            "nickname": "admin",
+            "student_code": student.student_code if student else "ADMIN",
+            "grade_level": "Yönetici",
+            "education_level": "Yönetici",
+            "gems": student.gems if student else 9999,
+            "hearts": student.hearts if student else 5,
+            "streak": student.streak if student else 99,
+            "xp": student.xp if student else 99999,
+            "expertises": teacher.expertises if teacher else "Tümü",
+            "bio": teacher.bio if teacher else "Sistem Yöneticisi",
+        }
+    
+    elif role =="teacher":
         
         result = await db.execute(
             select(Teacher).where(Teacher.id == int(user_id))

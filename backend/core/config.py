@@ -6,6 +6,8 @@ load_dotenv()
 class Settings:
     SECRET_KEY: str = os.getenv("SECRET_KEY", "gomufi-dev-secret-key-change-in-prod")
     ALGORITHM: str = "HS256"
+    ADMIN_EMAIL: str = os.getenv("ADMIN_EMAIL", "admin@gomufi.com")
+    ADMIN_PASSWORD: str = os.getenv("ADMIN_PASSWORD", "admin123")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "30"))
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")

@@ -50,6 +50,23 @@ async def login_user(
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
+    if data.email.lower() == settings.ADMIN_EMAIL.lower() and data.password == settings.ADMIN_PASSWORD:
+        access_token = create_access_token("admin", role="admin")
+        is_production = "localhost" not in settings.FRONTEND_URL
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            samesite="None" if is_production else "lax",
+            secure=is_production,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            path="/"
+        )
+        return {
+            "status": "logged_in",
+            "role": "admin"
+        }
+
     result = await db.execute(
         select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
     )

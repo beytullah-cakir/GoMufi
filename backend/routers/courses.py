@@ -79,7 +79,16 @@ async def read_my_content(
     user_id = int(user_info["sub"])
     role = user_info["role"]
 
-    if role == "teacher":
+    if role == "admin":
+        result = await db.execute(
+            select(Course)
+            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
+        )
+        courses = result.unique().scalars().all()
+        for course in courses:
+            course.students_count = len(course.enrollments)
+        return courses
+    elif role == "teacher":
         result = await db.execute(
             select(Course)
             .where(Course.teacher_id == user_id)
@@ -112,7 +121,14 @@ async def read_my_schedule(
     user_id = int(user_info["sub"])
     role = user_info["role"]
 
-    if role == "student":
+    if role == "admin":
+        stmt = (
+            select(LiveSession)
+            .order_by(LiveSession.start_time)
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+    elif role == "student":
         stmt = (
             select(LiveSession)
             .join(Course)
@@ -131,7 +147,7 @@ async def enroll_student(
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
-    if user_info["role"] != "student":
+    if user_info["role"] not in ["student", "admin"]:
         raise HTTPException(status_code=403, detail="Only students can enroll")
 
     student_id = int(user_info["sub"])
