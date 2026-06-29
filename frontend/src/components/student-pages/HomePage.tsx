@@ -1,9 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-
-
 import GrassIcon from '../../assets/sprites/grass.png';
-
+import { Swords, Users, Shield } from 'lucide-react';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
 import type { CourseData, PathNode } from '../../types';
@@ -31,28 +28,36 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
 
     // Refs for outside click detection
     const courseDropdownRef = useRef<HTMLDivElement>(null);
+    const clanDropdownRef = useRef<HTMLDivElement>(null);
     const nodesContainerRef = useRef<HTMLDivElement>(null);
 
     // Outside click listener
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            // Course Dropdown
             if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
             }
-            // Level Bubble (Active Node)
-            // If click is not inside the nodes container, clear active node
+            if (clanDropdownRef.current && !clanDropdownRef.current.contains(event.target as Node)) {
+                setIsClanDropdownOpen(false);
+            }
             if (nodesContainerRef.current && !nodesContainerRef.current.contains(event.target as Node)) {
                 setActiveNodeId(null);
             }
         };
-
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
+
+    const squadMembers = [
+        { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
+        { id: 2, name: 'Ayşe', status: 'in-class', avatarSeed: 456 },
+        { id: 3, name: 'Can', status: 'offline', avatarSeed: 789 },
+        { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
+    ];
 
     // Dynamic Header State
     const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
@@ -138,11 +143,9 @@ const HomePage: React.FC<HomePageProps> = ({
             if (!currentCourseData) return prev; // Safety
 
             const updatedNodes = currentCourseData.nodes.map(node => {
-                // If it's the current node, update stars
                 if (node.id === gameLevel) {
                     return { ...node, stars: stars };
                 }
-                // Unlock the NEXT node
                 if (node.id === gameLevel + 1) {
                     return { ...node, isLocked: false };
                 }
@@ -189,13 +192,13 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz Bir Kursun Yok!</h2>
                 <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Maceraya başlamak için Market'ten harika kurslarımızı keşfedebilir ve ilk adımını atabilirsin.
+                    Maceraya başlamak için Market'ten harika kurslarimizi keşfedebilir ve ilk adimini atabilirsin.
                 </p>
                 <button 
                     onClick={() => (window as any).setActivePage ? (window as any).setActivePage('Kurslar') : window.location.reload()}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
                 >
-                    Kursları Keşfet
+                    Kurslari Keşfet
                 </button>
             </div>
         );
@@ -210,46 +213,227 @@ const HomePage: React.FC<HomePageProps> = ({
     return (
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
-            {/* Top Center: Course Selector */}
-            <div className="w-full px-4 pt-6 flex justify-center z-30 relative">
-                <div className="relative" ref={courseDropdownRef}>
-                    <div
-                        className="w-auto min-w-[240px] max-w-[400px] h-16 px-6 rounded-2xl border-4 flex items-center justify-center gap-4 bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
-                        style={courseBoxStyle}
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    >
-                        <span className="text-3xl flex-shrink-0">{currentCourse.icon}</span>
-                        <span className="font-black text-sm md:text-base uppercase tracking-wider font-display truncate w-full text-left" title={currentCourse.title}>
-                            {currentCourse.title}
-                        </span>
-                        {/* Dropdown Indicator */}
-                        <div className="opacity-50 ml-2 flex-shrink-0">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M6 9l6 6 6-6" />
-                            </svg>
+            {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
+            <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
+                {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
+                <div className="flex items-center gap-4">
+                    {/* Course Info Box (Dropdown Enabled) */}
+                    <div className="relative" ref={courseDropdownRef}>
+                        <div
+                            className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+                            style={courseBoxStyle}
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        >
+                            <span className="text-4xl mb-1">{currentCourse.icon}</span>
+                            <span className="font-black text-sm uppercase tracking-wider font-display truncate max-w-[90px]">{currentCourse.title}</span>
+                            {/* Dropdown Indicator */}
+                            <div className="absolute top-2 right-2 opacity-50">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M6 9l6 6 6-6" />
+                                </svg>
+                            </div>
                         </div>
+
+                        {/* DROPDOWN MENU */}
+                        {isDropdownOpen && (
+                            <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                {Object.values(courses).map((course) => (
+                                    <div
+                                        key={course.id}
+                                        className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
+                                        onClick={() => handleCourseChange(course.id)}
+                                    >
+                                        <span className="text-2xl">{course.icon}</span>
+                                        <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
+                                            {course.title}
+                                        </span>
+                                        {activeCourseId === course.id && (
+                                            <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
-                    {/* DROPDOWN MENU */}
-                    {isDropdownOpen && (
-                        <div className="absolute top-[110%] left-0 w-full min-w-[240px] bg-white border-4 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                            {Object.values(courses).map((course) => (
-                                <div
-                                    key={course.id}
-                                    className={`flex items-center gap-4 px-6 py-4 cursor-pointer transition-colors hover:bg-gray-50 border-b-2 last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-indigo-50/50' : ''}`}
-                                    onClick={() => handleCourseChange(course.id)}
-                                >
-                                    <span className="text-2xl flex-shrink-0 grayscale-[0.2] group-hover:grayscale-0 transition-all">{course.icon}</span>
-                                    <span className={`font-black text-sm uppercase font-display truncate flex-1 ${activeCourseId === course.id ? 'text-indigo-900' : 'text-gray-500'}`} title={course.title}>
-                                        {course.title}
-                                    </span>
-                                    {activeCourseId === course.id && (
-                                        <div className="ml-auto w-2.5 h-2.5 rounded-full bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.5)]"></div>
-                                    )}
+                    {/* Unit Header (Left) */}
+                    <div
+                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
+                        style={{ backgroundColor: headerColor }}
+                    >
+                        <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
+
+                        <div className="relative z-10">
+                            <h2 className="text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display">{headerSubtitle}</h2>
+                            <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm truncate max-w-[280px]">{headerTitle}</h1>
+                        </div>
+
+                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-5 py-3 rounded-xl text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
+                            <span className="text-xl">📖</span> REHBER
+                        </button>
+                    </div>
+
+                    {/* Instructor Widget */}
+                    {currentCourse.instructor && (
+                        <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
+                            <div className="relative">
+                                <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
+                                    {currentCourse.instructor.avatar}
                                 </div>
-                            ))}
+                                {currentCourse.instructor.isOnline && (
+                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col justify-center">
+                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Eğitmen</span>
+                                <span className="text-lg font-black text-gray-800 font-display leading-none mb-1">{currentCourse.instructor.name}</span>
+                                <span className={`text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
+                                    {currentCourse.instructor.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
+                                    {currentCourse.instructor.status}
+                                </span>
+                            </div>
+
+                            <button className="w-10 h-10 ml-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
+                                <span className="text-xl">💬</span>
+                            </button>
                         </div>
                     )}
+
+                    {/* CLAN WIDGET */}
+                    <div
+                        ref={clanDropdownRef}
+                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700"
+                        onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
+                    >
+                        <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
+                            <Swords size={24} />
+                        </div>
+
+                        <div className="relative z-10">
+                            <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl shadow-md backdrop-blur-sm">
+                                🚀
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[140px]">
+                            <div className="flex items-center gap-2 mb-0.5">
+                                <span className="font-black text-lg font-display leading-none">Kod Korsanları</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-indigo-100 mb-1">
+                                <Users size={12} />
+                                <span className="text-[10px] font-bold uppercase tracking-wider">Lvl 5 Klan</span>
+                            </div>
+                        </div>
+
+                        <div className="h-12 w-px bg-white/20 relative z-10"></div>
+
+                        <div className="flex flex-col items-center justify-center relative z-10 text-white">
+                            <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
+                            <span className="text-xl font-black text-yellow-300 font-display leading-tight">24.5k</span>
+                        </div>
+
+                        {/* SQUAD MEMBER DROPDOWN */}
+                        {isClanDropdownOpen && (
+                            <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+                                    <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">Squad Üyeleri</span>
+                                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">4/5</span>
+                                </div>
+                                <div className="max-h-60 overflow-y-auto">
+                                    {squadMembers.map((member) => (
+                                        <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
+                                            <div className="relative">
+                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100" />
+                                                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-sm text-gray-800 leading-none mb-0.5">{member.name}</h4>
+                                                <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'in-class' ? 'Derste' : 'Çevrimdışı'}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="p-2 border-t border-indigo-50 bg-gray-50 text-center">
+                                    <button className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-wide">Tümünü Gör</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Right Column: Stats + Widgets */}
+                <div className="flex flex-col items-end relative z-50">
+                    <div className="flex flex-col gap-3 w-80">
+
+                        {/* REDESIGNED XP BAR (Dynamic values) */}
+                        <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
+                            <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
+
+                            <div className="flex items-center gap-3 relative z-10">
+                                <div
+                                    className="w-9 h-9 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform"
+                                    style={{ backgroundColor: currentCourse.themeColor === '#3b82f6' ? '#60a5fa' : '#facc15', borderColor: currentCourse.themeColor === '#3b82f6' ? '#3b82f6' : '#eab308', boxShadow: `0 2px 0 ${currentCourse.themeColor === '#3b82f6' ? '#2563eb' : '#ca8a04'}` }}
+                                >
+                                    <span className="text-sm font-black text-white">III</span>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Bronz Lig</span>
+                                    <span className="text-sm font-black text-gray-700 font-display">{(userData?.xp ?? 0)} XP</span>
+                                </div>
+                            </div>
+
+                            {/* Segmented Bar */}
+                            <div className="flex gap-1 relative z-10">
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
+                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
+                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    {/* Right Sidebar Widgets */}
+                    <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-80">
+                        {/* Daily Quest Widget */}
+                        <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
+                            <div className="flex justify-between items-center mb-5">
+                                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">Günlük Görevler</h3>
+                                <a href="#" className="font-bold text-xs text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg">TÜMÜ</a>
+                            </div>
+                            <div className="space-y-5">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">⚡</div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-bold text-gray-700 text-sm font-display">10 Puan kazan</span>
+                                            <span className="font-bold text-orange-500 text-xs">{(userData?.xp ?? 0) % 10}/10</span>
+                                        </div>
+                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                            <div 
+                                                className="h-full bg-orange-400 rounded-full shadow-sm"
+                                                style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
+                                            ></div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 rounded-2xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">🎯</div>
+                                    <div className="flex-1">
+                                        <div className="flex justify-between mb-1">
+                                            <span className="font-bold text-gray-700 text-sm font-display">Hatasız ders</span>
+                                            <span className="font-bold text-gray-400 text-xs">0/1</span>
+                                        </div>
+                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                            <div className="h-full bg-green-500 w-0 rounded-full"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
