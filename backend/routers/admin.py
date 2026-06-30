@@ -46,6 +46,9 @@ class UpdateUserRequest(BaseModel):
     streak: Optional[int] = None
     xp: Optional[int] = None
 
+class EnrollUserRequest(BaseModel):
+    course_id: int
+
 class CreateCourseRequest(BaseModel):
     teacher_id: int
     title: str
@@ -104,9 +107,13 @@ async def get_users(
 ):
     verify_admin(user_info)
     
-    # Get students
-    students_res = await db.execute(select(Student))
-    students = students_res.scalars().all()
+    # Get students with eager loaded enrollments
+    students_res = await db.execute(
+        select(Student).options(
+            joinedload(Student.enrollments).joinedload(Enrollment.course)
+        )
+    )
+    students = students_res.unique().scalars().all()
     
     # Get teachers
     teachers_res = await db.execute(select(Teacher))
@@ -115,6 +122,13 @@ async def get_users(
     users_list = []
     for s in students:
         is_admin = s.email.lower() == settings.ADMIN_EMAIL.lower()
+        enrolled_courses = []
+        for enroll in s.enrollments:
+            if enroll.course:
+                enrolled_courses.append({
+                    "id": enroll.course.id,
+                    "title": enroll.course.title
+                })
         users_list.append({
             "id": s.id,
             "first_name": s.first_name,
@@ -128,6 +142,7 @@ async def get_users(
             "hearts": s.hearts,
             "streak": s.streak,
             "xp": s.xp,
+            "enrolled_courses": enrolled_courses,
             "created_at": s.created_at.isoformat() if s.created_at else None
         })
         
@@ -293,6 +308,65 @@ async def delete_user(
         return {"message": "Öğretmen hesabı silindi."}
     else:
         raise HTTPException(status_code=400, detail="Geçersiz rol.")
+
+
+@router.post("/users/student/{student_id}/enroll")
+async def enroll_student(
+    student_id: int,
+    req: EnrollUserRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    verify_admin(user_info)
+    
+    student = await db.get(Student, student_id)
+    if not student:
+        raise HTTPException(status_code=404, detail="Öğrenci bulunamadı.")
+        
+    course = await db.get(Course, req.course_id)
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+        
+    dup_res = await db.execute(
+        select(Enrollment).where(
+            Enrollment.student_id == student_id,
+            Enrollment.course_id == req.course_id
+        )
+    )
+    if dup_res.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="Öğrenci zaten bu kursa kayıtlı.")
+        
+    new_enroll = Enrollment(
+        student_id=student_id,
+        course_id=req.course_id
+    )
+    db.add(new_enroll)
+    await db.commit()
+    return {"message": "Kursa atama başarıyla yapıldı."}
+
+
+@router.delete("/users/student/{student_id}/enroll/{course_id}")
+async def unenroll_student(
+    student_id: int,
+    course_id: int,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    verify_admin(user_info)
+    
+    enroll_res = await db.execute(
+        select(Enrollment).where(
+            Enrollment.student_id == student_id,
+            Enrollment.course_id == course_id
+        )
+    )
+    enroll = enroll_res.scalar_one_or_none()
+    if not enroll:
+        raise HTTPException(status_code=404, detail="Atama kaydı bulunamadı.")
+        
+    await db.delete(enroll)
+    await db.commit()
+    return {"message": "Kurs ataması kaldırıldı."}
 
 
 # --- Endpoints: Courses ---
