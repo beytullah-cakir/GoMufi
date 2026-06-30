@@ -226,7 +226,7 @@ async def update_user(
 ):
     verify_admin(user_info)
     
-    if role == "student":
+    if role in ["student", "admin"]:
         res = await db.execute(select(Student).where(Student.id == user_id))
         student = res.scalar_one_or_none()
         if not student:
@@ -276,7 +276,7 @@ async def delete_user(
 ):
     verify_admin(user_info)
     
-    if role == "student":
+    if role in ["student", "admin"]:
         res = await db.execute(select(Student).where(Student.id == user_id))
         student = res.scalar_one_or_none()
         if not student:
