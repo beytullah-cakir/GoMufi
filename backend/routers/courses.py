@@ -79,11 +79,14 @@ async def read_my_content(
     user_id = int(user_info["sub"])
     role = user_info["role"]
 
-    if role == "admin":
-        result = await db.execute(
+    if role in ["student", "admin"]:
+        stmt = (
             select(Course)
+            .join(Enrollment, Enrollment.course_id == Course.id)
+            .where(Enrollment.student_id == user_id)
             .options(joinedload(Course.teacher), joinedload(Course.enrollments))
         )
+        result = await db.execute(stmt)
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
@@ -94,18 +97,6 @@ async def read_my_content(
             .where(Course.teacher_id == user_id)
             .options(joinedload(Course.teacher), joinedload(Course.enrollments))
         )
-        courses = result.unique().scalars().all()
-        for course in courses:
-            course.students_count = len(course.enrollments)
-        return courses
-    elif role == "student":
-        stmt = (
-            select(Course)
-            .join(Enrollment, Enrollment.course_id == Course.id)
-            .where(Enrollment.student_id == user_id)
-            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
-        )
-        result = await db.execute(stmt)
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
