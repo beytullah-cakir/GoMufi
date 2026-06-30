@@ -22,7 +22,7 @@ interface UserItem {
   last_name: string;
   email: string;
   nickname: string;
-  role: "student" | "teacher";
+  role: "student" | "teacher" | "admin";
   grade_level?: string;
   education_level?: string;
   gems?: number;
@@ -101,7 +101,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
     email: "",
     nickname: "",
     password: "",
-    role: "student" as "student" | "teacher",
+    role: "student" as "student" | "teacher" | "admin",
     grade_level: "5. Sınıf",
     education_level: "ortaokul",
     expertises: "",
@@ -533,23 +533,30 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                     {filteredUsers.map(u => (
                       <tr key={`${u.role}-${u.id}`} className="hover:bg-gray-50/50 transition-colors">
                         <td className="p-5 flex items-center gap-3">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm ${u.role === 'teacher' ? 'bg-purple-500' : 'bg-sky-500'}`}>
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-white font-black text-sm ${
+                            u.role === 'admin' ? 'bg-red-500' : u.role === 'teacher' ? 'bg-purple-500' : 'bg-sky-500'
+                          }`}>
                             {u.first_name[0]}{u.last_name[0]}
                           </div>
                           <div>
                             <span className="block font-bold text-gray-800">{u.first_name} {u.last_name}</span>
-                            <span className="text-[10px] text-gray-400 font-bold uppercase">{u.role === 'teacher' ? 'Öğretmen' : 'Öğrenci'}</span>
+                            <span className="text-[10px] text-gray-400 font-bold uppercase">
+                              {u.role === 'admin' ? 'Yönetici' : u.role === 'teacher' ? 'Öğretmen' : 'Öğrenci'}
+                            </span>
                           </div>
                         </td>
                         <td className="p-5 font-mono text-xs text-gray-500">{u.email}</td>
                         <td className="p-5 font-bold text-sky-600">@{u.nickname || "yok"}</td>
                         <td className="p-5">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${u.role === 'teacher' ? 'bg-purple-50 text-purple-600' : 'bg-sky-50 text-sky-600'}`}>
-                            {u.role}
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-black uppercase ${
+                            u.role === 'admin' ? 'bg-red-50 text-red-600 border border-red-200' : 
+                            u.role === 'teacher' ? 'bg-purple-50 text-purple-600' : 'bg-sky-50 text-sky-600'
+                          }`}>
+                            {u.role === 'admin' ? 'yönetici' : u.role === 'teacher' ? 'eğitmen' : 'öğrenci'}
                           </span>
                         </td>
                         <td className="p-5">
-                          {u.role === 'student' ? (
+                          {u.role === 'student' || u.role === 'admin' ? (
                             <span className="text-xs text-gray-500">
                               ⚡ {u.xp || 0} XP • 💎 {u.gems || 0} • ❤️ {u.hearts ?? 5} Can • 🔥 {u.streak || 0} Seri
                             </span>

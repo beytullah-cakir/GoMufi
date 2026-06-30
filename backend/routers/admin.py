@@ -11,6 +11,7 @@ from models.course import Course
 from models.quiz import Quiz
 from models.enrollment import Enrollment
 from core.security import hash_password
+from core.config import settings
 from pydantic import BaseModel
 from typing import List, Optional, Any
 
@@ -113,13 +114,14 @@ async def get_users(
     
     users_list = []
     for s in students:
+        is_admin = s.email.lower() == settings.ADMIN_EMAIL.lower()
         users_list.append({
             "id": s.id,
             "first_name": s.first_name,
             "last_name": s.last_name,
             "email": s.email,
             "nickname": s.nickname,
-            "role": "student",
+            "role": "admin" if is_admin else "student",
             "grade_level": s.grade_level,
             "education_level": s.education_level,
             "gems": s.gems,
