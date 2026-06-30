@@ -58,6 +58,10 @@ const ParentApp: React.FC = () => {
                     api.get('/profile'),
                     api.get('/profile/parent/teachers')
                 ]);
+                if (profileRes.data?.role === 'admin') {
+                    window.location.href = '/admin';
+                    return;
+                }
                 setUserData(profileRes.data);
                 setTeachersData(teachersRes.data);
                 setError(null);
