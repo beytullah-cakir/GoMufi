@@ -106,6 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   userData,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const themeColor = role === "parent" ? "purple" : "sky";
 
   const handleLogout = async () => {
@@ -169,36 +170,75 @@ const Sidebar: React.FC<SidebarProps> = ({
     >
       {/* Logo Area */}
       <div
-        className={`p-6 mb-2 flex items-center ${
-          isCollapsed ? "justify-center" : "gap-3"
-        } cursor-pointer hover:scale-105 transition-transform duration-300`}
-        onClick={() => onNavigate(role === "student" ? "Ana Sayfa" : "Dashboard")}
+        className={`p-6 mb-2 flex flex-col relative cursor-pointer select-none`}
       >
-        <div
-          className={`flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 shadow-sm transition-all duration-300 overflow-hidden ${getLogoBorderColor()}`}
-          style={{
-            width: isCollapsed ? "56px" : "72px",
-            height: isCollapsed ? "56px" : "72px",
+        <div 
+          className="flex items-center gap-3 hover:scale-105 transition-transform duration-300"
+          onClick={() => {
+            if (role === "admin" || userData?.role === "admin") {
+              setIsAdminMenuOpen(!isAdminMenuOpen);
+            } else {
+              onNavigate(role === "student" ? "Ana Sayfa" : "Dashboard");
+            }
           }}
         >
-          <img
-            src={MufiLogo}
-            alt="GoMufi Logo"
-            className="w-full h-full object-contain scale-110"
-          />
-        </div>
-        {!isCollapsed && (
-          <div className="ml-1 flex flex-col justify-center">
+          <div
+            className={`flex-shrink-0 bg-white rounded-2xl flex items-center justify-center border-b-4 shadow-sm transition-all duration-300 overflow-hidden ${getLogoBorderColor()}`}
+            style={{
+              width: isCollapsed ? "56px" : "72px",
+              height: isCollapsed ? "56px" : "72px",
+            }}
+          >
             <img
-              src={GoMufiLogo_Final}
-              alt="GoMufi"
-              className="h-16 object-contain -ml-2"
+              src={MufiLogo}
+              alt="GoMufi Logo"
+              className="w-full h-full object-contain scale-110"
             />
-            <span
-              className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md self-start -mt-3 ${getBadgeClass()}`}
-            >
-              {getBadgeText()}
+          </div>
+          {!isCollapsed && (
+            <div className="ml-1 flex flex-col justify-center">
+              <img
+                src={GoMufiLogo_Final}
+                alt="GoMufi"
+                className="h-16 object-contain -ml-2"
+              />
+              <span
+                className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-md self-start -mt-3 flex items-center gap-1 ${getBadgeClass()}`}
+              >
+                {getBadgeText()} {(role === "admin" || userData?.role === "admin") && <span className="text-[8px] animate-pulse">▼</span>}
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Floating Admin ComboBox / Panel Selector */}
+        {isAdminMenuOpen && (role === "admin" || userData?.role === "admin") && (
+          <div className="absolute top-[85px] left-4 right-4 bg-white border-2 border-gray-200 rounded-[1.5rem] shadow-2xl z-[9999] py-3 animate-in zoom-in-95 duration-100 font-sans border-b-4">
+            <span className="block px-4 py-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1">
+              PANEL SEÇİMİ
             </span>
+            {[
+              { label: "🎒 Öğrenci Paneli", path: "/student" },
+              { label: "👨‍🏫 Eğitmen Paneli", path: "/instructor" },
+              { label: "👨‍👩‍👧‍👦 Ebeveyn Paneli", path: "/parent" },
+              { label: "🛡️ Yönetici Paneli", path: "/admin" }
+            ].map(panel => (
+              <button
+                key={panel.path}
+                type="button"
+                onClick={() => {
+                  setIsAdminMenuOpen(false);
+                  window.location.href = panel.path;
+                }}
+                className={`w-full text-left px-4 py-2.5 font-black text-[11px] uppercase tracking-wider transition-all duration-75 block
+                  ${window.location.pathname.startsWith(panel.path)
+                    ? "bg-sky-100 text-sky-600 border-l-4 border-sky-400"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                  }`}
+              >
+                {panel.label}
+              </button>
+            ))}
           </div>
         )}
       </div>
