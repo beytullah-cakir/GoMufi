@@ -32,6 +32,7 @@ interface UserItem {
   expertises?: string;
   bio?: string;
   created_at?: string;
+  enrolled_courses?: { id: number; title: string }[];
 }
 
 interface CourseItem {
@@ -94,6 +95,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
   const [quizModalOpen, setQuizModalOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<QuizItem | null>(null);
 
+  // Course Enrollment states
+  const [enrollModalOpen, setEnrollModalOpen] = useState(false);
+  const [selectedUserForEnroll, setSelectedUserForEnroll] = useState<UserItem | null>(null);
+  const [selectedCourseToAssign, setSelectedCourseToAssign] = useState<number | string>("");
+
   // Form states
   const [userForm, setUserForm] = useState({
     first_name: "",
@@ -139,8 +145,12 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
     setLoading(true);
     try {
       if (activeTab === "users") {
-        const res = await api.get("/admin/users");
-        setUsers(res.data);
+        const [usersRes, coursesRes] = await Promise.all([
+          api.get("/admin/users"),
+          api.get("/admin/courses")
+        ]);
+        setUsers(usersRes.data);
+        setCourses(coursesRes.data);
       } else if (activeTab === "courses") {
         const res = await api.get("/admin/courses");
         setCourses(res.data);
@@ -210,6 +220,59 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       loadData();
     } catch (err: any) {
       alert(err.response?.data?.detail || "Silme başarısız.");
+    }
+  };
+
+  const handleAssignCourse = async (studentId: number, courseId: number) => {
+    if (!courseId) return;
+    try {
+      await api.post(`/admin/users/student/${studentId}/enroll`, { course_id: courseId });
+      alert("Kurs ataması başarıyla yapıldı.");
+      
+      const updatedUsers = users.map(u => {
+        if (u.id === studentId && u.role === 'student') {
+          const targetCourse = courses.find(c => c.id === courseId);
+          const enrolled = u.enrolled_courses || [];
+          return {
+            ...u,
+            enrolled_courses: [...enrolled, { id: courseId, title: targetCourse ? targetCourse.title : "Yeni Kurs" }]
+          };
+        }
+        return u;
+      });
+      setUsers(updatedUsers);
+      
+      const targetUser = updatedUsers.find(u => u.id === studentId);
+      if (targetUser) setSelectedUserForEnroll(targetUser);
+      
+      setSelectedCourseToAssign("");
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Atama başarısız.");
+    }
+  };
+
+  const handleRemoveEnrollment = async (studentId: number, courseId: number) => {
+    if (!window.confirm("Bu öğrencinin kurs atamasını kaldırmak istediğinize emin misiniz?")) return;
+    try {
+      await api.delete(`/admin/users/student/${studentId}/enroll/${courseId}`);
+      alert("Atama kaldırıldı.");
+      
+      const updatedUsers = users.map(u => {
+        if (u.id === studentId && u.role === 'student') {
+          const enrolled = u.enrolled_courses || [];
+          return {
+            ...u,
+            enrolled_courses: enrolled.filter((c: any) => c.id !== courseId)
+          };
+        }
+        return u;
+      });
+      setUsers(updatedUsers);
+      
+      const targetUser = updatedUsers.find(u => u.id === studentId);
+      if (targetUser) setSelectedUserForEnroll(targetUser);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || "Kaldırma başarısız.");
     }
   };
 
@@ -557,9 +620,22 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                         </td>
                         <td className="p-5">
                           {u.role === 'student' || u.role === 'admin' ? (
-                            <span className="text-xs text-gray-500">
-                              ⚡ {u.xp || 0} XP • 💎 {u.gems || 0} • ❤️ {u.hearts ?? 5} Can • 🔥 {u.streak || 0} Seri
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              <span className="text-xs text-gray-500">
+                                ⚡ {u.xp || 0} XP • 💎 {u.gems || 0} • ❤️ {u.hearts ?? 5} Can • 🔥 {u.streak || 0} Seri
+                              </span>
+                              {u.enrolled_courses && u.enrolled_courses.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {u.enrolled_courses.map(ec => (
+                                    <span key={ec.id} className="text-[10px] bg-green-50 text-green-700 font-bold px-1.5 py-0.5 rounded-md border border-green-200">
+                                      📚 {ec.title}
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                u.role === 'student' && <span className="text-[10px] text-gray-400 font-bold italic">Kayıtlı Kurs Yok</span>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-xs text-gray-500 truncate max-w-[200px] block">
                               📚 {u.expertises || "Uzmanlık Yok"}
@@ -567,6 +643,19 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                           )}
                         </td>
                         <td className="p-5 text-right flex items-center justify-end gap-2">
+                          {u.role === 'student' && (
+                            <button 
+                              onClick={() => {
+                                setSelectedUserForEnroll(u);
+                                setEnrollModalOpen(true);
+                                setSelectedCourseToAssign("");
+                              }} 
+                              title="Kurs Atamalarını Yönet"
+                              className="p-2 text-gray-500 hover:text-green-600 bg-gray-50 hover:bg-green-50 rounded-xl transition-all"
+                            >
+                              <BookOpen size={16} />
+                            </button>
+                          )}
                           <button onClick={() => handleEditUser(u)} className="p-2 text-gray-500 hover:text-sky-500 bg-gray-50 hover:bg-sky-50 rounded-xl transition-all"><Edit size={16} /></button>
                           {u.email !== 'admin@gomufi.com' && (
                             <button onClick={() => handleDeleteUser(u)} className="p-2 text-gray-500 hover:text-red-500 bg-gray-50 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={16} /></button>
@@ -1073,6 +1162,92 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                 <Save size={18} /> KAYDET
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL 4: COURSE ENROLLMENT MANAGEMENT --- */}
+      {enrollModalOpen && selectedUserForEnroll && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[999] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] max-w-lg w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200 overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-4 mb-6">
+              <div className="flex items-center gap-2">
+                <div className="bg-green-500 text-white p-2 rounded-xl flex items-center justify-center">
+                  <BookOpen size={20} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-gray-800 font-display">Kurs Atamalarını Yönet</h3>
+                  <p className="text-xs text-gray-500 font-bold">{selectedUserForEnroll.first_name} {selectedUserForEnroll.last_name}</p>
+                </div>
+              </div>
+              <button onClick={() => setEnrollModalOpen(false)} className="text-gray-400 hover:text-gray-600"><X size={24} /></button>
+            </div>
+
+            {/* Assign Course Form */}
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100 mb-6">
+              <label className="block text-[10px] font-black uppercase text-gray-400 mb-2">Yeni Kurs Ata</label>
+              <div className="flex gap-2">
+                <select
+                  value={selectedCourseToAssign}
+                  onChange={(e) => setSelectedCourseToAssign(e.target.value)}
+                  className="flex-1 p-3 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-green-400 font-bold text-gray-700 text-sm"
+                >
+                  <option value="">Atanacak Kurs Seçin...</option>
+                  {courses
+                    .filter((c: any) => !selectedUserForEnroll.enrolled_courses?.some((ec: any) => ec.id === c.id))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.title}</option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => handleAssignCourse(selectedUserForEnroll.id, Number(selectedCourseToAssign))}
+                  disabled={!selectedCourseToAssign}
+                  className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-black px-5 py-3 rounded-xl transition-all shadow-[0_4px_0_rgb(21,128,61)] active:shadow-none active:translate-y-[4px] text-xs"
+                >
+                  Kursa Ata
+                </button>
+              </div>
+            </div>
+
+            {/* Enrolled Courses List */}
+            <div>
+              <label className="block text-[10px] font-black uppercase text-gray-400 mb-2">Kayıtlı Olduğu Kurslar</label>
+              <div className="space-y-2">
+                {selectedUserForEnroll.enrolled_courses && selectedUserForEnroll.enrolled_courses.length > 0 ? (
+                  selectedUserForEnroll.enrolled_courses.map((ec: any) => (
+                    <div key={ec.id} className="flex items-center justify-between p-3.5 bg-white border-2 border-gray-100 hover:border-green-300 rounded-2xl transition-all">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">📚</span>
+                        <span className="font-bold text-gray-700 text-sm">{ec.title}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveEnrollment(selectedUserForEnroll.id, ec.id)}
+                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
+                        title="Atamayı Kaldır"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400 font-bold text-xs italic bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+                    Öğrenciye tanımlı herhangi bir kurs bulunmamaktadır.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-8">
+              <button
+                type="button"
+                onClick={() => setEnrollModalOpen(false)}
+                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-700 font-black py-3 rounded-xl text-sm"
+              >
+                KAPAT
+              </button>
+            </div>
           </div>
         </div>
       )}
