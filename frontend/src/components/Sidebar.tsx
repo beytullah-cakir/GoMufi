@@ -91,7 +91,7 @@ const NavItem: React.FC<NavItemProps> = ({
 };
 
 interface SidebarProps {
-  role: "student" | "instructor" | "parent";
+  role: "student" | "instructor" | "parent" | "admin";
   activePage: string;
   onNavigate: (id: string) => void;
   items: SidebarItem[];
@@ -129,6 +129,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         return "border-sky-300";
       case "parent":
         return "border-purple-300";
+      case "admin":
+        return "border-red-400 bg-red-50";
       default:
         return "border-gray-300";
     }
@@ -142,12 +144,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         return "Eğitmen";
       case "parent":
         return "Ebeveyn";
+      case "admin":
+        return "Yönetici";
       default:
         return "";
     }
   };
 
   const getBadgeClass = () => {
+    if (role === "admin") {
+      return "text-red-500 bg-red-50";
+    }
     return themeColor === "purple"
       ? "text-purple-500 bg-purple-100"
       : "text-sky-500 bg-sky-100";

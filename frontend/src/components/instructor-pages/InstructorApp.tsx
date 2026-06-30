@@ -49,6 +49,10 @@ const InstructorApp: React.FC = () => {
                 api.get("/teacher/content"),
                 api.get("/teacher/students")
             ]);
+            if (profileRes.data?.role === 'admin') {
+                window.location.href = '/admin';
+                return;
+            }
             setUserData(profileRes.data);
             setCoursesData(coursesRes.data);
             setStudentsData(studentsRes.data);

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User, ShieldAlert } from 'lucide-react';
+import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User } from 'lucide-react';
 import api from '../../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
@@ -10,7 +10,6 @@ import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
 import StudentPayment from './StudentPayment';
 import CourseDetailPage from './CourseDetailPage';
-import AdminPanel from '../admin-pages/AdminPanel';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
 
 
@@ -319,8 +318,7 @@ function StudentApp() {
         'Profilim': '/student/profile',
         'PROFILIM': '/student/profile',
         'Sepetim': '/student/cart',
-        'Ödeme': '/student/cart',
-        'Admin': '/student/admin'
+        'Ödeme': '/student/cart'
     };
 
     const pathToPage: Record<string, string> = {
@@ -329,8 +327,7 @@ function StudentApp() {
         '/student/catalog': 'Kurslar',
         '/student/ask': 'Soru Sor!',
         '/student/profile': 'Profilim',
-        '/student/cart': 'Sepetim',
-        '/student/admin': 'Admin'
+        '/student/cart': 'Sepetim'
     };
 
     // Effect to sync URL -> State (Handle browser back/forward and initial load)
@@ -403,6 +400,10 @@ function StudentApp() {
                 ]);
 
                 // Handle Profile Data
+                if (profileRes.data?.role === 'admin') {
+                    window.location.href = '/admin';
+                    return;
+                }
                 setUserData(profileRes.data);
 
                 // Handle Course Content Data
@@ -519,10 +520,6 @@ function StudentApp() {
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
-    if (userData?.role === 'admin') {
-        navItems.push({ id: 'Admin', label: 'Admin Paneli', icon: ShieldAlert });
-    }
-
     if (isUserDataLoading) {
         return (
             <div className="min-h-screen bg-white flex flex-col items-center justify-center font-display">
@@ -604,8 +601,6 @@ function StudentApp() {
                             onBack={() => setActivePage('Kurslar')}
                             onPurchaseComplete={completePurchase}
                         />
-                    ) : activePage === 'Admin' ? (
-                        <AdminPanel />
                     ) : (
                         <div className="p-8">
                             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>

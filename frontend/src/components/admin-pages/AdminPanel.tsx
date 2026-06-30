@@ -62,8 +62,16 @@ interface QuizItem {
   question_type: string;
 }
 
-const AdminPanel: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<"users" | "courses" | "quizzes">("users");
+interface AdminPanelProps {
+  initialTab?: "users" | "courses" | "quizzes";
+}
+
+const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
+  const [activeTab, setActiveTab] = useState<"users" | "courses" | "quizzes">(initialTab);
+
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab]);
   
   // Data lists
   const [users, setUsers] = useState<UserItem[]>([]);
