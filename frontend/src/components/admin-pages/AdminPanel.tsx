@@ -243,7 +243,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       setUsers(updatedUsers);
       
       const targetUser = updatedUsers.find(u => u.id === studentId);
-      if (targetUser) setSelectedUserForEnroll(targetUser);
+      if (targetUser) {
+        setSelectedUserForEnroll(targetUser);
+        setEditingUser(prev => prev && prev.id === studentId ? targetUser : prev);
+      }
       
       setSelectedCourseToAssign("");
     } catch (err: any) {
@@ -270,7 +273,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       setUsers(updatedUsers);
       
       const targetUser = updatedUsers.find(u => u.id === studentId);
-      if (targetUser) setSelectedUserForEnroll(targetUser);
+      if (targetUser) {
+        setSelectedUserForEnroll(targetUser);
+        setEditingUser(prev => prev && prev.id === studentId ? targetUser : prev);
+      }
     } catch (err: any) {
       alert(err.response?.data?.detail || "Kaldırma başarısız.");
     }
@@ -853,7 +859,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                 </div>
               )}
 
-              {userForm.role === "student" ? (
+              {userForm.role === "student" || userForm.role === "admin" ? (
                 <>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
@@ -901,6 +907,57 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                       <input type="number" value={userForm.streak} onChange={(e) => setUserForm({...userForm, streak: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center" />
                     </div>
                   </div>
+
+                  {/* Course Enrollment Section inside Edit User Modal */}
+                  {editingUser && (
+                    <div className="border-t border-gray-100 pt-4 mt-4">
+                      <label className="block text-xs font-black uppercase text-gray-400 mb-2 font-display">Kayıtlı Olduğu Kurslar & Yeni Atama</label>
+                      
+                      {/* Assign new course */}
+                      <div className="flex gap-2 mb-3">
+                        <select
+                          value={selectedCourseToAssign}
+                          onChange={(e) => setSelectedCourseToAssign(e.target.value)}
+                          className="flex-1 p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-400 font-bold text-gray-700 text-xs"
+                        >
+                          <option value="">Ataılacak Kurs Seçin...</option>
+                          {courses
+                            .filter((c: any) => !editingUser.enrolled_courses?.some((ec: any) => ec.id === c.id))
+                            .map((c: any) => (
+                              <option key={c.id} value={c.id}>{c.title}</option>
+                            ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => handleAssignCourse(editingUser.id, Number(selectedCourseToAssign))}
+                          disabled={!selectedCourseToAssign}
+                          className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-black px-4 py-2 rounded-xl transition-all shadow-[0_3px_0_rgb(21,128,61)] active:shadow-none active:translate-y-[3px] text-xs"
+                        >
+                          Kursa Ata
+                        </button>
+                      </div>
+
+                      {/* Enrolled list with delete buttons */}
+                      <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto no-scrollbar">
+                        {editingUser.enrolled_courses && editingUser.enrolled_courses.length > 0 ? (
+                          editingUser.enrolled_courses.map((ec: any) => (
+                            <span key={ec.id} className="text-xs bg-green-50 text-green-700 font-bold pl-3 pr-1 py-1 rounded-xl border border-green-200 flex items-center gap-1.5 animate-in fade-in duration-100">
+                              📚 {ec.title}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveEnrollment(editingUser.id, ec.id)}
+                                className="p-1 hover:bg-red-50 rounded-full hover:text-red-500 transition-colors"
+                              >
+                                <X size={12} />
+                              </button>
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-xs text-gray-400 font-bold italic">Kayıtlı kurs bulunmamaktadır.</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </>
               ) : (
                 <>
