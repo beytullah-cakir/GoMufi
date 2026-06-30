@@ -400,10 +400,6 @@ function StudentApp() {
                 ]);
 
                 // Handle Profile Data
-                if (profileRes.data?.role === 'admin') {
-                    window.location.href = '/admin';
-                    return;
-                }
                 setUserData(profileRes.data);
 
                 // Handle Course Content Data
