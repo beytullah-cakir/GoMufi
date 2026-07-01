@@ -334,7 +334,58 @@ const Toolbar: React.FC<ToolbarProps> = ({
                             </div>
                         ))}
 
-                        {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && (
+                        {activeStage === 'ÜRET' && [
+                            { 
+                                id: 'production_task', 
+                                name: 'Proje Görevi (Üret)', 
+                                desc: 'Öğrencinin belirlenen yönergelere göre özgün bir proje üretmesini isteyin.', 
+                                type: 'production_task', 
+                                icon: PenTool, 
+                                extra: { 
+                                    content: 'Student Management System oluştur. İçinde en az 2 Class ve 3 Method bulunmalı.', 
+                                    extra: { 
+                                        title: 'Proje Görevi (Produce Task)',
+                                        projectTitle: 'Student Management System',
+                                        expectedOutput: 'İçinde en az 2 Class ve 3 Method bulunmalı.',
+                                        estimatedTime: '20 dk',
+                                        hints: 'İpucu: Sınıf yapısını kurarken inheritances yapısına dikkat et.',
+                                        isSubmitted: false
+                                    } 
+                                } 
+                            }
+                        ].map(widget => (
+                            <div
+                                key={widget.id}
+                                draggable
+                                onDragStart={(e) => {
+                                    onDragStart(e, widget.type, widget.extra);
+                                }}
+                                className="bg-gray-50/70 hover:bg-white p-3.5 rounded-2xl border border-gray-100 hover:border-amber-200 hover:ring-4 hover:ring-amber-500/5 cursor-grab active:cursor-grabbing transition-all duration-200 hover:scale-[1.01] hover:shadow-md flex flex-col gap-2.5 group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-amber-100/70 text-amber-600 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
+                                        <widget.icon className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-extrabold text-gray-800 text-xs tracking-tight group-hover:text-amber-700 transition-colors">{widget.name}</div>
+                                        <div className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">{widget.desc}</div>
+                                    </div>
+                                </div>
+
+                                {widget.type === 'production_task' && (
+                                    <div className="bg-amber-50/40 border border-amber-200 p-2.5 rounded-xl text-[9px] font-sans text-left overflow-hidden h-[60px] select-none pointer-events-none relative shadow-inner flex flex-col justify-between">
+                                        <div className="flex items-center gap-1.5 text-amber-600 border-b border-amber-100/50 pb-1 mb-1">
+                                            <PenTool className="w-3.5 h-3.5" />
+                                            <span className="text-[8px] font-black uppercase tracking-wider">Proje Görevi (Üret)</span>
+                                        </div>
+                                        <div className="text-[7.5px] font-bold text-slate-700 truncate leading-normal">SMS Projesi / 20 dk</div>
+                                        <div className="text-[7px] text-slate-400 border border-slate-200 bg-white rounded-md p-1 truncate">Metin, Kod veya Dosya</div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && (
                             <div className="flex flex-col items-center justify-center py-12 px-5 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/40 text-center animate-in fade-in duration-300">
                                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-inner transition-colors duration-300" style={{ backgroundColor: `${stageColor}15`, color: stageColor }}>
                                     <Blocks className="w-6 h-6 animate-pulse" />

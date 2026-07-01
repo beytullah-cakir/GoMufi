@@ -17,7 +17,7 @@ export interface ElementStyle {
 
 export interface SlideElement {
     id: string;
-    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow' | 'whiteboard' | 'file' | 'link' | 'speaking_note' | 'code_editor' | 'answer_box' | 'challenge' | 'connection_task';
+    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow' | 'whiteboard' | 'file' | 'link' | 'speaking_note' | 'code_editor' | 'answer_box' | 'challenge' | 'connection_task' | 'production_task';
     shapeType?: 'rectangle' | 'circle';
     x: number;
     y: number;
