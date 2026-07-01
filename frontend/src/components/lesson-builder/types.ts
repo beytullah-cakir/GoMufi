@@ -17,7 +17,7 @@ export interface ElementStyle {
 
 export interface SlideElement {
     id: string;
-    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow';
+    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow' | 'whiteboard' | 'file' | 'link' | 'speaking_note' | 'code_editor' | 'answer_box' | 'challenge' | 'connection_task';
     shapeType?: 'rectangle' | 'circle';
     x: number;
     y: number;
@@ -29,6 +29,7 @@ export interface SlideElement {
     imageUrl?: string;
     videoUrl?: string;
     style?: ElementStyle;
+    extra?: any;
     // New Config for Widgets
     codeConfig?: {
         language?: 'python' | 'javascript' | 'typescript' | 'cpp';

@@ -231,7 +231,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const addSection = () => {
     setSections([
       ...sections,
-      { id: `sec_${Date.now()}`, title: "", lectures: [] },
+      { id: `sec_${Date.now()}`, title: `Ders ${sections.length + 1}`, lectures: [] },
     ]);
   };
 
@@ -242,11 +242,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   };
 
   const removeSection = (id: string) => {
-    if (
-      confirm(
-        "Bu bölümü ve içindeki dersleri silmek istediğinize emin misiniz?",
-      )
-    ) {
+    if (confirm("Bu seviyeyi silmek istediğinize emin misiniz?")) {
       setSections(sections.filter((s) => s.id !== id));
     }
   };
@@ -310,19 +306,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       return;
     }
 
-    // Only validate sections if they are expected (not for builder-managed content)
-    const isBuilderContent =
-      initialData?.curriculum && !Array.isArray(initialData.curriculum);
-
-    if (
-      !isBuilderContent &&
-      (!sections ||
-        sections.length === 0 ||
-        sections.every((s) => !s.title?.trim()))
-    ) {
-      alert("Lütfen en az bir ders (bölüm) başlığı giriniz.");
-      return;
-    }
+    // Curriculum will be edited in the dedicated roadmap builder page
 
     const category = categories.find((c) => c.id === selectedCategory);
 
@@ -416,17 +400,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
           >
             <Calendar size={18} />
             Ders Saatleri
-          </button>
-          <button
-            onClick={() => setActiveTab("curriculum")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "curriculum"
-                ? "border-sky-500 text-sky-600"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
-          >
-            <Layers size={18} />
-            Müfredat
           </button>
         </div>
 
@@ -812,117 +785,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                 </div>
               </div>
             )}
-
-            {/* CURRICULUM TAB */}
-            {activeTab === "curriculum" && (
-              <div className="space-y-6 animate-fade-in pb-20">
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="text-lg font-black text-gray-800">
-                    Ders Programı
-                  </h4>
-                  <button
-                    type="button"
-                    onClick={addSection}
-                    className="bg-gray-800 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-gray-700 transition-colors flex items-center gap-2"
-                  >
-                    <Plus size={16} /> Yeni Bölüm Ekle
-                  </button>
-                </div>
-
-                {sections.map((section, sIdx) => (
-                  <div
-                    key={section.id}
-                    className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden"
-                  >
-                    {/* Section Header */}
-                    <div className="bg-gray-50 p-4 border-b border-gray-200 flex items-center gap-3">
-                      <span className="font-bold text-gray-400 text-sm">
-                        Bölüm {sIdx + 1}:
-                      </span>
-                      <div className="flex-1 flex gap-2">
-                        <input
-                          type="text"
-                          value={section.title}
-                          onChange={(e) =>
-                            updateSectionTitle(section.id, e.target.value)
-                          }
-                          placeholder="Bölüm Başlığı (Örn: Giriş)"
-                          className="flex-1 px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-bold text-gray-800 focus:outline-none focus:border-sky-400"
-                        />
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => removeSection(section.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-
-                    {/* Lectures */}
-                    <div className="p-4 space-y-3">
-                      {section.lectures?.map((lecture, lIdx) => (
-                        <div
-                          key={lecture.id}
-                          className="flex items-center gap-3 pl-4 border-l-2 border-gray-100"
-                        >
-                          <span className="text-xs font-bold text-gray-300 w-6">
-                            {lIdx + 1}.
-                          </span>
-                          <div className="flex-1 flex gap-3">
-                            <input
-                              type="text"
-                              value={lecture.title}
-                              onChange={(e) =>
-                                updateLecture(
-                                  section.id,
-                                  lecture.id,
-                                  "title",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Ders Başlığı"
-                              className="flex-[3] px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:bg-white focus:border-sky-400"
-                            />
-                            <input
-                              type="text"
-                              value={lecture.duration}
-                              onChange={(e) =>
-                                updateLecture(
-                                  section.id,
-                                  lecture.id,
-                                  "duration",
-                                  e.target.value,
-                                )
-                              }
-                              placeholder="Süre (dk)"
-                              className="flex-1 px-3 py-2 bg-gray-50 border border-gray-100 rounded-lg text-sm font-medium text-gray-700 focus:outline-none focus:bg-white focus:border-sky-400"
-                            />
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              removeLecture(section.id, lecture.id)
-                            }
-                            className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      ))}
-
-                      <button
-                        type="button"
-                        onClick={() => addLecture(section.id)}
-                        className="ml-4 mt-2 text-sky-600 hover:text-sky-700 text-xs font-bold flex items-center gap-1 py-2"
-                      >
-                        <Plus size={14} /> Ders Ekle
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* Curriculum tab view removed - curriculum is now edited on a dedicated roadmap builder page */}
           </form>
         </div>
 
@@ -930,12 +793,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         <div className="p-6 border-t border-gray-100 bg-white flex justify-between items-center z-10">
           <div className="text-sm font-bold text-gray-400">
             {activeTab === "general"
-              ? "1/4 Genel Bilgiler"
+              ? "1/3 Genel Bilgiler"
               : activeTab === "details"
-                ? "2/4 Detaylar"
-                : activeTab === "schedule"
-                  ? "3/4 Ders Saatleri"
-                  : "4/4 Müfredat"}
+                ? "2/3 Detaylar"
+                : "3/3 Ders Saatleri"}
           </div>
           <div className="flex gap-3">
             <button
@@ -946,16 +807,14 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               İptal
             </button>
 
-            {activeTab !== "curriculum" ? (
+            {activeTab !== "schedule" ? (
               <button
                 type="button"
                 onClick={() =>
                   setActiveTab(
                     activeTab === "general"
                       ? "details"
-                      : activeTab === "details"
-                        ? "schedule"
-                        : "curriculum",
+                      : "schedule"
                   )
                 }
                 className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
@@ -977,20 +836,16 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                         <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
                         <div className="absolute w-5 h-5 border-2 border-white/10 rounded-full" />
                       </div>
-                      <span className="tracking-wide">Kaydediliyor...</span>
+                      <span className="tracking-wide">Yönlendiriliyor...</span>
                     </div>
                     <div className="absolute right-0 top-0 h-full w-1 bg-white/20 animate-pulse" />
                   </>
                 ) : (
                   <>
-                    <span>
-                      {initialData ? "Değişiklikleri Kaydet" : "Kursu Oluştur"}
-                    </span>
-                    {!initialData && (
-                      <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                        <Plus size={14} />
-                      </div>
-                    )}
+                    <span>Roadmap'e Geç</span>
+                    <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                      <ChevronRight size={14} />
+                    </div>
                   </>
                 )}
               </button>

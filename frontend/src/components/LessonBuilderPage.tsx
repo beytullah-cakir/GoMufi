@@ -38,7 +38,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const savedDraft = (() => {
         try {
             const saved = localStorage.getItem(BUILDER_STORAGE_KEY);
-            return saved ? JSON.parse(saved) : null;
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                if (noteId && String(parsed.noteId) !== String(noteId)) {
+                    return null;
+                }
+                return parsed;
+            }
+            return null;
         } catch (e) {
             return null;
         }
@@ -47,12 +54,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     // -- State --
     const [slides, setSlides] = useState<Slide[]>(() => {
         if (initialCurriculum || initialNotes) {
-            const allItems = [
-                ...(Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : [])),
-                ...(Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []))
-            ];
+            const notesArr = Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []);
+            const currArr = Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : []);
             const targetNote = noteId
-                ? allItems.find((n: any) => String(n.id) === String(noteId))
+                ? (notesArr.find((n: any) => String(n.id) === String(noteId)) || 
+                   currArr.find((n: any) => String(n.id) === String(noteId)))
                 : null;
             if (targetNote?.slides && Array.isArray(targetNote.slides)) return targetNote.slides;
         }
@@ -70,16 +76,26 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [activeColorPickerId, setActiveColorPickerId] = useState<string | null>(null);
     const [showAddSlideModal, setShowAddSlideModal] = useState(false);
     const [isPreview, setIsPreview] = useState(false);
+    const [previewRole, setPreviewRole] = useState<'student' | 'teacher'>('student');
+
+    useEffect(() => {
+        if (isPreview) {
+            setSelectedElementIds([]);
+            setEditingElementId(null);
+            setIsCanvasSelected(false);
+        } else {
+            setPreviewRole('student');
+        }
+    }, [isPreview]);
 
     // -- Header State --
     const [projectName, setProjectName] = useState(() => {
         if (initialCurriculum || initialNotes) {
-            const allItems = [
-                ...(Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : [])),
-                ...(Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []))
-            ];
+            const notesArr = Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []);
+            const currArr = Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : []);
             const targetNote = noteId
-                ? allItems.find((n: any) => String(n.id) === String(noteId))
+                ? (notesArr.find((n: any) => String(n.id) === String(noteId)) || 
+                   currArr.find((n: any) => String(n.id) === String(noteId)))
                 : null;
             if (targetNote?.noteTitle) return targetNote.noteTitle;
         }
@@ -91,9 +107,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const isFirstRender = useRef(true);
 
     // -- Stage Indicator State --
-    const [activeStage, setActiveStage] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET'>(
-        savedDraft?.activeStage || 'ANLA'
-    );
+    const [activeStage, setActiveStage] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV'>(() => {
+        const categoryParam = searchParams.get("category");
+        if (categoryParam === 'ANLA' || categoryParam === 'UYGULA' || categoryParam === 'BİRLEŞTİR' || categoryParam === 'ÜRET' || categoryParam === 'QUIZ' || categoryParam === 'ÖDEV') {
+            return categoryParam as any;
+        }
+        return (savedDraft?.activeStage || 'ANLA') as any;
+    });
 
 
     // -- History & Clipboard State --
@@ -390,19 +410,24 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     if (response.data) {
                         const curriculum = response.data.curriculum || [];
                         const dbNotes = response.data.notes || [];
-                        const allItems = [
-                            ...(Array.isArray(curriculum) ? curriculum : [curriculum]),
-                            ...(Array.isArray(dbNotes) ? dbNotes : [dbNotes])
-                        ];
                         const targetNote = noteId
-                            ? allItems.find((n: any) => String(n.id) === String(noteId))
+                            ? (dbNotes.find((n: any) => String(n.id) === String(noteId)) ||
+                               curriculum.find((n: any) => String(n.id) === String(noteId)))
                             : null;
                         if (targetNote) {
                             if (targetNote.slides && Array.isArray(targetNote.slides)) {
                                 setSlides(targetNote.slides);
                                 if (targetNote.noteTitle) setProjectName(targetNote.noteTitle);
                                 if (targetNote.slides.length > 0) setCurrentSlideId(targetNote.slides[0].id);
+                            } else {
+                                setSlides([{ id: 1, elements: [], connections: [] }]);
+                                setProjectName(targetNote.noteTitle || `Ders Notu`);
+                                setCurrentSlideId(1);
                             }
+                        } else {
+                            setSlides([{ id: 1, elements: [], connections: [] }]);
+                            setProjectName(`Yeni Ders Projesi`);
+                            setCurrentSlideId(1);
                         }
                     }
                 } catch (error) {
@@ -456,7 +481,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 slides: stateRef.current.slides,
                 projectName: stateRef.current.projectName,
                 activeStage: stateRef.current.activeStage,
-                currentSlideId: stateRef.current.currentSlideId
+                currentSlideId: stateRef.current.currentSlideId,
+                noteId: noteId
             };
             localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
         };
@@ -469,7 +495,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     slides: stateRef.current.slides,
                     projectName: stateRef.current.projectName,
                     activeStage: stateRef.current.activeStage,
-                    currentSlideId: stateRef.current.currentSlideId
+                    currentSlideId: stateRef.current.currentSlideId,
+                    noteId: noteId
                 };
                 localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
                 setSaveStatus("saved");
@@ -514,15 +541,84 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         updateElement(id, { style: newStyle });
     };
 
+    const spawnCodeEditorForChallenge = (challengeId: string, x: number, y: number, height: number) => {
+        addToHistory();
+        const codeEditorId = Date.now().toString() + Math.random().toString().slice(2, 5);
+        const newCodeEditor: SlideElement = {
+            id: codeEditorId,
+            type: 'code_editor',
+            x: x,
+            y: y,
+            width: 450,
+            height: height,
+            rotation: 0,
+            content: '# Kodlama Görevi\n# Çözümünüzü buraya yazın\n',
+            style: { fontSize: 14, fontFamily: 'Fira Code' as const },
+            extra: {
+                isLinkedToChallenge: true,
+                parentChallengeId: challengeId
+            }
+        };
+
+        setSlides(prev => prev.map(s => {
+            if (s.id === currentSlideId) {
+                const updatedElements = s.elements.map(el => {
+                    if (el.id === challengeId) {
+                        return {
+                            ...el,
+                            extra: {
+                                ...el.extra,
+                                linkedCodeEditorId: codeEditorId,
+                                activeTab: 'code'
+                            }
+                        };
+                    }
+                    return el;
+                });
+                return { ...s, elements: [...updatedElements, newCodeEditor] };
+            }
+            return s;
+        }));
+    };
+
     const deleteElement = (id: string) => {
         addToHistory();
+        
+        const currentSlide = slides.find(s => s.id === currentSlideId);
+        if (!currentSlide) return;
+        
+        const elementToDelete = currentSlide.elements.find(el => el.id === id);
+        let idsToRemove = [id];
+        
+        if (elementToDelete) {
+            // 1. If challenge widget is deleted, delete its linked code editor
+            if (elementToDelete.type === 'challenge' && elementToDelete.extra?.linkedCodeEditorId) {
+                idsToRemove.push(elementToDelete.extra.linkedCodeEditorId);
+            }
+            
+            // 2. If linked code editor is deleted, revert challenge tab to text
+            currentSlide.elements.forEach(el => {
+                if (el.type === 'challenge' && el.extra?.linkedCodeEditorId === id) {
+                    setTimeout(() => {
+                        updateElement(el.id, {
+                            extra: {
+                                ...el.extra,
+                                activeTab: 'text',
+                                linkedCodeEditorId: undefined
+                            }
+                        });
+                    }, 0);
+                }
+            });
+        }
+
         setSlides(prev => prev.map(slide => {
             if (slide.id === currentSlideId) {
-                return { ...slide, elements: slide.elements.filter(el => el.id !== id) };
+                return { ...slide, elements: slide.elements.filter(el => !idsToRemove.includes(el.id)) };
             }
             return slide;
         }));
-        setSelectedElementIds(prev => prev.filter(eid => eid !== id));
+        setSelectedElementIds(prev => prev.filter(eid => !idsToRemove.includes(eid)));
     };
 
     const addSlide = () => {
@@ -838,15 +934,22 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             const y = (e.clientY - canvasRect.top) / scale;
             const baseStyle: ElementStyle = { fontSize: 24, fontFamily: 'Fredoka' as const };
 
-            // Sizes
-            const sizes: Record<string, { w: number, h: number }> = {
+                         const sizes: Record<string, { w: number, h: number }> = {
                 'text': { w: 200, h: 60 },
                 'sticky': { w: 200, h: 200 },
                 'shape': { w: 150, h: 150 },
                 'code': { w: 400, h: 300 },
                 'image': { w: 300, h: 200 },
                 'video': { w: 400, h: 225 },
-                'arrow': { w: 200, h: 100 }
+                'arrow': { w: 200, h: 100 },
+                'whiteboard': { w: 500, h: 350 },
+                'file': { w: 320, h: 110 },
+                'link': { w: 320, h: 110 },
+                'speaking_note': { w: 320, h: 140 },
+                'code_editor': { w: 400, h: 300 },
+                'answer_box': { w: 320, h: 220 },
+                'challenge': { w: 550, h: 360 },
+                'connection_task': { w: 550, h: 380 }
             };
 
             const size = sizes[type] || { w: 100, h: 100 };
@@ -857,6 +960,32 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'shape': { content: '', shapeType: extraData.shapeType || 'rectangle', style: { backgroundColor: '#e2e8f0', borderWidth: 0 } },
                 'image': { content: '' },
                 'video': { content: '' },
+                'whiteboard': { content: '' },
+                'file': { content: 'Ders_Kaynak_Dokumani.pdf', src: '#' },
+                'link': { content: 'Faydalı Kaynak Bağlantısı', src: 'https://github.com' },
+                'speaking_note': { content: 'Konuşma Notu\n"Burada konuyu günlük hayattan bir örnekle açıkla."' },
+                'code_editor': { content: '# Kodunuzu buraya yazın\nprint("Merhaba Dunya")\n', style: { ...baseStyle, fontFamily: 'Fira Code' as const, fontSize: 14 } },
+                'answer_box': { content: 'Soru: Python\'da listeler ile demetler (tuples) arasındaki fark nedir?', src: '' },
+                'challenge': {
+                    content: '5 dakikada bu fonksiyonu yaz.',
+                    extra: {
+                        title: 'Challenge (Mini Görev)',
+                        submittedText: '',
+                        submittedCode: '# Çözüm kodunuzu buraya yazın\n',
+                        submittedFile: '',
+                        isSubmitted: false
+                    }
+                },
+                'connection_task': {
+                    content: 'Function bilgisini kullanarak bir Student Class oluştur.',
+                    extra: {
+                        title: 'Bağlantı Görevi (Connection Task)',
+                        previousTopic: 'Function',
+                        currentTopic: 'Class',
+                        submittedAnswer: '',
+                        isSubmitted: false
+                    }
+                },
                 'arrow': {
                     content: '',
                     arrowConfig: {
@@ -1673,6 +1802,70 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSelectionBox(null);
     };
 
+    const handleSaveAction = async () => {
+        if (!courseId || !noteId) {
+            // Standalone draft mode, fallback to modal selector
+            setShowSaveModal(true);
+            return;
+        }
+
+        setSaveStatus('saving');
+        try {
+            // 1. Fetch current course notes
+            const courseRes = await api.get(`/courses/${courseId}`);
+            let currentNotes = courseRes.data?.notes || [];
+
+            // Legacy compatibility
+            if (currentNotes.length === 0 && Array.isArray(courseRes.data?.curriculum)) {
+                const legacyNotes = courseRes.data.curriculum.filter((i: any) => i.slides || i.noteTitle);
+                if (legacyNotes.length > 0) currentNotes = legacyNotes;
+            }
+
+            if (!Array.isArray(currentNotes)) currentNotes = [];
+
+            let updatedNotes;
+            const exists = currentNotes.some((n: any) => String(n.id) === String(noteId));
+
+            if (exists) {
+                updatedNotes = currentNotes.map((n: any) =>
+                    String(n.id) === String(noteId)
+                        ? { ...n, noteTitle: projectName, slides: slides }
+                        : n
+                );
+            } else {
+                updatedNotes = [
+                    ...currentNotes,
+                    { id: noteId, noteTitle: projectName, slides: slides }
+                ];
+            }
+
+            // 2. Put updated notes
+            await api.put(`/update_course/${courseId}`, {
+                notes: updatedNotes,
+            });
+
+            setSaveStatus('saved');
+            localStorage.removeItem(BUILDER_STORAGE_KEY);
+            alert("Ders içeriği başarıyla kaydedildi!");
+        } catch (error) {
+            console.error("Direct save error:", error);
+            alert("Kaydedilirken bir hata oluştu.");
+            setSaveStatus('saved');
+        }
+    };
+
+    const getStageColor = () => {
+        switch (activeStage) {
+            case 'ANLA': return '#ec4899'; // fuchsia-500
+            case 'UYGULA': return '#06b6d4'; // cyan-500
+            case 'BİRLEŞTİR': return '#10b981'; // emerald-500
+            case 'ÜRET': return '#f59e0b'; // amber-500
+            case 'QUIZ': return '#6366f1'; // indigo-500
+            case 'ÖDEV': return '#8b5cf6'; // violet-500
+            default: return '#6366f1';
+        }
+    };
+    const stageColor = getStageColor();
     const bounds = getSelectionBounds(); // For Group Overlay
 
     if (isLoadingCourse) {
@@ -1778,7 +1971,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 projectName={projectName}
                 setProjectName={setProjectName}
                 saveStatus={saveStatus}
-                onSave={() => setShowSaveModal(true)}
+                onSave={handleSaveAction}
                 activeStage={activeStage}
                 setActiveStage={setActiveStage}
                 onUndo={handleUndo}
@@ -1787,6 +1980,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 onPaste={handlePaste}
                 isPreview={isPreview}
                 setIsPreview={setIsPreview}
+                previewRole={previewRole}
+                setPreviewRole={setPreviewRole}
+                isStageLocked={!!searchParams.get("category")}
             />
 
             <div
@@ -1810,12 +2006,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                 {/* MAIN CONTENT AREA: CANVAS OR GAME BUILDER */}
                 {currentSlide.type === 'game' ? (
-                    <div className="flex-1 overflow-hidden relative h-full">
+                    <div className="flex-1 overflow-y-auto relative h-full">
                         <GameBuilder
                             slide={currentSlide}
                             updateSlide={(updates) => {
                                 setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
                             }}
+                            isPreview={isPreview}
+                            previewRole={previewRole}
                         />
                     </div>
                 ) : currentSlide.type === 'coding' ? (
@@ -1849,11 +2047,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         // We don't need to change color/opacity, just the mode
                                     }
                                 }}
+                                activeStage={activeStage}
                             />
                         )}
 
                         {/* FLOATING CONTEXT MENU */}
-                        {selectedElementIds.length > 0 && !dragState.isDragging && (
+                        {!isPreview && selectedElementIds.length > 0 && !dragState.isDragging && (
                             (() => {
                                 const selectedEls = currentSlide.elements.filter(e => selectedElementIds.includes(e.id));
                                 return selectedEls.length > 0 ? (
@@ -1940,7 +2139,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 )}
 
                                 {/* SINGLE ELEMENT SELECTION OVERLAY */}
-                                {selectedElementIds.map(id => {
+                                {!isPreview && selectedElementIds.map(id => {
                                     const el = currentSlide.elements.find(e => e.id === id);
                                     if (el && !editingElementId) {
                                         return (
@@ -1956,12 +2155,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 })}
 
                                 {/* Canvas Selection Border */}
-                                {isCanvasSelected && !dragState.isDragging && (
+                                {!isPreview && isCanvasSelected && !dragState.isDragging && (
                                     <div className="absolute inset-0 border-2 border-indigo-500 z-10 pointer-events-none animate-in fade-in duration-200"></div>
                                 )}
 
                                 {/* Group Selection Overlay */}
-                                {selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
+                                {!isPreview && selectedElementIds.length > 1 && bounds && !dragState.isDragging && (
                                     <div className="absolute border-2 border-indigo-500 z-40 pointer-events-none"
                                         style={{
                                             left: bounds.minX,
@@ -2011,6 +2210,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         deleteElement={deleteElement}
                                         handleMouseDown={handleMouseDown}
                                         isPreview={isPreview}
+                                        previewRole={previewRole}
+                                        elements={currentSlide.elements}
+                                        onSpawnCodeEditor={spawnCodeEditorForChallenge}
                                     />
                                 ))}
                             </div>
@@ -2019,7 +2221,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 )}
 
                 {/* Canvas Context Menu */}
-                {isCanvasSelected && !dragState.isDragging && (
+                {!isPreview && isCanvasSelected && !dragState.isDragging && (
                     <ContextMenu
                         elements={[]}
                         scale={scale}
@@ -2064,14 +2266,30 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 <AddSlideModal
                     isOpen={showAddSlideModal}
                     onClose={() => setShowAddSlideModal(false)}
-                    onAddSlide={(type) => {
+                    activeStage={activeStage}
+                    stageColor={stageColor}
+                    onAddSlide={(type, config) => {
                         const newSlide: Slide = {
                             id: Date.now(),
-                            type: type === 'notebook' ? 'normal' : type,
+                            type: (type === 'notebook' || type === 'coding' || type === 'template') ? 'normal' : type,
                             background: type === 'notebook' ? 'notebook' : 'default',
-                            gameType: type === 'game' ? 'matching' : undefined,
+                            gameType: type === 'game' ? (config?.gameType as 'matching' | 'monster' || 'matching') : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
-                            elements: [],
+                            elements: config?.elements ? config.elements.map((el: any) => ({
+                                ...el,
+                                id: Date.now().toString() + Math.random().toString().slice(2, 5)
+                            })) : (type === 'coding' ? [
+                                {
+                                    id: 'code-1',
+                                    type: 'code_editor',
+                                    x: 50,
+                                    y: 100,
+                                    width: 500,
+                                    height: 380,
+                                    content: '# Kodunuzu buraya yazın\nprint("Merhaba Dunya")\n',
+                                    style: { fontSize: 14, fontFamily: 'Fira Code' }
+                                }
+                            ] : []),
                             connections: []
                         };
                         setSlides(prev => [...prev, newSlide]);

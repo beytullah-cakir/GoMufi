@@ -162,6 +162,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   const handleSaveCourse = async (courseData: any) => {
     setIsSubmitting(true);
     try {
+      let savedCourseId: number;
       if (editingCourse) {
         // Update existing course via API
         // Construct curriculum payload carefully
@@ -206,6 +207,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
               : c,
           ),
         );
+        savedCourseId = editingCourse.id;
         setEditingCourse(null);
       } else {
         // Add new course via API
@@ -265,12 +267,15 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           color: courseData.color,
           lastUpdated: "Şimdi",
         };
+        savedCourseId = response.data.id;
         setCourses([newCourse, ...courses]);
       }
       setIsAddModalOpen(false);
       if (refreshData) {
           refreshData();
       }
+      // Redirect to dedicated visual roadmap builder page
+      navigate(`/instructor/roadmap-builder/${savedCourseId}`);
     } catch (error: any) {
       console.error("Kurs kaydedilirken hata oluştu:", error);
       const errorMsg =
@@ -554,6 +559,18 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                             {loadingContentId === course.id
                               ? "Yükleniyor..."
                               : "Ders İçeriğini Düzenle"}
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(
+                                `/instructor/roadmap-builder/${course.id}`,
+                              );
+                            }}
+                            className="w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-sky-50 font-bold transition-colors border-b border-gray-50 flex items-center gap-2"
+                          >
+                            <Layout size={14} />
+                            Yol Haritasını Düzenle
                           </button>
                           <button
                             onClick={(e) => {
