@@ -360,8 +360,48 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </>
                                 )}
 
+                                {/* ÜRET ŞABLONLARI */}
+                                {activeStage === 'ÜRET' && (
+                                    <>
+                                        <button
+                                            onClick={() => onAddSlide('template', {
+                                                elements: [
+                                                    { type: 'text', x: 50, y: 30, width: 900, height: 60, content: 'Proje Zamanı & Üretim', style: { fontSize: 32, fontFamily: 'Fredoka', bold: true } },
+                                                    { 
+                                                        type: 'production_task', 
+                                                        x: 210, 
+                                                        y: 110, 
+                                                        width: 580, 
+                                                        height: 420, 
+                                                        rotation: 0,
+                                                        content: 'Student Management System oluştur. İçinde en az 2 Class ve 3 Method bulunmalı.', 
+                                                        extra: { 
+                                                            title: 'Proje Görevi (Produce Task)',
+                                                            projectTitle: 'Student Management System',
+                                                            expectedOutput: 'İçinde en az 2 Class ve 3 Method bulunmalı.',
+                                                            estimatedTime: '20 dk',
+                                                            hints: 'İpucu: Sınıf yapısını kurarken inheritances yapısına dikkat et.',
+                                                            isSubmitted: false
+                                                        } 
+                                                    }
+                                                ]
+                                            })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-indigo-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-4">
+                                                <div className="h-4 w-28 bg-amber-500/10 border border-amber-500/20 rounded flex items-center justify-center text-[5px] text-amber-600 font-extrabold mb-1">Student Management System</div>
+                                                <div className="h-6 w-24 bg-slate-100 border border-slate-200 rounded flex items-center justify-center text-[5px] text-slate-400 font-bold">Proje Teslimi...</div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">Proje Görevi Şablonu</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Öğrencinin özgün bir proje üretebileceği ÜRET şablonu.</p>
+                                            </div>
+                                        </button>
+                                    </>
+                                )}
+
                                 {/* OTHER STAGES: GENERIC TEMPLATE */}
-                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && (
+                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && (
                                     <button
                                         onClick={() => onAddSlide('template', {
                                             elements: [

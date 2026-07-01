@@ -970,7 +970,8 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'code_editor': { w: 400, h: 300 },
                 'answer_box': { w: 320, h: 220 },
                 'challenge': { w: 550, h: 360 },
-                'connection_task': { w: 550, h: 380 }
+                'connection_task': { w: 550, h: 380 },
+                'production_task': { w: 580, h: 420 }
             };
 
             const size = sizes[type] || { w: 100, h: 100 };
@@ -1004,6 +1005,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         previousTopic: 'Function',
                         currentTopic: 'Class',
                         submittedAnswer: '',
+                        isSubmitted: false
+                    }
+                },
+                'production_task': {
+                    content: 'Student Management System oluştur. İçinde en az 2 Class ve 3 Method bulunmalı.',
+                    extra: {
+                        title: 'Proje Görevi (Produce Task)',
+                        projectTitle: 'Student Management System',
+                        expectedOutput: 'İçinde en az 2 Class ve 3 Method bulunmalı.',
+                        estimatedTime: '20 dk',
+                        hints: 'İpucu: Sınıf yapısını kurarken inheritances yapısına dikkat et.',
                         isSubmitted: false
                     }
                 },

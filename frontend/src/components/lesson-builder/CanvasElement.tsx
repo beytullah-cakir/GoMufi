@@ -572,9 +572,15 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
         updateElement(el.id, {
             extra: {
                 ...el.extra,
+                submittedText: '',
+                submittedCode: '',
+                submittedFile: '',
                 isSubmitted: false
             }
         });
+        setTextInput('');
+        setCodeInput('');
+        setFileName('');
         setIsSubmitted(false);
     };
 
@@ -872,22 +878,38 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
         </div>
     );
 };
+
 interface ConnectionTaskWidgetProps {
     el: SlideElement;
     isPreview: boolean;
     previewRole?: 'student' | 'teacher';
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
     allLessons?: any[];
+    elements?: SlideElement[];
+    deleteElement?: (id: string) => void;
+    onSpawnCodeEditor?: (challengeId: string, x: number, y: number, height: number) => void;
 }
 
-const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPreview, previewRole = 'student', updateElement, allLessons = [] }) => {
+const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ 
+    el, 
+    isPreview, 
+    previewRole = 'student', 
+    updateElement, 
+    allLessons = [],
+    elements = [],
+    deleteElement,
+    onSpawnCodeEditor
+}) => {
     const [title, setTitle] = useState(el.extra?.title || 'Bağlantı Görevi (Connection Task)');
     const [previousTopic, setPreviousTopic] = useState(el.extra?.previousTopic || 'Function');
     const [currentTopic, setCurrentTopic] = useState(el.extra?.currentTopic || 'Class');
     const [prompt, setPrompt] = useState(el.content || 'Function bilgisini kullanarak bir Student Class oluştur.');
     
-    // Student Input State
-    const [answerInput, setAnswerInput] = useState(el.extra?.submittedAnswer || '');
+    // Tab selector and response states
+    const [activeTab, setActiveTab] = useState<'text' | 'code' | 'file'>(el.extra?.activeTab || 'text');
+    const [textInput, setTextInput] = useState(el.extra?.submittedAnswer || '');
+    const [codeInput, setCodeInput] = useState(el.extra?.submittedCode || '');
+    const [fileName, setFileName] = useState(el.extra?.submittedFile || '');
     const [isSubmitted, setIsSubmitted] = useState(!!el.extra?.isSubmitted);
     const [showSuccess, setShowSuccess] = useState(false);
     
@@ -906,9 +928,12 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
         setPreviousTopic(el.extra?.previousTopic || 'Function');
         setCurrentTopic(el.extra?.currentTopic || 'Class');
         setPrompt(el.content || '');
-        setAnswerInput(el.extra?.submittedAnswer || '');
+        setTextInput(el.extra?.submittedAnswer || '');
+        setCodeInput(el.extra?.submittedCode || '');
+        setFileName(el.extra?.submittedFile || '');
         setIsSubmitted(!!el.extra?.isSubmitted);
         setFeedback(el.extra?.teacherFeedback || '');
+        setActiveTab(el.extra?.activeTab || 'text');
     }, [el.content, el.extra]);
 
     useEffect(() => {
@@ -916,9 +941,8 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
             const handleResize = () => {
                 if (overlayContainerRef.current) {
                     const rect = overlayContainerRef.current.getBoundingClientRect();
-                    const wScale = (rect.width - 24) / 1000;
-                    const hScale = (rect.height - 24) / 562.5;
-                    setOverlayScale(Math.max(0.1, Math.min(wScale, hScale)));
+                    const wScale = (rect.width - 48) / 1000;
+                    setOverlayScale(Math.max(0.1, wScale));
                 }
             };
             handleResize();
@@ -941,11 +965,23 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
 
     const handleStudentSubmit = (e: React.MouseEvent) => {
         e.stopPropagation();
+
+        let finalCode = codeInput;
+        if (activeTab === 'code' && el.extra?.linkedCodeEditorId) {
+            const linkedEditor = elements?.find(item => item.id === el.extra.linkedCodeEditorId);
+            if (linkedEditor) {
+                finalCode = linkedEditor.content;
+            }
+        }
+
         updateElement(el.id, {
             extra: {
                 ...el.extra,
-                submittedAnswer: answerInput,
+                submittedAnswer: textInput,
+                submittedCode: finalCode,
+                submittedFile: fileName,
                 isSubmitted: true,
+                activeTab,
                 submittedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
             }
         });
@@ -959,9 +995,15 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
         updateElement(el.id, {
             extra: {
                 ...el.extra,
+                submittedAnswer: '',
+                submittedCode: '',
+                submittedFile: '',
                 isSubmitted: false
             }
         });
+        setTextInput('');
+        setCodeInput('');
+        setFileName('');
         setIsSubmitted(false);
     };
 
@@ -976,6 +1018,48 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
         setShowFeedbackSuccess(true);
         setTimeout(() => setShowFeedbackSuccess(false), 3000);
     };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFileName(file.name);
+        }
+    };
+
+    const handleTabChange = (tab: 'text' | 'code' | 'file') => {
+        if (tab === 'code') {
+            if (onSpawnCodeEditor && (!el.extra?.linkedCodeEditorId || !elements?.some(item => item.id === el.extra.linkedCodeEditorId))) {
+                onSpawnCodeEditor(el.id, el.x + el.width + 20, el.y, el.height);
+            } else {
+                updateElement(el.id, {
+                    extra: {
+                        ...el.extra,
+                        activeTab: tab
+                    }
+                });
+            }
+        } else {
+            if (el.extra?.linkedCodeEditorId && deleteElement) {
+                deleteElement(el.extra.linkedCodeEditorId);
+            }
+            updateElement(el.id, {
+                extra: {
+                    ...el.extra,
+                    linkedCodeEditorId: undefined,
+                    activeTab: tab
+                }
+            });
+        }
+        setActiveTab(tab);
+    };
+
+    const tabClass = (tab: 'text' | 'code' | 'file') => `
+        flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-black rounded-xl transition-all border-2
+        ${activeTab === tab 
+            ? 'bg-emerald-500 border-emerald-600 text-white shadow-sm' 
+            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+        }
+    `;
 
     return (
         <div className="w-full h-full bg-white border-2 border-b-6 border-slate-200 rounded-3xl p-4 flex flex-col gap-3 relative cursor-default select-none pointer-events-auto shadow-sm overflow-hidden">
@@ -1065,7 +1149,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                                     onChange={(e) => setCurrentTopic(e.target.value)}
                                     onBlur={handleSaveConfig}
                                     placeholder="Örn: Class"
-                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
+                                    className="w-full text-xs font-bold text-slate-755 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
                                 />
                             </div>
                         </div>
@@ -1156,9 +1240,28 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                             <div className="flex flex-col gap-2.5 bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-[11px] select-text">
                                 <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 border-b border-slate-50 pb-1.5">
                                     <span>Teslim Saati: {el.extra.submittedAt || 'Belirtilmemiş'}</span>
+                                    <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-black text-[8px] uppercase">
+                                        {el.extra.activeTab === 'text' ? '📝 Metin' : el.extra.activeTab === 'code' ? '💻 Kod' : '📁 Dosya'}
+                                    </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <p className="bg-slate-50 p-2.5 rounded-xl font-bold text-slate-755 whitespace-pre-wrap">{el.extra.submittedAnswer}</p>
+                                    {el.extra.activeTab === 'text' && (
+                                        <p className="bg-slate-50 p-2.5 rounded-xl font-bold text-slate-755 whitespace-pre-wrap">{el.extra.submittedAnswer}</p>
+                                    )}
+                                    {el.extra.activeTab === 'code' && (
+                                        <pre className="bg-slate-900 text-slate-100 p-2.5 rounded-xl font-mono text-[9px] whitespace-pre-wrap max-h-[120px] overflow-y-auto">{el.extra.submittedCode || '// Boş Kod'}</pre>
+                                    )}
+                                    {el.extra.activeTab === 'file' && (
+                                        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 w-full mt-0.5">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0">
+                                                <FileText className="w-4 h-4 text-indigo-500" />
+                                            </div>
+                                            <div className="flex flex-col text-[10px] font-black text-slate-700 min-w-0">
+                                                <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Dosya Teslimi</span>
+                                                <span className="font-bold truncate">{el.extra.submittedFile}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Grading Feedback */}
@@ -1193,16 +1296,75 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                 ) : (
                     // Student or Editor View
                     <div className="flex-1 flex flex-col gap-2 min-h-0">
-                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest shrink-0">Çözümünüz</span>
-                        <div className="flex-1 min-h-0 bg-white border border-slate-200/60 rounded-2xl p-2.5 flex flex-col relative select-text">
-                            <textarea
-                                value={answerInput}
-                                onChange={(e) => setAnswerInput(e.target.value)}
-                                onMouseDown={(e) => e.stopPropagation()}
-                                disabled={!isPreview || isSubmitted}
-                                placeholder={isPreview ? "Önceki ders konusunu şimdiki ders konusuyla nasıl harmanladığınızı buraya yazın..." : "Öğrenci çözüm giriş alanı (Önizlemede aktif)"}
-                                className="flex-1 w-full text-[11px] font-bold text-slate-700 bg-transparent resize-none outline-none leading-relaxed placeholder-slate-350"
-                            />
+                        {/* Tab Headers */}
+                        <div className="flex items-center gap-2 shrink-0 w-full" onMouseDown={(e) => e.stopPropagation()}>
+                            <button onClick={() => handleTabChange('text')} className={tabClass('text')}>Metin</button>
+                            <button onClick={() => handleTabChange('code')} className={tabClass('code')}>Kod</button>
+                            <button onClick={() => handleTabChange('file')} className={tabClass('file')}>Dosya</button>
+                        </div>
+
+                        {/* Tab Content Panels */}
+                        <div className="flex-1 min-h-0 bg-white border border-slate-200/60 rounded-2xl p-2.5 flex flex-col relative select-text overflow-hidden">
+                            {activeTab === 'text' && (
+                                <textarea
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    disabled={!isPreview || isSubmitted}
+                                    placeholder={isPreview ? "Önceki ders konusunu şimdiki ders konusuyla nasıl harmanladığınızı buraya yazın..." : "Öğrenci çözüm giriş alanı (Önizlemede aktif)"}
+                                    className="w-full h-full text-[11px] font-bold text-slate-700 bg-transparent resize-none outline-none leading-relaxed placeholder-slate-350"
+                                />
+                            )}
+                            
+                            {activeTab === 'code' && (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center select-none bg-slate-50 border border-slate-100 rounded-2xl h-full">
+                                    <Code2 className="w-8 h-8 text-emerald-500 animate-pulse" />
+                                    <span className="text-xs font-black text-slate-750 uppercase tracking-wide">Kod Editörü Bağlandı</span>
+                                    <p className="text-[10px] font-bold text-slate-400 max-w-[200px] leading-relaxed">
+                                        Lütfen çözüm kodunuzu sağdaki kod editörü penceresini kullanarak yazın.
+                                    </p>
+                                </div>
+                            )}
+
+                            {activeTab === 'file' && (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-2 select-none h-full w-full">
+                                    <input
+                                        type="file"
+                                        id={`connection-upload-${el.id}`}
+                                        className="hidden"
+                                        disabled={!isPreview || isSubmitted}
+                                        onChange={handleFileUpload}
+                                    />
+                                    
+                                    {fileName ? (
+                                        <div className="flex flex-col items-center justify-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-3 w-full">
+                                            <FileUp className="w-6 h-6 text-emerald-500 animate-pulse" />
+                                            <span className="text-[10px] font-black text-slate-750 truncate max-w-full px-2">{fileName}</span>
+                                            {isPreview && !isSubmitted && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setFileName(''); }}
+                                                    className="text-[8px] font-black text-red-500 uppercase hover:underline"
+                                                >
+                                                    Dosyayı Kaldır
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isPreview && !isSubmitted) {
+                                                    document.getElementById(`connection-upload-${el.id}`)?.click();
+                                                }
+                                            }}
+                                            className={`border border-dashed border-slate-250 bg-slate-50 hover:bg-slate-100/50 rounded-xl p-4 w-full flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${(!isPreview || isSubmitted) ? 'cursor-not-allowed opacity-60' : ''}`}
+                                        >
+                                            <FileUp className="w-5 h-5 text-slate-400" />
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center">Dosya Seçin veya Bırakın</span>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
                         </div>
 
                         {/* Submit Button for Student Preview */}
@@ -1303,7 +1465,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                         {/* Slide Canvas Wrapper */}
                         <div 
                             ref={overlayContainerRef}
-                            className="flex-1 w-full flex items-center justify-center min-h-0 relative overflow-hidden"
+                            className="flex-1 w-full flex items-start justify-center min-h-0 relative overflow-y-auto py-4 custom-scrollbar"
                         >
                             {currentSlide ? (
                                 <div 
@@ -1347,6 +1509,485 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                     </div>
                 );
             })()}
+        </div>
+    );
+};
+
+interface ProductionTaskWidgetProps {
+    el: SlideElement;
+    isPreview: boolean;
+    previewRole?: 'student' | 'teacher';
+    updateElement: (id: string, updates: Partial<SlideElement>) => void;
+    elements?: SlideElement[];
+    deleteElement?: (id: string) => void;
+    onSpawnCodeEditor?: (challengeId: string, x: number, y: number, height: number) => void;
+}
+
+const ProductionTaskWidget: React.FC<ProductionTaskWidgetProps> = ({ 
+    el, 
+    isPreview, 
+    previewRole = 'student', 
+    updateElement, 
+    elements = [],
+    deleteElement,
+    onSpawnCodeEditor
+}) => {
+    const [title, setTitle] = useState(el.extra?.title || 'Proje Görevi (Produce Task)');
+    const [projectTitle, setProjectTitle] = useState(el.extra?.projectTitle || 'Student Management System');
+    const [expectedOutput, setExpectedOutput] = useState(el.extra?.expectedOutput || 'İçinde en az 2 Class ve 3 Method bulunmalı.');
+    const [estimatedTime, setEstimatedTime] = useState(el.extra?.estimatedTime || '20 dk');
+    const [hints, setHints] = useState(el.extra?.hints || 'İpucu: Sınıf yapısını kurarken inheritances yapısına dikkat et.');
+    const [prompt, setPrompt] = useState(el.content || 'Proje açıklamasını buraya yazın.');
+
+    // Tab selector and response states
+    const [activeTab, setActiveTab] = useState<'text' | 'code' | 'file'>(el.extra?.activeTab || 'text');
+    const [textInput, setTextInput] = useState(el.extra?.submittedAnswer || '');
+    const [codeInput, setCodeInput] = useState(el.extra?.submittedCode || '');
+    const [fileName, setFileName] = useState(el.extra?.submittedFile || '');
+    const [isSubmitted, setIsSubmitted] = useState(!!el.extra?.isSubmitted);
+    const [showSuccess, setShowSuccess] = useState(false);
+
+    // Teacher Grading State
+    const [feedback, setFeedback] = useState(el.extra?.teacherFeedback || '');
+    const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
+
+    useEffect(() => {
+        setTitle(el.extra?.title || 'Proje Görevi (Produce Task)');
+        setProjectTitle(el.extra?.projectTitle || 'Student Management System');
+        setExpectedOutput(el.extra?.expectedOutput || '');
+        setEstimatedTime(el.extra?.estimatedTime || '');
+        setHints(el.extra?.hints || '');
+        setPrompt(el.content || '');
+        setTextInput(el.extra?.submittedAnswer || '');
+        setCodeInput(el.extra?.submittedCode || '');
+        setFileName(el.extra?.submittedFile || '');
+        setIsSubmitted(!!el.extra?.isSubmitted);
+        setFeedback(el.extra?.teacherFeedback || '');
+        setActiveTab(el.extra?.activeTab || 'text');
+    }, [el.content, el.extra]);
+
+    const handleSaveConfig = () => {
+        updateElement(el.id, {
+            content: prompt,
+            extra: {
+                ...el.extra,
+                title,
+                projectTitle,
+                expectedOutput,
+                estimatedTime,
+                hints
+            }
+        });
+    };
+
+    const handleStudentSubmit = (e: React.MouseEvent) => {
+        e.stopPropagation();
+
+        let finalCode = codeInput;
+        if (activeTab === 'code' && el.extra?.linkedCodeEditorId) {
+            const linkedEditor = elements?.find(item => item.id === el.extra.linkedCodeEditorId);
+            if (linkedEditor) {
+                finalCode = linkedEditor.content;
+            }
+        }
+
+        updateElement(el.id, {
+            extra: {
+                ...el.extra,
+                submittedAnswer: textInput,
+                submittedCode: finalCode,
+                submittedFile: fileName,
+                isSubmitted: true,
+                activeTab,
+                submittedAt: new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+            }
+        });
+        setIsSubmitted(true);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 3000);
+    };
+
+    const handleStudentReset = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        updateElement(el.id, {
+            extra: {
+                ...el.extra,
+                submittedAnswer: '',
+                submittedCode: '',
+                submittedFile: '',
+                isSubmitted: false
+            }
+        });
+        setTextInput('');
+        setCodeInput('');
+        setFileName('');
+        setIsSubmitted(false);
+    };
+
+    const handleTeacherGrade = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        updateElement(el.id, {
+            extra: {
+                ...el.extra,
+                teacherFeedback: feedback
+            }
+        });
+        setShowFeedbackSuccess(true);
+        setTimeout(() => setShowFeedbackSuccess(false), 3000);
+    };
+
+    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            setFileName(file.name);
+        }
+    };
+
+    const handleTabChange = (tab: 'text' | 'code' | 'file') => {
+        if (tab === 'code') {
+            if (onSpawnCodeEditor && (!el.extra?.linkedCodeEditorId || !elements?.some(item => item.id === el.extra.linkedCodeEditorId))) {
+                onSpawnCodeEditor(el.id, el.x + el.width + 20, el.y, el.height);
+            } else {
+                updateElement(el.id, {
+                    extra: {
+                        ...el.extra,
+                        activeTab: tab
+                    }
+                });
+            }
+        } else {
+            if (el.extra?.linkedCodeEditorId && deleteElement) {
+                deleteElement(el.extra.linkedCodeEditorId);
+            }
+            updateElement(el.id, {
+                extra: {
+                    ...el.extra,
+                    linkedCodeEditorId: undefined,
+                    activeTab: tab
+                }
+            });
+        }
+        setActiveTab(tab);
+    };
+
+    const tabClass = (tab: 'text' | 'code' | 'file') => `
+        flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] font-black rounded-xl transition-all border-2
+        ${activeTab === tab 
+            ? 'bg-amber-500 border-amber-600 text-white shadow-sm' 
+            : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+        }
+    `;
+
+    return (
+        <div className="w-full h-full bg-white border-2 border-b-6 border-slate-200 rounded-3xl p-4 flex flex-col gap-3 relative cursor-default select-none pointer-events-auto shadow-sm overflow-hidden">
+            {/* Header section */}
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5 shrink-0">
+                <div className="flex items-center gap-2 max-w-[60%]">
+                    <PenTool className="w-4.5 h-4.5 text-amber-500 shrink-0" />
+                    {isPreview ? (
+                        <span className="text-xs font-black text-amber-600 uppercase tracking-widest font-display truncate">{title}</span>
+                    ) : (
+                        <input
+                            type="text"
+                            value={title}
+                            onChange={(e) => setTitle(e.target.value)}
+                            onBlur={handleSaveConfig}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            className="bg-transparent text-xs font-black text-amber-600 uppercase tracking-widest outline-none border-b border-emerald-250 focus:border-amber-500 font-display w-44"
+                        />
+                    )}
+                </div>
+                
+                {/* State badges */}
+                <div className="flex items-center gap-2 shrink-0">
+                    {previewRole === 'teacher' ? (
+                        <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg">👨‍🏫 ÖĞRETMEN</span>
+                    ) : isPreview ? (
+                        isSubmitted ? (
+                            <span className="text-[9px] font-black text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-lg">✓ TESLİM EDİLDİ</span>
+                        ) : (
+                            <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg">🎓 ÖĞRENCİ</span>
+                        )
+                    ) : (
+                        <span className="text-[9px] font-black text-indigo-700 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-lg">EDİTÖR</span>
+                    )}
+                </div>
+            </div>
+
+            {/* Project Details Config */}
+            <div className="shrink-0 flex flex-col gap-2" onMouseDown={(e) => e.stopPropagation()}>
+                {isPreview ? (
+                    <div className="flex flex-col gap-2 bg-slate-50 border border-slate-100 rounded-2xl p-3 shrink-0 text-[11px] select-text">
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-1.5 mb-1.5">
+                            <span className="text-xs font-black text-slate-755">{projectTitle}</span>
+                            <span className="text-[9px] font-black text-slate-450 bg-slate-200/50 px-2 py-0.5 rounded-lg">{estimatedTime}</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">Beklenen Çıktı</span>
+                                <span className="font-bold text-slate-700 leading-normal">{expectedOutput}</span>
+                            </div>
+                            <div className="flex flex-col gap-0.5">
+                                <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest">İpucu / Tavsiye</span>
+                                <span className="font-bold text-amber-700 leading-normal">{hints}</span>
+                            </div>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="col-span-2 flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Proje Başlığı</span>
+                                <input
+                                    type="text"
+                                    value={projectTitle}
+                                    onChange={(e) => setProjectTitle(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: Student Management System"
+                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Tahmini Süre</span>
+                                <input
+                                    type="text"
+                                    value={estimatedTime}
+                                    onChange={(e) => setEstimatedTime(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: 20 dk"
+                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400"
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Beklenen Çıktı</span>
+                                <input
+                                    type="text"
+                                    value={expectedOutput}
+                                    onChange={(e) => setExpectedOutput(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: En az 2 Class olmalı"
+                                    className="w-full text-xs font-bold text-slate-755 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">İpuçları</span>
+                                <input
+                                    type="text"
+                                    value={hints}
+                                    onChange={(e) => setHints(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: Inheritance kullan"
+                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400"
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Prompt Instruction area */}
+            <div className="shrink-0 flex flex-col gap-1">
+                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Proje Açıklaması</span>
+                {isPreview ? (
+                    <div className="bg-amber-50/20 border border-amber-100 rounded-xl px-3 py-2 text-[11px] font-extrabold text-slate-700 leading-normal select-text border-l-4 border-l-amber-500 max-h-[80px] overflow-y-auto">
+                        {prompt || 'Proje detayları belirtilmemiş.'}
+                    </div>
+                ) : (
+                    <textarea
+                        value={prompt}
+                        onChange={(e) => setPrompt(e.target.value)}
+                        onBlur={handleSaveConfig}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        placeholder="Öğrenciden ne üretmesini istediğinizi yazın..."
+                        className="w-full text-[11px] font-bold text-slate-700 bg-white border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-amber-400 resize-none leading-relaxed"
+                        rows={2}
+                    />
+                )}
+            </div>
+
+            {/* Content area based on preview and role */}
+            <div className="flex-1 min-h-0 flex flex-col gap-2.5">
+                {previewRole === 'teacher' ? (
+                    // Teacher View: Inspect student's submission and write feedback
+                    <div className="flex-1 flex flex-col gap-2.5 overflow-y-auto pr-1">
+                        <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Öğrenci Çözümü</span>
+                        
+                        {el.extra?.isSubmitted ? (
+                            <div className="flex flex-col gap-2.5 bg-white border border-slate-100 rounded-2xl p-3 shadow-sm text-[11px] select-text">
+                                <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 border-b border-slate-50 pb-1.5">
+                                    <span>Teslim Saati: {el.extra.submittedAt || 'Belirtilmemiş'}</span>
+                                    <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg font-black text-[8px] uppercase">
+                                        {el.extra.activeTab === 'text' ? '📝 Metin' : el.extra.activeTab === 'code' ? '💻 Kod' : '📁 Dosya'}
+                                    </span>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                    {el.extra.activeTab === 'text' && (
+                                        <p className="bg-slate-50 p-2.5 rounded-xl font-bold text-slate-755 whitespace-pre-wrap">{el.extra.submittedAnswer}</p>
+                                    )}
+                                    {el.extra.activeTab === 'code' && (
+                                        <pre className="bg-slate-900 text-slate-100 p-2.5 rounded-xl font-mono text-[9px] whitespace-pre-wrap max-h-[120px] overflow-y-auto">{el.extra.submittedCode || '// Boş Kod'}</pre>
+                                    )}
+                                    {el.extra.activeTab === 'file' && (
+                                        <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl p-2 w-full mt-0.5">
+                                            <div className="w-8 h-8 rounded-lg bg-indigo-50 border border-indigo-150 flex items-center justify-center shrink-0">
+                                                <FileText className="w-4 h-4 text-indigo-500" />
+                                            </div>
+                                            <div className="flex flex-col text-[10px] font-black text-slate-700 min-w-0">
+                                                <span className="text-[7.5px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-0.5">Dosya Teslimi</span>
+                                                <span className="font-bold truncate">{el.extra.submittedFile}</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Grading Feedback */}
+                                <div className="flex flex-col gap-1.5 mt-1.5 pt-1.5 border-t border-slate-100">
+                                    <span className="text-[9px] font-black text-slate-400 uppercase">Öğretmen Geri Bildirimi:</span>
+                                    <textarea
+                                        value={feedback}
+                                        onChange={(e) => setFeedback(e.target.value)}
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                        placeholder="Öğrencinin projesini değerlendirin..."
+                                        className="w-full text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-2 outline-none focus:border-amber-400 focus:bg-white resize-none"
+                                        rows={2}
+                                    />
+                                    <button
+                                        onClick={handleTeacherGrade}
+                                        className="self-end bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[9px] px-3.5 py-1.5 rounded-lg border-b-2 border-amber-700 active:border-b-0 active:translate-y-0.5 transition-all uppercase tracking-wider flex items-center gap-1.5"
+                                    >
+                                        Geri Bildirimi Kaydet
+                                    </button>
+                                    {showFeedbackSuccess && (
+                                        <span className="text-right text-[9px] font-bold text-green-600 animate-pulse">✓ Kaydedildi!</span>
+                                    )}
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="flex-1 border border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center p-4 text-slate-400 text-center">
+                                <span className="text-xs font-bold uppercase tracking-wider">Henüz Proje Teslim Edilmedi</span>
+                                <span className="text-[9px] mt-1">Öğrenci önizlemesinde teslim edildikten sonra buradan incelenebilir.</span>
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    // Student or Editor View
+                    <div className="flex-1 flex flex-col gap-2 min-h-0">
+                        {/* Tab Headers */}
+                        <div className="flex items-center gap-2 shrink-0 w-full" onMouseDown={(e) => e.stopPropagation()}>
+                            <button onClick={() => handleTabChange('text')} className={tabClass('text')}>Metin</button>
+                            <button onClick={() => handleTabChange('code')} className={tabClass('code')}>Kod</button>
+                            <button onClick={() => handleTabChange('file')} className={tabClass('file')}>Dosya</button>
+                        </div>
+
+                        {/* Tab Content Panels */}
+                        <div className="flex-1 min-h-0 bg-white border border-slate-200/60 rounded-2xl p-2.5 flex flex-col relative select-text overflow-hidden">
+                            {activeTab === 'text' && (
+                                <textarea
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    disabled={!isPreview || isSubmitted}
+                                    placeholder={isPreview ? "Proje çözümünüzü veya açıklamalarınızı buraya yazın..." : "Öğrenci çözüm giriş alanı (Önizlemede aktif)"}
+                                    className="w-full h-full text-[11px] font-bold text-slate-700 bg-transparent resize-none outline-none leading-relaxed placeholder-slate-350"
+                                />
+                            )}
+                            
+                            {activeTab === 'code' && (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-3 p-4 text-center select-none bg-slate-50 border border-slate-100 rounded-2xl h-full">
+                                    <Code2 className="w-8 h-8 text-amber-500 animate-pulse" />
+                                    <span className="text-xs font-black text-slate-750 uppercase tracking-wide">Kod Editörü Bağlandı</span>
+                                    <p className="text-[10px] font-bold text-slate-400 max-w-[200px] leading-relaxed">
+                                        Lütfen proje çözüm kodunuzu sağdaki kod editörü penceresini kullanarak yazın.
+                                    </p>
+                                </div>
+                            )}
+
+                            {activeTab === 'file' && (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-2 select-none h-full w-full">
+                                    <input
+                                        type="file"
+                                        id={`production-upload-${el.id}`}
+                                        className="hidden"
+                                        disabled={!isPreview || isSubmitted}
+                                        onChange={handleFileUpload}
+                                    />
+                                    
+                                    {fileName ? (
+                                        <div className="flex flex-col items-center justify-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl p-3 w-full">
+                                            <FileUp className="w-6 h-6 text-amber-500 animate-pulse" />
+                                            <span className="text-[10px] font-black text-slate-750 truncate max-w-full px-2">{fileName}</span>
+                                            {isPreview && !isSubmitted && (
+                                                <button
+                                                    onClick={(e) => { e.stopPropagation(); setFileName(''); }}
+                                                    className="text-[8px] font-black text-red-500 uppercase hover:underline"
+                                                >
+                                                    Dosyayı Kaldır
+                                                </button>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                if (isPreview && !isSubmitted) {
+                                                    document.getElementById(`production-upload-${el.id}`)?.click();
+                                                }
+                                            }}
+                                            className={`border border-dashed border-slate-250 bg-slate-50 hover:bg-slate-100/50 rounded-xl p-4 w-full flex flex-col items-center justify-center gap-1 cursor-pointer transition-all ${(!isPreview || isSubmitted) ? 'cursor-not-allowed opacity-60' : ''}`}
+                                        >
+                                            <FileUp className="w-5 h-5 text-slate-400" />
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider text-center">Dosya Seçin veya Bırakın</span>
+                                        </button>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Submit Button for Student Preview */}
+                        {isPreview && (
+                            <div className="shrink-0 flex items-center justify-between mt-1 select-none" onMouseDown={(e) => e.stopPropagation()}>
+                                {isSubmitted ? (
+                                    <div className="flex flex-col gap-1.5 w-full">
+                                        <div className="flex items-center gap-2 justify-between">
+                                            <button
+                                                onClick={handleStudentReset}
+                                                className="bg-slate-100 hover:bg-slate-200 text-slate-600 font-extrabold text-[9px] px-3.5 py-1.5 rounded-lg border-b-2 border-slate-350 active:border-b-0 active:translate-y-0.5 transition-all uppercase tracking-wider"
+                                                style={{ borderColor: '#cbd5e1' }}
+                                            >
+                                                Yenile
+                                            </button>
+                                            <span className="text-[9px] font-black text-green-600 flex items-center gap-1">✓ Başarıyla Gönderildi!</span>
+                                        </div>
+                                        {el.extra?.teacherFeedback && (
+                                            <div className="bg-amber-50/50 border border-amber-250 rounded-xl p-2.5 text-[9px] text-slate-700 leading-normal select-text mt-0.5 border-l-4 border-l-amber-500">
+                                                <span className="font-black text-amber-800 uppercase block mb-0.5">👨‍🏫 Eğitmen Geri Bildirimi:</span>
+                                                <span className="font-bold">{el.extra.teacherFeedback}</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={handleStudentSubmit}
+                                        className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-[11px] py-2.5 rounded-xl border-b-4 border-amber-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-sm uppercase tracking-wider text-center flex items-center justify-center gap-1.5"
+                                    >
+                                        <Send className="w-3.5 h-3.5" /> Projeyi Teslim Et
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                        
+                        {showSuccess && (
+                            <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-4 text-center select-none animate-in fade-in zoom-in-95 duration-200">
+                                <CheckCircle className="w-10 h-10 text-green-500 mb-1.5 animate-bounce" />
+                                <h4 className="font-black text-slate-700 text-xs uppercase tracking-wide">Tebrikler!</h4>
+                                <p className="text-[10px] font-bold text-slate-400 mt-0.5">Projeniz başarıyla eğitmeninize iletildi.</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
         </div>
     );
 };
@@ -1871,6 +2512,20 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             previewRole={previewRole} 
             updateElement={updateElement} 
             allLessons={allLessons}
+            elements={elements}
+            deleteElement={deleteElement}
+            onSpawnCodeEditor={onSpawnCodeEditor}
+          />
+        )}
+        {el.type === "production_task" && (
+          <ProductionTaskWidget 
+            el={el} 
+            isPreview={isPreview} 
+            previewRole={previewRole} 
+            updateElement={updateElement} 
+            elements={elements}
+            deleteElement={deleteElement}
+            onSpawnCodeEditor={onSpawnCodeEditor}
           />
         )}
       </div>
