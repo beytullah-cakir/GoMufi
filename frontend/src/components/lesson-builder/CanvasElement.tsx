@@ -21,6 +21,7 @@ interface CanvasElementProps {
   previewRole?: 'student' | 'teacher';
   elements?: SlideElement[];
   onSpawnCodeEditor?: (challengeId: string, x: number, y: number, height: number) => void;
+  allLessons?: any[];
 }
 
 interface WhiteboardWidgetProps {
@@ -876,9 +877,10 @@ interface ConnectionTaskWidgetProps {
     isPreview: boolean;
     previewRole?: 'student' | 'teacher';
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
+    allLessons?: any[];
 }
 
-const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPreview, previewRole = 'student', updateElement }) => {
+const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPreview, previewRole = 'student', updateElement, allLessons = [] }) => {
     const [title, setTitle] = useState(el.extra?.title || 'Bağlantı Görevi (Connection Task)');
     const [previousTopic, setPreviousTopic] = useState(el.extra?.previousTopic || 'Function');
     const [currentTopic, setCurrentTopic] = useState(el.extra?.currentTopic || 'Class');
@@ -893,6 +895,12 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
     const [feedback, setFeedback] = useState(el.extra?.teacherFeedback || '');
     const [showFeedbackSuccess, setShowFeedbackSuccess] = useState(false);
 
+    // Overlay State
+    const [showOverlay, setShowOverlay] = useState(false);
+    const [overlaySlideIndex, setOverlaySlideIndex] = useState(el.extra?.linkedSlideIndex || 0);
+    const [overlayScale, setOverlayScale] = useState(0.8);
+    const overlayContainerRef = useRef<HTMLDivElement>(null);
+
     useEffect(() => {
         setTitle(el.extra?.title || 'Bağlantı Görevi (Connection Task)');
         setPreviousTopic(el.extra?.previousTopic || 'Function');
@@ -902,6 +910,22 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
         setIsSubmitted(!!el.extra?.isSubmitted);
         setFeedback(el.extra?.teacherFeedback || '');
     }, [el.content, el.extra]);
+
+    useEffect(() => {
+        if (showOverlay) {
+            const handleResize = () => {
+                if (overlayContainerRef.current) {
+                    const rect = overlayContainerRef.current.getBoundingClientRect();
+                    const wScale = (rect.width - 24) / 1000;
+                    const hScale = (rect.height - 24) / 562.5;
+                    setOverlayScale(Math.max(0.1, Math.min(wScale, hScale)));
+                }
+            };
+            handleResize();
+            window.addEventListener('resize', handleResize);
+            return () => window.removeEventListener('resize', handleResize);
+        }
+    }, [showOverlay, overlaySlideIndex]);
 
     const handleSaveConfig = () => {
         updateElement(el.id, {
@@ -993,9 +1017,23 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
             <div className="shrink-0 flex flex-col gap-1.5" onMouseDown={(e) => e.stopPropagation()}>
                 {isPreview ? (
                     <div className="flex items-center justify-center gap-3 bg-slate-50 border border-slate-100 rounded-2xl p-2 shrink-0">
-                        <div className="flex-1 bg-white border border-slate-150 rounded-xl p-2 text-center shadow-sm">
-                            <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Önceki Ders</span>
-                            <span className="text-xs font-black text-slate-700 block truncate">{previousTopic}</span>
+                        <div className="flex-1 bg-white border border-slate-150 rounded-xl p-2 text-center shadow-sm flex flex-col items-center justify-between">
+                            <div>
+                                <span className="text-[7.5px] font-black text-slate-400 uppercase tracking-widest block mb-0.5">Önceki Ders</span>
+                                <span className="text-xs font-black text-slate-700 block truncate">{previousTopic}</span>
+                            </div>
+                            {el.extra?.linkedLessonId && (
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setOverlaySlideIndex(el.extra.linkedSlideIndex || 0);
+                                        setShowOverlay(true);
+                                    }}
+                                    className="mt-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8px] px-2 py-1 rounded-lg shadow-sm hover:shadow hover:scale-105 active:scale-95 transition-all uppercase tracking-wider w-full flex items-center justify-center gap-0.5"
+                                >
+                                    🔍 İncele
+                                </button>
+                            )}
                         </div>
                         <div className="w-8 h-8 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-600 flex items-center justify-center shrink-0 shadow-inner">
                             <GitMerge className="w-4 h-4 animate-spin duration-3000" style={{ animationDuration: '6s' }} />
@@ -1006,28 +1044,82 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                         </div>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Önceki Konu</span>
-                            <input
-                                type="text"
-                                value={previousTopic}
-                                onChange={(e) => setPreviousTopic(e.target.value)}
-                                onBlur={handleSaveConfig}
-                                placeholder="Örn: Function"
-                                className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
-                            />
+                    <div className="flex flex-col gap-2">
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Önceki Konu Başlığı</span>
+                                <input
+                                    type="text"
+                                    value={previousTopic}
+                                    onChange={(e) => setPreviousTopic(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: Function"
+                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
+                                />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Şimdiki Konu Başlığı</span>
+                                <input
+                                    type="text"
+                                    value={currentTopic}
+                                    onChange={(e) => setCurrentTopic(e.target.value)}
+                                    onBlur={handleSaveConfig}
+                                    placeholder="Örn: Class"
+                                    className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
+                                />
+                            </div>
                         </div>
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Şimdiki Konu</span>
-                            <input
-                                type="text"
-                                value={currentTopic}
-                                onChange={(e) => setCurrentTopic(e.target.value)}
-                                onBlur={handleSaveConfig}
-                                placeholder="Örn: Class"
-                                className="w-full text-xs font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2.5 py-1.5 outline-none focus:border-emerald-400"
-                            />
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Bağlantılı Seviye (Level)</span>
+                                <select
+                                    value={el.extra?.linkedLessonId || ""}
+                                    onChange={(e) => {
+                                        const lessonId = e.target.value;
+                                        const selectedLesson = allLessons?.find(l => String(l.id) === String(lessonId));
+                                        updateElement(el.id, {
+                                            extra: {
+                                                ...el.extra,
+                                                linkedLessonId: lessonId,
+                                                linkedSlideIndex: 0,
+                                                previousTopic: selectedLesson ? (selectedLesson.noteTitle || selectedLesson.title) : previousTopic
+                                            }
+                                        });
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="w-full text-[10px] font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 outline-none focus:border-emerald-400"
+                                >
+                                    <option value="">-- Bağlantı Yok --</option>
+                                    {allLessons?.map((l, idx) => (
+                                        <option key={l.id} value={l.id}>
+                                            Level {idx + 1} - {l.noteTitle || l.title || `Ders ${idx + 1}`}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <span className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Bağlantılı Slayt Sayfası</span>
+                                <select
+                                    value={el.extra?.linkedSlideIndex || 0}
+                                    disabled={!el.extra?.linkedLessonId}
+                                    onChange={(e) => {
+                                        updateElement(el.id, {
+                                            extra: {
+                                                ...el.extra,
+                                                linkedSlideIndex: parseInt(e.target.value)
+                                            }
+                                        });
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="w-full text-[10px] font-bold text-slate-750 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 outline-none focus:border-emerald-400 disabled:opacity-50"
+                                >
+                                    {allLessons?.find(l => String(l.id) === String(el.extra?.linkedLessonId))?.slides?.map((s: any, idx: number) => (
+                                        <option key={idx} value={idx}>
+                                            Sayfa {idx + 1}
+                                        </option>
+                                    )) || <option value={0}>Sayfa 1</option>}
+                                </select>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -1066,7 +1158,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                                     <span>Teslim Saati: {el.extra.submittedAt || 'Belirtilmemiş'}</span>
                                 </div>
                                 <div className="flex flex-col gap-1">
-                                    <p className="bg-slate-50 p-2.5 rounded-xl font-bold text-slate-750 whitespace-pre-wrap">{el.extra.submittedAnswer}</p>
+                                    <p className="bg-slate-50 p-2.5 rounded-xl font-bold text-slate-755 whitespace-pre-wrap">{el.extra.submittedAnswer}</p>
                                 </div>
 
                                 {/* Grading Feedback */}
@@ -1156,6 +1248,105 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({ el, isPrevi
                     </div>
                 )}
             </div>
+
+            {/* Slide Preview Overlay */}
+            {showOverlay && (() => {
+                const linkedLesson = allLessons?.find(l => String(l.id) === String(el.extra?.linkedLessonId));
+                const slides = linkedLesson?.slides || [];
+                const currentSlide = slides[overlaySlideIndex];
+
+                return (
+                    <div 
+                        className="fixed inset-0 z-[999] bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-4"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                    >
+                        <div className="w-full max-w-5xl flex items-center justify-between text-white mb-3.5 px-4 shrink-0">
+                            <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">BAĞLANTILI İÇERİK</span>
+                                <h3 className="text-sm font-black font-display text-slate-100">
+                                    Level {allLessons?.findIndex(l => String(l.id) === String(el.extra?.linkedLessonId)) + 1} - {linkedLesson?.noteTitle || linkedLesson?.title || "Ders İçeriği"}
+                                </h3>
+                            </div>
+                            
+                            {/* Navigation controls */}
+                            {slides.length > 1 && (
+                                <div className="flex items-center gap-3.5 bg-slate-900/80 px-4 py-1.5 rounded-xl border border-slate-800 shadow-inner">
+                                    <button
+                                        disabled={overlaySlideIndex <= 0}
+                                        onClick={() => setOverlaySlideIndex((prev: number) => prev - 1)}
+                                        className="text-xs font-black disabled:opacity-30 hover:text-emerald-400 transition-colors cursor-pointer"
+                                    >
+                                        ◀ Önceki Sayfa
+                                    </button>
+                                    <span className="text-xs font-black text-slate-400">
+                                        {overlaySlideIndex + 1} / {slides.length}
+                                    </span>
+                                    <button
+                                        disabled={overlaySlideIndex >= slides.length - 1}
+                                        onClick={() => setOverlaySlideIndex((prev: number) => prev + 1)}
+                                        className="text-xs font-black disabled:opacity-30 hover:text-emerald-400 transition-colors cursor-pointer"
+                                    >
+                                        Sonraki Sayfa ▶
+                                    </button>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={() => setShowOverlay(false)}
+                                className="bg-rose-500 hover:bg-rose-600 text-white font-black text-xs px-4 py-2 rounded-xl shadow-lg border-b-4 border-rose-700 active:border-b-0 active:translate-y-0.5 transition-all uppercase tracking-wider cursor-pointer"
+                            >
+                                Kapat ve Geri Dön
+                            </button>
+                        </div>
+
+                        {/* Slide Canvas Wrapper */}
+                        <div 
+                            ref={overlayContainerRef}
+                            className="flex-1 w-full flex items-center justify-center min-h-0 relative overflow-hidden"
+                        >
+                            {currentSlide ? (
+                                <div 
+                                    className="relative shrink-0"
+                                    style={{
+                                        width: 1000 * overlayScale,
+                                        height: 562.5 * overlayScale
+                                    }}
+                                >
+                                    <div 
+                                        className="bg-white rounded-2xl shadow-2xl absolute overflow-hidden border border-slate-100" 
+                                        style={{ 
+                                            width: 1000, 
+                                            height: 562.5, 
+                                            transform: `scale(${overlayScale})`,
+                                            transformOrigin: 'top left',
+                                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                                        }}
+                                    >
+                                        {currentSlide.elements?.map((subEl: SlideElement) => (
+                                            <CanvasElement
+                                                key={subEl.id}
+                                                el={subEl}
+                                                isEditing={false}
+                                                setEditingElementId={() => {}}
+                                                updateElement={() => {}}
+                                                updateElementStyle={() => {}}
+                                                deleteElement={() => {}}
+                                                handleMouseDown={() => {}}
+                                                isPreview={true}
+                                                previewRole="student"
+                                                elements={currentSlide.elements}
+                                            />
+                                        ))}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-slate-400 font-bold text-sm">Slayt içeriği yüklenemedi.</div>
+                            )}
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
@@ -1172,6 +1363,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   elements = [],
   deleteElement,
   onSpawnCodeEditor,
+  allLessons = [],
 }) => {
   if (isPreview && el.type === 'speaking_note') {
       return null;
@@ -1678,6 +1870,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             isPreview={isPreview} 
             previewRole={previewRole} 
             updateElement={updateElement} 
+            allLessons={allLessons}
           />
         )}
       </div>

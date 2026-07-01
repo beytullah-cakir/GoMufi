@@ -77,6 +77,18 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [showAddSlideModal, setShowAddSlideModal] = useState(false);
     const [isPreview, setIsPreview] = useState(false);
     const [previewRole, setPreviewRole] = useState<'student' | 'teacher'>('student');
+    const [allLessons, setAllLessons] = useState<any[]>(() => {
+        const notesArr = Array.isArray(initialNotes) ? initialNotes : (initialNotes ? [initialNotes] : []);
+        const currArr = Array.isArray(initialCurriculum) ? initialCurriculum : (initialCurriculum ? [initialCurriculum] : []);
+        const levelsOnly = currArr.filter((item: any) => item.type !== "live_sessions_config");
+        return levelsOnly.map((lvl: any) => {
+            const matchingNote = notesArr.find((n: any) => String(n.id) === String(lvl.id));
+            return {
+                ...lvl,
+                slides: matchingNote?.slides || []
+            };
+        });
+    });
 
     useEffect(() => {
         if (isPreview) {
@@ -410,6 +422,15 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     if (response.data) {
                         const curriculum = response.data.curriculum || [];
                         const dbNotes = response.data.notes || [];
+                        const levelsOnly = curriculum.filter((item: any) => item.type !== "live_sessions_config");
+                        const mergedLessons = levelsOnly.map((lvl: any) => {
+                            const matchingNote = dbNotes.find((n: any) => String(n.id) === String(lvl.id));
+                            return {
+                                ...lvl,
+                                slides: matchingNote?.slides || []
+                            };
+                        });
+                        setAllLessons(mergedLessons);
                         const targetNote = noteId
                             ? (dbNotes.find((n: any) => String(n.id) === String(noteId)) ||
                                curriculum.find((n: any) => String(n.id) === String(noteId)))
@@ -2213,6 +2234,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         previewRole={previewRole}
                                         elements={currentSlide.elements}
                                         onSpawnCodeEditor={spawnCodeEditorForChallenge}
+                                        allLessons={allLessons}
                                     />
                                 ))}
                             </div>

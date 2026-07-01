@@ -170,7 +170,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
     );
   };
 
-  const handleAddLevelAt = (index: number) => {
+  const handleAddLevelAt = (index: number, insertAfterDivider: boolean = false) => {
     const newId = `sec_${Date.now()}`;
     const newSection: SectionNode = {
       id: newId,
@@ -178,8 +178,20 @@ const InstructorRoadmapBuilder: React.FC = () => {
       lectures: [],
     };
     
-    const updated = [...sections];
-    updated.splice(index + 1, 0, newSection);
+    let updated = [...sections];
+    if (insertAfterDivider) {
+      const currentSec = updated[index];
+      if (currentSec && currentSec.lessonTopic) {
+        newSection.lessonTopic = currentSec.lessonTopic;
+        newSection.lessonNumber = currentSec.lessonNumber;
+        
+        const { lessonTopic, lessonNumber, ...rest } = currentSec;
+        updated[index] = rest as SectionNode;
+      }
+      updated.splice(index, 0, newSection);
+    } else {
+      updated.splice(index + 1, 0, newSection);
+    }
     
     let lessonNum = 1;
     const final = updated.map((s, idx) => {
@@ -458,7 +470,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           </span>
                           
                           <button
-                            onClick={() => handleAddLevelAt(index - 1)}
+                            onClick={() => handleAddLevelAt(index, true)}
                             className="flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 rounded-xl transition-colors w-full"
                           >
                             <div className="w-6 h-6 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
