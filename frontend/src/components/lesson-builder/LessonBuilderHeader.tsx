@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon } from 'lucide-react';
+import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil, Save } from 'lucide-react';
 
 interface LessonBuilderHeaderProps {
     onExit: () => void;
@@ -7,19 +7,26 @@ interface LessonBuilderHeaderProps {
     setProjectName: (name: string) => void;
     saveStatus: 'saved' | 'saving';
     onSave: () => void;
-    activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET';
-    setActiveStage: (stage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET') => void;
+    activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV';
+    setActiveStage: (stage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV') => void;
     onUndo: () => void;
     onRedo: () => void;
     onCopy: () => void;
     onPaste: () => void;
+    isPreview: boolean;
+    setIsPreview: (v: boolean) => void;
+    previewRole?: 'student' | 'teacher';
+    setPreviewRole?: (v: 'student' | 'teacher') => void;
+    isStageLocked?: boolean;
 }
 
 const stages = [
     { id: 'ANLA', label: 'ANLA', color: 'rgb(217, 70, 239)', desc: 'Öğrenci konuyu ilk kez kavrar.' },
     { id: 'UYGULA', label: 'UYGULA', color: 'rgb(6, 182, 212)', desc: 'Öğrenci öğrendiklerini dener.' },
     { id: 'BİRLEŞTİR', label: 'BİRLEŞTİR', color: 'rgb(34, 197, 94)', desc: 'Önceki bilgilerle bağlantı kurar.' },
-    { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)', desc: 'Öğrenci kendi çıktısını üretir.' }
+    { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)', desc: 'Öğrenci kendi çıktısını üretir.' },
+    { id: 'QUIZ', label: 'QUİZ', color: 'rgb(249, 115, 22)', desc: 'Konu anlama değerlendirme sınavı.' },
+    { id: 'ÖDEV', label: 'ÖDEV', color: 'rgb(37, 99, 235)', desc: 'Ders pekiştirme ödev teslimi.' }
 ] as const;
 
 const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
@@ -33,12 +40,35 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
     onUndo,
     onRedo,
     onCopy,
-    onPaste
+    onPaste,
+    isPreview,
+    setIsPreview,
+    previewRole = 'student',
+    setPreviewRole,
+    isStageLocked = false
 }) => {
+    const getHeaderStyles = () => {
+        if (activeStage === 'ANLA') return 'from-fuchsia-600 to-pink-600 border-fuchsia-800';
+        if (activeStage === 'UYGULA') return 'from-cyan-500 to-blue-600 border-cyan-800';
+        if (activeStage === 'BİRLEŞTİR') return 'from-emerald-500 to-green-600 border-emerald-700';
+        if (activeStage === 'QUIZ') return 'from-orange-500 to-amber-600 border-orange-700';
+        if (activeStage === 'ÖDEV') return 'from-blue-600 to-indigo-600 border-blue-800';
+        return 'from-amber-500 to-yellow-600 border-amber-700';
+    };
+
+    const getStageTextColor = () => {
+        if (activeStage === 'ANLA') return 'text-fuchsia-600';
+        if (activeStage === 'UYGULA') return 'text-cyan-600';
+        if (activeStage === 'BİRLEŞTİR') return 'text-emerald-600';
+        if (activeStage === 'QUIZ') return 'text-orange-600';
+        if (activeStage === 'ÖDEV') return 'text-blue-600';
+        return 'text-amber-600';
+    };
+
     return (
         <>
             {/* GLOBAL BUILDER BAR (Themed like ContentPage Box) */}
-            <div className="h-20 bg-gradient-to-r from-indigo-600 to-violet-600 border-b-4 border-indigo-800 flex items-center justify-between px-6 z-50 shrink-0 shadow-2xl relative overflow-hidden" onMouseDown={(e) => e.stopPropagation()}>
+            <div className={`h-20 bg-gradient-to-r ${getHeaderStyles()} border-b-4 flex items-center justify-between px-6 z-50 shrink-0 shadow-2xl relative overflow-hidden`} onMouseDown={(e) => e.stopPropagation()}>
 
                 {/* Decorative Background Elements */}
                 <div className="absolute inset-0 pointer-events-none overflow-hidden">
@@ -100,22 +130,42 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         ) : (
                             <>
                                 <Loader2 className="w-4 h-4 animate-spin text-white" />
-                                <span className="text-xs font-bold text-white">Kaydedilmedi</span>
+                                <span className="text-xs font-bold text-white">Kaydediliyor...</span>
                             </>
                         )}
                     </div>
 
-                    <button className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-sm uppercase tracking-tight">
-                        <Play className="w-4 h-4 fill-current" />
-                        <span>Önizle</span>
+                    {isPreview && (
+                        <button
+                            onClick={() => setPreviewRole?.(previewRole === 'student' ? 'teacher' : 'student')}
+                            className={`flex items-center gap-2 px-4 py-2 border font-extrabold rounded-xl transition-all hover:scale-105 active:scale-95 text-xs uppercase tracking-tight shadow-md mr-2 ${
+                                previewRole === 'teacher'
+                                    ? 'bg-amber-500 border-amber-600 text-white hover:bg-amber-600'
+                                    : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
+                            }`}
+                        >
+                            <span>{previewRole === 'teacher' ? '👨‍🏫 ÖĞRETMEN ÖNİZLEMESİ' : '🎓 ÖĞRENCİ ÖNİZLEMESİ'}</span>
+                        </button>
+                    )}
+
+                    <button
+                        onClick={() => setIsPreview(!isPreview)}
+                        className={`flex items-center gap-2 px-4 py-2 border font-bold rounded-xl transition-all hover:scale-105 active:scale-95 text-sm uppercase tracking-tight
+                            ${isPreview
+                                ? 'bg-indigo-600 border-indigo-600 text-white hover:bg-indigo-700'
+                                : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
+                            }`}
+                    >
+                        {isPreview ? <Pencil className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                        <span>{isPreview ? 'Düzenle' : 'Önizle'}</span>
                     </button>
 
                     <button
                         onClick={onSave}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group"
+                        className={`flex items-center gap-2 px-5 py-2.5 bg-white ${getStageTextColor()} font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group`}
                     >
-                        <Rocket className="w-4 h-4 group-hover:animate-bounce" />
-                        <span>Yayınla</span>
+                        <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                        <span>Kaydet</span>
                     </button>
                 </div>
             </div>
@@ -128,14 +178,14 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         return (
                             <button
                                 key={stage.id}
-                                onClick={() => setActiveStage(stage.id)}
+                                onClick={() => !isStageLocked && setActiveStage(stage.id)}
                                 style={{
                                     backgroundColor: isActive ? stage.color : 'transparent',
                                     color: isActive ? 'white' : '#64748b'
                                 }}
                                 className={`
                                     relative group flex items-center gap-2 px-4 py-1.5 rounded-lg transition-all duration-300
-                                    ${isActive ? 'shadow-md shadow-indigo-500/20 scale-[1.02] font-black' : 'hover:bg-indigo-50/80 font-bold'}
+                                    ${isActive ? 'shadow-md shadow-indigo-500/20 scale-[1.02] font-black' : isStageLocked ? 'opacity-40 cursor-not-allowed font-bold' : 'hover:bg-indigo-50/80 font-bold'}
                                 `}
                             >
                                 {/* Indicator Dot */}
