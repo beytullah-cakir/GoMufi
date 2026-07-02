@@ -19,6 +19,7 @@ import {
   Trophy as LucideTrophy,
   HelpCircle,
   FileText,
+  Trash2,
 } from "lucide-react";
 import api from "../../api";
 
@@ -55,6 +56,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [activeNodeId, setActiveNodeId] = useState<string | number | null>(null);
   const [activePlusMenuId, setActivePlusMenuId] = useState<string | number | null>(null);
+  const [draggedItem, setDraggedItem] = useState<{ type: "level" | "divider"; index: number } | null>(null);
+  const [dragOverItem, setDragOverItem] = useState<{ type: "level" | "divider" | "connector" | "plus_connector" | "plus_divider"; index: number } | null>(null);
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -305,10 +308,113 @@ const InstructorRoadmapBuilder: React.FC = () => {
     }
   };
 
+  const handleClearAll = async () => {
+    if (
+      window.confirm(
+        "Tüm yol haritasını silmek istediğinize emin misiniz? Bu işlem tüm seviyeleri ve ders çizgilerini temizleyecektir ve geri alınamaz!"
+      )
+    ) {
+      setSections([]);
+      setActiveNodeId(null);
+      setActivePlusMenuId(null);
+      await handleSaveCurriculumOnly([]);
+    }
+  };
+
   const handleUpdateTheme = (id: string | number, themeId: string) => {
     setSections(
       sections.map((s) => (s.id === id ? { ...s, theme: themeId } : s))
     );
+  };
+
+  const handleDragStart = (e: React.DragEvent, type: "level" | "divider", index: number) => {
+    setDraggedItem({ type, index });
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleDragOver = (e: React.DragEvent, type: "level" | "divider" | "connector" | "plus_connector" | "plus_divider", index: number) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+    if (dragOverItem?.type !== type || dragOverItem?.index !== index) {
+      setDragOverItem({ type, index });
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+    setDragOverItem(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetType: "level" | "divider" | "connector" | "plus_connector" | "plus_divider", targetIdx: number) => {
+    e.preventDefault();
+    if (!draggedItem) return;
+
+    const sourceIdx = draggedItem.index;
+    const sourceType = draggedItem.type;
+
+    if (sourceType === "level") {
+      if (targetType === "level" && sourceIdx !== targetIdx) {
+        const updated = [...sections];
+        const [removed] = updated.splice(sourceIdx, 1);
+        updated.splice(targetIdx, 0, removed);
+        const final = recalculateSectionsList(updated);
+        setSections(final);
+        handleSaveCurriculumOnly(final);
+      } else if (targetType === "plus_connector") {
+        if (sourceIdx !== targetIdx && sourceIdx !== targetIdx + 1) {
+          const updated = [...sections];
+          const [removed] = updated.splice(sourceIdx, 1);
+          const insertIdx = sourceIdx > targetIdx ? targetIdx + 1 : targetIdx;
+          updated.splice(insertIdx, 0, removed);
+          const final = recalculateSectionsList(updated);
+          setSections(final);
+          handleSaveCurriculumOnly(final);
+        }
+      } else if (targetType === "plus_divider") {
+        if (sourceIdx !== targetIdx) {
+          const updated = [...sections];
+          const [removed] = updated.splice(sourceIdx, 1);
+          const insertIdx = sourceIdx >= targetIdx ? targetIdx : targetIdx - 1;
+          updated.splice(insertIdx, 0, removed);
+          const final = recalculateSectionsList(updated);
+          setSections(final);
+          handleSaveCurriculumOnly(final);
+        }
+      }
+    } else if (sourceType === "divider") {
+      if (targetType === "connector") {
+        const destinationIdx = targetIdx + 1; // Dropped on connector after targetIdx, so it goes before destinationIdx
+        if (sourceIdx !== destinationIdx) {
+          const updated = [...sections];
+          const sourceSec = updated[sourceIdx];
+          const targetSec = updated[destinationIdx];
+
+          if (sourceSec && targetSec) {
+            // Swap topic and number to avoid data loss
+            const tempTopic = targetSec.lessonTopic;
+            const tempNumber = targetSec.lessonNumber;
+
+            targetSec.lessonTopic = sourceSec.lessonTopic;
+            targetSec.lessonNumber = sourceSec.lessonNumber;
+
+            if (tempTopic) {
+              sourceSec.lessonTopic = tempTopic;
+              sourceSec.lessonNumber = tempNumber;
+            } else {
+              delete sourceSec.lessonTopic;
+              delete sourceSec.lessonNumber;
+            }
+          }
+
+          const final = recalculateSectionsList(updated);
+          setSections(final);
+          handleSaveCurriculumOnly(final);
+        }
+      }
+    }
+
+    setDraggedItem(null);
+    setDragOverItem(null);
   };
 
   // Helper to map themes to levels matching student view exact parameters
@@ -390,6 +496,16 @@ const InstructorRoadmapBuilder: React.FC = () => {
           )}
 
           <button
+            onClick={handleClearAll}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl shadow-[0_4px_0_#991b1b] hover:shadow-[0_2px_0_#991b1b] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
+            title="Tüm Yolu Temizle"
+          >
+            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <span>Tümünü Temizle</span>
+          </button>
+
+          <button
             onClick={handleSave}
             disabled={isSaving}
             className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group"
@@ -449,12 +565,37 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
 
                     {/* Main Divider Body */}
-                    <div className="relative w-full flex flex-col items-center group/divider">
+                    <div
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, "divider", index)}
+                      onDragOver={(e) => {
+                        if (draggedItem?.type === "divider") {
+                          handleDragOver(e, "divider", index);
+                        }
+                      }}
+                      onDrop={(e) => {
+                        if (draggedItem?.type === "divider") {
+                          handleDrop(e, "divider", index);
+                        }
+                      }}
+                      onDragEnd={handleDragEnd}
+                      className={`relative w-full flex flex-col items-center group/divider cursor-grab active:cursor-grabbing transition-all duration-200 ${
+                        draggedItem?.type === "divider" && draggedItem.index === index
+                          ? "opacity-40 scale-95"
+                          : ""
+                      } ${
+                        dragOverItem?.type === "divider" && dragOverItem.index === index
+                          ? "scale-105 rotate-1"
+                          : ""
+                      }`}
+                    >
                       {/* Delete Divider Button on Hover */}
                       {index > 0 && (
                         <button
                           type="button"
                           onClick={() => handleRemoveDivider(section.id)}
+                          onDragStart={(e) => e.stopPropagation()}
+                          draggable={false}
                           className="absolute -top-3 right-3 w-6 h-6 bg-red-100 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover/divider:opacity-100 shadow-md z-30"
                           title="Bölümü Kaldır"
                         >
@@ -463,12 +604,18 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       )}
 
                       {/* Topic Badge */}
-                      <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-indigo-100 flex flex-col items-center transform hover:scale-105 transition-transform z-10 w-40">
+                      <div className={`bg-white p-4 rounded-2xl shadow-lg border-2 flex flex-col items-center transform hover:scale-105 transition-all z-10 w-40 ${
+                        dragOverItem?.type === "divider" && dragOverItem.index === index
+                          ? "border-indigo-500 ring-4 ring-indigo-100 shadow-2xl"
+                          : "border-indigo-100"
+                      }`}>
                         <span className="text-[10px] font-black text-gray-400 tracking-[0.2em] uppercase mb-1 shrink-0">DERS {section.lessonNumber || 1}</span>
                         <textarea
                           rows={2}
                           value={section.lessonTopic}
                           onClick={(e) => e.stopPropagation()}
+                          onDragStart={(e) => e.stopPropagation()}
+                          draggable={false}
                           onChange={(e) => handleUpdateLessonTopic(section.id, e.target.value)}
                           className="text-sm font-black font-display tracking-tight text-gray-800 text-center bg-transparent focus:outline-none w-full resize-none leading-tight py-0.5 border-b border-transparent hover:border-gray-200 focus:border-indigo-500"
                         />
@@ -501,9 +648,21 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           e.stopPropagation();
                           setActivePlusMenuId(`div_${section.id}`);
                         }}
+                        onDragOver={(e) => {
+                          if (draggedItem?.type === "level") {
+                            handleDragOver(e, "plus_divider", index);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (draggedItem?.type === "level") {
+                            handleDrop(e, "plus_divider", index);
+                          }
+                        }}
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${
                           activePlusMenuId === `div_${section.id}`
                             ? "bg-indigo-600 border-indigo-600 text-white scale-110"
+                            : dragOverItem?.type === "plus_divider" && dragOverItem.index === index
+                            ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
                             : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
                         }`}
                         title="Ekleme Seçenekleri"
@@ -541,8 +700,29 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                 {/* Node Box */}
                 <div
-                  className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, "level", index)}
+                  onDragOver={(e) => {
+                    if (draggedItem?.type === "level") {
+                      handleDragOver(e, "level", index);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (draggedItem?.type === "level") {
+                      handleDrop(e, "level", index);
+                    }
+                  }}
+                  onDragEnd={handleDragEnd}
+                  className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-all duration-200 ${
                     curve === "up" ? "mt-32" : "-mt-12"
+                  } ${
+                    draggedItem?.type === "level" && draggedItem.index === index
+                      ? "opacity-40 scale-90"
+                      : ""
+                  } ${
+                    dragOverItem?.type === "level" && dragOverItem.index === index
+                      ? "scale-110 rotate-2"
+                      : ""
                   }`}
                   onClick={(e) => {
                     e.stopPropagation();
@@ -554,6 +734,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   <button
                     type="button"
                     onClick={(e) => handleRemoveSection(section.id, e)}
+                    onDragStart={(e) => e.stopPropagation()}
+                    draggable={false}
                     className="absolute -top-4 right-2 w-7 h-7 bg-red-100 border border-red-200 text-red-500 hover:bg-red-500 hover:text-white rounded-full flex items-center justify-center transition-all opacity-0 group-hover:opacity-100 shadow-md z-[70]"
                     title="Seviyeyi Sil"
                   >
@@ -565,6 +747,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     <div
                       className="absolute bottom-full left-1/2 -translate-x-1/2 z-[60] mb-14 origin-bottom animate-in fade-in slide-in-from-bottom-3 duration-250 cursor-default"
                       onClick={(e) => e.stopPropagation()}
+                      onDragStart={(e) => e.stopPropagation()}
+                      draggable={false}
                     >
                       <div className="relative min-w-[280px] rounded-3xl border-x-2 border-t-2 border-b-[6px] shadow-2xl p-5 flex flex-col gap-3"
                            style={{ backgroundColor: metadata.baseColor, borderColor: metadata.strokeColor }}>
@@ -584,6 +768,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                             type="text"
                             value={section.title}
                             onChange={(e) => handleUpdateTitle(section.id, e.target.value)}
+                            onDragStart={(e) => e.stopPropagation()}
+                            draggable={false}
                             placeholder="Başlık girin..."
                             className="bg-white/20 text-white font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:bg-white/30 border border-white/10 placeholder-white/50 w-full"
                           />
@@ -638,7 +824,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   ></div>
 
                   {/* Button Sprite background */}
-                  <img src={metadata.button} alt="Button Sprite" className="w-36 relative z-10" />
+                  <img src={metadata.button} alt="Button Sprite" className={`w-36 relative z-10 transition-all duration-200 ${
+                    dragOverItem?.type === "level" && dragOverItem.index === index
+                      ? "filter drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]"
+                      : ""
+                  }`} />
 
                   {/* Float Shadow */}
                   <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
@@ -712,9 +902,25 @@ const InstructorRoadmapBuilder: React.FC = () => {
                 </div>
 
                 {/* Connector line to the next node / divider */}
-                <div className={`w-40 h-20 -mx-4 relative flex items-center justify-center ${
-                  activePlusMenuId === section.id ? 'z-50' : 'z-0'
-                }`}>
+                <div
+                  onDragOver={(e) => {
+                    if (draggedItem?.type === "divider" && index < sections.length - 1) {
+                      handleDragOver(e, "connector", index);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    if (draggedItem?.type === "divider" && index < sections.length - 1) {
+                      handleDrop(e, "connector", index);
+                    }
+                  }}
+                  className={`w-40 h-20 -mx-4 relative flex items-center justify-center transition-all duration-200 ${
+                    activePlusMenuId === section.id ? 'z-50' : 'z-0'
+                  } ${
+                    dragOverItem?.type === "connector" && dragOverItem.index === index
+                      ? "scale-110 z-30"
+                      : ""
+                  }`}
+                >
                   <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                     <path
                       d={
@@ -722,8 +928,16 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           ? (curve === "up" ? "M0 65 Q 60 70 120 45" : "M0 45 Q 60 20 120 45")
                           : (curve === "up" ? "M0 65 Q 60 0 120 45" : "M0 45 Q 60 110 120 65")
                       }
-                      stroke="#cbd5e1"
-                      strokeWidth="10"
+                      stroke={
+                        dragOverItem?.type === "connector" && dragOverItem.index === index
+                          ? "#6366f1"
+                          : "#cbd5e1"
+                      }
+                      strokeWidth={
+                        dragOverItem?.type === "connector" && dragOverItem.index === index
+                          ? "14"
+                          : "10"
+                      }
                       strokeLinecap="round"
                       strokeDasharray="0 22"
                       fill="none"
@@ -739,9 +953,21 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           e.stopPropagation();
                           setActivePlusMenuId(activePlusMenuId === section.id ? null : section.id);
                         }}
+                        onDragOver={(e) => {
+                          if (draggedItem?.type === "level") {
+                            handleDragOver(e, "plus_connector", index);
+                          }
+                        }}
+                        onDrop={(e) => {
+                          if (draggedItem?.type === "level") {
+                            handleDrop(e, "plus_connector", index);
+                          }
+                        }}
                         className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${
                           activePlusMenuId === section.id
                             ? "bg-indigo-600 border-indigo-600 text-white scale-110"
+                            : dragOverItem?.type === "plus_connector" && dragOverItem.index === index
+                            ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
                             : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
                         }`}
                         title="Ekleme Seçenekleri"
