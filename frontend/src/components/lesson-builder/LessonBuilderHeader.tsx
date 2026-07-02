@@ -25,7 +25,7 @@ const stages = [
     { id: 'UYGULA', label: 'UYGULA', color: 'rgb(6, 182, 212)', desc: 'Öğrenci öğrendiklerini dener.' },
     { id: 'BİRLEŞTİR', label: 'BİRLEŞTİR', color: 'rgb(34, 197, 94)', desc: 'Önceki bilgilerle bağlantı kurar.' },
     { id: 'ÜRET', label: 'ÜRET', color: 'rgb(234, 179, 8)', desc: 'Öğrenci kendi çıktısını üretir.' },
-    { id: 'QUIZ', label: 'QUİZ', color: 'rgb(249, 115, 22)', desc: 'Konu anlama değerlendirme sınavı.' },
+    { id: 'QUIZ', label: 'QUİZ', color: 'rgb(124, 58, 237)', desc: 'Konu anlama değerlendirme sınavı.' },
     { id: 'ÖDEV', label: 'ÖDEV', color: 'rgb(37, 99, 235)', desc: 'Ders pekiştirme ödev teslimi.' }
 ] as const;
 
@@ -51,8 +51,8 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
         if (activeStage === 'ANLA') return 'from-fuchsia-600 to-pink-600 border-fuchsia-800';
         if (activeStage === 'UYGULA') return 'from-cyan-500 to-blue-600 border-cyan-800';
         if (activeStage === 'BİRLEŞTİR') return 'from-emerald-500 to-green-600 border-emerald-700';
-        if (activeStage === 'QUIZ') return 'from-orange-500 to-amber-600 border-orange-700';
-        if (activeStage === 'ÖDEV') return 'from-blue-600 to-indigo-600 border-blue-800';
+        if (activeStage === 'QUIZ') return 'from-purple-600 to-indigo-600 border-purple-800';
+        if (activeStage === 'ÖDEV') return 'from-blue-600 to-indigo-700 border-blue-800';
         return 'from-amber-500 to-yellow-600 border-amber-700';
     };
 
@@ -60,7 +60,7 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
         if (activeStage === 'ANLA') return 'text-fuchsia-600';
         if (activeStage === 'UYGULA') return 'text-cyan-600';
         if (activeStage === 'BİRLEŞTİR') return 'text-emerald-600';
-        if (activeStage === 'QUIZ') return 'text-orange-600';
+        if (activeStage === 'QUIZ') return 'text-purple-600';
         if (activeStage === 'ÖDEV') return 'text-blue-600';
         return 'text-amber-600';
     };

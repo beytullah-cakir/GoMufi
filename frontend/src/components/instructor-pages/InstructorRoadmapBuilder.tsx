@@ -32,6 +32,10 @@ import BrainIcon from "../../assets/sprites/Brain.png";
 import PencilIcon from "../../assets/sprites/Pencil.png";
 import PuzzleIcon from "../../assets/sprites/Puzzle.png";
 import TrophyIcon from "../../assets/sprites/Trophy.png";
+import ButtonDarkBlue from "../../assets/sprites/ButtonDarkBlue.png";
+import ButtonDarkPurple from "../../assets/sprites/ButtonDarkPurple.png";
+import QuestionIcon from "../../assets/sprites/Question.png";
+import BagIcon from "../../assets/sprites/Bag.png";
 
 interface SectionNode {
   id: string | number;
@@ -88,6 +92,64 @@ const InstructorRoadmapBuilder: React.FC = () => {
     }
   }, [courseId, navigate]);
 
+  const handleSaveCurriculumOnly = async (customSections: SectionNode[] = sections) => {
+    try {
+      const curriculumPayload = [];
+      if (liveSessionsConfig) {
+        curriculumPayload.push(liveSessionsConfig);
+      } else {
+        curriculumPayload.push({
+          type: "live_sessions_config",
+          is_live: false,
+          sessions: [],
+        });
+      }
+      curriculumPayload.push(...customSections);
+
+      await api.put(`/update_course/${courseId}`, {
+        curriculum: curriculumPayload,
+      });
+    } catch (error) {
+      console.error("Error auto-saving curriculum:", error);
+    }
+  };
+
+  const recalculateSectionsList = (list: SectionNode[]): SectionNode[] => {
+    let lessonNum = 1;
+    return list.map((s, idx) => {
+      const isDefaultTitle = !s.title || /^Ders \d+$/.test(s.title);
+      const updatedTitle = isDefaultTitle ? `Ders ${idx + 1}` : s.title;
+
+      let updatedTopic = s.lessonTopic;
+      let updatedNum = s.lessonNumber;
+
+      if (idx === 0 && !s.lessonTopic) {
+        updatedTopic = course?.title || "Giriş Konusu";
+        updatedNum = lessonNum++;
+      } else if (s.lessonTopic) {
+        updatedNum = lessonNum++;
+      }
+
+      const returned: SectionNode = {
+        ...s,
+        title: updatedTitle,
+      };
+
+      if (updatedTopic !== undefined) {
+        returned.lessonTopic = updatedTopic;
+      } else {
+        delete returned.lessonTopic;
+      }
+      if (updatedNum !== undefined) {
+        returned.lessonNumber = updatedNum;
+      } else {
+        delete returned.lessonNumber;
+      }
+
+      return returned;
+    });
+  };
+
   const handleAddSection = () => {
     const newId = `sec_${Date.now()}`;
     const newSection: SectionNode = {
@@ -99,14 +161,18 @@ const InstructorRoadmapBuilder: React.FC = () => {
       newSection.lessonTopic = course?.title || "Giriş Konusu";
       newSection.lessonNumber = 1;
     }
-    setSections([...sections, newSection]);
+    const updated = [...sections, newSection];
+    const final = recalculateSectionsList(updated);
+    setSections(final);
     setActiveNodeId(newId);
   };
 
   const handleRemoveSection = (id: string | number, e: React.MouseEvent) => {
     e.stopPropagation();
     if (window.confirm("Bu seviyeyi yol haritasından silmek istediğinize emin misiniz?")) {
-      setSections(sections.filter((s) => s.id !== id));
+      const updated = sections.filter((s) => s.id !== id);
+      const final = recalculateSectionsList(updated);
+      setSections(final);
       if (activeNodeId === id) setActiveNodeId(null);
     }
   };
@@ -129,16 +195,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       return s;
     });
 
-    let lessonNum = 1;
-    const final = updated.map((s, idx) => {
-      if (idx === 0 && !s.lessonTopic) {
-        return { ...s, lessonTopic: course?.title || "Giriş Konusu", lessonNumber: lessonNum++ };
-      }
-      if (s.lessonTopic) {
-        return { ...s, lessonNumber: lessonNum++ };
-      }
-      return s;
-    });
+    const final = recalculateSectionsList(updated);
     setSections(final);
   };
 
@@ -151,16 +208,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       return s;
     });
 
-    let lessonNum = 1;
-    const final = updated.map((s, idx) => {
-      if (idx === 0 && !s.lessonTopic) {
-        return { ...s, lessonTopic: course?.title || "Giriş Konusu", lessonNumber: lessonNum++ };
-      }
-      if (s.lessonTopic) {
-        return { ...s, lessonNumber: lessonNum++ };
-      }
-      return s;
-    });
+    const final = recalculateSectionsList(updated);
     setSections(final);
   };
 
@@ -193,17 +241,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       updated.splice(index + 1, 0, newSection);
     }
     
-    let lessonNum = 1;
-    const final = updated.map((s, idx) => {
-      if (idx === 0 && !s.lessonTopic) {
-        return { ...s, lessonTopic: course?.title || "Giriş Konusu", lessonNumber: lessonNum++ };
-      }
-      if (s.lessonTopic) {
-        return { ...s, lessonNumber: lessonNum++ };
-      }
-      return s;
-    });
-
+    const final = recalculateSectionsList(updated);
     setSections(final);
     setActivePlusMenuId(null);
     setActiveNodeId(newId);
@@ -266,8 +304,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
       cyan: { button: ButtonCyan, icon: PencilIcon, ringColor: "border-cyan-400 bg-white", baseColor: "#06b6d4", strokeColor: "#0891b2", iconSize: "w-24 h-24", iconOffset: "-mt-20", isAsset: true },
       green: { button: ButtonGreen, icon: PuzzleIcon, ringColor: "border-green-400 bg-white", baseColor: "#22c55e", strokeColor: "#16a34a", iconSize: "w-20 h-20", iconOffset: "-mt-20", isAsset: true },
       yellow: { button: ButtonYellow, icon: TrophyIcon, ringColor: "border-yellow-400 bg-white", baseColor: "#eab308", strokeColor: "#ca8a04", iconSize: "w-24 h-24", iconOffset: "-mt-20", isAsset: true },
-      quiz: { button: ButtonYellow, icon: "quiz", ringColor: "border-yellow-400 bg-white", baseColor: "#f59e0b", strokeColor: "#d97706", iconSize: "w-20 h-20", iconOffset: "-mt-20", isAsset: false },
-      homework: { button: ButtonCyan, icon: "homework", ringColor: "border-cyan-400 bg-white", baseColor: "#2563eb", strokeColor: "#1d4ed8", iconSize: "w-20 h-20", iconOffset: "-mt-20", isAsset: false },
+      quiz: { button: ButtonDarkPurple, icon: QuestionIcon, ringColor: "border-purple-400 bg-white", baseColor: "#7c3aed", strokeColor: "#6d28d9", iconSize: "w-26 h-26", iconOffset: "-mt-24", isAsset: true },
+      homework: { button: ButtonDarkBlue, icon: BagIcon, ringColor: "border-indigo-400 bg-white", baseColor: "#2563eb", strokeColor: "#1d4ed8", iconSize: "w-26 h-26", iconOffset: "-mt-24", isAsset: true },
     };
 
     if (customTheme && themes[customTheme]) {
@@ -642,8 +680,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     {/* Play/Edit Content Button slides down under the node when clicked - mt-12 pushes it below LEVEL label */}
                     {activeNodeId === section.id && (
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation();
+                          setIsSaving(true);
+                          await handleSaveCurriculumOnly();
+                          setIsSaving(false);
                           navigate(`/instructor/builder?courseId=${courseId}&noteId=${section.id}&category=${getCategoryFromTheme(section.theme, index)}`);
                         }}
                         className="flex items-center gap-1.5 px-4 py-2 mt-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg border-b-[3px] border-black/10 active:border-b-0 active:translate-y-[3px] transition-all animate-in slide-in-from-top-2 duration-200"

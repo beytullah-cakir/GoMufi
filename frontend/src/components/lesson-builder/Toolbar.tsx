@@ -31,7 +31,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
         if (activeStage === 'ANLA') return 'rgb(217, 70, 239)';
         if (activeStage === 'UYGULA') return 'rgb(6, 182, 212)';
         if (activeStage === 'BİRLEŞTİR') return 'rgb(34, 197, 94)';
-        if (activeStage === 'QUIZ') return 'rgb(249, 115, 22)';
+        if (activeStage === 'QUIZ') return 'rgb(124, 58, 237)';
         if (activeStage === 'ÖDEV') return 'rgb(37, 99, 235)';
         return 'rgb(234, 179, 8)';
     };
@@ -40,8 +40,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
         if (activeStage === 'ANLA') return 'bg-gradient-to-br from-fuchsia-400 to-pink-600 hover:from-fuchsia-500 hover:to-pink-700';
         if (activeStage === 'UYGULA') return 'bg-gradient-to-br from-cyan-400 to-blue-600 hover:from-cyan-500 hover:to-blue-700';
         if (activeStage === 'BİRLEŞTİR') return 'bg-gradient-to-br from-emerald-400 to-green-600 hover:from-emerald-500 hover:to-green-700';
-        if (activeStage === 'QUIZ') return 'bg-gradient-to-br from-orange-400 to-amber-600 hover:from-orange-500 hover:to-amber-700';
-        if (activeStage === 'ÖDEV') return 'bg-gradient-to-br from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700';
+        if (activeStage === 'QUIZ') return 'bg-gradient-to-br from-purple-400 to-indigo-600 hover:from-purple-500 hover:to-indigo-700';
+        if (activeStage === 'ÖDEV') return 'bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800';
         return 'bg-gradient-to-br from-amber-400 to-yellow-600 hover:from-amber-500 hover:to-yellow-700';
     };
 

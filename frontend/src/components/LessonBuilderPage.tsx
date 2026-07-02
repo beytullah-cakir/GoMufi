@@ -1893,9 +1893,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             case 'UYGULA': return '#06b6d4'; // cyan-500
             case 'BİRLEŞTİR': return '#10b981'; // emerald-500
             case 'ÜRET': return '#f59e0b'; // amber-500
-            case 'QUIZ': return '#6366f1'; // indigo-500
-            case 'ÖDEV': return '#8b5cf6'; // violet-500
-            default: return '#6366f1';
+            case 'QUIZ': return '#7c3aed'; // purple-600
+            case 'ÖDEV': return '#2563eb'; // blue-600
+            default: return '#7c3aed';
         }
     };
     const stageColor = getStageColor();
