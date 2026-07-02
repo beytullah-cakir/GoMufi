@@ -214,9 +214,9 @@ const HomePage: React.FC<HomePageProps> = ({
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-6 md:px-12 pt-6 flex justify-between items-start z-30 relative">
+            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap justify-between items-start gap-4 z-30 relative">
                 {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
                     {/* Course Info Box (Dropdown Enabled) */}
                     <div className="relative" ref={courseDropdownRef}>
                         <div
@@ -258,7 +258,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
                     {/* Unit Header (Left) */}
                     <div
-                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
+                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
                         style={{ backgroundColor: headerColor }}
                     >
                         <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
@@ -275,7 +275,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
                     {/* Instructor Widget */}
                     {currentCourse.instructor && (
-                        <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2">
+                        <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2 shrink-0">
                             <div className="relative">
                                 <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
                                     {currentCourse.instructor.avatar}
@@ -303,7 +303,7 @@ const HomePage: React.FC<HomePageProps> = ({
                     {/* CLAN WIDGET */}
                     <div
                         ref={clanDropdownRef}
-                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700"
+                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0"
                         onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
                     >
                         <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">

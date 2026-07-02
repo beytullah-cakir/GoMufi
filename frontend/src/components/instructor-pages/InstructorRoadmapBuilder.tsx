@@ -374,11 +374,40 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
     if (sourceType === "level") {
       if (targetType === "level" && sourceIdx !== targetIdx) {
-        // Swap elements at sourceIdx and targetIdx
+        // Swap elements at sourceIdx and targetIdx, but preserve the chapter divider positions
         const updated = [...sections];
+        
+        const sourceTopic = updated[sourceIdx].lessonTopic;
+        const sourceNum = updated[sourceIdx].lessonNumber;
+        const targetTopic = updated[targetIdx].lessonTopic;
+        const targetNum = updated[targetIdx].lessonNumber;
+
         const temp = updated[sourceIdx];
         updated[sourceIdx] = updated[targetIdx];
         updated[targetIdx] = temp;
+
+        // Restore chapter details to original positions
+        if (sourceTopic !== undefined) {
+          updated[sourceIdx].lessonTopic = sourceTopic;
+        } else {
+          delete updated[sourceIdx].lessonTopic;
+        }
+        if (sourceNum !== undefined) {
+          updated[sourceIdx].lessonNumber = sourceNum;
+        } else {
+          delete updated[sourceIdx].lessonNumber;
+        }
+
+        if (targetTopic !== undefined) {
+          updated[targetIdx].lessonTopic = targetTopic;
+        } else {
+          delete updated[targetIdx].lessonTopic;
+        }
+        if (targetNum !== undefined) {
+          updated[targetIdx].lessonNumber = targetNum;
+        } else {
+          delete updated[targetIdx].lessonNumber;
+        }
 
         const final = recalculateSectionsList(updated);
         setSections(final);
