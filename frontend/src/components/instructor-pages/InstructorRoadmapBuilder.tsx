@@ -345,6 +345,26 @@ const InstructorRoadmapBuilder: React.FC = () => {
     setDragOverItem(null);
   };
 
+  const getChaptersFromSections = (list: SectionNode[]) => {
+    const chapters: { topic: string; number: number; levels: SectionNode[] }[] = [];
+    let currentChapter: typeof chapters[0] | null = null;
+
+    list.forEach((s) => {
+      if (s.lessonTopic || !currentChapter) {
+        currentChapter = {
+          topic: s.lessonTopic || course?.title || "Giriş Konusu",
+          number: s.lessonNumber || (chapters.length + 1),
+          levels: [],
+        };
+        chapters.push(currentChapter);
+      }
+      const { lessonTopic, lessonNumber, ...rest } = s;
+      currentChapter.levels.push(rest as SectionNode);
+    });
+
+    return chapters;
+  };
+
   const handleDrop = (e: React.DragEvent, targetType: "level" | "divider" | "connector" | "plus_connector" | "plus_divider", targetIdx: number) => {
     e.preventDefault();
     if (!draggedItem) return;
@@ -364,35 +384,61 @@ const InstructorRoadmapBuilder: React.FC = () => {
         setSections(final);
         handleSaveCurriculumOnly(final);
       } else if (targetType === "plus_connector" || targetType === "plus_divider") {
-        let insertIdx = targetIdx;
-        if (targetType === "plus_connector") {
-          insertIdx = sourceIdx > targetIdx ? targetIdx + 1 : targetIdx;
-        } else if (targetType === "plus_divider") {
-          insertIdx = sourceIdx >= targetIdx ? targetIdx : targetIdx - 1;
-        }
+        const sourceSec = sections[sourceIdx];
+        const targetSec = sections[targetIdx];
 
-        if (sourceIdx !== insertIdx) {
-          const updated = [...sections];
-          const sourceSec = updated[sourceIdx];
+        if (sourceSec && targetSec) {
+          const chapters = getChaptersFromSections(sections);
 
-          // If the level being moved has a divider, transfer it to the next level in that chapter (if any)
-          if (sourceSec.lessonTopic) {
-            const nextSec = updated[sourceIdx + 1];
-            if (nextSec) {
-              nextSec.lessonTopic = sourceSec.lessonTopic;
-              nextSec.lessonNumber = sourceSec.lessonNumber;
+          let sourceChIdx = -1, sourceLvlIdx = -1;
+          let targetChIdx = -1, targetLvlIdx = -1;
+
+          chapters.forEach((ch, chIdx) => {
+            const sLvlIdx = ch.levels.findIndex((l) => l.id === sourceSec.id);
+            if (sLvlIdx !== -1) {
+              sourceChIdx = chIdx;
+              sourceLvlIdx = sLvlIdx;
             }
-            delete sourceSec.lessonTopic;
-            delete sourceSec.lessonNumber;
+            const tLvlIdx = ch.levels.findIndex((l) => l.id === targetSec.id);
+            if (tLvlIdx !== -1) {
+              targetChIdx = chIdx;
+              targetLvlIdx = tLvlIdx;
+            }
+          });
+
+          if (sourceChIdx !== -1 && targetChIdx !== -1) {
+            const [removedLvl] = chapters[sourceChIdx].levels.splice(sourceLvlIdx, 1);
+            let adjustedTargetLvlIdx = targetLvlIdx;
+            if (sourceChIdx === targetChIdx && sourceLvlIdx < targetLvlIdx) {
+              adjustedTargetLvlIdx = targetLvlIdx - 1;
+            }
+
+            if (targetType === "plus_connector") {
+              chapters[targetChIdx].levels.splice(adjustedTargetLvlIdx + 1, 0, removedLvl);
+            } else if (targetType === "plus_divider") {
+              chapters[targetChIdx].levels.splice(adjustedTargetLvlIdx, 0, removedLvl);
+            }
+
+            const filteredChapters = chapters.filter((ch) => ch.levels.length > 0);
+            const rebuilt: SectionNode[] = [];
+            filteredChapters.forEach((ch) => {
+              ch.levels.forEach((lvl, lvlIdx) => {
+                if (lvlIdx === 0) {
+                  rebuilt.push({
+                    ...lvl,
+                    lessonTopic: ch.topic,
+                    lessonNumber: ch.number,
+                  });
+                } else {
+                  rebuilt.push(lvl);
+                }
+              });
+            });
+
+            const final = recalculateSectionsList(rebuilt);
+            setSections(final);
+            handleSaveCurriculumOnly(final);
           }
-
-          // Splice out source and insert at target
-          const [removed] = updated.splice(sourceIdx, 1);
-          updated.splice(insertIdx, 0, removed);
-
-          const final = recalculateSectionsList(updated);
-          setSections(final);
-          handleSaveCurriculumOnly(final);
         }
       }
     } else if (sourceType === "divider") {
