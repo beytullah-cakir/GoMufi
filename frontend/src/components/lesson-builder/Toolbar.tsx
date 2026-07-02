@@ -385,7 +385,67 @@ const Toolbar: React.FC<ToolbarProps> = ({
                             </div>
                         ))}
 
-                        {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && (
+                        {activeStage === 'QUIZ' && [
+                            {
+                                id: 'multiple_choice',
+                                name: 'Çoktan Seçmeli (Quiz)',
+                                desc: 'Soru ve 4 seçenekli şık kartlarından oluşan etkileşimli quiz widgetı.',
+                                type: 'multiple_choice',
+                                icon: HelpCircle,
+                                extra: {
+                                    content: 'Python\'da listeler hangi parantez ile gösterilir?',
+                                    extra: {
+                                        title: 'Çoktan Seçmeli Soru',
+                                        multipleCorrect: false,
+                                        explanation: 'Listeler köşeli parantez [] kullanılarak tanımlanır.',
+                                        options: [
+                                            { id: 'A', text: '[]', isCorrect: true, imageUrl: '' },
+                                            { id: 'B', text: '()', isCorrect: false, imageUrl: '' },
+                                            { id: 'C', text: '{}', isCorrect: false, imageUrl: '' },
+                                            { id: 'D', text: '<>', isCorrect: false, imageUrl: '' },
+                                        ],
+                                        submittedAnswers: [],
+                                        isChecked: false
+                                    }
+                                }
+                            }
+                        ].map(widget => (
+                            <div
+                                key={widget.id}
+                                draggable
+                                onDragStart={(e) => {
+                                    onDragStart(e, widget.type, widget.extra);
+                                }}
+                                className="bg-gray-50/70 hover:bg-white p-3.5 rounded-2xl border border-gray-100 hover:border-purple-200 hover:ring-4 hover:ring-purple-500/5 cursor-grab active:cursor-grabbing transition-all duration-200 hover:scale-[1.01] hover:shadow-md flex flex-col gap-2.5 group"
+                            >
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-purple-100/70 text-purple-600 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
+                                        <widget.icon className="w-4.5 h-4.5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="font-extrabold text-gray-800 text-xs tracking-tight group-hover:text-purple-700 transition-colors">{widget.name}</div>
+                                        <div className="text-[10px] text-gray-400 font-medium leading-tight mt-0.5">{widget.desc}</div>
+                                    </div>
+                                </div>
+
+                                {widget.type === 'multiple_choice' && (
+                                    <div className="bg-purple-50/40 border border-purple-200 p-2.5 rounded-xl text-[9px] font-sans text-left overflow-hidden h-[60px] select-none pointer-events-none relative shadow-inner flex flex-col justify-between">
+                                        <div className="flex items-center gap-1.5 text-purple-600 border-b border-purple-100/50 pb-1 mb-1">
+                                            <HelpCircle className="w-3.5 h-3.5" />
+                                            <span className="text-[8px] font-black uppercase tracking-wider">Çoktan Seçmeli Soru</span>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-1 flex-1">
+                                            <div className="bg-rose-500 text-white text-[6px] font-bold rounded flex items-center justify-center">A</div>
+                                            <div className="bg-sky-500 text-white text-[6px] font-bold rounded flex items-center justify-center">B</div>
+                                            <div className="bg-amber-400 text-white text-[6px] font-bold rounded flex items-center justify-center">C</div>
+                                            <div className="bg-emerald-500 text-white text-[6px] font-bold rounded flex items-center justify-center">D</div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+
+                        {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && activeStage !== 'QUIZ' && (
                             <div className="flex flex-col items-center justify-center py-12 px-5 border-2 border-dashed border-gray-100 rounded-3xl bg-gray-50/40 text-center animate-in fade-in duration-300">
                                 <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3 shadow-inner transition-colors duration-300" style={{ backgroundColor: `${stageColor}15`, color: stageColor }}>
                                     <Blocks className="w-6 h-6 animate-pulse" />

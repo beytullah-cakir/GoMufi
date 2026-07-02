@@ -17,7 +17,7 @@ import PropertiesPanel from './lesson-builder/PropertiesPanel';
 import SelectionOverlay from './lesson-builder/SelectionOverlay';
 import SaveToCourseModal from "./lesson-builder/SaveToCourseModal";
 import api from "../api";
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -1999,24 +1999,37 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 />
             )}
             {/* HEADER & STAGE INDICATOR */}
-            <LessonBuilderHeader
-                onExit={onExit}
-                projectName={projectName}
-                setProjectName={setProjectName}
-                saveStatus={saveStatus}
-                onSave={handleSaveAction}
-                activeStage={activeStage}
-                setActiveStage={setActiveStage}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onCopy={handleCopy}
-                onPaste={handlePaste}
-                isPreview={isPreview}
-                setIsPreview={setIsPreview}
-                previewRole={previewRole}
-                setPreviewRole={setPreviewRole}
-                isStageLocked={!!searchParams.get("category")}
-            />
+            {/* HEADER & STAGE INDICATOR */}
+            {!(isPreview && currentSlide.type === 'game') && (
+                <LessonBuilderHeader
+                    onExit={onExit}
+                    projectName={projectName}
+                    setProjectName={setProjectName}
+                    saveStatus={saveStatus}
+                    onSave={handleSaveAction}
+                    activeStage={activeStage}
+                    setActiveStage={setActiveStage}
+                    onUndo={handleUndo}
+                    onRedo={handleRedo}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
+                    isPreview={isPreview}
+                    setIsPreview={setIsPreview}
+                    previewRole={previewRole}
+                    setPreviewRole={setPreviewRole}
+                    isStageLocked={!!searchParams.get("category")}
+                />
+            )}
+
+            {isPreview && currentSlide.type === 'game' && (
+                <button
+                    onClick={() => setIsPreview(false)}
+                    className="fixed top-6 right-6 z-[250] bg-red-500 hover:bg-red-650 text-white font-black text-xs uppercase tracking-wider px-4 py-2.5 rounded-xl shadow-lg border-b-4 border-red-750 active:border-b-0 active:translate-y-0.5 transition-all flex items-center gap-2 cursor-pointer select-none"
+                >
+                    <X className="w-4 h-4" />
+                    <span>Önizlemeyi Bitir</span>
+                </button>
+            )}
 
             <div
                 className="flex-1 w-full flex overflow-hidden relative"
@@ -2039,7 +2052,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                 {/* MAIN CONTENT AREA: CANVAS OR GAME BUILDER */}
                 {currentSlide.type === 'game' ? (
-                    <div className="flex-1 overflow-y-auto relative h-full">
+                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-gray-50 flex items-center justify-center' : 'h-full overflow-y-auto'}`}>
                         <GameBuilder
                             slide={currentSlide}
                             updateSlide={(updates) => {
@@ -2047,6 +2060,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             }}
                             isPreview={isPreview}
                             previewRole={previewRole}
+                            onExitPreview={() => setIsPreview(false)}
                         />
                     </div>
                 ) : currentSlide.type === 'coding' ? (
@@ -2280,21 +2294,23 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 )}
 
                 {/* ZOOM Buttons */}
-                <LessonBuilderZoomControls scale={scale} setScale={setScale} />
+                {!isPreview && <LessonBuilderZoomControls scale={scale} setScale={setScale} />}
 
                 {/* SLIDE STRIP */}
-                <LessonBuilderSlideStrip
-                    slides={slides}
-                    currentSlideId={currentSlideId}
-                    setCurrentSlideId={setCurrentSlideId}
-                    onAddSlide={() => setShowAddSlideModal(true)}
-                    onDeleteSlide={deleteSlide}
-                    onReorderSlides={(newSlides) => {
-                        setPast(prev => [...prev, slides]);
-                        setSlides(newSlides);
-                        setFuture([]);
-                    }}
-                />
+                {!isPreview && (
+                    <LessonBuilderSlideStrip
+                        slides={slides}
+                        currentSlideId={currentSlideId}
+                        setCurrentSlideId={setCurrentSlideId}
+                        onAddSlide={() => setShowAddSlideModal(true)}
+                        onDeleteSlide={deleteSlide}
+                        onReorderSlides={(newSlides) => {
+                            setPast(prev => [...prev, slides]);
+                            setSlides(newSlides);
+                            setFuture([]);
+                        }}
+                    />
+                )}
 
                 {/* ADD SLIDE MODAL */}
                 <AddSlideModal

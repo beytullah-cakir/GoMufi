@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Image as ImageIcon, Video as VideoIcon, Loader2, FolderOpen, Globe, ExternalLink, FileText, Pencil, Mic, PenTool, Trophy, Code2, FileUp, Send, CheckCircle, GitMerge } from "lucide-react";
 import CodeWidget from "./CodeWidget";
+import MultipleChoiceWidget from "./MultipleChoiceWidget";
 import type { SlideElement, ElementStyle } from "./types";
 import api from "../../api";
 
@@ -2526,6 +2527,15 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             elements={elements}
             deleteElement={deleteElement}
             onSpawnCodeEditor={onSpawnCodeEditor}
+          />
+        )}
+        {el.type === "multiple_choice" && (
+          <MultipleChoiceWidget 
+            el={el} 
+            isPreview={isPreview} 
+            previewRole={previewRole} 
+            updateElement={updateElement} 
+            deleteElement={deleteElement}
           />
         )}
       </div>

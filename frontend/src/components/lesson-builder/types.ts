@@ -17,7 +17,7 @@ export interface ElementStyle {
 
 export interface SlideElement {
     id: string;
-    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow' | 'whiteboard' | 'file' | 'link' | 'speaking_note' | 'code_editor' | 'answer_box' | 'challenge' | 'connection_task' | 'production_task';
+    type: 'text' | 'code' | 'image' | 'video' | 'sticky' | 'shape' | 'draw' | 'arrow' | 'whiteboard' | 'file' | 'link' | 'speaking_note' | 'code_editor' | 'answer_box' | 'challenge' | 'connection_task' | 'production_task' | 'multiple_choice';
     shapeType?: 'rectangle' | 'circle';
     x: number;
     y: number;
@@ -71,6 +71,11 @@ export interface QuizQuestion {
     id: string;
     text: string;
     options: QuizOption[];
+    type?: 'multiple_choice' | 'true_false' | 'short_answer' | 'open_ended';
+    multipleCorrect?: boolean;
+    correctShortAnswer?: string;
+    explanation?: string;
+    timeLimit?: number; // seconds
 }
 
 export interface MatchingGameConfig {
