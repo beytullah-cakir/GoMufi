@@ -400,8 +400,58 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </>
                                 )}
 
+                                {/* QUIZ ŞABLONLARI */}
+                                {activeStage === 'QUIZ' && (
+                                    <>
+                                        <button
+                                            onClick={() => onAddSlide('template', {
+                                                elements: [
+                                                    { type: 'text', x: 50, y: 25, width: 900, height: 50, content: 'Quiz Sorusu & Değerlendirme', style: { fontSize: 24, fontFamily: 'Fredoka', bold: true } },
+                                                    { 
+                                                        type: 'multiple_choice', 
+                                                        x: 180, 
+                                                        y: 85, 
+                                                        width: 640, 
+                                                        height: 440, 
+                                                        rotation: 0,
+                                                        content: 'Python\'da listeler hangi parantez ile gösterilir?', 
+                                                        extra: { 
+                                                            title: 'Çoktan Seçmeli Soru',
+                                                            multipleCorrect: false,
+                                                            explanation: 'Listeler köşeli parantez [] kullanılarak tanımlanır.',
+                                                            options: [
+                                                                { id: 'A', text: '[]', isCorrect: true, imageUrl: '' },
+                                                                { id: 'B', text: '()', isCorrect: false, imageUrl: '' },
+                                                                { id: 'C', text: '{}', isCorrect: false, imageUrl: '' },
+                                                                { id: 'D', text: '<>', isCorrect: false, imageUrl: '' },
+                                                            ],
+                                                            submittedAnswers: [],
+                                                            isChecked: false
+                                                        } 
+                                                    }
+                                                ]
+                                            })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-purple-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-4">
+                                                <div className="h-5 w-28 bg-purple-500/10 border border-purple-500/20 rounded flex items-center justify-center text-[5px] text-purple-600 font-extrabold mb-2">Çoktan Seçmeli (Quiz)</div>
+                                                <div className="grid grid-cols-2 gap-1 w-20">
+                                                    <div className="h-3 bg-rose-500 rounded text-[3px] text-white flex items-center justify-center font-bold">A</div>
+                                                    <div className="h-3 bg-sky-500 rounded text-[3px] text-white flex items-center justify-center font-bold">B</div>
+                                                    <div className="h-3 bg-amber-400 rounded text-[3px] text-white flex items-center justify-center font-bold">C</div>
+                                                    <div className="h-3 bg-emerald-500 rounded text-[3px] text-white flex items-center justify-center font-bold">D</div>
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-purple-600 transition-colors">Çoktan Seçmeli Quiz Şablonu</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Soru ve 4 seçenekli şık kartlarından oluşan Duolingo stili quiz şablonu.</p>
+                                            </div>
+                                        </button>
+                                    </>
+                                )}
+
                                 {/* OTHER STAGES: GENERIC TEMPLATE */}
-                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && (
+                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && activeStage !== 'QUIZ' && (
                                     <button
                                         onClick={() => onAddSlide('template', {
                                             elements: [
