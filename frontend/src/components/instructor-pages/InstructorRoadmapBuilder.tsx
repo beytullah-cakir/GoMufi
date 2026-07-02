@@ -63,9 +63,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
         setCourse(response.data);
         
         const rawCurriculum = response.data?.curriculum || [];
-        const actualSections = rawCurriculum.filter(
-          (item: any) => item.type !== "live_sessions_config"
-        );
+        const pattern = ["purple", "cyan", "green", "yellow"];
+        const actualSections = rawCurriculum
+          .filter((item: any) => item.type !== "live_sessions_config")
+          .map((item: any, idx: number) => {
+            if (!item.theme) {
+              return { ...item, theme: pattern[idx % pattern.length] };
+            }
+            return item;
+          });
         const configItem = rawCurriculum.find(
           (item: any) => item.type === "live_sessions_config"
         );
@@ -152,10 +158,13 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   const handleAddSection = () => {
     const newId = `sec_${Date.now()}`;
+    const pattern = ["purple", "cyan", "green", "yellow"];
+    const defaultTheme = pattern[sections.length % pattern.length];
     const newSection: SectionNode = {
       id: newId,
       title: `Ders ${sections.length + 1}`,
       lectures: [],
+      theme: defaultTheme,
     };
     if (sections.length === 0) {
       newSection.lessonTopic = course?.title || "Giriş Konusu";
@@ -220,10 +229,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   const handleAddLevelAt = (index: number, insertAfterDivider: boolean = false) => {
     const newId = `sec_${Date.now()}`;
+    const targetIdx = insertAfterDivider ? index : index + 1;
+    const pattern = ["purple", "cyan", "green", "yellow"];
+    const defaultTheme = pattern[targetIdx % pattern.length];
+
     const newSection: SectionNode = {
       id: newId,
       title: `Ders ${sections.length + 1}`,
       lectures: [],
+      theme: defaultTheme,
     };
     
     let updated = [...sections];
@@ -662,15 +676,16 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       style={{ animationDelay: `${index * 0.5 * -1}s` }}
                     >
                       <span
-                        className="text-2xl font-black tracking-wider select-none uppercase font-display"
+                        className="text-2xl font-black tracking-wider select-none uppercase font-display text-center truncate max-w-[180px]"
                         style={{
                           color: "white",
                           WebkitTextStroke: `1.5px ${metadata.strokeColor}`,
                           paintOrder: "stroke fill",
                           textShadow: `2px 2px 0px ${metadata.strokeColor}`,
                         }}
+                        title={section.title}
                       >
-                        LEVEL {levelCounter}
+                        {section.title}
                       </span>
                     </div>
                   </div>
