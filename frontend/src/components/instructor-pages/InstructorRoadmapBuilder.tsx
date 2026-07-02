@@ -354,28 +354,42 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
     if (sourceType === "level") {
       if (targetType === "level" && sourceIdx !== targetIdx) {
+        // Swap elements at sourceIdx and targetIdx
         const updated = [...sections];
-        const [removed] = updated.splice(sourceIdx, 1);
-        updated.splice(targetIdx, 0, removed);
+        const temp = updated[sourceIdx];
+        updated[sourceIdx] = updated[targetIdx];
+        updated[targetIdx] = temp;
+
         const final = recalculateSectionsList(updated);
         setSections(final);
         handleSaveCurriculumOnly(final);
-      } else if (targetType === "plus_connector") {
-        if (sourceIdx !== targetIdx && sourceIdx !== targetIdx + 1) {
-          const updated = [...sections];
-          const [removed] = updated.splice(sourceIdx, 1);
-          const insertIdx = sourceIdx > targetIdx ? targetIdx + 1 : targetIdx;
-          updated.splice(insertIdx, 0, removed);
-          const final = recalculateSectionsList(updated);
-          setSections(final);
-          handleSaveCurriculumOnly(final);
+      } else if (targetType === "plus_connector" || targetType === "plus_divider") {
+        let insertIdx = targetIdx;
+        if (targetType === "plus_connector") {
+          insertIdx = sourceIdx > targetIdx ? targetIdx + 1 : targetIdx;
+        } else if (targetType === "plus_divider") {
+          insertIdx = sourceIdx >= targetIdx ? targetIdx : targetIdx - 1;
         }
-      } else if (targetType === "plus_divider") {
-        if (sourceIdx !== targetIdx) {
+
+        if (sourceIdx !== insertIdx) {
           const updated = [...sections];
+          const sourceSec = updated[sourceIdx];
+
+          // If the level being moved has a divider, transfer it to the next level in that chapter (if any)
+          if (sourceSec.lessonTopic) {
+            const nextSec = updated[sourceIdx + 1];
+            if (nextSec) {
+              nextSec.lessonTopic = sourceSec.lessonTopic;
+              nextSec.lessonNumber = sourceSec.lessonNumber;
+            }
+            delete sourceSec.lessonTopic;
+            delete sourceSec.lessonNumber;
+          }
+
+          // Splice out source and insert at target
           const [removed] = updated.splice(sourceIdx, 1);
-          const insertIdx = sourceIdx >= targetIdx ? targetIdx : targetIdx - 1;
           updated.splice(insertIdx, 0, removed);
+
           const final = recalculateSectionsList(updated);
           setSections(final);
           handleSaveCurriculumOnly(final);
