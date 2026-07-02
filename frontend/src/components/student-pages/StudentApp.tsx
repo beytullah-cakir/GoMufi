@@ -25,6 +25,10 @@ import BrainIcon from '../../assets/sprites/Brain.png';
 import PencilIcon from '../../assets/sprites/Pencil.png';
 import PuzzleIcon from '../../assets/sprites/Puzzle.png';
 import TrophyIcon from '../../assets/sprites/Trophy.png';
+import ButtonDarkBlue from '../../assets/sprites/ButtonDarkBlue.png';
+import ButtonDarkPurple from '../../assets/sprites/ButtonDarkPurple.png';
+import QuestionIcon from '../../assets/sprites/Question.png';
+import BagIcon from '../../assets/sprites/Bag.png';
 
 interface CartItem {
     id: number;
@@ -35,11 +39,11 @@ interface CartItem {
 }
 
 // --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string): PathNode[] => {
+const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string, theme?: string): PathNode[] => {
     const baseId = startId;
     const isLessonLocked = isLockedStart;
 
-    return [
+    const nodes: PathNode[] = [
         {
             id: baseId,
             type: 'step', // Number Node 1 -> Brain
@@ -197,6 +201,38 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             localNodeIndex: 7
         }
     ];
+
+    if (theme === 'quiz') {
+        return nodes.map(node => ({
+            ...node,
+            button: ButtonDarkPurple,
+            icon: QuestionIcon,
+            iconSize: 'w-26 h-26',
+            iconOffset: '-mt-24',
+            ringColor: 'border-purple-400 bg-white',
+            pastelColor: '#ede9fe',
+            glowColor: 'rgba(139, 92, 246, 0.4)',
+            strokeColor: '#6d28d9',
+            baseColor: '#7c3aed',
+            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'QUİZ') : 'QUİZ: Testi Çöz'
+        }));
+    } else if (theme === 'homework') {
+        return nodes.map(node => ({
+            ...node,
+            button: ButtonDarkBlue,
+            icon: BagIcon,
+            iconSize: 'w-26 h-26',
+            iconOffset: '-mt-24',
+            ringColor: 'border-indigo-400 bg-white',
+            pastelColor: '#e0e7ff',
+            glowColor: 'rgba(99, 102, 241, 0.4)',
+            strokeColor: '#1d4ed8',
+            baseColor: '#2563eb',
+            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'ÖDEV') : 'ÖDEV: Görevi Yap'
+        }));
+    }
+
+    return nodes;
 };
 
 const generateCourseData = (purchasedList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
@@ -227,7 +263,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             actualSections.forEach((section: any, index: number) => {
                 const sectionTitle = section.title || `Bölüm ${index + 1}`;
                 const sectionId = section.id || `section_${index + 1}`;
-                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true, sectionId);
+                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true, sectionId, section.theme);
                 
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
