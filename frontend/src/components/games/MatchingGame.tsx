@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api";
+import { Check, X, RefreshCw, AlertCircle, PenTool, FileText } from "lucide-react";
 
 interface MatchingGameProps {
   level: number;
@@ -10,6 +11,9 @@ interface MatchingGameProps {
   onClose: () => void;
   onComplete: (stars: number) => void;
   onStatsUpdate?: () => void;
+  isPreviewMode?: boolean;
+  previewQuestions?: any[];
+  previewRole?: 'student' | 'teacher';
 }
 
 type GamePhase =
@@ -20,13 +24,33 @@ type GamePhase =
   | "result"
   | "score";
 
-// Mock Questions Data
-// Fallback Mock Questions Data
-const DEFAULT_QUESTIONS = [
-  { id: 1, text: "Metin 1", options: ["Şık 1", "Şık 2", "Şık 3", "Şık 4"], correctAnswer: "Şık 1" },
+interface StandardQuestion {
+  id: string | number;
+  type: 'multiple_choice' | 'true_false' | 'short_answer' | 'open_ended';
+  multipleCorrect: boolean;
+  text: string;
+  options: { id: string; text: string; isCorrect: boolean }[];
+  correctShortAnswer?: string;
+  explanation?: string;
+  timeLimit?: number;
+}
+
+const DEFAULT_QUESTIONS: StandardQuestion[] = [
+  {
+    id: 1,
+    type: 'multiple_choice',
+    multipleCorrect: false,
+    text: "Python'da listeler hangi parantez ile gösterilir?",
+    options: [
+      { id: 'A', text: '[]', isCorrect: true },
+      { id: 'B', text: '()', isCorrect: false },
+      { id: 'C', text: '{}', isCorrect: false },
+      { id: 'D', text: '<>', isCorrect: false },
+    ],
+    explanation: "Listeler köşeli parantez [] kullanılarak tanımlanır."
+  },
 ];
 
-// Random Countdown Phrases
 const COUNTDOWN_PHRASES = [
   "HAZIR OL!",
   "ODAKLAN!",
@@ -47,78 +71,166 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   onClose,
   onComplete,
   onStatsUpdate,
+  isPreviewMode = false,
+  previewQuestions = [],
+  previewRole = 'student'
 }) => {
-  const [questions, setQuestions] = useState<any[]>(DEFAULT_QUESTIONS);
+  const [questions, setQuestions] = useState<StandardQuestion[]>(DEFAULT_QUESTIONS);
   const [isLoading, setIsLoading] = useState(true);
   const [phase, setPhase] = useState<GamePhase>("intro");
   const [countdown, setCountdown] = useState(3);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [timer, setTimer] = useState(100); // Percentage
-  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [timer, setTimer] = useState(100);
+
+  // Play States
+  const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>([]);
+  const [textAnswer, setTextAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
 
-  // Fetch AI Quizzes
+  // Fetch Questions
   useEffect(() => {
-    const fetchQuiz = async () => {
+    const fetchQuestionsAndQuiz = async () => {
       try {
-        console.log(`[GameFetch] Quiz listesi aranıyor: CourseID=${courseId}, SectionID=${sectionId}, NodeIndex=${localNodeIndex}`);
-        const response = await api.get('/quiz_by_node', {
-          params: {
-            course_id: parseInt(courseId || "1"),
-            section_id: sectionId,
-            node_id: localNodeIndex
+        if (isPreviewMode) {
+          if (previewQuestions && previewQuestions.length > 0) {
+            const mapped = previewQuestions.map((q: any) => ({
+              id: q.id || Date.now().toString(),
+              type: q.type || 'multiple_choice',
+              multipleCorrect: !!q.multipleCorrect,
+              text: q.text || 'Soru',
+              options: q.options || [],
+              correctShortAnswer: q.correctShortAnswer || '',
+              explanation: q.explanation || '',
+              timeLimit: q.timeLimit || 30
+            }));
+            setQuestions(mapped);
+          } else {
+            setQuestions(DEFAULT_QUESTIONS);
           }
-        });
+          setIsLoading(false);
+          return;
+        }
 
-        if (response.data.success && response.data.quizzes) {
-          const quizList = response.data.quizzes;
-          console.log(`[GameFetch] ${quizList.length} adet soru yüklendi.`);
-          
-          const mappedQuestions = quizList.map((q: any) => {
-             // Support both nested and flat structures
-             const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
-             const options = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
-             const correctAnswer = q.quiz?.cevap || q.correct_answer || (options ? options[0] : "");
-             const explanation = q.quiz?.aciklama || q.explanation || "";
+        console.log(`[GameFetch] Loading custom & legacy questions... CourseID=${courseId}, SectionID=${sectionId}`);
 
-             return {
-               id: q.id,
-               text: questionText,
-               options: options,
-               correctAnswer: correctAnswer,
-               explanation: explanation
-             };
+        let customQuestions: StandardQuestion[] = [];
+        let hasCustomGame = false;
+
+        if (courseId && sectionId) {
+          try {
+            const courseRes = await api.get(`/courses/${courseId}`);
+            const notes = courseRes.data?.notes || [];
+            const matchingNote = notes.find((n: any) => String(n.id) === String(sectionId));
+            const gameSlide = matchingNote?.slides?.find((s: any) => s.type === 'game' && s.gameType === 'matching');
+
+            if (gameSlide && gameSlide.gameConfig && gameSlide.gameConfig.questions && gameSlide.gameConfig.questions.length > 0) {
+              customQuestions = gameSlide.gameConfig.questions.map((q: any) => ({
+                id: q.id || Date.now().toString(),
+                type: q.type || 'multiple_choice',
+                multipleCorrect: !!q.multipleCorrect,
+                text: q.text || 'Soru',
+                options: q.options || [],
+                correctShortAnswer: q.correctShortAnswer || '',
+                explanation: q.explanation || '',
+                timeLimit: q.timeLimit || 30
+              }));
+              hasCustomGame = true;
+            }
+          } catch (notesErr) {
+            console.warn("Course notes fetch failed, falling back to quiz_by_node:", notesErr);
+          }
+        }
+
+        if (!hasCustomGame && sectionId && localNodeIndex !== undefined) {
+          const response = await api.get('/quiz_by_node', {
+            params: {
+              course_id: parseInt(courseId || "1"),
+              section_id: sectionId,
+              node_id: localNodeIndex
+            }
           });
 
-          setQuestions(mappedQuestions);
+          if (response.data.success && response.data.quizzes) {
+            const quizList = response.data.quizzes;
+            customQuestions = quizList.map((q: any) => {
+              const questionText = q.quiz?.soru || q.question_text || "Soru metni bulunamadı";
+              const rawOptions = q.quiz?.secenekler || q.options || ["Seçenek A", "Seçenek B", "Seçenek C", "Seçenek D"];
+              const rawCorrectAnswer = q.quiz?.cevap || q.correct_answer || "";
+              const explanation = q.quiz?.aciklama || q.explanation || "";
+              
+              const typeStr = q.type || q.question_type || "multiple_choice";
+              let standardType: 'multiple_choice' | 'true_false' | 'short_answer' | 'open_ended' = 'multiple_choice';
+              if (typeStr.includes('true') || typeStr.includes('false')) {
+                standardType = 'true_false';
+              } else if (typeStr.includes('short')) {
+                standardType = 'short_answer';
+              } else if (typeStr.includes('open') || typeStr.includes('essay')) {
+                standardType = 'open_ended';
+              }
+
+              let options: { id: string; text: string; isCorrect: boolean }[] = [];
+              let correctShortAnswer = "";
+
+              if (standardType === 'multiple_choice') {
+                options = rawOptions.map((o: any, idx: number) => {
+                  const oText = typeof o === 'object' ? (o.text || '') : String(o);
+                  const isCorrectOpt = typeof o === 'object' 
+                    ? !!o.isCorrect 
+                    : (oText === rawCorrectAnswer || (idx === 0 && !rawCorrectAnswer));
+                  return {
+                    id: ['A', 'B', 'C', 'D'][idx % 4] || String(idx),
+                    text: oText,
+                    isCorrect: isCorrectOpt
+                  };
+                });
+              } else if (standardType === 'true_false') {
+                options = [
+                  { id: 'A', text: 'Doğru', isCorrect: rawCorrectAnswer === 'Doğru' || rawCorrectAnswer === 'True' },
+                  { id: 'B', text: 'Yanlış', isCorrect: rawCorrectAnswer === 'Yanlış' || rawCorrectAnswer === 'False' }
+                ];
+              } else if (standardType === 'short_answer') {
+                correctShortAnswer = rawCorrectAnswer;
+              }
+
+              return {
+                id: q.id || Date.now().toString(),
+                type: standardType,
+                multipleCorrect: false,
+                text: questionText,
+                options,
+                correctShortAnswer,
+                explanation
+              };
+            });
+          }
+        }
+
+        if (customQuestions.length > 0) {
+          setQuestions(customQuestions);
         }
       } catch (err) {
-        console.error("Quiz çekme hatası:", err);
+        console.error("Fetch quiz fail:", err);
       } finally {
         setIsLoading(false);
       }
     };
 
-    if (sectionId && localNodeIndex !== undefined) {
-      fetchQuiz();
-    } else {
-      setIsLoading(false);
-    }
-  }, [sectionId, localNodeIndex, courseId]);
+    fetchQuestionsAndQuiz();
+  }, [sectionId, localNodeIndex, courseId, isPreviewMode, previewQuestions]);
 
   const [countdownPhrase] = useState(
-    () =>
-      COUNTDOWN_PHRASES[Math.floor(Math.random() * COUNTDOWN_PHRASES.length)]
+    () => COUNTDOWN_PHRASES[Math.floor(Math.random() * COUNTDOWN_PHRASES.length)]
   );
 
   const nextQuestion = useCallback(() => {
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex((prev) => prev + 1);
       setTimer(100);
-      setSelectedAnswer(null);
+      setSelectedAnswerIds([]);
+      setTextAnswer("");
       setIsCorrect(null);
       setPhase("playing");
     } else {
@@ -133,7 +245,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     if (phase === "intro") {
       timeout = setTimeout(() => {
         setPhase("countdown");
-      }, 2000); // 2s Intro
+      }, 2000);
     } else if (phase === "countdown") {
       if (countdown > 0) {
         timeout = setTimeout(() => {
@@ -143,71 +255,80 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           });
         }, 1000);
       }
-    } else if (phase === "result") {
-      // Auto-advance ONLY if correct. If wrong, wait for user to read explanation
-      if (isCorrect) {
-        timeout = setTimeout(() => {
-          nextQuestion();
-        }, 1500);
-      }
     }
 
     return () => clearTimeout(timeout);
-  }, [phase, countdown, nextQuestion, isCorrect]);
+  }, [phase, countdown]);
 
-  const handleAnswer = useCallback(
-    async (answer: string | null) => {
-      setSelectedAnswer(answer);
-      const correct = answer === currentQuestion?.correctAnswer;
-      setIsCorrect(correct);
-      setPhase("feedback");
+  const handleCheckAnswer = useCallback(async () => {
+    if (!currentQuestion) return;
 
-      if (correct) {
-        // Soru sayısına göre puanı bölüştür (Toplam 100 üzerinden)
-        const pointsPerQuestion = Math.ceil(100 / questions.length);
-        setScore((prev) => Math.min(100, prev + pointsPerQuestion));
-      } else {
-        // Can kaybet
+    let correct = false;
+
+    if (currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') {
+      const correctOptionIds = currentQuestion.options.filter(o => o.isCorrect).map(o => o.id);
+      correct =
+        selectedAnswerIds.length === correctOptionIds.length &&
+        selectedAnswerIds.every(id => correctOptionIds.includes(id));
+    } else if (currentQuestion.type === 'short_answer') {
+      const expected = (currentQuestion.correctShortAnswer || '').trim().toLowerCase();
+      const actual = textAnswer.trim().toLowerCase();
+      correct = actual === expected;
+    } else if (currentQuestion.type === 'open_ended') {
+      correct = true;
+    }
+
+    setIsCorrect(correct);
+    setPhase("result");
+
+    if (correct) {
+      const pointsPerQuestion = Math.ceil(100 / questions.length);
+      setScore((prev) => Math.min(100, prev + pointsPerQuestion));
+    } else {
+      if (!isPreviewMode) {
         api.post("/profile/student/stats", { hearts_change: -1 })
           .then(() => onStatsUpdate?.())
           .catch(console.error);
       }
-
-      setTimeout(() => {
-        setPhase("result");
-      }, 50);
-    },
-    [currentQuestion?.correctAnswer, questions.length]
-  );
+    }
+  }, [currentQuestion, selectedAnswerIds, textAnswer, questions.length, isPreviewMode]);
 
   // Game Timer
   useEffect(() => {
     if (phase === "playing") {
+      const questionTime = currentQuestion?.timeLimit || 30; // default 30s
       const interval = setInterval(() => {
         setTimer((prev) => {
           if (prev <= 0) {
             clearInterval(interval);
-            handleAnswer(null); // Timeout
+            setIsCorrect(false);
+            setPhase("result");
+            if (!isPreviewMode) {
+              api.post("/profile/student/stats", { hearts_change: -1 })
+                .then(() => onStatsUpdate?.())
+                .catch(console.error);
+            }
             return 0;
           }
-          return prev - 0.5; // Decrement speed
+          // decrease by (10 / questionTime) percentage per 100ms
+          return prev - (10 / questionTime);
         });
-      }, 50);
+      }, 100);
       return () => clearInterval(interval);
     }
-  }, [phase, handleAnswer]);
+  }, [phase, isPreviewMode, currentQuestion]);
 
   // Calculate Stars
   const getStars = () => {
-    if (score === 100) return 3; // 100% accuracy = 3 stars
-    if (score >= 60) return 2;  // 60-80% = 2 stars
-    if (score >= 20) return 1;  // 20-40% = 1 star
+    if (score === 100) return 3;
+    if (score >= 60) return 2;
+    if (score >= 20) return 1;
     return 0;
   };
 
-  // Grant rewards on completion
+  // Grant rewards
   useEffect(() => {
-    if (phase === "score") {
+    if (phase === "score" && !isPreviewMode) {
       const stars = getStars();
       if (stars > 0) {
         api.post("/profile/student/stats", { 
@@ -218,13 +339,48 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         .catch(console.error);
       }
     }
-  }, [phase]);
+  }, [phase, isPreviewMode]);
+
+  const handleToggleOption = (optId: string) => {
+    if (phase !== "playing" || previewRole === 'teacher') return;
+
+    if (currentQuestion?.type === 'multiple_choice' && currentQuestion.multipleCorrect) {
+      if (selectedAnswerIds.includes(optId)) {
+        setSelectedAnswerIds(prev => prev.filter(id => id !== optId));
+      } else {
+        setSelectedAnswerIds(prev => [...prev, optId]);
+      }
+    } else {
+      setSelectedAnswerIds([optId]);
+    }
+  };
+
+  const isInputEmpty = () => {
+    if (!currentQuestion) return true;
+    if (previewRole === 'teacher') return false; // Teacher never blocked
+    if (currentQuestion.type === 'multiple_choice' || currentQuestion.type === 'true_false') {
+      return selectedAnswerIds.length === 0;
+    }
+    if (currentQuestion.type === 'short_answer' || currentQuestion.type === 'open_ended') {
+      return textAnswer.trim().length === 0;
+    }
+    return true;
+  };
 
   // --- RENDERERS ---
 
+  if (isLoading || questions.length === 0 || !currentQuestion) {
+    return (
+      <div className="flex flex-col items-center justify-center p-8 select-none min-h-[300px]">
+        <RefreshCw className="w-10 h-10 animate-spin text-sky-500 mb-4" />
+        <span className="text-gray-500 font-black text-lg">Yükleniyor...</span>
+      </div>
+    );
+  }
+
   if (phase === "intro") {
     return (
-      <div className="flex flex-col items-center animate-in zoom-in-50 duration-500">
+      <div className="flex flex-col items-center animate-in zoom-in-50 duration-500 select-none">
         <span className="text-gray-400 font-black text-2xl uppercase tracking-widest mb-4">
           Seviye
         </span>
@@ -240,7 +396,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
 
   if (phase === "countdown") {
     return (
-      <div className="flex flex-col items-center justify-center animate-in zoom-in-50 duration-500">
+      <div className="flex flex-col items-center justify-center animate-in zoom-in-50 duration-500 select-none">
         <span className="text-gray-400 font-black text-4xl font-display tracking-widest mb-16 animate-pulse text-center px-4">
           {countdownPhrase}
         </span>
@@ -257,7 +413,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   if (phase === "score") {
     const stars = getStars();
     return (
-      <div className="flex flex-col items-center animate-in zoom-in-50 duration-500">
+      <div className="flex flex-col items-center animate-in zoom-in-50 duration-500 select-none">
         <h2 className="text-5xl font-black text-gray-800 font-display mb-8">
           Oyun Bitti!
         </h2>
@@ -269,9 +425,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
               key={star}
               xmlns="http://www.w3.org/2000/svg"
               className={`w-24 h-24 ${
-                star <= stars
-                  ? "text-yellow-400 drop-shadow-lg"
-                  : "text-gray-200"
+                star <= stars ? "text-yellow-400 drop-shadow-lg" : "text-gray-200"
               }`}
               fill="currentColor"
               viewBox="0 0 24 24"
@@ -304,179 +458,15 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     );
   }
 
-  // Main Game Render (Playing, Feedback, Result)
-  if (phase === "playing" || phase === "feedback" || phase === "result") {
-    const isCorrectResult = isCorrect === true;
+  if (phase === "playing" || phase === "result") {
+    const isChecked = phase === "result";
+    const isTeacher = previewRole === 'teacher';
 
     return (
-      <div className="w-full max-w-5xl flex flex-col h-[92vh] py-4 relative overflow-hidden">
-        {/* Result Overlay */}
-        {phase === "result" && (
-          <div className="fixed inset-0 z-[200] flex flex-col justify-end pointer-events-none">
-            {/* Backdrop - lighter to keep game visible */}
-            <div className="absolute inset-0 bg-black/5" />
-
-            {/* Bottom Sheet Card */}
-            <div
-              className={`relative w-full ${
-                isCorrectResult
-                  ? "bg-green-100"
-                  : selectedAnswer === null
-                  ? "bg-yellow-100"
-                  : "bg-red-100"
-              } rounded-t-3xl p-8 pb-12 shadow-2xl animate-slide-up pointer-events-auto`}
-            >
-              <div className="max-w-4xl mx-auto flex items-center gap-6">
-                {/* Status Icon */}
-                <div
-                  className={`w-20 h-20 rounded-full flex items-center justify-center border-4 ${
-                    isCorrectResult
-                      ? "bg-white border-green-500 text-green-500"
-                      : selectedAnswer === null
-                      ? "bg-white border-yellow-500 text-yellow-500"
-                      : "bg-white border-red-500 text-red-500"
-                  }`}
-                >
-                  {isCorrectResult ? (
-                    <svg
-                      className="w-10 h-10"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  ) : selectedAnswer === null ? (
-                    <svg
-                      className="w-10 h-10"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-10 h-10"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  )}
-                </div>
-
-                {/* Text Content */}
-                <div className="flex-1">
-                  <h2
-                    className={`text-3xl font-black font-display mb-1 ${
-                      isCorrectResult
-                        ? "text-green-700"
-                        : selectedAnswer === null
-                        ? "text-yellow-700"
-                        : "text-red-700"
-                    }`}
-                  >
-                    {isCorrectResult
-                      ? "HARİKA GİDİYORSUN!"
-                      : selectedAnswer === null
-                      ? "ZAMANIN DOLDU!"
-                      : "YANLIŞ CEVAP!"}
-                  </h2>
-                  {!isCorrectResult && (
-                    <div className="space-y-2">
-                      <p
-                        className={`${
-                          selectedAnswer === null
-                            ? "text-yellow-600"
-                            : "text-red-600"
-                        } font-bold text-lg`}
-                      >
-                        Doğru Cevap:{" "}
-                        <span className="font-black">
-                          {currentQuestion.correctAnswer}
-                        </span>
-                      </p>
-                      {currentQuestion.explanation && (
-                        <div className={`p-4 rounded-2xl border ${selectedAnswer === null ? 'bg-yellow-50 border-yellow-200 text-yellow-800' : 'bg-red-50 border-red-200 text-red-800'} text-sm font-medium animate-in fade-in slide-in-from-top-1`}>
-                          <span className="font-black uppercase text-[10px] tracking-widest block mb-1 opacity-60">Açıklama</span>
-                          {currentQuestion.explanation}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {isCorrectResult && (
-                    <p className="text-green-600 font-bold text-lg">
-                      +20 Puan kazandın!
-                    </p>
-                  )}
-                </div>
-
-                {/* Next Button / Close Button */}
-                <button
-                  onClick={nextQuestion}
-                  className={`w-12 h-12 rounded-xl flex items-center justify-center cursor-pointer transition-transform active:scale-95 ${
-                    isCorrectResult
-                      ? "bg-green-500 text-white hover:bg-green-600"
-                      : selectedAnswer === null
-                      ? "bg-yellow-500 text-white hover:bg-yellow-600"
-                      : "bg-red-500 text-white hover:bg-red-600"
-                  }`}
-                >
-                  {isCorrectResult ? (
-                    <svg
-                      className="w-6 h-6 animate-pulse"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="3"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-
-        {/* Header (Exit & Timer) */}
-        <div className="w-full flex justify-between items-center mb-4 px-4 shrink-0">
+      <div className="w-full max-w-5xl flex flex-col h-[94vh] py-4 relative overflow-hidden text-slate-800">
+        
+        {/* Header Bar */}
+        <div className="w-full flex justify-between items-center mb-6 px-4 shrink-0 select-none">
           <button
             onClick={onClose}
             className="w-12 h-12 bg-gray-100 hover:bg-gray-200 rounded-2xl flex items-center justify-center transition-colors group cursor-pointer"
@@ -488,11 +478,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
               stroke="currentColor"
               strokeWidth="3"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6 18L18 6M6 6l12 12"
-              />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
 
@@ -511,17 +497,25 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
           </div>
         </div>
 
-        {/* Desktop Split Layout / Mobile Stack Layout */}
-        <div className="flex-1 flex flex-col lg:flex-row gap-12 px-4 mb-4 overflow-hidden min-h-0">
+        {/* Content Layout - Stacked Vertical Layout */}
+        <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar pb-32 pt-2 px-4 select-text">
           
-          {/* Left Side: Question Area - Scrollable */}
-          <div className="flex-[1.5] flex flex-col min-h-0 overflow-y-auto custom-scrollbar">
-            <div className="bg-white border-2 border-gray-100 border-b-4 rounded-[40px] p-6 md:p-10 shadow-sm text-center w-full min-h-fit h-full flex flex-col justify-center">
-              <span className="text-sky-500 font-black text-sm uppercase tracking-[0.2em] block mb-6 px-4 py-2 bg-sky-50 w-fit mx-auto rounded-full border border-sky-100 shrink-0">
-                {lessonTitle}
+          {/* Question Text Area (Top Card) */}
+          <div className="w-full shrink-0">
+            <div className="bg-white border border-gray-100 rounded-[32px] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] text-center w-full relative">
+              
+              {/* Teacher Mode Overlay Badge */}
+              {isTeacher && (
+                <div className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-[10px] font-black text-amber-600 tracking-wider uppercase select-none">
+                  👨‍🏫 ÖĞRETMEN GÖRÜNÜMÜ
+                </div>
+              )}
+
+              <span className="text-gray-400 font-extrabold text-[10px] uppercase tracking-[0.2em] block mb-2 select-none">
+                SORU METNİ
               </span>
               
-              <div className="text-left w-full space-y-6">
+              <div className="text-left w-full space-y-4">
                 {currentQuestion.text.split(/```/).map((part: string, i: number) => {
                   if (i % 2 === 1) {
                     const lines = part.trim().split('\n');
@@ -530,23 +524,18 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                                  : part.trim();
 
                     return (
-                      <div key={i} className="my-6 relative group max-w-full shrink-0">
+                      <div key={i} className="my-4 relative group max-w-full shrink-0 select-none">
                         <div className="absolute -top-3 left-8 px-4 py-1.5 bg-gray-900 text-sky-400 text-[10px] font-black rounded-full z-10 border border-gray-700 shadow-xl tracking-widest uppercase">
                           KOD EDİTÖRÜ
                         </div>
-                        <div className="absolute top-4 right-8 flex gap-1.5 opacity-50 group-hover:opacity-100 transition-opacity">
-                          <div className="w-2.5 h-2.5 rounded-full bg-red-400/50"></div>
-                          <div className="w-2.5 h-2.5 rounded-full bg-yellow-400/50"></div>
-                          <div className="w-2.5 h-2.5 rounded-full bg-green-400/50"></div>
-                        </div>
-                        <pre className="bg-gray-950 text-sky-50 p-8 pt-10 rounded-[32px] overflow-x-auto font-mono text-base md:text-lg leading-relaxed border-2 border-gray-800 shadow-2xl scrollbar-thin scrollbar-thumb-gray-700 scrollbar-track-transparent">
+                        <pre className="bg-gray-950 text-sky-50 p-5 pt-8 rounded-3xl overflow-x-auto font-mono text-sm md:text-base leading-relaxed border-2 border-gray-800 shadow-2xl">
                           <code className="block min-w-max">{code}</code>
                         </pre>
                       </div>
                     );
                   }
                   return (
-                    <h2 key={i} className="text-xl md:text-2xl lg:text-3xl font-black text-gray-800 font-display leading-snug text-center px-4">
+                    <h2 key={i} className="text-xl md:text-2xl lg:text-3xl font-black text-gray-850 font-display leading-snug text-center px-4">
                       {part.trim()}
                     </h2>
                   );
@@ -555,42 +544,294 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
             </div>
           </div>
 
-          {/* Right Side: Options Grid - 2x2 Layout */}
-          <div className="flex-1 grid grid-cols-2 gap-6 h-fit lg:h-full lg:overflow-y-auto lg:pr-2 custom-scrollbar shrink-0 lg:shrink content-center">
-            {(currentQuestion?.options || ["A", "B", "C", "D"]).map((option: string, idx: number) => {
-              const colors = [
-                { bg: "bg-indigo-500", hover: "hover:bg-indigo-600", border: "border-indigo-700", box: "bg-indigo-700" },
-                { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
-                { bg: "bg-amber-400", hover: "hover:bg-amber-500", border: "border-amber-600", box: "bg-amber-600" },
-                { bg: "bg-emerald-500", hover: "hover:bg-emerald-600", border: "border-emerald-700", box: "bg-emerald-700" },
-              ];
-              const color = colors[idx % colors.length];
+          {/* Interactive Input Area (Bottom Grid) */}
+          <div className="w-full shrink-0">
+            
+            {/* 1. Çoktan Seçmeli (Multiple Choice) */}
+            {currentQuestion.type === 'multiple_choice' && (
+              <div className="grid grid-cols-2 gap-4 w-full select-none">
+                {currentQuestion.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: "bg-rose-500", hover: "hover:bg-rose-600", border: "border-rose-700", box: "bg-rose-700" },
+                    { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
+                    { bg: "bg-amber-400", hover: "hover:bg-amber-500", border: "border-amber-600", box: "bg-amber-600" },
+                    { bg: "bg-emerald-500", hover: "hover:bg-emerald-600", border: "border-emerald-700", box: "bg-emerald-700" },
+                  ];
+                  const color = colors[idx % colors.length] || colors[0];
+                  const isSelected = selectedAnswerIds.includes(opt.id);
 
-              let stateClass = "opacity-100 scale-100 cursor-pointer";
-              if (phase === "feedback" || phase === "result") {
-                if (option === currentQuestion.correctAnswer) stateClass = "ring-8 ring-green-400/50 z-10 scale-105 shadow-2xl";
-                else if (option === selectedAnswer) stateClass = "opacity-50 grayscale scale-95";
-                else stateClass = "opacity-30 scale-90 grayscale";
-              }
+                  let stateClass = "opacity-100 scale-100 cursor-pointer";
+                  
+                  if (isTeacher) {
+                    if (opt.isCorrect) {
+                      stateClass = "ring-4 ring-green-400/50 scale-[1.01] shadow-xl border-emerald-750 bg-emerald-500 text-white";
+                    } else {
+                      stateClass = "opacity-55 scale-98 border-rose-700 bg-rose-500 text-white";
+                    }
+                  } else if (isChecked) {
+                    if (opt.isCorrect) {
+                      stateClass = "ring-8 ring-green-400/50 scale-[1.02] shadow-2xl border-emerald-750 bg-emerald-500 text-white";
+                    } else if (isSelected) {
+                      stateClass = "opacity-60 scale-95 border-rose-750 bg-rose-500 grayscale text-white";
+                    } else {
+                      stateClass = "opacity-30 scale-95 grayscale text-white";
+                    }
+                  } else if (isSelected) {
+                    stateClass = "ring-4 ring-white/60 scale-[1.01] shadow-md text-white";
+                  }
 
-              return (
-                <button
-                  key={option}
-                  disabled={phase === "feedback" || phase === "result"}
-                  onClick={() => handleAnswer(option)}
-                  className={`${color.bg} ${phase === "playing" ? color.hover : ""} active:translate-y-1 active:shadow-inner border-b-8 ${color.border} active:border-b-0 rounded-[28px] flex items-center p-4 md:p-6 gap-4 md:gap-6 shadow-lg transition-all transform ${stateClass} w-full lg:min-h-[100px]`}
-                >
-                  <div className={`w-10 h-10 md:w-14 md:h-14 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl md:text-2xl font-black text-white font-display flex-shrink-0`}>
-                    {String.fromCharCode(65 + idx)}
+                  const borderClass = isSelected && !isTeacher && !isChecked
+                    ? "border-b-2 translate-y-[6px] shadow-sm"
+                    : "border-b-8 shadow-lg active:translate-y-[2px]";
+
+                  return (
+                    <button
+                      key={opt.id}
+                      disabled={isChecked || isTeacher}
+                      onClick={() => handleToggleOption(opt.id)}
+                      className={`${color.bg} ${!isChecked && !isTeacher ? color.hover : ""} ${stateClass} ${borderClass} ${color.border} rounded-[24px] flex items-center p-4 gap-4 transition-all text-white w-full h-[88px]`}
+                    >
+                      <div className={`w-12 h-12 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl font-black font-display shrink-0`}>
+                        {opt.id}
+                      </div>
+                      <div className="flex-1 text-left overflow-hidden flex items-center justify-between gap-2">
+                        <span className="text-base md:text-lg font-black font-display leading-snug break-words">
+                          {opt.text}
+                        </span>
+                        
+                        {/* Indicators */}
+                        {isTeacher ? (
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 bg-white ${opt.isCorrect ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {opt.isCorrect ? <Check size={16} strokeWidth={4} /> : <X size={16} strokeWidth={4} />}
+                          </div>
+                        ) : isChecked ? (
+                          isSelected && (
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 bg-white text-emerald-600">
+                              {opt.isCorrect ? <Check size={16} strokeWidth={4} /> : <X size={16} strokeWidth={4} />}
+                            </div>
+                          )
+                        ) : (
+                          isSelected && (
+                            <div className="w-7 h-7 rounded-full bg-white/30 flex items-center justify-center text-xs shrink-0 text-white animate-in zoom-in-75 duration-150">
+                              <Check size={16} strokeWidth={4} />
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 2. Doğru / Yanlış (True / False) */}
+            {currentQuestion.type === 'true_false' && (
+              <div className="grid grid-cols-2 gap-4 w-full select-none">
+                {currentQuestion.options.map((opt, idx) => {
+                  const colors = [
+                    { bg: "bg-sky-500", hover: "hover:bg-sky-600", border: "border-sky-700", box: "bg-sky-700" },
+                    { bg: "bg-rose-500", hover: "hover:bg-rose-600", border: "border-rose-700", box: "bg-rose-700" }
+                  ];
+                  const color = colors[idx % 2] || colors[0];
+                  const isSelected = selectedAnswerIds.includes(opt.id);
+
+                  let stateClass = "opacity-100 scale-100 cursor-pointer";
+                  
+                  if (isTeacher) {
+                    if (opt.isCorrect) {
+                      stateClass = "ring-4 ring-green-400/50 scale-[1.01] shadow-xl border-emerald-750 bg-emerald-500 text-white";
+                    } else {
+                      stateClass = "opacity-55 scale-98 border-rose-700 bg-rose-500 text-white";
+                    }
+                  } else if (isChecked) {
+                    if (opt.isCorrect) {
+                      stateClass = "ring-8 ring-green-400/50 scale-[1.02] shadow-2xl border-emerald-750 bg-emerald-500 text-white";
+                    } else if (isSelected) {
+                      stateClass = "opacity-60 scale-95 border-rose-750 bg-rose-500 grayscale text-white";
+                    } else {
+                      stateClass = "opacity-30 scale-95 grayscale text-white";
+                    }
+                  } else if (isSelected) {
+                    stateClass = "ring-4 ring-white/60 scale-[1.01] shadow-md text-white";
+                  }
+
+                  const borderClass = isSelected && !isTeacher && !isChecked
+                    ? "border-b-2 translate-y-[6px] shadow-sm"
+                    : "border-b-8 shadow-lg active:translate-y-[2px]";
+
+                  return (
+                    <button
+                      key={opt.id}
+                      disabled={isChecked || isTeacher}
+                      onClick={() => handleToggleOption(opt.id)}
+                      className={`${color.bg} ${!isChecked && !isTeacher ? color.hover : ""} ${stateClass} ${borderClass} ${color.border} rounded-[24px] flex items-center p-4 gap-4 transition-all text-white w-full h-[88px]`}
+                    >
+                      <div className={`w-12 h-12 ${color.box} rounded-2xl flex items-center justify-center shadow-inner text-xl font-black font-display shrink-0`}>
+                        {opt.id}
+                      </div>
+                      <div className="flex-1 text-left overflow-hidden flex items-center justify-between gap-2">
+                        <span className="text-lg font-black font-display leading-snug break-words">
+                          {opt.text}
+                        </span>
+
+                        {isTeacher ? (
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 bg-white ${opt.isCorrect ? 'text-emerald-600' : 'text-rose-500'}`}>
+                            {opt.isCorrect ? <Check size={16} strokeWidth={4} /> : <X size={16} strokeWidth={4} />}
+                          </div>
+                        ) : isChecked ? (
+                          isSelected && (
+                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs shrink-0 bg-white text-emerald-600">
+                              {opt.isCorrect ? <Check size={16} strokeWidth={4} /> : <X size={16} strokeWidth={4} />}
+                            </div>
+                          )
+                        ) : (
+                          isSelected && (
+                            <div className="w-7 h-7 rounded-full bg-white/30 flex items-center justify-center text-xs shrink-0 text-white animate-in zoom-in-75 duration-150">
+                              <Check size={16} strokeWidth={4} />
+                            </div>
+                          )
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* 3. Kısa Cevap (Short Answer) */}
+            {currentQuestion.type === 'short_answer' && (
+              <div className="bg-amber-50/50 border-2 border-amber-200 rounded-[2rem] p-6 w-full shadow-sm flex flex-col gap-4 animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2 text-amber-700 font-extrabold text-sm select-none">
+                  <PenTool className="w-5 h-5" />
+                  <span>{isTeacher ? "ÖĞRETMEN YANITI VE DOĞRULAMA:" : "KISA CEVABINIZ:"}</span>
+                </div>
+                <input
+                  type="text"
+                  disabled={isChecked || isTeacher}
+                  value={isTeacher ? (currentQuestion.correctShortAnswer || '') : textAnswer}
+                  onChange={(e) => setTextAnswer(e.target.value)}
+                  className="bg-white border-2 border-amber-100 p-4 text-lg font-bold text-slate-800 rounded-2xl focus:outline-none focus:border-amber-400 shadow-inner w-full text-center"
+                  placeholder="Cevabınızı buraya yazın..."
+                />
+                
+                {isTeacher && (
+                  <div className="p-3 bg-emerald-50 border border-emerald-250 rounded-xl text-[11px] text-emerald-800 font-black text-center flex items-center justify-center gap-2 select-none">
+                    <Check className="w-4 h-4" />
+                    <span>Beklenen Doğru Cevap: "{currentQuestion.correctShortAnswer}"</span>
                   </div>
-                  <span className="text-lg md:text-xl font-black text-white font-display text-left line-clamp-2 leading-tight">
-                    {option}
-                  </span>
-                </button>
-              );
-            })}
+                )}
+              </div>
+            )}
+
+            {/* 4. Açık Uçlu (Open Ended) */}
+            {currentQuestion.type === 'open_ended' && (
+              <div className="bg-emerald-50/40 border-2 border-emerald-200 rounded-[2rem] p-6 w-full shadow-sm flex flex-col gap-4 animate-in slide-in-from-bottom-2">
+                <div className="flex items-center gap-2 text-emerald-700 font-extrabold text-sm select-none">
+                  <FileText className="w-5 h-5" />
+                  <span>AÇIKLAMALI CEVABINIZ:</span>
+                </div>
+                <textarea
+                  disabled={isChecked || isTeacher}
+                  rows={4}
+                  value={isTeacher ? "Bu soru tipi açık uçlu olduğu için öğrenci istediği uzunlukta bir metin girebilir ve her yanıt sistem tarafından otomatik olarak onaylanır." : textAnswer}
+                  onChange={(e) => setTextAnswer(e.target.value)}
+                  className="bg-white border-2 border-emerald-100 p-4 text-base font-semibold text-slate-800 rounded-2xl focus:outline-none focus:border-emerald-400 shadow-inner w-full resize-none leading-relaxed"
+                  placeholder="Cevabınızı buraya detaylı olarak açıklayın..."
+                />
+              </div>
+            )}
+
           </div>
         </div>
+
+        {/* BOTTOM DUOLINGO ACTION BANNER */}
+        <div className="fixed inset-x-0 bottom-0 bg-white border-t border-gray-150 p-6 z-[100] flex flex-col select-none">
+          <div className="max-w-5xl mx-auto w-full flex items-center justify-between gap-6">
+            
+            {/* Explanation / Checked Banner Details */}
+            {isChecked || isTeacher ? (
+              <div className="flex-1 flex items-center gap-4 animate-in slide-in-from-bottom-3 duration-250">
+                <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center shrink-0 ${
+                  isTeacher || isCorrect 
+                    ? "bg-white border-green-500 text-green-500" 
+                    : "bg-white border-red-500 text-red-500"
+                }`}>
+                  {isTeacher || isCorrect ? <Check size={28} strokeWidth={4} /> : <X size={28} strokeWidth={4} />}
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <h3 className={`text-2xl font-black font-display tracking-tight leading-none ${
+                    isTeacher || isCorrect ? "text-green-700" : "text-red-700"
+                  }`}>
+                    {isTeacher ? "SORU DÜZENİ" : isCorrect ? "HARİKA GİDİYORSUN!" : "YANLIŞ CEVAP!"}
+                  </h3>
+                  <div className="text-xs font-bold text-slate-500 mt-1 truncate">
+                    {isTeacher ? (
+                      <span>Eğitmen gözünden doğru cevaplar ve ayarlar listelenmektedir.</span>
+                    ) : isCorrect ? (
+                      <span className="text-green-600">+20 Puan kazandınız!</span>
+                    ) : (
+                      <span>
+                        Doğru Cevap:{" "}
+                        <span className="font-extrabold">
+                          {currentQuestion.type === 'short_answer'
+                            ? currentQuestion.correctShortAnswer
+                            : currentQuestion.options.filter(o => o.isCorrect).map(o => o.text).join(', ')
+                          }
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                  {currentQuestion.explanation && (
+                    <div className="text-xs text-slate-500 font-semibold bg-gray-50 border border-gray-150 rounded-xl p-2.5 mt-2 max-h-[80px] overflow-y-auto leading-relaxed">
+                      <span className="font-bold block text-[9px] uppercase tracking-wider text-slate-400 mb-0.5">AÇIKLAMA</span>
+                      {currentQuestion.explanation}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex-1 flex items-center gap-2 text-slate-400 font-bold text-sm">
+                <AlertCircle className="w-5 h-5" />
+                <span>Lütfen soruyu yanıtlayıp "Kontrol Et" butonuna basın.</span>
+              </div>
+            )}
+
+            {/* Submition buttons */}
+            {isTeacher ? (
+              <button
+                onClick={nextQuestion}
+                className="px-10 py-4 font-black text-sm uppercase tracking-wider bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-lg border-b-[4px] border-indigo-800 active:border-b-0 active:translate-y-[4px] transition-all shrink-0"
+              >
+                {currentQuestionIndex < questions.length - 1 ? "Sonraki Soru" : "Bitir (Önizleme)"}
+              </button>
+            ) : isChecked ? (
+              <button
+                onClick={nextQuestion}
+                className={`px-10 py-4 font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg border-b-[4px] border-black/15 text-white active:border-b-0 active:translate-y-[4px] transition-all shrink-0 ${
+                  isCorrect 
+                    ? "bg-green-500 hover:bg-green-600 active:bg-green-700" 
+                    : "bg-red-500 hover:bg-red-600 active:bg-red-700"
+                }`}
+              >
+                Devam Et
+              </button>
+            ) : (
+              <button
+                onClick={handleCheckAnswer}
+                disabled={isInputEmpty()}
+                className={`px-10 py-4 font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg border-b-[4px] border-black/15 active:border-b-0 active:translate-y-[4px] transition-all shrink-0 ${
+                  isInputEmpty()
+                    ? "bg-gray-100 text-gray-400 cursor-not-allowed border-none shadow-none"
+                    : "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white"
+                }`}
+              >
+                Kontrol Et
+              </button>
+            )}
+
+          </div>
+        </div>
+
       </div>
     );
   }

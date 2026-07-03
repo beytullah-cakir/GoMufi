@@ -32,18 +32,21 @@ interface CourseDetailPageProps {
   courseId: number;
   onBack: () => void;
   isEnrolled: boolean;
-  onEnroll: (courseId: number) => Promise<void>;
+  onAddToCart: (course: any) => void;
+  onGoToCart: () => void;
 }
 
 const CourseDetailPage: React.FC<CourseDetailPageProps> = ({ 
   courseId, 
   onBack, 
   isEnrolled,
-  onEnroll 
+  onAddToCart,
+  onGoToCart
 }) => {
   const [course, setCourse] = useState<CourseDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [expandedSections, setExpandedSections] = useState<number[]>([]);
+  const [showCartPopup, setShowCartPopup] = useState(false);
 
   useEffect(() => {
     const fetchCourseDetail = async () => {
@@ -426,12 +429,12 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 {!isEnrolled ? (
                   <>
                     <button 
-                      onClick={() => onEnroll(course.id)}
+                      onClick={() => {
+                        onAddToCart(course);
+                        setShowCartPopup(true);
+                      }}
                       className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-lg text-lg transition-all shadow-lg active:scale-95"
                     >
-                      Şimdi Kayıt Ol
-                    </button>
-                    <button className="w-full py-3.5 border-2 border-gray-900 hover:bg-gray-50 text-gray-900 font-black rounded-lg text-lg transition-all">
                       Sepete Ekle
                     </button>
                   </>
@@ -485,6 +488,37 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
         </div>
 
       </div>
+
+      {showCartPopup && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl animate-scale-in flex flex-col items-center text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-500 mb-4">
+              <CheckCircle className="w-8 h-8" />
+            </div>
+            <h3 className="text-xl font-black text-gray-900 mb-2">Sepete Eklendi</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Kurs başarıyla sepetinize eklenmiştir. Ne yapmak istersiniz?
+            </p>
+            <div className="flex flex-col gap-3 w-full">
+              <button 
+                onClick={onGoToCart}
+                className="w-full py-3 bg-purple-600 hover:bg-purple-700 text-white font-black rounded-xl transition-colors shadow-lg shadow-purple-200"
+              >
+                Sepete Git
+              </button>
+              <button 
+                onClick={() => {
+                  setShowCartPopup(false);
+                  onBack();
+                }}
+                className="w-full py-3 bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 font-bold rounded-xl transition-colors"
+              >
+                Alışverişe Devam Et
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

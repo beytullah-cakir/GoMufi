@@ -336,7 +336,14 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
 
                                     {/* Loading & Error States */}
 
-                                    {error && (
+                                    {isLoading && (
+                                        <div className="flex flex-col items-center justify-center p-12 w-full h-48 bg-gray-50 border-2 border-gray-100 rounded-2xl">
+                                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500 mb-4" />
+                                            <p className="text-gray-500 font-bold text-sm">Kurslar yükleniyor, lütfen bekleyin...</p>
+                                        </div>
+                                    )}
+
+                                    {error && !isLoading && (
                                         <div className="bg-red-50 border-2 border-red-100 rounded-2xl p-8 text-center">
                                             <p className="text-red-500 font-bold mb-4">{error}</p>
                                             <button 
@@ -363,109 +370,111 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                                     )}
 
                                     {/* List Items */}
-                                    <div className="flex flex-col gap-4">
-                                        {currentItems.map((course) => (
-                                            <div 
-                                                key={course.id} 
-                                                className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 transition-all hover:shadow-lg relative overflow-hidden"
-                                            >
-                                                {/* Thumbnail Area - Clickable */}
+                                    {!isLoading && !error && (
+                                        <div className="flex flex-col gap-4">
+                                            {currentItems.map((course) => (
                                                 <div 
-                                                    className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden cursor-pointer`}
-                                                    onClick={() => onSelectCourse(course.id)}
+                                                    key={course.id} 
+                                                    className="group bg-white border border-gray-200 hover:bg-gray-50 rounded-lg p-[1px] flex flex-col md:flex-row gap-4 h-full md:h-48 transition-all hover:shadow-lg relative overflow-hidden"
                                                 >
-                                                    <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
-                                                    <img
-                                                        src={course.icon}
-                                                        alt={course.title}
-                                                        className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
-                                                    />
-                                                </div>
+                                                    {/* Thumbnail Area - Clickable */}
+                                                    <div 
+                                                        className={`w-full md:w-64 h-48 md:h-full shrink-0 ${course.color} bg-opacity-10 md:bg-opacity-100 flex items-center justify-center relative md:rounded-l-lg overflow-hidden cursor-pointer`}
+                                                        onClick={() => onSelectCourse(course.id)}
+                                                    >
+                                                        <div className="absolute inset-0 bg-black/5 hidden md:block"></div>
+                                                        <img
+                                                            src={course.icon}
+                                                            alt={course.title}
+                                                            className="w-24 h-24 md:w-32 md:h-32 object-contain drop-shadow-md z-10 group-hover:scale-110 transition-transform"
+                                                        />
+                                                    </div>
 
-                                                {/* Content Section - Clickable */}
-                                                <div 
-                                                    className="flex-1 py-4 flex flex-col justify-between pr-4 cursor-pointer"
-                                                    onClick={() => onSelectCourse(course.id)}
-                                                >
-                                                    <div>
-                                                        <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
-                                                            {course.title}
-                                                        </h3>
-                                                        <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
-                                                            {course.description}
-                                                        </p>
-                                                        <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
-                                                            {course.instructor}
-                                                        </div>
+                                                    {/* Content Section - Clickable */}
+                                                    <div 
+                                                        className="flex-1 py-4 flex flex-col justify-between pr-4 cursor-pointer"
+                                                        onClick={() => onSelectCourse(course.id)}
+                                                    >
+                                                        <div>
+                                                            <h3 className="text-lg md:text-xl font-black font-display text-gray-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors">
+                                                                {course.title}
+                                                            </h3>
+                                                            <p className="text-sm text-gray-500 font-medium line-clamp-2 mb-2">
+                                                                {course.description}
+                                                            </p>
+                                                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wide mb-1">
+                                                                {course.instructor}
+                                                            </div>
 
-                                                        {/* Stats Row */}
-                                                        <div className="flex items-center gap-2 mb-1">
-                                                            <span className="font-black text-yellow-600 text-sm">{course.rating}</span>
-                                                            <div className="flex text-yellow-400 text-xs">⭐⭐⭐⭐⭐</div>
-                                                            <span className="text-xs text-gray-400 font-medium">({course.ratingCount})</span>
-                                                        </div>
+                                                            {/* Stats Row */}
+                                                            <div className="flex items-center gap-2 mb-1">
+                                                                <span className="font-black text-yellow-600 text-sm">{course.rating}</span>
+                                                                <div className="flex text-yellow-400 text-xs">⭐⭐⭐⭐⭐</div>
+                                                                <span className="text-xs text-gray-400 font-medium">({course.ratingCount})</span>
+                                                            </div>
 
-                                                        <div className="text-xs text-gray-400 flex items-center gap-3">
-                                                            <span>{course.hours}</span>
-                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                            <span>{course.lectures}</span>
-                                                            <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                            <span>{course.level}</span>
+                                                            <div className="text-xs text-gray-400 flex items-center gap-3">
+                                                                <span>{course.hours}</span>
+                                                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                                <span>{course.lectures}</span>
+                                                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                                <span>{course.level}</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
 
-                                                {/* Price & Badge Section (NOT clickable for detail) */}
-                                                <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
-                                                    <div className="flex flex-col items-end w-full gap-2">
-                                                        <div className="flex flex-col items-end">
-                                                            <div className="flex items-baseline gap-1 whitespace-nowrap">
-                                                                <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
-                                                                <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                                    {/* Price & Badge Section (NOT clickable for detail) */}
+                                                    <div className="md:w-40 py-4 pr-6 flex flex-col items-end justify-between shrink-0 pl-4 md:border-l border-gray-100">
+                                                        <div className="flex flex-col items-end w-full gap-2">
+                                                            <div className="flex flex-col items-end">
+                                                                <div className="flex items-baseline gap-1 whitespace-nowrap">
+                                                                    <span className="text-2xl font-black text-gray-900 font-display">{course.price}</span>
+                                                                    <span className="text-xs text-gray-400 font-bold">/ ders</span>
+                                                                </div>
+                                                                {course.oldPrice && (
+                                                                    <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
+                                                                )}
                                                             </div>
-                                                            {course.oldPrice && (
-                                                                <span className="text-sm text-gray-400 line-through decoration-gray-400">{course.oldPrice}</span>
+
+                                                            {purchasedCourseIds.includes(course.id) ? (
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation();
+                                                                        if (onGoToMyCourses) onGoToMyCourses();
+                                                                    }}
+                                                                    className="w-full py-2 rounded-lg font-black text-xs text-center bg-indigo-100 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-200 uppercase tracking-wider cursor-pointer transition-colors"
+                                                                >
+                                                                    Kursu Görüntüle
+                                                                </button>
+                                                            ) : (
+                                                                <button 
+                                                                    onClick={(e) => { 
+                                                                        e.preventDefault();
+                                                                        e.stopPropagation(); 
+                                                                        addToCart(course); 
+                                                                    }}
+                                                                    className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
+                                                                        ${cart.some(item => item.id === course.id)
+                                                                            ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
+                                                                            : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
+                                                                        }`}
+                                                                >
+                                                                    {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
+                                                                </button>
                                                             )}
                                                         </div>
 
-                                                        {purchasedCourseIds.includes(course.id) ? (
-                                                            <button 
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation();
-                                                                    if (onGoToMyCourses) onGoToMyCourses();
-                                                                }}
-                                                                className="w-full py-2 rounded-lg font-black text-xs text-center bg-indigo-100 text-indigo-700 border-2 border-indigo-200 hover:bg-indigo-200 uppercase tracking-wider cursor-pointer transition-colors"
-                                                            >
-                                                                Kursu Görüntüle
-                                                            </button>
-                                                        ) : (
-                                                            <button 
-                                                                onClick={(e) => { 
-                                                                    e.preventDefault();
-                                                                    e.stopPropagation(); 
-                                                                    addToCart(course); 
-                                                                }}
-                                                                className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
-                                                                    ${cart.some(item => item.id === course.id)
-                                                                        ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
-                                                                        : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
-                                                                    }`}
-                                                            >
-                                                                {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
-                                                            </button>
+                                                        {course.badge && (
+                                                            <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}>
+                                                                {course.badge}
+                                                            </span>
                                                         )}
                                                     </div>
-
-                                                    {course.badge && (
-                                                        <span className={`px-3 py-1 rounded-md text-[10px] font-black uppercase tracking-wide ${course.badgeColor}`}>
-                                                            {course.badge}
-                                                        </span>
-                                                    )}
                                                 </div>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            ))}
+                                        </div>
+                                    )}
 
                                     {/* Pagination */}
                                     {totalResults > itemsPerPage && (

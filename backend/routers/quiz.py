@@ -29,25 +29,7 @@ async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
     )
 
     if result.get("success"):
-        try:
-            new_quiz = Quiz(
-                topic=topic,
-                difficulty=difficulty,
-                question_type=question_type,
-                question_text=result["quiz"]["soru"],
-                options=result["quiz"].get("secenekler"),
-                correct_answer=result["quiz"]["cevap"],
-                explanation=result["quiz"].get("aciklama"),
-            )
-            db.add(new_quiz)
-            await db.commit()
-            await db.refresh(new_quiz)
-
-            result["db_id"] = new_quiz.id
-            return result
-        except Exception as e:
-            await db.rollback()
-            raise HTTPException(status_code=500, detail=f"Veritabanı kayıt hatası: {str(e)}")
+        return result
     else:
         error_msg = result.get("error", "Bilinmeyen quiz servis hatası")
         raise HTTPException(status_code=500, detail=f"Quiz üretilemedi: {error_msg}")
@@ -67,31 +49,34 @@ async def get_quizzes(db: AsyncSession = Depends(get_db)):
 @router.post("/assign")
 async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
     data = await request.json()
-    quiz_id = data.get("quiz_id")
+    quiz_data = data.get("quiz_data")
     course_id = data.get("course_id")
     section_id = data.get("section_id")
     node_id = data.get("node_id")
 
-    if not quiz_id or not course_id or node_id is None or section_id is None:
+    if not quiz_data or not course_id or node_id is None or section_id is None:
         raise HTTPException(
             status_code=400,
-            detail="Eksik parametre: quiz_id, course_id, section_id veya node_id gerekli.",
+            detail="Eksik parametre: quiz_data, course_id, section_id veya node_id gerekli.",
         )
 
-    result = await db.execute(select(Quiz).where(Quiz.id == quiz_id))
-    quiz = result.scalar_one_or_none()
-
-    if not quiz:
-        raise HTTPException(status_code=404, detail="Quiz bulunamadı.")
-
     try:
-        quiz.course_id = int(course_id)
-        quiz.section_id = str(section_id)
-        quiz.node_id = int(node_id)
-
+        new_quiz = Quiz(
+            topic=quiz_data.get("topic", "Genel"),
+            difficulty=quiz_data.get("difficulty", "Orta"),
+            question_type=quiz_data.get("type", "multiple-choice"),
+            question_text=quiz_data.get("text", ""),
+            options=quiz_data.get("options"),
+            correct_answer=quiz_data.get("correctAnswer", ""),
+            explanation=quiz_data.get("explanation", ""),
+            course_id=int(course_id),
+            section_id=str(section_id),
+            node_id=int(node_id)
+        )
+        db.add(new_quiz)
         await db.commit()
-        await db.refresh(quiz)
-        return {"success": True, "quiz": quiz.to_dict()}
+        await db.refresh(new_quiz)
+        return {"success": True, "quiz": new_quiz.to_dict()}
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=f"Atama hatası: {str(e)}")

@@ -61,6 +61,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
 
   useEffect(() => {
     if (coursesData && studentsData) {
+        setCourses(coursesData);
+        setStudents(Array.from(new Set(studentsData.filter(s => s.student_id).map(s => s.student_id))));
         setIsLoading(false);
     } else {
         const fetchDashboardData = async () => {
@@ -129,7 +131,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               let timeLeftStr = "";
               if (diff <= 0 && diff > -7200000) {
                 isActive = true;
-                timeLeftStr = "Canlı Yayında!";
+                timeLeftStr = "";
               } else if (diff > 0) {
                 const d = Math.floor(diff / 86400000);
                 const h = Math.floor((diff % 86400000) / 3600000);
@@ -205,16 +207,17 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               onClick={async () => {
                 if (upcomingSession.isActive) {
                   try {
+                    // 1. Canlı oturumu başlat
                     await api.post(
                       `/start-session/${upcomingSession.courseId}`,
                     );
-                    const room = `GoMufi-${upcomingSession.courseId}-${upcomingSession.courseTitle.replace(/[^a-zA-Z0-9]/g, "")}`;
-                    const displayName = userProfile
-                      ? encodeURIComponent(
-                          `${userProfile.firstName} ${userProfile.lastName}`,
-                        )
-                      : "E%C4%9Fitmen";
-                    const url = `https://meet.element.io/${room}#userInfo.displayName=${displayName}&config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false&config.disableDeepLinking=true&config.startWithAudioMuted=false&config.startWithVideoMuted=false&config.enableLobbyChat=false&config.lobby.autoKnock=false&config.toolbarButtons=[%22microphone%22,%22camera%22,%22desktop%22,%22chat%22,%22recording%22,%22mute-everyone%22,%22hangup%22]`;
+                    // 2. JWT token al (moderator yetkili)
+                    const jitsiRes = await api.get(
+                      `/jitsi/token/${upcomingSession.courseId}`,
+                    );
+                    const { token, room, domain } = jitsiRes.data;
+                    // 3. Jitsi'yi JWT token ile aç
+                    const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
                     window.open(
                       url,
                       "_blank",
@@ -306,175 +309,87 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Active Courses List */}
-        <div className="lg:col-span-2 bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-black text-gray-800">
-              Kurs Performansı
-            </h2>
-            <div className="flex gap-2">
-              <button className="px-3 py-1 text-xs font-bold text-white bg-gray-800 rounded-lg">
-                Aktif
-              </button>
-              <button className="px-3 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg">
-                Taslak
-              </button>
-              <button className="px-3 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg">
-                Arşiv
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            {/* Header */}
-            <div className="grid grid-cols-12 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-2 border-b border-gray-100">
-              <div className="col-span-5">Kurs Adı</div>
-              <div className="col-span-2 text-center">Öğrenci</div>
-              <div className="col-span-2 text-center">Puan</div>
-              <div className="col-span-3 text-right">Durum</div>
-            </div>
-
-            {isLoading ? (
-              <p className="text-sm p-4 text-gray-400 font-bold text-center">
-                Kurslar yükleniyor...
-              </p>
-            ) : courses.length === 0 ? (
-              <p className="text-sm p-4 text-gray-400 font-bold text-center">
-                Yayında bir kursunuz bulunmuyor.
-              </p>
-            ) : (
-              courses.slice(0, 5).map((course, i) => {
-                const colors = ["blue", "purple", "orange", "emerald", "sky"];
-                const c = colors[i % colors.length];
-
-                return (
-                  <div
-                    key={course.id}
-                    className="grid grid-cols-12 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors group cursor-pointer"
-                  >
-                    <div className="col-span-5 flex items-center gap-4">
-                      <div
-                        className={`w-10 h-10 rounded-xl bg-${c}-100 flex items-center justify-center text-xl`}
-                      >
-                        {i % 4 === 0
-                          ? "🐍"
-                          : i % 4 === 1
-                            ? "🌐"
-                            : i % 4 === 2
-                              ? "🎮"
-                              : "📊"}
-                      </div>
-                      <div>
-                        <h4 className="font-bold text-gray-800 text-sm group-hover:text-sky-600 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
-                          {course.title}
-                        </h4>
-                        <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                          <div
-                            className={`h-full bg-${c}-500 rounded-full`}
-                            style={{ width: `${course.progress || 0}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="col-span-2 text-center font-bold text-gray-600 text-sm">
-                      {/* Not available yet */ "-"}
-                    </div>
-                    <div className="col-span-2 text-center flex items-center justify-center gap-1 font-bold text-gray-600 text-sm">
-                      <span className="text-yellow-400">★</span> 5.0
-                    </div>
-                    <div className="col-span-3 text-right">
-                      <span
-                        className={`text-xs font-bold px-3 py-1 rounded-full ${course.progress !== undefined ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}
-                      >
-                        Yayında
-                      </span>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+      {/* Active Courses List */}
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-black text-gray-800">
+            Kurs Performansı
+          </h2>
+          <div className="flex gap-2">
+            <button className="px-3 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg">
+              Taslak
+            </button>
           </div>
         </div>
 
-        {/* Right Column: Quick Stats & Activity */}
-        <div className="space-y-6">
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 text-white shadow-lg shadow-indigo-200">
-            <div className="flex justify-between items-start mb-8">
-              <div>
-                <p className="text-indigo-100 text-sm font-bold mb-1">
-                  Toplam Kazanç
-                </p>
-                <h3 className="text-3xl font-black">
-                  {isLoading
-                    ? "..."
-                    : `₺${students
-                        .reduce((acc, student) => {
-                          const course = courses.find(
-                            (c: any) => c.id === student.course_id,
-                          );
-                          return acc + (course?.price || 0);
-                        }, 0)
-                        .toLocaleString("tr-TR", {
-                          minimumFractionDigits: 2,
-                        })}`}
-                </h3>
-              </div>
-              <div className="p-2 bg-white/20 rounded-xl">
-                <TrendingUp size={20} />
-              </div>
-            </div>
-            <div className="bg-white/10 rounded-xl p-4 backdrop-blur-sm">
-              <div className="flex justify-between text-xs font-bold text-indigo-100 mb-2">
-                <span>Bu ayki hedef</span>
-                <span>85%</span>
-              </div>
-              <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white rounded-full w-[85%]"></div>
-              </div>
-            </div>
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="grid grid-cols-12 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-2 border-b border-gray-100">
+            <div className="col-span-5">Kurs Adı</div>
+            <div className="col-span-2 text-center">Öğrenci</div>
+            <div className="col-span-2 text-center">Puan</div>
+            <div className="col-span-3 text-right">Durum</div>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm">
-            <h3 className="text-lg font-black text-gray-800 mb-4">
-              Son Aktiviteler
-            </h3>
-            <div className="relative pl-4 border-l-2 border-gray-100 space-y-6">
-              {[
-                {
-                  user: "Ahmet Y.",
-                  action: "yeni bir test tamamladı",
-                  time: "5dk önce",
-                  type: "success",
-                },
-                {
-                  user: "Ayşe K.",
-                  action: "kurşuna kayıt oldu",
-                  time: "12dk önce",
-                  type: "info",
-                },
-                {
-                  user: "Mehmet T.",
-                  action: "bir soru sordu",
-                  time: "1s önce",
-                  type: "warning",
-                },
-              ].map((activity, i) => (
-                <div key={i} className="relative">
-                  <div
-                    className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-white ring-2 ${activity.type === "success" ? "bg-green-400 ring-green-100" : activity.type === "warning" ? "bg-orange-400 ring-orange-100" : "bg-sky-400 ring-sky-100"}`}
-                  ></div>
-                  <p className="text-sm font-bold text-gray-700">
-                    <span className="text-sky-600">{activity.user}</span>{" "}
-                    {activity.action}
-                  </p>
-                  <span className="text-xs text-gray-400 font-semibold">
-                    {activity.time}
-                  </span>
+          {isLoading ? (
+            <p className="text-sm p-4 text-gray-400 font-bold text-center">
+              Kurslar yükleniyor...
+            </p>
+          ) : courses.length === 0 ? (
+            <p className="text-sm p-4 text-gray-400 font-bold text-center">
+              Yayında bir kursunuz bulunmuyor.
+            </p>
+          ) : (
+            courses.slice(0, 5).map((course, i) => {
+              const colors = ["blue", "purple", "orange", "emerald", "sky"];
+              const c = colors[i % colors.length];
+
+              return (
+                <div
+                  key={course.id}
+                  className="grid grid-cols-12 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors group cursor-pointer"
+                >
+                  <div className="col-span-5 flex items-center gap-4">
+                    <div
+                      className={`w-10 h-10 rounded-xl bg-${c}-100 flex items-center justify-center text-xl`}
+                    >
+                      {i % 4 === 0
+                        ? "🐍"
+                        : i % 4 === 1
+                          ? "🌐"
+                          : i % 4 === 2
+                            ? "🎮"
+                            : "📊"}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-gray-800 text-sm group-hover:text-sky-600 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
+                        {course.title}
+                      </h4>
+                      <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
+                        <div
+                          className={`h-full bg-${c}-500 rounded-full`}
+                          style={{ width: `${course.progress || 0}%` }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-span-2 text-center font-bold text-gray-600 text-sm">
+                    {course.students_count ?? 0}
+                  </div>
+                  <div className="col-span-2 text-center flex items-center justify-center gap-1 font-bold text-gray-600 text-sm">
+                    <span className="text-yellow-400">★</span> 5.0
+                  </div>
+                  <div className="col-span-3 text-right">
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full ${course.progress !== undefined ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}
+                    >
+                      Yayında
+                    </span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </div>
+              );
+            })
+          )}
         </div>
       </div>
     </div>

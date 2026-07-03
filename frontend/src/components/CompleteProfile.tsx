@@ -108,24 +108,21 @@ const CompleteProfile: React.FC = () => {
                                 required
                             >
                                 <option value="">Eğitim Seviyesi Seç</option>
-                                <option value="ilkokul">İlkokul</option>
                                 <option value="ortaokul">Ortaokul</option>
                                 <option value="lise">Lise</option>
-                                <option value="universite">Üniversite</option>
                             </select>
-                            <select
-                                value={gradeLevel}
-                                onChange={(e) => setGradeLevel(e.target.value)}
-                                className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold focus:ring-4 focus:ring-green-100 outline-none"
-                                required
-                                disabled={!educationLevel}
-                            >
-                                <option value="">Sınıf Seç</option>
-                                {educationLevel === 'ilkokul' && [1, 2, 3, 4].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                {educationLevel === 'universite' && ['Hazırlık', '1. Sınıf', '2. Sınıf', '3. Sınıf', '4. Sınıf', 'Mezun'].map(n => <option key={n} value={n}>{n}</option>)}
-                            </select>
+                            {educationLevel && (
+                                <select
+                                    value={gradeLevel}
+                                    onChange={(e) => setGradeLevel(e.target.value)}
+                                    className="w-full px-6 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold focus:ring-4 focus:ring-green-100 outline-none"
+                                    required
+                                >
+                                    <option value="">Sınıf Seç</option>
+                                    {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                    {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                </select>
+                            )}
 
                         </>
                     ) : (
