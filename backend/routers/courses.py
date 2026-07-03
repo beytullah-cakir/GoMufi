@@ -79,17 +79,7 @@ async def read_my_content(
     user_id = int(user_info["sub"])
     role = user_info["role"]
 
-    if role == "teacher":
-        result = await db.execute(
-            select(Course)
-            .where(Course.teacher_id == user_id)
-            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
-        )
-        courses = result.unique().scalars().all()
-        for course in courses:
-            course.students_count = len(course.enrollments)
-        return courses
-    elif role == "student":
+    if role in ["student", "admin"]:
         stmt = (
             select(Course)
             .join(Enrollment, Enrollment.course_id == Course.id)
@@ -97,6 +87,16 @@ async def read_my_content(
             .options(joinedload(Course.teacher), joinedload(Course.enrollments))
         )
         result = await db.execute(stmt)
+        courses = result.unique().scalars().all()
+        for course in courses:
+            course.students_count = len(course.enrollments)
+        return courses
+    elif role == "teacher":
+        result = await db.execute(
+            select(Course)
+            .where(Course.teacher_id == user_id)
+            .options(joinedload(Course.teacher), joinedload(Course.enrollments))
+        )
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
@@ -112,7 +112,14 @@ async def read_my_schedule(
     user_id = int(user_info["sub"])
     role = user_info["role"]
 
-    if role == "student":
+    if role == "admin":
+        stmt = (
+            select(LiveSession)
+            .order_by(LiveSession.start_time)
+        )
+        result = await db.execute(stmt)
+        return result.scalars().all()
+    elif role == "student":
         stmt = (
             select(LiveSession)
             .join(Course)
@@ -131,7 +138,7 @@ async def enroll_student(
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
-    if user_info["role"] != "student":
+    if user_info["role"] not in ["student", "admin"]:
         raise HTTPException(status_code=403, detail="Only students can enroll")
 
     student_id = int(user_info["sub"])
@@ -357,14 +364,17 @@ async def start_session(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
+    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id}")
     # Dersi kontrol et
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
     course = result.scalar_one_or_none()
     if not course:
+        print(f"DEBUG: Course {course_id} not found for teacher {teacher_id}")
         raise HTTPException(status_code=404, detail="Course not found")
 
+    print(f"DEBUG: Course found: {course.title}")
     # Mevcut canlı oturumu bul veya yeni oluştur
     stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
     result = await db.execute(stmt)
@@ -378,10 +388,13 @@ async def start_session(
             type='live'
         )
         db.add(session)
+        print("DEBUG: Created new live session")
     else:
         session.status = 'live'
+        print("DEBUG: Reused existing live session")
     
     await db.commit()
+    print("DEBUG: start_session committed")
     return {"message": "Session started", "session_id": session.id}
 
 @router.get("/session-status/{course_id}")
@@ -397,3 +410,28 @@ async def get_session_status(
         return {"is_live": True, "session_id": session.id}
     return {"is_live": False}
 
+@router.post("/stop-session/{course_id}")
+async def stop_session(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Dersi kontrol et
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+
+    # Aktif canlı oturumu bul
+    stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
+    result = await db.execute(stmt)
+    session = result.scalars().first()
+
+    if not session:
+        raise HTTPException(status_code=404, detail="Aktif canlı oturum bulunamadı")
+
+    session.status = 'completed'
+    await db.commit()
+    return {"message": "Session stopped", "session_id": session.id}

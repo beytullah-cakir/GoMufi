@@ -7,6 +7,7 @@ import InstructorApp from './components/instructor-pages/InstructorApp';
 import ParentApp from './components/parent-pages/ParentApp';
 import PaymentSuccess from './components/student-pages/PaymentSuccess';
 import PaymentError from './components/student-pages/PaymentError';
+import AdminApp from './components/admin-pages/AdminApp';
 
 import CompleteProfile from './components/CompleteProfile';
 import { WebSocketProvider } from './context/WebSocketContext';
@@ -57,6 +58,9 @@ function App() {
 
         {/* Parent Routes */}
         <Route path="/parent/*" element={<ParentApp />} />
+
+        {/* Admin Routes */}
+        <Route path="/admin/*" element={<AdminApp />} />
 
         {/* Payment Result Routes */}
         <Route path="/payment-success" element={<PaymentSuccess />} />

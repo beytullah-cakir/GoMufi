@@ -9,6 +9,7 @@ import InstructorAIQuestions from './InstructorAIQuestions';
 import InstructorMessages from './InstructorMessages';
 import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
+import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -42,23 +43,24 @@ const InstructorApp: React.FC = () => {
     const [studentsData, setStudentsData] = useState<any[]>([]);
     const [isUserDataLoading, setIsUserDataLoading] = useState(true);
 
+    const fetchUserData = async () => {
+        try {
+            const [profileRes, coursesRes, studentsRes] = await Promise.all([
+                api.get("/profile"),
+                api.get("/teacher/content"),
+                api.get("/teacher/students")
+            ]);
+            setUserData(profileRes.data);
+            setCoursesData(coursesRes.data);
+            setStudentsData(studentsRes.data);
+        } catch (err) {
+            console.error("Failed to fetch instructor data", err);
+        } finally {
+            setIsUserDataLoading(false);
+        }
+    };
+
     useEffect(() => {
-        const fetchUserData = async () => {
-            try {
-                const [profileRes, coursesRes, studentsRes] = await Promise.all([
-                    api.get("/profile"),
-                    api.get("/teacher/content"),
-                    api.get("/teacher/students")
-                ]);
-                setUserData(profileRes.data);
-                setCoursesData(coursesRes.data);
-                setStudentsData(studentsRes.data);
-            } catch (err) {
-                console.error("Failed to fetch instructor data", err);
-            } finally {
-                setIsUserDataLoading(false);
-            }
-        };
         fetchUserData();
     }, []);
 
@@ -86,6 +88,32 @@ const InstructorApp: React.FC = () => {
         );
     }
 
+    if (location.pathname.includes("builder") || location.pathname.includes("roadmap-builder")) {
+        return (
+            <Routes>
+                <Route 
+                    path="builder" 
+                    element={
+                        <LessonBuilderPage 
+                            onExit={() => { 
+                                fetchUserData(); 
+                                const queryParams = new URLSearchParams(location.search);
+                                const cId = queryParams.get("courseId");
+                                if (cId) {
+                                    navigate(`/instructor/roadmap-builder/${cId}`);
+                                } else {
+                                    navigate('/instructor/courses');
+                                }
+                            }} 
+                        />
+                    } 
+                />
+                <Route path="roadmap-builder/:courseId" element={<InstructorRoadmapBuilder />} />
+                <Route path="*" element={<Navigate to="/instructor/courses" replace />} />
+            </Routes>
+        );
+    }
+
     return (
         <InstructorLayout
             activePage={activePage}
@@ -95,13 +123,12 @@ const InstructorApp: React.FC = () => {
             <Routes>
                 <Route path="/" element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<InstructorDashboard userData={userData} coursesData={coursesData} studentsData={studentsData} />} />
-                <Route path="courses" element={<InstructorCourses coursesData={coursesData} />} />
+                <Route path="courses" element={<InstructorCourses coursesData={coursesData} refreshData={fetchUserData} />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
                 <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} />
                 <Route path="ai-questions" element={<InstructorAIQuestions coursesData={coursesData} />} />
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
-                <Route path="builder" element={<LessonBuilderPage onExit={() => navigate('/instructor/courses')} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
         </InstructorLayout>

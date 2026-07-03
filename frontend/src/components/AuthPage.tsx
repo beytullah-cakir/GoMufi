@@ -363,40 +363,37 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                                   <option value="" disabled>
                                     Okul Seviyesi
                                   </option>
-                                  <option value="ilkokul">İlkokul</option>
                                   <option value="ortaokul">Ortaokul</option>
                                   <option value="lise">Lise</option>
-                                  <option value="universite">Üniversite</option>
                                 </select>
                                 <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
                                   <ChevronRight className="w-4 h-4 rotate-90" />
                                 </div>
                               </div>
                             </div>
-                            <div className="group flex-1">
-                              <div className="relative">
-                                <select
-                                  value={gradeLevel}
-                                  onChange={(e) =>
-                                    setGradeLevel(e.target.value)
-                                  }
-                                  className={`${getInputClass()} appearance-none cursor-pointer`}
-                                  required
-                                  disabled={!educationLevel}
-                                >
-                                  <option value="" disabled>
-                                    Sınıf
-                                  </option>
-                                  {educationLevel === 'ilkokul' && [1, 2, 3, 4].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                  {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                  {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
-                                  {educationLevel === 'universite' && ['Hazırlık', '1. Sınıf', '2. Sınıf', '3. Sınıf', '4. Sınıf', 'Mezun'].map(n => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                                <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
-                                  <ChevronRight className="w-4 h-4 rotate-90" />
+                            {educationLevel && (
+                              <div className="group flex-1">
+                                <div className="relative">
+                                  <select
+                                    value={gradeLevel}
+                                    onChange={(e) =>
+                                      setGradeLevel(e.target.value)
+                                    }
+                                    className={`${getInputClass()} appearance-none cursor-pointer`}
+                                    required
+                                  >
+                                    <option value="" disabled>
+                                      Sınıf
+                                    </option>
+                                    {educationLevel === 'ortaokul' && [5, 6, 7, 8].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                    {educationLevel === 'lise' && [9, 10, 11, 12].map(n => <option key={n} value={`${n}. Sınıf`}>{n}. Sınıf</option>)}
+                                  </select>
+                                  <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-gray-500">
+                                    <ChevronRight className="w-4 h-4 rotate-90" />
+                                  </div>
                                 </div>
                               </div>
-                            </div>
+                            )}
                           </div>
 
                         </>
