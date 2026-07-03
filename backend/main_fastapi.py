@@ -126,5 +126,19 @@ async def get_quiz_by_node_legacy(
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("PORT", 8000))
+    from urllib.parse import urlparse
+    
+    # Yerel geliştirme ortamında (IS_PRODUCTION False ise) daima BACKEND_URL'deki portu veya 8000'i kullan,
+    # böylece sistemdeki diğer çevre değişkenleri (PORT gibi) çakışma yaratmaz.
+    # Production ortamında ise platformun (örn. Railway) atadığı PORT env varını kullan.
+    if settings.IS_PRODUCTION:
+        port = int(os.getenv("PORT", 8000))
+    else:
+        try:
+            parsed = urlparse(settings.BACKEND_URL)
+            port = parsed.port if parsed.port and parsed.port > 0 else 8000
+        except Exception:
+            port = 8000
+            
+    logger.info(f"Uygulama {port} portu üzerinde başlatılıyor...")
     uvicorn.run(app, host="0.0.0.0", port=port, reload=False)

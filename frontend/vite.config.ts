@@ -7,12 +7,17 @@ export default defineConfig({
   server: {
     host: true,       // Docker içinden dışarıya erişim için 0.0.0.0
     port: 5173,
+    strictPort: true, // Port çakışmasında farklı porta geçilmesini engelle
     watch: {
       usePolling: true,  // Docker volume'larında hot reload
     },
     hmr: {
       overlay: false
     }
+  },
+  preview: {
+    port: 5173,
+    strictPort: true
   },
   logLevel: 'info', // URL bilgisini ve info loglarını göster
 })
