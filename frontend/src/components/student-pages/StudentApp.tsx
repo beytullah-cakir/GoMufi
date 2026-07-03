@@ -511,7 +511,7 @@ function StudentApp() {
         { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
         { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
-        { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
+        // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
