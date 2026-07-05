@@ -229,6 +229,20 @@ interface FileWidgetProps {
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
 }
 
+const formatUrl = (url: string) => {
+    if (!url) return '#';
+    // If it's a local static path, don't prepend https://
+    if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) {
+        return url;
+    }
+    // Check if it already has a protocol
+    if (/^[a-zA-Z][a-zA-Z\d.+\-]*:/.test(url)) {
+        return url;
+    }
+    // Prepend https://
+    return `https://${url}`;
+};
+
 const FileWidget: React.FC<FileWidgetProps> = ({ el, isPreview, updateElement }) => {
     const [fileName, setFileName] = useState(el.content || 'Kaynak_Dokuman.pdf');
     const [fileUrl, setFileUrl] = useState(el.src || '');
@@ -245,11 +259,13 @@ const FileWidget: React.FC<FileWidgetProps> = ({ el, isPreview, updateElement })
     if (isPreview) {
         return (
             <a
-                href={fileUrl || '#'}
+                href={formatUrl(fileUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
+                download={fileName}
                 className="w-full h-full bg-amber-50/90 border-2 border-amber-200 rounded-2xl p-4 flex items-center gap-4 hover:scale-[1.02] hover:bg-amber-100/50 hover:shadow-md transition-all group pointer-events-auto"
                 onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
                     <FolderOpen className="w-6 h-6" />
@@ -319,11 +335,12 @@ const LinkWidget: React.FC<LinkWidgetProps> = ({ el, isPreview, updateElement })
     if (isPreview) {
         return (
             <a
-                href={linkUrl || '#'}
+                href={formatUrl(linkUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full h-full bg-blue-50/90 border-2 border-blue-200 rounded-2xl p-4 flex items-center gap-4 hover:scale-[1.02] hover:bg-blue-100/50 hover:shadow-md transition-all group pointer-events-auto"
                 onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
             >
                 <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform">
                     <Globe className="w-6 h-6" />
@@ -2012,6 +2029,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   }
   const contentRef = useRef<HTMLDivElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isInteractive, setIsInteractive] = useState(false);
 
   useEffect(() => {
     if (isEditing && contentRef.current) {
@@ -2079,11 +2097,16 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         pointerEvents: el.type === "draw" ? "none" : "auto",
       }}
       onMouseDown={(e) => {
-        if (isPreview || isEditing) {
+        if (isPreview || isEditing || isInteractive) {
           e.stopPropagation();
           return;
         }
         handleMouseDown(e, el.id, "drag");
+      }}
+      onClick={(e) => {
+        if (isPreview || isEditing || isInteractive) {
+          e.stopPropagation();
+        }
       }}
       data-id={el.id}
       data-type={el.type}
@@ -2384,6 +2407,19 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
               </div>
             )}
 
+            {!isPreview && el.type === "video" && (el.videoUrl || el.src) && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsInteractive(!isInteractive);
+                }}
+                className="absolute top-2 right-2 z-30 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md flex items-center gap-1 border border-indigo-500 transition-colors"
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {isInteractive ? "🖱️ Sürükleme Modu" : "▶️ Önizle/Oynat"}
+              </button>
+            )}
+
             {el.type === "image" && (
               <input
                 id={`file-input-${el.id}`}
@@ -2449,14 +2485,14 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                   className={
-                    isEditing ? "pointer-events-auto" : "pointer-events-none"
+                    (isEditing || isPreview || isInteractive) ? "pointer-events-auto" : "pointer-events-none"
                   }
                 />
               ) : (
                 <video
                   src={el.videoUrl || el.src}
                   controls
-                  className={`w-full h-full object-cover ${isEditing ? "pointer-events-auto" : "pointer-events-none"}`}
+                  className={`w-full h-full object-cover ${(isEditing || isPreview || isInteractive) ? "pointer-events-auto" : "pointer-events-none"}`}
                 />
               )
             ) : (

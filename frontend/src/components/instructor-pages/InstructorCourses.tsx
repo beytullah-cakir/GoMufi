@@ -12,6 +12,8 @@ import {
   Video,
   Play,
   Square,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
@@ -36,6 +38,7 @@ interface Course {
   liveSessions?: { date: string; time: string }[];
   schedule?: { day: string; time: string }[];
   instructor?: string;
+  enrollment_code?: string;
 }
 
 interface InstructorCoursesProps {
@@ -59,7 +62,14 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   >(null);
   const [liveSessionCourseIds, setLiveSessionCourseIds] = useState<Set<number>>(new Set());
   const [startingSessionId, setStartingSessionId] = useState<number | null>(null);
+  const [copiedCodeId, setCopiedCodeId] = useState<number | null>(null);
   const navigate = useNavigate();
+
+  const handleCopyCode = (courseId: number, code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedCodeId(courseId);
+    setTimeout(() => setCopiedCodeId((prev) => (prev === courseId ? null : prev)), 1500);
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -92,6 +102,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           learning_outcomes: c.learning_outcomes || [],
           requirements: c.requirements || [],
           curriculum: finalCurriculum,
+          enrollment_code: c.enrollment_code,
           color:
             c.category === "coding"
               ? "blue"
@@ -447,6 +458,23 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                       <p className="text-xs font-bold text-gray-400">
                         Son güncelleme: {course.lastUpdated}
                       </p>
+                      {course.enrollment_code && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleCopyCode(course.id, course.enrollment_code!);
+                          }}
+                          className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                          title="Katılım kodunu kopyala"
+                        >
+                          {copiedCodeId === course.id ? (
+                            <Check size={11} />
+                          ) : (
+                            <Copy size={11} />
+                          )}
+                          Kod: {course.enrollment_code}
+                        </button>
+                      )}
                       {course.isLive &&
                         course.liveSessions &&
                         course.liveSessions.length > 0 && (

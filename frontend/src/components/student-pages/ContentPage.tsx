@@ -139,9 +139,10 @@ const mapContentCourses = (data: any[]): Course[] => {
 
 interface ContentPageProps {
     purchasedCourses?: any[];
+    onOpenJoinModal: () => void;
 }
 
-const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
+const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinModal }) => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
@@ -450,15 +451,15 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses }) => {
                             </div>
                         ))}
 
-                        {/* Add New Course Button */}
-                        <button 
-                            onClick={() => navigate('/student/catalog')}
+                        {/* Kod ile Derse Katıl Button */}
+                        <button
+                            onClick={onOpenJoinModal}
                             className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group"
                         >
                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
                                 <span className="text-xl leading-none mb-0.5">+</span>
                             </div>
-                            Yeni Kurs Ekle
+                            Kod ile Derse Katıl
                         </button>
                     </div>
                 </div>

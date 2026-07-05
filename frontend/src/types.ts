@@ -51,4 +51,5 @@ export interface CourseData {
         title: string;
         subtitle: string;
     };
+    notes?: any[];
 }

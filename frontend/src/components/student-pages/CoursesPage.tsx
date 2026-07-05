@@ -16,9 +16,7 @@ import categoryData from '../../data/categories.json';
 import techData from '../../data/technologies.json';
 
 interface CoursesPageProps {
-    addToCart: (course: { id: number; title: string; price: string; icon: string; instructor: string; }) => void;
     onSelectCourse: (id: number) => void;
-    cart: { id: number; }[];
     purchasedCourseIds: number[];
     onGoToMyCourses?: () => void;
 }
@@ -35,7 +33,7 @@ interface BackendCourse {
     };
 }
 
-const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, cart, purchasedCourseIds, onGoToMyCourses }) => {
+const CoursesPage: React.FC<CoursesPageProps> = ({ onSelectCourse, purchasedCourseIds, onGoToMyCourses }) => {
     const [courses, setCourses] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -448,20 +446,10 @@ const CoursesPage: React.FC<CoursesPageProps> = ({ addToCart, onSelectCourse, ca
                                                                     Kursu Görüntüle
                                                                 </button>
                                                             ) : (
-                                                                <button 
-                                                                    onClick={(e) => { 
-                                                                        e.preventDefault();
-                                                                        e.stopPropagation(); 
-                                                                        addToCart(course); 
-                                                                    }}
-                                                                    className={`w-full py-2 rounded-lg font-black text-xs transition-all tracking-wider uppercase
-                                                                        ${cart.some(item => item.id === course.id)
-                                                                            ? 'bg-green-100 text-green-600 border-2 border-green-200 cursor-default'
-                                                                            : 'bg-gray-900 text-white hover:bg-black shadow-md active:scale-95'
-                                                                        }`}
-                                                                >
-                                                                    {cart.some(item => item.id === course.id) ? 'Sepette ✓' : 'Sepete Ekle'}
-                                                                </button>
+                                                                // Satın alma akışı devre dışı — kurslara artık kod ile katılınıyor
+                                                                <div className="w-full py-2 rounded-lg font-black text-[10px] text-center bg-gray-50 text-gray-400 border-2 border-dashed border-gray-200 uppercase tracking-wider leading-tight px-2">
+                                                                    Katılmak için eğitmeninden kod al
+                                                                </div>
                                                             )}
                                                         </div>
 

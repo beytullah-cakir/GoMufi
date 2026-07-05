@@ -14,6 +14,7 @@ interface HomePageProps {
     userData?: any;
     isUserDataLoading: boolean;
     refreshUserData: () => Promise<void>;
+    onOpenJoinModal: () => void;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -24,7 +25,8 @@ const HomePage: React.FC<HomePageProps> = ({
     setCourses,
     userData,
     isUserDataLoading,
-    refreshUserData
+    refreshUserData,
+    onOpenJoinModal
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -192,13 +194,13 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz Bir Kursun Yok!</h2>
                 <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Maceraya başlamak için Market'ten harika kurslarimizi keşfedebilir ve ilk adimini atabilirsin.
+                    Maceraya başlamak için eğitmeninden aldığın katılım kodunu gir.
                 </p>
-                <button 
-                    onClick={() => (window as any).setActivePage ? (window as any).setActivePage('Kurslar') : window.location.reload()}
+                <button
+                    onClick={onOpenJoinModal}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
                 >
-                    Kurslari Keşfet
+                    Kod ile Katıl
                 </button>
             </div>
         );
@@ -536,7 +538,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             {node.title || "Ders Başlığı"}
                                                         </h3>
                                                         <span className="text-white/90 font-bold text-xs uppercase tracking-widest mb-4">
-                                                            DERS: {index + 1}/9
+                                                            DERS: {index + 1}/{currentNodes.length}
                                                         </span>
 
                                                         <button
@@ -615,7 +617,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                     textShadow: `2px 2px 0px ${node.strokeColor}`
                                                                 }}
                                                             >
-                                                                LEVEL {levelCounter}
+                                                                {node.title}
                                                             </span>
                                                         </div>
                                                     </>
@@ -681,12 +683,21 @@ const HomePage: React.FC<HomePageProps> = ({
 
 
             {/* LESSON SLIDE OVERLAY */}
-            <LessonSlide
-                isOpen={showLessonSlide}
-                lessonTitle={currentCourse.nodes.find(n => n.id === lessonLevel)?.title}
-                onClose={handleCloseLesson}
-                onComplete={handleLessonComplete}
-            />
+            {(() => {
+                const node = currentCourse?.nodes?.find(n => n.id === lessonLevel);
+                const sectionId = node?.sectionId;
+                const note = currentCourse?.notes?.find(n => String(n.id) === String(sectionId));
+                const customSlides = note?.slides || [];
+                return (
+                    <LessonSlide
+                        isOpen={showLessonSlide}
+                        lessonTitle={node?.title}
+                        customSlides={customSlides}
+                        onClose={handleCloseLesson}
+                        onComplete={handleLessonComplete}
+                    />
+                );
+            })()}
 
             {/* GAME PAGE OVERLAY */}
             <GameOverlay

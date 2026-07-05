@@ -1,3 +1,5 @@
+import random
+import string
 from fastapi import APIRouter, Depends, Request, HTTPException, status
 from sqlalchemy import func, JSON
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +16,18 @@ from auth.dependencies import get_current_user_info, get_current_teacher_id
 from core.config import settings
 
 router = APIRouter()
+
+CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # karışabilecek 0/O, 1/I hariç
+
+
+async def generate_enrollment_code(db: AsyncSession) -> str:
+    """Benzersiz 6 haneli katılım kodu üretir."""
+    for _ in range(10):
+        code = "".join(random.choices(CODE_ALPHABET, k=6))
+        existing = await db.execute(select(Course).where(Course.enrollment_code == code))
+        if not existing.scalars().first():
+            return code
+    raise HTTPException(status_code=500, detail="Katılım kodu üretilemedi, lütfen tekrar deneyin.")
 
 from datetime import datetime, time
 from models.live_session import LiveSession
@@ -42,9 +56,14 @@ class CourseResponse(BaseModel):
     students_count: int = 0
     rating: Optional[int] = 5
     schedule: Optional[List[Any]] = []
+    enrollment_code: Optional[str] = None
 
     class Config:
         from_attributes = True
+
+class TeacherCourseResponse(CourseResponse):
+    """CourseResponse + enrollment_code — sadece eğitmene ait endpoint'lerde kullanılır."""
+    enrollment_code: Optional[str] = None
 
 class LiveSessionResponse(BaseModel):
     id: int
@@ -157,6 +176,42 @@ async def enroll_student(
     await db.commit()
     return {"message": "Enrolled successfully"}
 
+class EnrollByCodeRequest(BaseModel):
+    code: str
+
+@router.post("/enroll-by-code")
+async def enroll_by_code(
+    payload: EnrollByCodeRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    if user_info["role"] not in ["student", "admin"]:
+        raise HTTPException(status_code=403, detail="Sadece öğrenciler bir derse katılabilir.")
+
+    code = payload.code.strip().upper()
+    if not code:
+        raise HTTPException(status_code=400, detail="Kod boş olamaz.")
+
+    result = await db.execute(select(Course).where(Course.enrollment_code == code))
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Geçersiz kod. Lütfen eğitmeninizden doğru kodu alın.")
+
+    student_id = int(user_info["sub"])
+    existing = await db.execute(
+        select(Enrollment).where(
+            Enrollment.student_id == student_id,
+            Enrollment.course_id == course.id
+        )
+    )
+    if existing.scalars().first():
+        return {"message": "Zaten bu kursa kayıtlısınız.", "course_id": course.id, "course_title": course.title}
+
+    enrollment = Enrollment(student_id=student_id, course_id=course.id)
+    db.add(enrollment)
+    await db.commit()
+    return {"message": "Kursa başarıyla katıldınız!", "course_id": course.id, "course_title": course.title}
+
 @router.get("/courses", response_model=List[CourseResponse])
 async def read_courses(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
@@ -168,7 +223,11 @@ async def read_courses(db: AsyncSession = Depends(get_db)):
     return courses
 
 @router.get("/courses/{course_id}", response_model=CourseResponse)
-async def read_course(course_id: int, db: AsyncSession = Depends(get_db)):
+async def read_course(
+    course_id: int,
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_user_info)
+):
     result = await db.execute(
         select(Course).where(Course.id == course_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
@@ -176,9 +235,28 @@ async def read_course(course_id: int, db: AsyncSession = Depends(get_db)):
     if not course:
         raise HTTPException(status_code=404, detail="Course not found")
     course.students_count = len(course.enrollments)
-    return course
 
-@router.get("/teacher/content", response_model=List[CourseResponse])
+    # Automatically generate enrollment code if it doesn't exist
+    if not course.enrollment_code:
+        course.enrollment_code = await generate_enrollment_code(db)
+        await db.commit()
+        await db.refresh(course)
+
+    # Convert to dict to selectively return the enrollment_code
+    course_dict = {}
+    for col in course.__table__.columns:
+        course_dict[col.name] = getattr(course, col.name)
+    course_dict["teacher"] = course.teacher
+    course_dict["students_count"] = course.students_count
+
+    user_id = int(user_info["sub"])
+    role = user_info["role"]
+    if role != "admin" and course.teacher_id != user_id:
+        course_dict["enrollment_code"] = None
+
+    return course_dict
+
+@router.get("/teacher/content", response_model=List[TeacherCourseResponse])
 async def read_my_courses(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
@@ -187,8 +265,24 @@ async def read_my_courses(
         select(Course).where(Course.teacher_id == teacher_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
     courses = result.unique().scalars().all()
+    
+    updated = False
     for course in courses:
         course.students_count = len(course.enrollments)
+        if not course.enrollment_code:
+            course.enrollment_code = await generate_enrollment_code(db)
+            updated = True
+            
+    if updated:
+        await db.commit()
+        # Re-fetch to ensure everything is loaded correctly
+        result = await db.execute(
+            select(Course).where(Course.teacher_id == teacher_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
+        )
+        courses = result.unique().scalars().all()
+        for course in courses:
+            course.students_count = len(course.enrollments)
+            
     return courses
 
 @router.get("/teacher/students", response_model=List[TeacherStudentResponse])
@@ -247,7 +341,7 @@ class UpdateCourseRequest(BaseModel):
     rating: Optional[int] = None
     schedule: Optional[List[Any]] = None
 
-@router.post("/create_course")
+@router.post("/create_course", response_model=TeacherCourseResponse)
 async def create_course(
     course_data: CreateCourseRequest,
     teacher_id: int = Depends(get_current_teacher_id),
@@ -259,6 +353,7 @@ async def create_course(
         raise HTTPException(status_code=400, detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir.")
 
     try:
+        enrollment_code = await generate_enrollment_code(db)
         new_course = Course(
             teacher_id=teacher_id,
             title=course_data.title,
@@ -271,18 +366,25 @@ async def create_course(
             curriculum=course_data.curriculum,
             notes=course_data.notes if course_data.notes is not None else [],
             rating=course_data.rating if course_data.rating is not None else 5,
-            schedule=course_data.schedule if course_data.schedule is not None else []
+            schedule=course_data.schedule if course_data.schedule is not None else [],
+            enrollment_code=enrollment_code
         )
         db.add(new_course)
         await db.commit()
-        await db.refresh(new_course)
+        # teacher ilişkisini eager-load ile tekrar çek — aksi halde response_model
+        # serileştirmesi sırasında lazy-load MissingGreenlet hatası oluşur.
+        result = await db.execute(
+            select(Course).where(Course.id == new_course.id).options(joinedload(Course.teacher))
+        )
+        new_course = result.scalar_one()
+        new_course.students_count = 0
         return new_course
     except Exception as e:
         await db.rollback()
         print(f"ERROR in create_course: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.put("/update_course/{course_id}")
+@router.put("/update_course/{course_id}", response_model=TeacherCourseResponse)
 async def update_course(
     course_id: int,
     course_data: UpdateCourseRequest,
@@ -331,7 +433,13 @@ async def update_course(
             flag_modified(course, "schedule")
             
         await db.commit()
-        await db.refresh(course)
+        # teacher ilişkisini eager-load ile tekrar çek — aksi halde response_model
+        # serileştirmesi sırasında lazy-load MissingGreenlet hatası oluşur.
+        result = await db.execute(
+            select(Course).where(Course.id == course.id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
+        )
+        course = result.unique().scalar_one()
+        course.students_count = len(course.enrollments)
         return course
     except Exception as e:
         await db.rollback()

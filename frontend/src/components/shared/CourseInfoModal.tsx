@@ -26,6 +26,8 @@ import {
   Palette,
   GraduationCap,
   StickyNote,
+  Copy,
+  Check,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
@@ -48,6 +50,7 @@ interface CourseInfoModalProps {
     instructor?: string;
     isLive?: boolean;
     liveSessions?: { date: string; time: string }[];
+    enrollment_code?: string;
   } | null;
   mode: "student" | "instructor";
 }
@@ -63,7 +66,15 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
   const [isNavigating, setIsNavigating] = React.useState(false);
   const [preFetchedData, setPreFetchedData] = React.useState<any>(null);
   const [preFetchedNotes, setPreFetchedNotes] = React.useState<any>(null);
+  const [codeCopied, setCodeCopied] = React.useState(false);
   const isFetchingRef = React.useRef(false);
+
+  const handleCopyCode = () => {
+    if (!course?.enrollment_code) return;
+    navigator.clipboard.writeText(course.enrollment_code);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 1500);
+  };
 
   // Notları çek (Yeni notes kolonu öncelikli, preFetchedNotes varsa o, yoksa course.notes)
   const notes = React.useMemo(() => {
@@ -219,6 +230,26 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                   </p>
                 </div>
               </div>
+
+              {mode === "instructor" && course.enrollment_code && (
+                <div className="flex items-center justify-between gap-4 p-5 bg-indigo-50 border-2 border-indigo-100 rounded-[1.5rem]">
+                  <div>
+                    <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-1 block">
+                      Öğrenci Katılım Kodu
+                    </span>
+                    <p className="text-2xl font-black text-indigo-700 tracking-[0.2em]">
+                      {course.enrollment_code}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCopyCode}
+                    className="flex items-center gap-2 px-5 py-3 bg-white border-2 border-indigo-200 text-indigo-600 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-colors shadow-sm"
+                  >
+                    {codeCopied ? <Check size={16} /> : <Copy size={16} />}
+                    {codeCopied ? "Kopyalandı" : "Kopyala"}
+                  </button>
+                </div>
+              )}
 
               <div className="space-y-4">
                 <div className="flex items-center gap-3">
