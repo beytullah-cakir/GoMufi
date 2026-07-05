@@ -414,7 +414,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
               {currentQuestion.text}
             </h3>
             <div className="grid grid-cols-1 gap-3 h-full overflow-y-auto pr-2 custom-scrollbar pb-4">
-              {currentQuestion.options.map((opt, i) => (
+              {currentQuestion.options.map((opt: string, i: number) => (
                 <button
                   key={i}
                   onClick={() => handleAnswer(opt)}

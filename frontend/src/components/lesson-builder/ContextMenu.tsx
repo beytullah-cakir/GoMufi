@@ -462,15 +462,35 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
                 {/* URL Input (Single Item Only) */}
                 {isSingle && hasMedia && (
-                    <input
-                        type="text"
-                        placeholder="https://..."
-                        className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 w-40 outline-none text-white focus:border-indigo-500 transition-colors"
-                        value={firstEl.src || ''}
-                        onChange={(e) => updateElement(firstEl.id, { src: e.target.value })}
-                        onMouseDown={(e) => e.stopPropagation()}
-                        onKeyDown={(e) => e.stopPropagation()}
-                    />
+                    <>
+                        <input
+                            type="text"
+                            placeholder="Video/Görsel URL..."
+                            className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 w-40 outline-none text-white focus:border-indigo-500 transition-colors"
+                            value={firstEl.src || ''}
+                            onChange={(e) => updateElement(firstEl.id, { src: e.target.value })}
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onKeyDown={(e) => e.stopPropagation()}
+                        />
+                        <div className="flex items-center gap-1 bg-gray-800 rounded border border-gray-600 px-2 h-8 text-xs text-gray-300">
+                            <span className="text-[10px] text-gray-500 font-bold">G:</span>
+                            <input
+                                type="number"
+                                className="bg-gray-900 text-white w-12 text-center rounded border border-gray-700 h-6 outline-none focus:border-indigo-500"
+                                value={Math.round(firstEl.width || 0)}
+                                onChange={(e) => updateElement(firstEl.id, { width: parseInt(e.target.value) || 100 })}
+                                onMouseDown={(e) => e.stopPropagation()}
+                            />
+                            <span className="text-[10px] text-gray-500 font-bold ml-1">Y:</span>
+                            <input
+                                type="number"
+                                className="bg-gray-900 text-white w-12 text-center rounded border border-gray-700 h-6 outline-none focus:border-indigo-500"
+                                value={Math.round(firstEl.height || 0)}
+                                onChange={(e) => updateElement(firstEl.id, { height: parseInt(e.target.value) || 100 })}
+                                onMouseDown={(e) => e.stopPropagation()}
+                            />
+                        </div>
+                    </>
                 )}
 
                 {/* Divider & Delete */}

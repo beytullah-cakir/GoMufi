@@ -20,6 +20,7 @@ class Course(Base):
     rating = Column(Integer, default=5)
     status = Column(String, default="active")
     schedule = Column(JSON, default=[])
+    enrollment_code = Column(String(12), unique=True, index=True, nullable=True)
 
 
     teacher = relationship("Teacher", back_populates="courses")
