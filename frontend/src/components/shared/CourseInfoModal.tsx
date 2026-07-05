@@ -28,6 +28,7 @@ import {
   StickyNote,
   Copy,
   Check,
+  Trash2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
@@ -64,10 +65,29 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
 }) => {
   const navigate = useNavigate();
   const [isNavigating, setIsNavigating] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState<string | null>(null);
   const [preFetchedData, setPreFetchedData] = React.useState<any>(null);
   const [preFetchedNotes, setPreFetchedNotes] = React.useState<any>(null);
   const [codeCopied, setCodeCopied] = React.useState(false);
   const isFetchingRef = React.useRef(false);
+
+  const handleDeleteNote = async (noteId: string | number) => {
+    if (!course?.id) return;
+    setIsDeleting(String(noteId));
+    try {
+      await api.delete(`/courses/${course.id}/lessons/${noteId}`);
+      if (preFetchedNotes) {
+        setPreFetchedNotes((prev: any) => prev.filter((n: any) => String(n.id) !== String(noteId)));
+      } else {
+        const response = await api.get(`/courses/${course.id}`);
+        setPreFetchedNotes(response.data?.notes || []);
+      }
+    } catch (e) {
+      console.error("Ders notu silinirken hata oluştu:", e);
+    } finally {
+      setIsDeleting(null);
+    }
+  };
 
   const handleCopyCode = () => {
     if (!course?.enrollment_code) return;
@@ -398,52 +418,75 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                         </div>
                       </div>
 
-                      <button
-                        disabled={isNavigating}
-                        onMouseEnter={preFetchCurriculum}
-                        onClick={async () => {
-                          setIsNavigating(true);
-                          try {
-                            let data = preFetchedData;
-                            let currentNotes = preFetchedNotes;
+                      <div className="flex items-center gap-3">
+                        <button
+                          disabled={isNavigating || isDeleting !== null}
+                          onMouseEnter={preFetchCurriculum}
+                          onClick={async () => {
+                            setIsNavigating(true);
+                            try {
+                              let data = preFetchedData;
+                              let currentNotes = preFetchedNotes;
 
-                            if (!data || !currentNotes) {
-                              const response = await api.get(`/courses/${course.id}`);
-                              data = response.data?.curriculum;
-                              currentNotes = response.data?.notes;
-                              setPreFetchedData(data);
-                              setPreFetchedNotes(currentNotes);
-                            }
+                              if (!data || !currentNotes) {
+                                const response = await api.get(`/courses/${course.id}`);
+                                data = response.data?.curriculum;
+                                currentNotes = response.data?.notes;
+                                setPreFetchedData(data);
+                                setPreFetchedNotes(currentNotes);
+                              }
 
-                            navigate(
-                              `/instructor/builder?courseId=${course.id}&noteId=${note.id}`,
-                              {
-                                state: { 
-                                  curriculum: data, 
-                                  notes: currentNotes || (course as any)?.notes 
+                              navigate(
+                                `/instructor/builder?courseId=${course.id}&noteId=${note.id}`,
+                                {
+                                  state: { 
+                                    curriculum: data, 
+                                    notes: currentNotes || (course as any)?.notes 
+                                  },
                                 },
-                              },
-                            );
-                          } catch (e) {
-                            console.error("Navigasyon hatası:", e);
-                            alert("Veriler yüklenirken bir hata oluştu.");
-                          } finally {
-                            setIsNavigating(false);
-                          }
-                        }}
-                        className={`px-6 py-3 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
-                          isNavigating
-                            ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
-                            : "bg-white border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white shadow-amber-100"
-                        }`}
-                      >
-                        {isNavigating ? (
-                          <Zap className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Edit3 size={14} />
-                        )}
-                        {isNavigating ? "Yükleniyor..." : "Düzenle"}
-                      </button>
+                              );
+                            } catch (e) {
+                              console.error("Navigasyon hatası:", e);
+                              alert("Veriler yüklenirken bir hata oluştu.");
+                            } finally {
+                              setIsNavigating(false);
+                            }
+                          }}
+                          className={`px-5 py-2.5 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
+                            isNavigating
+                              ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
+                              : "bg-white border-amber-500 text-amber-600 hover:bg-amber-500 hover:text-white shadow-amber-100"
+                          }`}
+                        >
+                          {isNavigating ? (
+                            <Zap className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Edit3 size={14} />
+                          )}
+                          {isNavigating ? "Yükleniyor..." : "Düzenle"}
+                        </button>
+
+                        <button
+                          disabled={isNavigating || isDeleting !== null}
+                          onClick={async () => {
+                            if (window.confirm("Bu ders notunu ve içindeki tüm slaytları silmek istediğinizden emin misiniz?")) {
+                              handleDeleteNote(note.id);
+                            }
+                          }}
+                          className={`px-5 py-2.5 border-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all shadow-md flex items-center gap-2 ${
+                            isDeleting === String(note.id)
+                              ? "bg-gray-50 border-gray-200 text-gray-400 cursor-wait"
+                              : "bg-white border-red-500 text-red-600 hover:bg-red-500 hover:text-white shadow-red-100"
+                          }`}
+                        >
+                          {isDeleting === String(note.id) ? (
+                            <Zap className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 size={14} />
+                          )}
+                          {isDeleting === String(note.id) ? "Siliniyor..." : "Sil"}
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
@@ -491,27 +534,31 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                   if (standardSections.length > 0) {
                     return (
                       <div className="divide-y divide-gray-50">
-                        {standardSections.map((s, idx) => (
-                          <div
-                            key={idx}
-                            className="p-6 flex items-center justify-between hover:bg-gray-50 transition-all cursor-default group"
-                          >
-                            <div className="flex items-center gap-6">
-                              <span className="text-lg font-black text-gray-200 group-hover:text-purple-300 transition-colors">
-                                {(idx + 1).toString().padStart(2, "0")}
-                              </span>
-                              <div>
-                                <h4 className="font-bold text-gray-800 text-lg">
-                                  {s.title || `Bölüm ${idx + 1}`}
-                                </h4>
-                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                                  {s.lectures?.length || 0} Ders İçeriği
-                                </p>
+                        {standardSections.map((s, idx) => {
+                          const matchingNote = notes.find((n: any) => String(n.id) === String(s.id));
+                          const slideCount = matchingNote?.slides?.length || 0;
+                          return (
+                            <div
+                              key={idx}
+                              className="p-6 flex items-center justify-between hover:bg-gray-50 transition-all cursor-default group"
+                            >
+                              <div className="flex items-center gap-6">
+                                <span className="text-lg font-black text-gray-200 group-hover:text-purple-300 transition-colors">
+                                  {(idx + 1).toString().padStart(2, "0")}
+                                </span>
+                                <div>
+                                  <h4 className="font-bold text-gray-800 text-lg">
+                                    {s.title || `Bölüm ${idx + 1}`}
+                                  </h4>
+                                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                                    {slideCount || s.lectures?.length || 0} Ders İçeriği
+                                  </p>
+                                </div>
                               </div>
+                              <ChevronRight className="w-5 h-5 text-gray-200" />
                             </div>
-                            <ChevronRight className="w-5 h-5 text-gray-200" />
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     );
                   }

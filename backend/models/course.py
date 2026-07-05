@@ -27,3 +27,4 @@ class Course(Base):
     enrollments = relationship("Enrollment", back_populates="course")
     students = relationship("Student", secondary="enrollments", back_populates="courses", overlaps="enrollments")
     live_sessions = relationship("LiveSession", back_populates="course")
+    lesson_contents = relationship("LessonContent", back_populates="course", cascade="all, delete-orphan")
