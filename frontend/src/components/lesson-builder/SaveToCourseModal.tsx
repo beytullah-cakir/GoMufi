@@ -74,57 +74,14 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({
     setIsSaving(true);
     setSaveStatus("idle");
     try {
-      // 1. Mevcut notları çek (Müfredattan bağımsız yeni kolon)
-      const courseRes = await api.get(`/courses/${selectedCourseId}`);
-      let currentNotes = courseRes.data?.notes || [];
-
-      // Legacy desteği: Eğer notes kolonu boşsa ve curriculum'da eski notlar varsa onları taşıyalım mı?
-      // Kullanıcının "müfredat notlardan bağımsız" talebi üzerine artık sadece notes kolonuna bakıyoruz.
-      // Ancak veri kaybını önlemek için mevcut curriculum içindeki notları bir defalık çekebiliriz.
-      if (currentNotes.length === 0 && Array.isArray(courseRes.data?.curriculum)) {
-          const legacyNotes = courseRes.data.curriculum.filter((i: any) => i.slides || i.noteTitle);
-          if (legacyNotes.length > 0) currentNotes = legacyNotes;
-      }
-
-      if (!Array.isArray(currentNotes)) currentNotes = [];
-
       // URL'den noteId al
       const searchParams = new URLSearchParams(window.location.search);
-      const noteId = searchParams.get("noteId");
+      const noteId = searchParams.get("noteId") || Date.now().toString();
 
-      let updatedNotes;
-
-      if (noteId) {
-        // Mevcut olanı güncelle
-        const exists = currentNotes.some((n: any) => String(n.id) === String(noteId));
-        
-        if (exists) {
-            updatedNotes = currentNotes.map((n: any) =>
-              String(n.id) === String(noteId)
-                ? { ...n, noteTitle: title, slides: slides }
-                : n
-            );
-        } else {
-            updatedNotes = [
-                ...currentNotes,
-                { id: noteId, noteTitle: title, slides: slides }
-            ];
-        }
-      } else {
-        // Yeni not ekle
-        updatedNotes = [
-          ...currentNotes,
-          {
-            id: Date.now().toString(),
-            noteTitle: title,
-            slides: slides,
-          },
-        ];
-      }
-
-      // 2. Güncel not listesini kaydet (Müfredat artık buraya karışmayacak)
-      await api.put(`/update_course/${selectedCourseId}`, {
-        notes: updatedNotes,
+      // Yeni ilişkisel yapıdaki endpoint'e doğrudan kaydet
+      await api.put(`/courses/${selectedCourseId}/lessons/${noteId}`, {
+        title: title,
+        slides: slides,
       });
 
       setSaveStatus("success");
@@ -133,7 +90,7 @@ const SaveToCourseModal: React.FC<SaveToCourseModalProps> = ({
       onClose();
       setSaveStatus("idle");
     } catch (error) {
-      console.error("Error saving curriculum", error);
+      console.error("Error saving lesson content:", error);
       setSaveStatus("error");
     } finally {
       setIsSaving(false);

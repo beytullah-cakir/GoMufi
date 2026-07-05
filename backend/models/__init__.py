@@ -5,3 +5,4 @@ from .teacher import Teacher
 from .parent import Parent
 from .live_session import LiveSession
 from .quiz import Quiz
+from .lesson_content import LessonContent

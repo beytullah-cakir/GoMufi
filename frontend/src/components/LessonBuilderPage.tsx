@@ -418,19 +418,38 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         if (courseId && !initialCurriculum) {
             const fetchCourse = async () => {
                 try {
-                    const response = await api.get(`/courses/${courseId}`);
-                    if (response.data) {
-                        const curriculum = response.data.curriculum || [];
-                        const dbNotes = response.data.notes || [];
+                    // Course genel verilerini ve ilgili ders slaytlarını paralel olarak yükle
+                    const [courseRes, lessonRes] = await Promise.all([
+                        api.get(`/courses/${courseId}`),
+                        noteId ? api.get(`/courses/${courseId}/lessons/${noteId}`) : Promise.resolve(null)
+                    ]);
+
+                    if (courseRes.data) {
+                        const curriculum = courseRes.data.curriculum || [];
+                        const dbNotes = courseRes.data.notes || [];
                         const levelsOnly = curriculum.filter((item: any) => item.type !== "live_sessions_config");
                         const mergedLessons = levelsOnly.map((lvl: any) => {
                             const matchingNote = dbNotes.find((n: any) => String(n.id) === String(lvl.id));
                             return {
                                 ...lvl,
+                                noteTitle: matchingNote?.noteTitle || lvl.title,
                                 slides: matchingNote?.slides || []
                             };
                         });
                         setAllLessons(mergedLessons);
+
+                        // Eğer yeni tablodan içerik geldiyse onu kullan
+                        if (lessonRes && lessonRes.data) {
+                            const { slides: lessonSlides, title: lessonTitle } = lessonRes.data;
+                            if (lessonSlides && Array.isArray(lessonSlides) && lessonSlides.length > 0) {
+                                setSlides(lessonSlides);
+                                setProjectName(lessonTitle || "Ders Notu");
+                                setCurrentSlideId(lessonSlides[0].id);
+                                return;
+                            }
+                        }
+
+                        // Geriye Dönük Uyumluluk (Legacy Fallback)
                         const targetNote = noteId
                             ? (dbNotes.find((n: any) => String(n.id) === String(noteId)) ||
                                curriculum.find((n: any) => String(n.id) === String(noteId)))
@@ -459,7 +478,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             };
             fetchCourse();
         }
-    }, [courseId]);
+    }, [courseId, noteId]);
 
     // -- Scale Effect on Mount --
     useEffect(() => {
@@ -1844,45 +1863,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
         setSaveStatus('saving');
         try {
-            // 1. Fetch current course notes
-            const courseRes = await api.get(`/courses/${courseId}`);
-            let currentNotes = courseRes.data?.notes || [];
-
-            // Legacy compatibility
-            if (currentNotes.length === 0 && Array.isArray(courseRes.data?.curriculum)) {
-                const legacyNotes = courseRes.data.curriculum.filter((i: any) => i.slides || i.noteTitle);
-                if (legacyNotes.length > 0) currentNotes = legacyNotes;
-            }
-
-            if (!Array.isArray(currentNotes)) currentNotes = [];
-
-            let updatedNotes;
-            const exists = currentNotes.some((n: any) => String(n.id) === String(noteId));
-
-            if (exists) {
-                updatedNotes = currentNotes.map((n: any) =>
-                    String(n.id) === String(noteId)
-                        ? { ...n, noteTitle: projectName, slides: slides }
-                        : n
-                );
-            } else {
-                updatedNotes = [
-                    ...currentNotes,
-                    { id: noteId, noteTitle: projectName, slides: slides }
-                ];
-            }
-
-            // 2. Put updated notes
-            await api.put(`/update_course/${courseId}`, {
-                notes: updatedNotes,
+            // Yeni ilişkisel yapıdaki endpoint'e doğrudan kaydet
+            await api.put(`/courses/${courseId}/lessons/${noteId}`, {
+                title: projectName,
+                slides: slides
             });
 
             setSaveStatus('saved');
             localStorage.removeItem(BUILDER_STORAGE_KEY);
-            alert("Ders içeriği başarıyla kaydedildi!");
         } catch (error) {
             console.error("Direct save error:", error);
-            alert("Kaydedilirken bir hata oluştu.");
             setSaveStatus('saved');
         }
     };

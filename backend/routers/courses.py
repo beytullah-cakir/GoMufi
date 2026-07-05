@@ -9,6 +9,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from models.course import Course
 from models.teacher import Teacher
 from models.enrollment import Enrollment
+from models.lesson_content import LessonContent
 from connect_db import get_db
 from pydantic import BaseModel
 from typing import List, Optional, Any
@@ -28,6 +29,47 @@ async def generate_enrollment_code(db: AsyncSession) -> str:
         if not existing.scalars().first():
             return code
     raise HTTPException(status_code=500, detail="Katılım kodu üretilemedi, lütfen tekrar deneyin.")
+
+
+async def populate_course_notes(courses: List[Course], db: AsyncSession) -> List[Course]:
+    if not courses:
+        return courses
+
+    course_ids = [c.id for c in courses]
+    
+    # Tüm kursların lesson_contents kayıtlarını çek
+    content_result = await db.execute(
+        select(LessonContent).where(LessonContent.course_id.in_(course_ids))
+    )
+    lesson_contents = content_result.scalars().all()
+    
+    # Kurslara göre grupla
+    from collections import defaultdict
+    contents_by_course = defaultdict(list)
+    for lc in lesson_contents:
+        contents_by_course[lc.course_id].append(lc)
+        
+    for course in courses:
+        relational_notes = [
+            {
+                "id": lc.node_id,
+                "noteTitle": lc.title or "İsimsiz Not",
+                "slides": lc.slides or []
+            }
+            for lc in contents_by_course[course.id]
+        ]
+        
+        legacy_notes = course.notes or []
+        existing_node_ids = {lc.node_id for lc in contents_by_course[course.id]}
+        combined_notes = list(relational_notes)
+        for note in legacy_notes:
+            if isinstance(note, dict) and str(note.get("id")) not in existing_node_ids:
+                combined_notes.append(note)
+                
+        course.notes = combined_notes
+        
+    return courses
+
 
 from datetime import datetime, time
 from models.live_session import LiveSession
@@ -109,7 +151,7 @@ async def read_my_content(
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
-        return courses
+        return await populate_course_notes(courses, db)
     elif role == "teacher":
         result = await db.execute(
             select(Course)
@@ -119,7 +161,7 @@ async def read_my_content(
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
-        return courses
+        return await populate_course_notes(courses, db)
     else:
         return []
 
@@ -249,6 +291,29 @@ async def read_course(
     course_dict["teacher"] = course.teacher
     course_dict["students_count"] = course.students_count
 
+    # Relational ders notlarını (lesson_contents) çek ve eski notes yapısına dönüştürerek ekle
+    content_result = await db.execute(
+        select(LessonContent).where(LessonContent.course_id == course.id)
+    )
+    lesson_contents = content_result.scalars().all()
+    relational_notes = [
+        {
+            "id": lc.node_id,
+            "noteTitle": lc.title or "İsimsiz Not",
+            "slides": lc.slides or []
+        }
+        for lc in lesson_contents
+    ]
+
+    legacy_notes = course.notes or []
+    existing_node_ids = {lc.node_id for lc in lesson_contents}
+    combined_notes = list(relational_notes)
+    for note in legacy_notes:
+        if isinstance(note, dict) and str(note.get("id")) not in existing_node_ids:
+            combined_notes.append(note)
+
+    course_dict["notes"] = combined_notes
+
     user_id = int(user_info["sub"])
     role = user_info["role"]
     if role != "admin" and course.teacher_id != user_id:
@@ -283,7 +348,7 @@ async def read_my_courses(
         for course in courses:
             course.students_count = len(course.enrollments)
             
-    return courses
+    return await populate_course_notes(courses, db)
 
 @router.get("/teacher/students", response_model=List[TeacherStudentResponse])
 async def read_teacher_students(
@@ -543,3 +608,166 @@ async def stop_session(
     session.status = 'completed'
     await db.commit()
     return {"message": "Session stopped", "session_id": session.id}
+
+
+class LessonContentResponse(BaseModel):
+    title: Optional[str] = ""
+    slides: List[Any] = []
+
+
+class UpdateLessonContentRequest(BaseModel):
+    title: Optional[str] = None
+    slides: List[Any]
+
+
+@router.get("/courses/{course_id}/lessons/{node_id}", response_model=LessonContentResponse)
+async def get_lesson_content(
+    course_id: int,
+    node_id: str,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Kursun varligini sorgula
+    result = await db.execute(select(Course).where(Course.id == course_id))
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+    
+    # 2. Yetki kontrolu
+    user_id = int(user_info["sub"])
+    role = user_info.get("role")
+    
+    if role == "teacher":
+        # Kursun sahibi mi?
+        if course.teacher_id != user_id:
+            raise HTTPException(status_code=403, detail="Bu kursun icerigine erisim yetkiniz yok.")
+    elif role in ["student", "admin"]:
+        # Kursa kayitli mi? (Admin ise her sekilde erisebilir)
+        if role != "admin":
+            enroll_result = await db.execute(
+                select(Enrollment).where(
+                    Enrollment.course_id == course_id,
+                    Enrollment.student_id == user_id
+                )
+            )
+            if not enroll_result.scalars().first():
+                raise HTTPException(status_code=403, detail="Bu derse kayitli degilsiniz.")
+    else:
+        raise HTTPException(status_code=403, detail="Gecersiz rol.")
+
+    # 3. Yeni tablodan icerigi sorgula
+    content_result = await db.execute(
+        select(LessonContent).where(
+            LessonContent.course_id == course_id,
+            LessonContent.node_id == node_id
+        )
+    )
+    lesson_content = content_result.scalar_one_or_none()
+    
+    if lesson_content:
+        return LessonContentResponse(title=lesson_content.title or "", slides=lesson_content.slides or [])
+    
+    # Geriye donuk uyumluluk: Eski notes kolonunu kontrol et
+    legacy_notes = course.notes or []
+    for note in legacy_notes:
+        if isinstance(note, dict) and str(note.get("id")) == str(node_id):
+            return LessonContentResponse(title=note.get("noteTitle", ""), slides=note.get("slides", []))
+            
+    return LessonContentResponse(title="", slides=[])
+
+
+@router.put("/courses/{course_id}/lessons/{node_id}")
+async def update_lesson_content(
+    course_id: int,
+    node_id: str,
+    payload: UpdateLessonContentRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Kursun varligini ve sahibini kontrol et
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun egitmeni degilsiniz.")
+    
+    # 2. Yeni tabloda kaydi bul veya olustur
+    content_result = await db.execute(
+        select(LessonContent).where(
+            LessonContent.course_id == course_id,
+            LessonContent.node_id == node_id
+        )
+    )
+    lesson_content = content_result.scalar_one_or_none()
+    
+    try:
+        if not lesson_content:
+            lesson_content = LessonContent(
+                course_id=course_id,
+                node_id=node_id,
+                title=payload.title,
+                slides=payload.slides
+            )
+            db.add(lesson_content)
+        else:
+            if payload.title is not None:
+                lesson_content.title = payload.title
+            lesson_content.slides = payload.slides
+            flag_modified(lesson_content, "slides")
+        
+        # 3. Geriye donuk temizlik: Eski notes kolonunda bu dugume ait veri varsa oradan kaldir
+        legacy_notes = list(course.notes or [])
+        cleaned_notes = [note for note in legacy_notes if isinstance(note, dict) and str(note.get("id")) != str(node_id)]
+        if len(cleaned_notes) != len(legacy_notes):
+            course.notes = cleaned_notes
+            flag_modified(course, "notes")
+
+        await db.commit()
+        return {"success": True, "message": "Ders icerigi basariyla kaydedildi."}
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in update_lesson_content: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/courses/{course_id}/lessons/{node_id}")
+async def delete_lesson_content(
+    course_id: int,
+    node_id: str,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # 1. Kursun varligini ve sahibini kontrol et
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun egitmeni degilsiniz.")
+    
+    try:
+        # 2. LessonContent tablosundan sil
+        content_result = await db.execute(
+            select(LessonContent).where(
+                LessonContent.course_id == course_id,
+                LessonContent.node_id == node_id
+            )
+        )
+        lesson_content = content_result.scalar_one_or_none()
+        if lesson_content:
+            await db.delete(lesson_content)
+
+        # 3. Geriye donuk temizlik: Eski notes kolonunda varsa oradan da sil
+        legacy_notes = list(course.notes or [])
+        cleaned_notes = [note for note in legacy_notes if isinstance(note, dict) and str(note.get("id")) != str(node_id)]
+        if len(cleaned_notes) != len(legacy_notes):
+            course.notes = cleaned_notes
+            flag_modified(course, "notes")
+
+        await db.commit()
+        return {"success": True, "message": "Ders icerigi basariyla silindi."}
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in delete_lesson_content: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))

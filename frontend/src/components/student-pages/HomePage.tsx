@@ -3,6 +3,7 @@ import GrassIcon from '../../assets/sprites/grass.png';
 import { Swords, Users, Shield } from 'lucide-react';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
+import api from '../../api';
 import type { CourseData, PathNode } from '../../types';
 
 interface HomePageProps {
@@ -73,6 +74,8 @@ const HomePage: React.FC<HomePageProps> = ({
     // Lesson Slide State
     const [showLessonSlide, setShowLessonSlide] = useState(false);
     const [lessonLevel, setLessonLevel] = useState<number | null>(null);
+    const [activeLessonSlides, setActiveLessonSlides] = useState<any[]>([]);
+    const [isLoadingLesson, setIsLoadingLesson] = useState(false);
 
     // Initialize/Update Header when currentCourse changes
     useEffect(() => {
@@ -115,9 +118,23 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowGameOverlay(true);
     };
 
-    const handleOpenLesson = (levelId: number) => {
-        setLessonLevel(levelId);
-        setShowLessonSlide(true);
+    const handleOpenLesson = async (levelId: number) => {
+        const node = currentCourse?.nodes?.find(n => n.id === levelId);
+        const sectionId = node?.sectionId;
+        if (!sectionId) return;
+
+        setIsLoadingLesson(true);
+        try {
+            const response = await api.get(`/courses/${currentCourse.id}/lessons/${sectionId}`);
+            setActiveLessonSlides(response.data.slides || []);
+            setLessonLevel(levelId);
+            setShowLessonSlide(true);
+        } catch (error) {
+            console.error("Ders icerikleri yuklenemedi:", error);
+            alert("Ders icerigi yuklenirken bir hata olustu.");
+        } finally {
+            setIsLoadingLesson(false);
+        }
     };
 
     const handleLessonComplete = () => {
@@ -683,21 +700,24 @@ const HomePage: React.FC<HomePageProps> = ({
 
 
             {/* LESSON SLIDE OVERLAY */}
-            {(() => {
-                const node = currentCourse?.nodes?.find(n => n.id === lessonLevel);
-                const sectionId = node?.sectionId;
-                const note = currentCourse?.notes?.find(n => String(n.id) === String(sectionId));
-                const customSlides = note?.slides || [];
-                return (
-                    <LessonSlide
-                        isOpen={showLessonSlide}
-                        lessonTitle={node?.title}
-                        customSlides={customSlides}
-                        onClose={handleCloseLesson}
-                        onComplete={handleLessonComplete}
-                    />
-                );
-            })()}
+            {showLessonSlide && (
+                <LessonSlide
+                    isOpen={showLessonSlide}
+                    lessonTitle={currentCourse?.nodes?.find(n => n.id === lessonLevel)?.title}
+                    customSlides={activeLessonSlides}
+                    onClose={handleCloseLesson}
+                    onComplete={handleLessonComplete}
+                />
+            )}
+
+            {/* DERS YÜKLEME OVERLAY */}
+            {isLoadingLesson && (
+                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="w-16 h-16 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin mb-4"></div>
+                    <h3 className="text-white font-black text-xl tracking-wide uppercase font-display">Ders Yukleniyor...</h3>
+                    <p className="text-sky-200 text-xs font-bold uppercase tracking-widest mt-1">Lutfen bekleyin</p>
+                </div>
+            )}
 
             {/* GAME PAGE OVERLAY */}
             <GameOverlay

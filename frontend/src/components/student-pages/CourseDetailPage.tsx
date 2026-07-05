@@ -306,32 +306,38 @@ const CourseDetailPage: React.FC<CourseDetailPageProps> = ({
                 );
 
                 if (standardSections.length > 0) {
-                  return standardSections.map((section, index) => (
-                    <div key={index} className="border-b border-gray-200 last:border-0">
-                      <button 
-                        onClick={() => toggleSection(index)}
-                        className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          {expandedSections.includes(index) ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                          <span className="font-bold text-gray-800">{section.title || `Bölüm ${index + 1}`}</span>
-                        </div>
-                        <span className="text-sm text-gray-500">{(section.lessons?.length || section.lectures?.length || 0)} ders</span>
-                      </button>
-                      {expandedSections.includes(index) && (
-                        <div className="bg-white p-2">
-                          {(section.lessons || section.lectures)?.map((lesson: any, li: number) => (
-                            <div key={li} className="flex items-center justify-between p-3 hover:bg-purple-50 rounded-lg group cursor-pointer transition-colors">
-                              <div className="flex items-center gap-3">
-                                <PlayCircle className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
-                                <span className="text-gray-700 font-medium">{lesson.title || `Ders ${li + 1}`}</span>
+                  return standardSections.map((section, index) => {
+                    const matchingNote = (course as any)?.notes?.find((n: any) => String(n.id) === String(section.id));
+                    const slideCount = matchingNote?.slides?.length || 0;
+                    const lessonCount = slideCount || section.lessons?.length || section.lectures?.length || 0;
+                    
+                    return (
+                      <div key={index} className="border-b border-gray-200 last:border-0">
+                        <button 
+                          onClick={() => toggleSection(index)}
+                          className="w-full flex items-center justify-between p-5 bg-gray-50 hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            {expandedSections.includes(index) ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                            <span className="font-bold text-gray-800">{section.title || `Bölüm ${index + 1}`}</span>
+                          </div>
+                          <span className="text-sm text-gray-500">{lessonCount} ders</span>
+                        </button>
+                        {expandedSections.includes(index) && (
+                          <div className="bg-white p-2">
+                            {(matchingNote?.slides || section.lessons || section.lectures)?.map((lesson: any, li: number) => (
+                              <div key={li} className="flex items-center justify-between p-3 hover:bg-purple-50 rounded-lg group cursor-pointer transition-colors">
+                                <div className="flex items-center gap-3">
+                                  <PlayCircle className="w-4 h-4 text-gray-400 group-hover:text-purple-600" />
+                                  <span className="text-gray-700 font-medium">{lesson.title || `Ders İçeriği ${li + 1}`}</span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ));
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  });
                 }
 
                 return <div className="p-8 text-center text-gray-500 italic">Müfredat bilgisi bulunmuyor.</div>;
