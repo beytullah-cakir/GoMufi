@@ -1,0 +1,99 @@
+
+from fastapi import APIRouter, Depends, HTTPException, Response
+from auth.auth_request import LoginRequest, TeacherRegisterRequest
+from sqlalchemy import func
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
+from core.security import create_access_token, hash_password, verify_password
+from core.config import settings
+from connect_db import get_db
+from models.teacher import Teacher
+
+
+router = APIRouter()
+
+
+@router.post("/teacher/register")
+async def register_user(
+    data: TeacherRegisterRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        # Check if email already exists
+        check_query = select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
+        res = await db.execute(check_query)
+        if res.scalars().first():
+            raise HTTPException(status_code=400, detail="Bu e-posta adresi ile zaten bir hesap mevcut.")
+
+        new_teacher = Teacher(
+            first_name=data.first_name,
+            last_name=data.last_name,
+            email=data.email,
+            expertises=data.expertises,
+            password=hash_password(data.password)
+        )
+
+        db.add(new_teacher)
+        await db.commit()
+        return {"status": "registered"}
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/teacher/login")
+async def login_user(
+    data: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+):
+    if data.email.lower() == settings.ADMIN_EMAIL.lower() and data.password == settings.ADMIN_PASSWORD:
+        access_token = create_access_token("admin", role="admin")
+        is_production = "localhost" not in settings.FRONTEND_URL
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            samesite="None" if is_production else "lax",
+            secure=is_production,
+            max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+            path="/"
+        )
+        return {
+            "status": "logged_in",
+            "role": "admin"
+        }
+
+    result = await db.execute(
+        select(Teacher).where(func.lower(Teacher.email) == func.lower(data.email))
+    )
+    teacher = result.scalars().first()
+
+    if not teacher or not verify_password(data.password, teacher.password):
+        raise HTTPException(status_code=401, detail="Invalid email or password.") 
+
+    access_token = create_access_token(str(teacher.id), role="teacher")
+
+    is_production = "localhost" not in settings.FRONTEND_URL
+
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,
+        samesite="None" if is_production else "lax",   
+        secure=is_production,   
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/"
+    )
+
+    return {
+        "status": "logged_in",
+        "role": "teacher"
+    }
+
+
+
+

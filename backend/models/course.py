@@ -1,0 +1,29 @@
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text, func, JSON
+from sqlalchemy.orm import relationship
+from connect_db import Base
+
+class Course(Base):
+    __tablename__ = "courses"
+
+    id = Column(Integer, primary_key=True)
+    teacher_id = Column(Integer, ForeignKey("teachers.id"), nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    category = Column(String)
+    created_at = Column(DateTime, server_default=func.now())
+    progress = Column(Integer, default=0)
+    price = Column(Integer, default=0)
+    learning_outcomes = Column(JSON, default=[])
+    requirements = Column(JSON, default=[])
+    curriculum = Column(JSON, default=[])
+    notes = Column(JSON, default=[])
+    rating = Column(Integer, default=5)
+    status = Column(String, default="active")
+    schedule = Column(JSON, default=[])
+    enrollment_code = Column(String(12), unique=True, index=True, nullable=True)
+
+
+    teacher = relationship("Teacher", back_populates="courses")
+    enrollments = relationship("Enrollment", back_populates="course")
+    students = relationship("Student", secondary="enrollments", back_populates="courses", overlaps="enrollments")
+    live_sessions = relationship("LiveSession", back_populates="course")

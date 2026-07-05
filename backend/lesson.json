@@ -1,0 +1,30 @@
+[
+  {
+    "id": 1,
+    "elements": [
+      {
+        "id": "bce47206-ca5f-4902-a1c0-28f363e54f12",
+        "type": "image",
+        "x": 100,
+        "y": 100,
+        "width": 300,
+        "height": 200,
+        "rotation": 0,
+        "content": "",
+        "src": "https://irjbpzhgoryppxyccgvk.supabase.co/storage/v1/object/public/lesson-images/uploads/24ee6640-0fd0-45c2-8130-78f60350bf93.jpeg"
+      },
+      {
+        "id": "0fee8471-7f51-4e71-8144-d159d567e75e",
+        "type": "image",
+        "x": 100,
+        "y": 100,
+        "width": 300,
+        "height": 200,
+        "rotation": 0,
+        "content": "",
+        "src": "http://localhost:8000/static/uploads/b457aab5-3ed1-4a20-bba4-0e787fe409d7.jpeg"
+      }
+    ],
+    "connections": []
+  }
+]
