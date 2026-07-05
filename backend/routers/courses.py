@@ -10,7 +10,9 @@ from models.course import Course
 from models.teacher import Teacher
 from models.enrollment import Enrollment
 from models.lesson_content import LessonContent
+from models.quiz import Quiz
 from connect_db import get_db
+from sqlalchemy import delete
 from pydantic import BaseModel
 from typing import List, Optional, Any
 from auth.dependencies import get_current_user_info, get_current_teacher_id
@@ -771,3 +773,133 @@ async def delete_lesson_content(
         await db.rollback()
         print(f"ERROR in delete_lesson_content: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ImportRoadmapRequest(BaseModel):
+    curriculum: Any
+    lesson_contents: List[Any]
+    quizzes: List[Any]
+
+
+@router.get("/courses/{course_id}/export_roadmap")
+async def export_roadmap(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify course ownership
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz."
+        )
+
+    # Fetch all LessonContent for this course
+    lessons_result = await db.execute(
+        select(LessonContent).where(LessonContent.course_id == course_id)
+    )
+    lessons = lessons_result.scalars().all()
+
+    # Fetch all Quiz for this course
+    quizzes_result = await db.execute(
+        select(Quiz).where(Quiz.course_id == course_id)
+    )
+    quizzes = quizzes_result.scalars().all()
+
+    # Serialize lesson contents
+    lesson_contents_data = []
+    for l in lessons:
+        lesson_contents_data.append({
+            "node_id": l.node_id,
+            "title": l.title or "",
+            "slides": l.slides or []
+        })
+
+    # Serialize quizzes
+    quizzes_data = []
+    for q in quizzes:
+        quizzes_data.append(q.to_dict())
+
+    return {
+        "success": True,
+        "course_title": course.title,
+        "curriculum": course.curriculum or [],
+        "lesson_contents": lesson_contents_data,
+        "quizzes": quizzes_data
+    }
+
+
+@router.post("/courses/{course_id}/import_roadmap")
+async def import_roadmap(
+    course_id: int,
+    payload: ImportRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify course ownership
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz."
+        )
+
+    if not payload.curriculum or len(payload.curriculum) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir."
+        )
+
+    try:
+        # Update course curriculum
+        course.curriculum = payload.curriculum
+        flag_modified(course, "curriculum")
+
+        # Delete existing LessonContent and Quiz
+        await db.execute(
+            delete(LessonContent).where(LessonContent.course_id == course_id)
+        )
+        await db.execute(
+            delete(Quiz).where(Quiz.course_id == course_id)
+        )
+
+        # Insert new LessonContent
+        for l in payload.lesson_contents:
+            new_lesson = LessonContent(
+                course_id=course_id,
+                node_id=l.get("node_id"),
+                title=l.get("title", ""),
+                slides=l.get("slides", [])
+            )
+            db.add(new_lesson)
+
+        # Insert new Quiz
+        for q in payload.quizzes:
+            new_quiz = Quiz(
+                course_id=course_id,
+                section_id=q.get("section_id"),
+                node_id=q.get("node_id"),
+                topic=q.get("topic", "Genel"),
+                difficulty=q.get("difficulty", "Orta"),
+                question_text=q.get("question_text") or q.get("text") or "",
+                options=q.get("options"),
+                correct_answer=q.get("correct_answer") or q.get("correctAnswer") or "",
+                explanation=q.get("explanation"),
+                question_type=q.get("type") or q.get("question_type") or "multiple-choice"
+            )
+            db.add(new_quiz)
+
+        await db.commit()
+        return {"success": True, "message": "Yol haritası ve içerikleri başarıyla yüklendi."}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in import_roadmap: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Yol haritası yüklenemedi: {str(e)}")
