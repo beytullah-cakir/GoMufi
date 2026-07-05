@@ -10,22 +10,8 @@ from typing import List
 
 router = APIRouter(prefix="/builder", tags=["lesson-builder"])
 
-# Supabase Ayarları
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://irjbpzhgoryppxyccgvk.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-BUCKET_NAME = "lesson-images"
-
+# Local JSON path
 JSON_PATH = "lesson.json"
-
-def _get_supabase():
-    """Supabase client'ı lazy olarak başlat — KEY yoksa None döner."""
-    if not SUPABASE_KEY:
-        return None
-    try:
-        from supabase import create_client
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except ImportError:
-        return None
 
 
 @router.post("/upload-image")
@@ -44,31 +30,18 @@ async def upload_image(request: Request, file: UploadFile = File(...)):
         # Benzersiz dosya adı oluştur
         file_ext = file.filename.split(".")[-1] if "." in file.filename else "png"
         file_name = f"{uuid.uuid4()}.{file_ext}"
-        file_path = f"uploads/{file_name}"
 
-        supabase = _get_supabase()
-        if supabase:
-            # Dosyayı oku ve Supabase'e yükle
-            contents = await file.read()
-            supabase.storage.from_(BUCKET_NAME).upload(
-                file_path,
-                contents,
-                {"content-type": file.content_type or "image/png"}
-            )
-            # Public URL'i al
-            public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
-        else:
-            # Local fallback
-            static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
-            os.makedirs(static_dir, exist_ok=True)
-            local_file_path = os.path.join(static_dir, file_name)
+        # Yerel sunucuya yükle
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
+        os.makedirs(static_dir, exist_ok=True)
+        local_file_path = os.path.join(static_dir, file_name)
 
-            contents = await file.read()
-            with open(local_file_path, "wb") as f:
-                f.write(contents)
+        contents = await file.read()
+        with open(local_file_path, "wb") as f:
+            f.write(contents)
 
-            base_url = str(request.base_url).rstrip("/")
-            public_url = f"{base_url}/static/uploads/{file_name}"
+        base_url = str(request.base_url).rstrip("/")
+        public_url = f"{base_url}/static/uploads/{file_name}"
 
         # JSON dosyasını güncelle
         lesson_data = []
