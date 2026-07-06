@@ -39,200 +39,54 @@ interface CartItem {
 }
 
 // --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string, theme?: string): PathNode[] => {
-    const baseId = startId;
-    const isLessonLocked = isLockedStart;
+// --- Helper to get theme metadata ---
+const getNodeMetadata = (idx: number, customTheme?: string) => {
+    const themes: { [key: string]: any } = {
+        purple: { button: ButtonPurple, icon: BrainIcon, ringColor: "border-fuchsia-400 bg-white", baseColor: "#d946ef", strokeColor: "#c026d3", pastelColor: "#fae8ff", glowColor: "rgba(232, 121, 249, 0.4)", iconSize: "w-20 h-20", iconOffset: "-mt-22" },
+        cyan: { button: ButtonCyan, icon: PencilIcon, ringColor: "border-cyan-400 bg-white", baseColor: "#06b6d4", strokeColor: "#0891b2", pastelColor: "#cffafe", glowColor: "rgba(34, 211, 238, 0.4)", iconSize: "w-24 h-24", iconOffset: "-mt-20" },
+        green: { button: ButtonGreen, icon: PuzzleIcon, ringColor: "border-green-400 bg-white", baseColor: "#22c55e", strokeColor: "#16a34a", pastelColor: "#dcfce7", glowColor: "rgba(74, 222, 128, 0.4)", iconSize: "w-20 h-20", iconOffset: "-mt-20" },
+        yellow: { button: ButtonYellow, icon: TrophyIcon, ringColor: "border-yellow-400 bg-white", baseColor: "#eab308", strokeColor: "#ca8a04", pastelColor: "#fef9c3", glowColor: "rgba(250, 204, 21, 0.4)", iconSize: "w-24 h-24", iconOffset: "-mt-20" },
+        quiz: { button: ButtonDarkPurple, icon: QuestionIcon, ringColor: "border-purple-400 bg-white", baseColor: "#7c3aed", strokeColor: "#6d28d9", pastelColor: "#ede9fe", glowColor: "rgba(139, 92, 246, 0.4)", iconSize: "w-26 h-26", iconOffset: "-mt-24" },
+        homework: { button: ButtonDarkBlue, icon: BagIcon, ringColor: "border-indigo-400 bg-white", baseColor: "#2563eb", strokeColor: "#1d4ed8", pastelColor: "#e0e7ff", glowColor: "rgba(99, 102, 241, 0.4)", iconSize: "w-26 h-26", iconOffset: "-mt-24" },
+    };
 
-    const nodes: PathNode[] = [
+    if (customTheme && themes[customTheme]) {
+        return themes[customTheme];
+    }
+    const pattern = ["purple", "cyan", "green", "yellow"];
+    const defaultTheme = pattern[idx % pattern.length];
+    return themes[defaultTheme];
+};
+
+// --- Helper to Generate Lesson Nodes ---
+const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string, theme?: string, slides: any[] = []): PathNode[] => {
+    const metadata = getNodeMetadata(lessonNum - 1, theme);
+    
+    return [
         {
-            id: baseId,
-            type: 'step', // Number Node 1 -> Brain
-            button: ButtonPurple,
-            icon: BrainIcon,
-            curve: 'up',
-            iconSize: 'w-20 h-20', // Slightly smaller than main
-            iconOffset: '-mt-22',
-            ringColor: 'border-fuchsia-400 bg-white',
+            id: startId,
+            type: theme === 'quiz' ? 'quiz' : (theme === 'homework' ? 'homework' : 'step'),
+            button: metadata.button,
+            icon: metadata.icon,
+            curve: (lessonNum - 1) % 2 === 0 ? 'up' : 'down',
+            iconSize: metadata.iconSize,
+            iconOffset: metadata.iconOffset,
+            ringColor: metadata.ringColor,
             numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-            pastelColor: '#fae8ff',
-            glowColor: 'rgba(232, 121, 249, 0.4)',
-            strokeColor: '#c026d3',
-            baseColor: '#d946ef',
-            title: 'BÖLÜM 1',
+            pastelColor: metadata.pastelColor,
+            glowColor: metadata.glowColor,
+            strokeColor: metadata.strokeColor,
+            baseColor: metadata.baseColor,
+            title: lessonTopic,
             stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
+            isLocked: isLockedStart,
             lessonNumber: lessonNum,
             lessonTopic: lessonTopic,
             sectionId: sectionId,
-            localNodeIndex: 1
-        },
-        {
-            id: baseId + 1,
-            type: 'start', // BRAIN
-            button: ButtonPurple,
-            icon: BrainIcon,
-            curve: 'down',
-            iconSize: 'w-24 h-24',
-            iconOffset: '-mt-24',
-            ringColor: 'border-fuchsia-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-            pastelColor: '#fae8ff',
-            glowColor: 'rgba(232, 121, 249, 0.4)',
-            strokeColor: '#c026d3',
-            baseColor: '#d946ef',
-            title: 'ANLA: Konuyu Kavra',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 2
-        },
-        {
-            id: baseId + 2,
-            type: 'step', // Number Node 2 -> Pencil
-            button: ButtonCyan,
-            icon: PencilIcon,
-            curve: 'up',
-            iconSize: 'w-24 h-24', // Slightly smaller
-            iconOffset: '-mt-20',
-            ringColor: 'border-cyan-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-            pastelColor: '#cffafe',
-            glowColor: 'rgba(34, 211, 238, 0.4)',
-            strokeColor: '#0891b2',
-            baseColor: '#06b6d4',
-            title: 'BÖLÜM 2',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 3
-        },
-        {
-            id: baseId + 3,
-            type: 'paw', // PENCIL
-            button: ButtonCyan,
-            icon: PencilIcon,
-            curve: 'down',
-            iconSize: 'w-28 h-28',
-            iconOffset: '-mt-20',
-            ringColor: 'border-cyan-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-            pastelColor: '#cffafe',
-            glowColor: 'rgba(34, 211, 238, 0.4)',
-            strokeColor: '#0891b2',
-            baseColor: '#06b6d4',
-            title: 'UYGULA: Alıştırma Yap',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 4
-        },
-        {
-            id: baseId + 4,
-            type: 'step', // Number Node 3 -> Puzzle
-            button: ButtonGreen,
-            icon: PuzzleIcon,
-            curve: 'up',
-            iconSize: 'w-20 h-20',
-            iconOffset: '-mt-20',
-            ringColor: 'border-green-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-            pastelColor: '#dcfce7',
-            glowColor: 'rgba(74, 222, 128, 0.4)',
-            strokeColor: '#16a34a',
-            baseColor: '#22c55e',
-            title: 'BÖLÜM 3',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 5
-        },
-        {
-            id: baseId + 5,
-            type: 'paw', // PUZZLE
-            button: ButtonGreen,
-            icon: PuzzleIcon,
-            curve: 'down',
-            iconSize: 'w-22 h-22',
-            iconOffset: '-mt-22',
-            ringColor: 'border-green-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-            pastelColor: '#dcfce7',
-            glowColor: 'rgba(74, 222, 128, 0.4)',
-            strokeColor: '#16a34a',
-            baseColor: '#22c55e',
-            title: 'BİRLEŞTİR: Parçaları Tamamla',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 6
-        },
-        {
-            id: baseId + 6,
-            type: 'chest', // TROPHY
-            button: ButtonYellow,
-            icon: TrophyIcon,
-            curve: 'up',
-            iconSize: 'w-24 h-24',
-            iconOffset: '-mt-24',
-            // Yellow Scheme
-            ringColor: 'border-yellow-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400',
-            pastelColor: '#fef9c3',
-            glowColor: 'rgba(250, 204, 21, 0.4)',
-            strokeColor: '#ca8a04',
-            baseColor: '#eab308',
-            title: 'ÜRET: Kendini Göster',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lastInLesson: true,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 7
+            localNodeIndex: lessonNum,
+            slides: slides
         }
     ];
-
-    if (theme === 'quiz') {
-        return nodes.map(node => ({
-            ...node,
-            button: ButtonDarkPurple,
-            icon: QuestionIcon,
-            iconSize: 'w-26 h-26',
-            iconOffset: '-mt-24',
-            ringColor: 'border-purple-400 bg-white',
-            pastelColor: '#ede9fe',
-            glowColor: 'rgba(139, 92, 246, 0.4)',
-            strokeColor: '#6d28d9',
-            baseColor: '#7c3aed',
-            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'QUİZ') : 'QUİZ: Testi Çöz'
-        }));
-    } else if (theme === 'homework') {
-        return nodes.map(node => ({
-            ...node,
-            button: ButtonDarkBlue,
-            icon: BagIcon,
-            iconSize: 'w-26 h-26',
-            iconOffset: '-mt-24',
-            ringColor: 'border-indigo-400 bg-white',
-            pastelColor: '#e0e7ff',
-            glowColor: 'rgba(99, 102, 241, 0.4)',
-            strokeColor: '#1d4ed8',
-            baseColor: '#2563eb',
-            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'ÖDEV') : 'ÖDEV: Görevi Yap'
-        }));
-    }
-
-    return nodes;
 };
 
 const generateCourseData = (purchasedList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
@@ -255,7 +109,6 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
         
         if (curriculum.length > 0) {
             const dynamicNodes: PathNode[] = [];
-            let currentId = 1;
 
             // Filter out metadata objects like 'live_sessions_config'
             const actualSections = curriculum.filter((item: any) => item.type !== 'live_sessions_config');
@@ -263,7 +116,10 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             actualSections.forEach((section: any, index: number) => {
                 const sectionTitle = section.title || `Bölüm ${index + 1}`;
                 const sectionId = section.id || `section_${index + 1}`;
-                const lessonNodes = generateLessonNodes(currentId, index + 1, false, sectionTitle, true, sectionId, section.theme);
+                const matchingNote = course.notes?.find((n: any) => String(n.id) === String(section.id));
+                const slides = matchingNote?.slides || [];
+
+                const lessonNodes = generateLessonNodes(index + 1, index + 1, false, sectionTitle, true, sectionId, section.theme, slides);
                 
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
@@ -271,7 +127,6 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                 }));
                 
                 dynamicNodes.push(...processedNodes);
-                currentId += 7;
             });
 
             result[courseIdStr] = {
@@ -293,16 +148,14 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             // FALLBACK: If no curriculum, show at least one default section
             const fallbackTopics = ['Giriş'];
             const fallbackNodes: PathNode[] = [];
-            let currentId = 1;
 
             fallbackTopics.forEach((topic, index) => {
-                const lessonNodes = generateLessonNodes(currentId, index + 1, false, topic, true);
+                const lessonNodes = generateLessonNodes(index + 1, index + 1, false, topic, true, undefined, undefined, []);
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
                     isLocked: node.id > 1 && node.id > (progress + 1)
                 }));
                 fallbackNodes.push(...processedNodes);
-                currentId += 7;
             });
 
             result[courseIdStr] = {
@@ -325,6 +178,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
     return result;
 };
+
+
 
 function StudentApp() {
     const navigate = useNavigate();

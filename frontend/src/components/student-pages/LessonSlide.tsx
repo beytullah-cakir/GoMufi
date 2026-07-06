@@ -1,41 +1,83 @@
-import React, { useState } from 'react';
-import { ChevronRight, ChevronLeft, Play, Terminal, BookOpen, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ChevronRight, ChevronLeft, Play, Terminal, BookOpen, X, Check } from 'lucide-react';
+import CodeWidget from '../lesson-builder/CodeWidget';
 
 interface LessonSlideProps {
     isOpen: boolean;
     onClose: () => void;
     onComplete: () => void;
     lessonTitle?: string;
+    slides?: any[];
 }
 
-const LessonSlide: React.FC<LessonSlideProps> = ({ isOpen, onClose, onComplete, lessonTitle }) => {
+const getElementStyle = (el: any, scale: number): React.CSSProperties => {
+    const style: React.CSSProperties = {
+        position: 'absolute',
+        left: `${(el.x / 1280) * 100}%`,
+        top: `${(el.y / 720) * 100}%`,
+        width: `${(el.width / 1280) * 100}%`,
+        height: `${(el.height / 720) * 100}%`,
+        transform: `rotate(${el.rotation || 0}deg)`,
+        backgroundColor: el.style?.backgroundColor || 'transparent',
+        borderColor: el.style?.borderColor || 'transparent',
+        borderWidth: el.style?.borderWidth ? `${el.style.borderWidth * scale}px` : '0px',
+        borderStyle: el.style?.borderWidth ? 'solid' : 'none',
+        borderRadius: el.style?.borderRadius ? `${el.style.borderRadius * scale}px` : '0px',
+        color: el.style?.color || '#000000',
+        fontSize: el.style?.fontSize ? `${el.style.fontSize * scale}px` : undefined,
+        fontFamily: el.style?.fontFamily || 'Inter, sans-serif',
+        fontWeight: el.style?.bold ? 'bold' : 'normal',
+        fontStyle: el.style?.italic ? 'italic' : 'normal',
+        textDecoration: el.style?.underline ? 'underline' : 'none',
+        opacity: el.style?.opacity !== undefined ? el.style.opacity : 1,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        padding: el.type === 'text' ? '0px' : '8px',
+        boxSizing: 'border-box',
+    };
+    return style;
+};
+
+const LessonSlide: React.FC<LessonSlideProps> = ({ isOpen, onClose, onComplete, lessonTitle, slides = [] }) => {
     const [currentSlide, setCurrentSlide] = useState(0);
-    const [code, setCode] = useState<string>('print("Merhaba Mufi!")');
-    const [output, setOutput] = useState<string[]>([]);
-    const [isRunning, setIsRunning] = useState(false);
+    const [codeInputs, setCodeInputs] = useState<Record<string, string>>({});
+    const [codeOutputs, setCodeOutputs] = useState<Record<string, string[]>>({});
+    const [isRunningCode, setIsRunningCode] = useState<Record<string, boolean>>({});
+    const [selectedChoices, setSelectedChoices] = useState<Record<string, string[]>>({});
+    const [submittedQuizzes, setSubmittedQuizzes] = useState<Record<string, boolean>>({});
+
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [scale, setScale] = useState(1);
+
+    // Reset slide navigation when loading a new lesson
+    useEffect(() => {
+        if (isOpen) {
+            setCurrentSlide(0);
+            setCodeInputs({});
+            setCodeOutputs({});
+            setIsRunningCode({});
+            setSelectedChoices({});
+            setSubmittedQuizzes({});
+        }
+    }, [isOpen]);
+
+    // Measure screen scale factor relative to 1280 base width
+    useEffect(() => {
+        const updateScale = () => {
+            if (containerRef.current) {
+                const rect = containerRef.current.getBoundingClientRect();
+                setScale(rect.width / 1280);
+            }
+        };
+        if (isOpen) {
+            setTimeout(updateScale, 100); // Wait for open transition
+        }
+        window.addEventListener('resize', updateScale);
+        return () => window.removeEventListener('resize', updateScale);
+    }, [isOpen, currentSlide]);
 
     if (!isOpen) return null;
-
-    const slides = [
-        {
-            type: 'intro',
-            title: lessonTitle || 'Ders Başlıyor',
-            content: 'Merhaba! Bugün Python dünyasına adım atıyoruz. Hazırsan başlayalım!',
-            icon: <BookOpen className="w-16 h-16 text-indigo-500" />
-        },
-        {
-            type: 'content',
-            title: 'Değişkenler',
-            content: 'Değişkenler, bilgisayarın hafızasında veri saklamak için kullandığımız kutulardır. İstediğimiz ismi verip içine değer atayabiliriz.',
-            subContent: 'isim = "Mufi"\nyas = 5',
-            icon: <div className="text-6xl">📝</div>
-        },
-        {
-            type: 'ide',
-            title: 'Sıra Sende!',
-            content: 'Hadi öğrendiklerini deneyelim. Kodu çalıştır!',
-        }
-    ];
 
     const handleNext = () => {
         if (currentSlide < slides.length - 1) {
@@ -51,219 +93,315 @@ const LessonSlide: React.FC<LessonSlideProps> = ({ isOpen, onClose, onComplete, 
         }
     };
 
-    const runCode = () => {
-        setIsRunning(true);
-        setOutput([]);
+    const runCode = (widgetId: string, codeString: string) => {
+        setIsRunningCode(prev => ({ ...prev, [widgetId]: true }));
+        setCodeOutputs(prev => ({ ...prev, [widgetId]: [] }));
 
         setTimeout(() => {
-            setIsRunning(false);
-            setOutput(['> Merhaba Mufi!', '> Program başarıyla çalıştırıldı.']);
-        }, 800);
+            setIsRunningCode(prev => ({ ...prev, [widgetId]: false }));
+            let mockOutput = ['> Program başarıyla çalıştırıldı.'];
+            
+            // Basic print statement mock executor
+            if (codeString.includes('print(')) {
+                const match = codeString.match(/print\((['"])(.*?)\1\)/);
+                if (match && match[2]) {
+                    mockOutput = [`> ${match[2]}`];
+                }
+            }
+            setCodeOutputs(prev => ({ ...prev, [widgetId]: mockOutput }));
+        }, 1000);
+    };
+
+    const handleSelectOption = (widgetId: string, optionId: string, multipleCorrect: boolean) => {
+        setSelectedChoices(prev => {
+            const current = prev[widgetId] || [];
+            if (multipleCorrect) {
+                if (current.includes(optionId)) {
+                    return { ...prev, [widgetId]: current.filter(id => id !== optionId) };
+                } else {
+                    return { ...prev, [widgetId]: [...current, optionId] };
+                }
+            } else {
+                return { ...prev, [widgetId]: [optionId] };
+            }
+        });
+    };
+
+    const handleCheckQuiz = (widgetId: string) => {
+        setSubmittedQuizzes(prev => ({ ...prev, [widgetId]: true }));
+    };
+
+    const renderWidget = (el: any) => {
+        switch (el.type) {
+            case 'text':
+                return (
+                    <div 
+                        className="w-full h-full select-text overflow-hidden" 
+                        dangerouslySetInnerHTML={{ __html: el.content || '' }} 
+                    />
+                );
+            case 'image':
+                return (
+                    <img 
+                        src={el.src || el.imageUrl} 
+                        alt="Slide Image" 
+                        className="w-full h-full object-contain pointer-events-none" 
+                    />
+                );
+            case 'video':
+                return (
+                    <div className="w-full h-full flex items-center justify-center bg-black rounded-lg overflow-hidden">
+                        <iframe
+                            src={el.videoUrl?.replace("watch?v=", "embed/")}
+                            className="w-full h-full border-none"
+                            allow="autoplay; encrypted-media"
+                            allowFullScreen
+                            title="Video widget"
+                        />
+                    </div>
+                );
+            case 'shape':
+                return (
+                    <div 
+                        className="w-full h-full" 
+                        style={{ 
+                            borderRadius: el.shapeType === 'circle' ? '50%' : undefined,
+                            border: el.style?.borderWidth ? `${el.style.borderWidth * scale}px solid ${el.style.borderColor || '#000'}` : 'none',
+                            backgroundColor: el.style?.backgroundColor || 'transparent'
+                        }} 
+                    />
+                );
+            case 'sticky':
+                return (
+                    <div 
+                        className="w-full h-full p-4 shadow-md text-gray-800 leading-relaxed font-handwriting select-text"
+                        style={{
+                            backgroundColor: el.style?.backgroundColor || '#fef08a',
+                            borderRadius: '4px',
+                            fontSize: el.style?.fontSize ? `${el.style.fontSize * scale}px` : `${18 * scale}px`,
+                            border: '1px solid rgba(0,0,0,0.05)'
+                        }}
+                    >
+                        {el.content}
+                    </div>
+                );
+            case 'code':
+            case 'code_editor':
+                return (
+                    <CodeWidget
+                        el={{
+                            ...el,
+                            style: {
+                                ...el.style,
+                                fontSize: (el.style?.fontSize || 14) * scale
+                            },
+                            content: codeInputs[el.id] !== undefined ? codeInputs[el.id] : (el.content || '')
+                        }}
+                        isEditing={false}
+                        updateElement={(id, updates) => {
+                            if (updates.content !== undefined) {
+                                setCodeInputs(prev => ({ ...prev, [id]: updates.content }));
+                            }
+                        }}
+                        setEditingElementId={() => {}}
+                        handleMouseDown={() => {}}
+                        readOnly={el.type === 'code'}
+                        isPreview={true}
+                    />
+                );
+            case 'multiple_choice': {
+                const opts = el.extra?.options || [];
+                const submitted = submittedQuizzes[el.id] || false;
+                const selected = selectedChoices[el.id] || [];
+                const multipleCorrect = el.extra?.multipleCorrect || false;
+                
+                const correctOptionIds = opts.filter((o: any) => o.isCorrect).map((o: any) => o.id);
+                const isAnswerCorrect = selected.length === correctOptionIds.length && selected.every(id => correctOptionIds.includes(id));
+                
+                return (
+                    <div 
+                        className="w-full h-full p-4 rounded-xl flex flex-col justify-between border-2 select-none"
+                        style={{
+                            backgroundColor: el.style?.backgroundColor || 'rgba(255,255,255,0.9)',
+                            borderColor: el.style?.borderColor || '#e5e7eb',
+                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
+                        }}
+                    >
+                        <div className="text-left font-bold text-gray-800 mb-2 leading-snug" style={{ fontSize: `${16 * scale}px` }}>
+                            {el.content || 'Soru?'}
+                        </div>
+                        <div className="flex-1 flex flex-col gap-2 justify-center">
+                            {opts.map((opt: any) => {
+                                const isSelected = selected.includes(opt.id);
+                                const showCorrect = submitted && opt.isCorrect;
+                                const showWrong = submitted && isSelected && !opt.isCorrect;
+                                
+                                return (
+                                    <button
+                                        key={opt.id}
+                                        disabled={submitted}
+                                        onClick={() => handleSelectOption(el.id, opt.id, multipleCorrect)}
+                                        className={`w-full py-2 px-3 rounded-lg border-2 text-left transition-all flex items-center justify-between gap-2
+                                            ${showCorrect ? 'bg-green-100 border-green-500 text-green-800' :
+                                              showWrong ? 'bg-red-100 border-red-500 text-red-800' :
+                                              isSelected ? 'bg-indigo-50 border-indigo-500 text-indigo-800 font-semibold' :
+                                              'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+                                            }`}
+                                        style={{ fontSize: `${12 * scale}px` }}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-black text-gray-400 mr-1">{opt.id}.</span>
+                                            <span>{opt.text}</span>
+                                        </div>
+                                        {showCorrect && <Check className="w-4 h-4 text-green-600 shrink-0" />}
+                                        {showWrong && <X className="w-4 h-4 text-red-600 shrink-0" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        {!submitted ? (
+                            <button
+                                onClick={() => handleCheckQuiz(el.id)}
+                                disabled={selected.length === 0}
+                                className={`w-full py-2 rounded-lg font-black text-xs uppercase tracking-wider text-center transition-all mt-2
+                                    ${selected.length > 0 
+                                      ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md active:translate-y-0.5' 
+                                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                    }`}
+                            >
+                                Cevabı Kontrol Et
+                            </button>
+                        ) : (
+                            <div className="flex items-center gap-1 justify-center mt-2 font-black text-[11px] uppercase tracking-wide">
+                                {isAnswerCorrect ? (
+                                    <span className="text-green-600">✓ Harika! Doğru Cevap</span>
+                                ) : (
+                                    <span className="text-red-600">✗ Yanlış Cevap, Tekrar Dene</span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+            default:
+                return null;
+        }
     };
 
     const renderSlideContent = () => {
-        const slide = slides[currentSlide];
-
-        if (slide.type === 'ide') {
+        if (!slides || slides.length === 0) {
             return (
-                <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                    <div className="mb-4 text-center">
-                        <h2 className="text-4xl font-black font-handwriting text-gray-800 mb-2 transform -rotate-1">{slide.title}</h2>
-                        <p className="text-gray-600 font-handwriting text-2xl">{slide.content}</p>
-                    </div>
-
-                    {/* IDE Tablet Overlay - Full Height Adjustment */}
-                    <div className="flex-1 bg-gray-800 rounded-xl overflow-hidden shadow-[0_10px_40px_-10px_rgba(0,0,0,0.5)] border-4 border-gray-700 flex flex-col transform rotate-1 relative max-h-[60vh] mx-auto w-full max-w-4xl">
-                        {/* Sticker Effect */}
-                        <div className="absolute -top-3 -right-3 w-12 h-12 bg-yellow-200 rounded-full shadow-md flex items-center justify-center transform rotate-12 z-20 border-2 border-white/20">
-                            <span className="text-xl">🐍</span>
-                        </div>
-
-                        {/* IDE Header */}
-                        <div className="flex items-center justify-between px-4 py-3 bg-gray-900 border-b border-gray-700">
-                            <div className="flex items-center gap-2">
-                                <div className="flex gap-1.5">
-                                    <span className="w-3 h-3 rounded-full bg-red-500/80" />
-                                    <span className="w-3 h-3 rounded-full bg-yellow-500/80" />
-                                    <span className="w-3 h-3 rounded-full bg-green-500/80" />
-                                </div>
-                                <span className="ml-3 text-gray-400 text-xs font-mono tracking-wider">CODE_EDITOR.py</span>
-                            </div>
-                            <button
-                                onClick={runCode}
-                                disabled={isRunning}
-                                className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white px-5 py-1.5 rounded-lg font-bold text-sm transition-all shadow-lg shadow-green-900/20 active:scale-95"
-                            >
-                                {isRunning ? (
-                                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Play className="w-4 h-4 fill-current" />
-                                )}
-                                ÇALIŞTIR
-                            </button>
-                        </div>
-
-                        <div className="flex flex-1 overflow-hidden">
-                            {/* Editor Area */}
-                            <div className="w-3/5 bg-[#1e1e1e] p-6 font-mono text-base text-gray-300 relative leading-relaxed">
-                                <div className="absolute left-0 top-6 bottom-0 w-10 text-right pr-4 text-gray-600 select-none border-r border-gray-800">
-                                    1
-                                </div>
-                                <textarea
-                                    value={code}
-                                    onChange={(e) => setCode(e.target.value)}
-                                    className="w-full h-full bg-transparent border-none outline-none resize-none pl-6 text-green-400 font-mono focus:ring-0"
-                                    spellCheck={false}
-                                />
-                            </div>
-
-                            {/* Divider */}
-                            <div className="w-[1px] bg-gray-700 shadow-xl" />
-
-                            {/* Console Output */}
-                            <div className="w-2/5 bg-[#1e1e1e] p-4 font-mono text-sm text-white overflow-y-auto relative">
-                                <div className="absolute top-0 right-0 p-4 opacity-50 pointer-events-none">
-                                    <Terminal className="w-24 h-24 text-white/5 rotate-12" />
-                                </div>
-                                <div className="flex items-center gap-2 text-gray-500 mb-4 pb-2 border-b border-gray-800">
-                                    <Terminal className="w-4 h-4" />
-                                    <span className="text-xs uppercase tracking-widest">Terminal Çıktısı</span>
-                                </div>
-                                <div className="space-y-2 relative z-10">
-                                    {output.length === 0 ? (
-                                        <span className="text-gray-600 italic text-sm">...</span>
-                                    ) : (
-                                        output.map((line, i) => (
-                                            <div key={i} className="animate-in fade-in slide-in-from-left-2 duration-200 text-green-400">
-                                                {line}
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-col items-center justify-center text-center p-8">
+                    <BookOpen className="w-16 h-16 text-indigo-500 mb-4 animate-bounce" />
+                    <h2 className="text-3xl font-bold text-gray-800 mb-2">Ders İçeriği Boş</h2>
+                    <p className="text-gray-600">Bu ders için henüz slayt eklenmemiş.</p>
                 </div>
             );
         }
 
-        // Standard Slide (Intro/Content)
+        const slide = slides[currentSlide];
+
         return (
-            <div className="flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-                    <div className="mb-6 p-6 rounded-full border-4 border-dashed border-gray-300 transform -rotate-2">
-                        {slide.icon}
+            <div 
+                ref={containerRef}
+                className="relative w-full h-full max-w-full max-h-full overflow-hidden select-text bg-transparent"
+                style={{ 
+                    aspectRatio: '16/9'
+                }}
+            >
+                {/* SVG Connections Overlay */}
+                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                    <defs>
+                        <marker id="arrow-head" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 0 L 10 5 L 0 10 z" fill="#4b5563" />
+                        </marker>
+                    </defs>
+                    {slide.elements?.filter((el: any) => el.type === 'arrow' && el.arrowConfig).map((el: any) => {
+                        const start = el.arrowConfig.start || { x: 0, y: 0 };
+                        const end = el.arrowConfig.end || { x: 0, y: 0 };
+                        return (
+                            <line
+                                key={el.id}
+                                x1={`${(start.x / 1280) * 100}%`}
+                                y1={`${(start.y / 720) * 100}%`}
+                                x2={`${(end.x / 1280) * 100}%`}
+                                y2={`${(end.y / 720) * 100}%`}
+                                stroke={el.style?.color || '#4b5563'}
+                                strokeWidth={(el.style?.borderWidth || 3) * scale}
+                                markerEnd="url(#arrow-head)"
+                            />
+                        );
+                    })}
+                </svg>
+
+                {/* Elements */}
+                {slide.elements?.filter((el: any) => el.type !== 'arrow').map((el: any) => (
+                    <div
+                        key={el.id}
+                        style={getElementStyle(el, scale)}
+                    >
+                        {renderWidget(el)}
                     </div>
-
-                    <h2 className="text-6xl font-black font-handwriting text-gray-800 mb-8 transform -rotate-1 relative inline-block">
-                        {slide.title}
-                        {/* Highlighter Effect */}
-                        <div className="absolute -bottom-2 left-0 w-full h-4 bg-yellow-200/50 -z-10 rounded-sm transform -rotate-1 skew-x-12"></div>
-                    </h2>
-
-                    <p className="text-3xl text-gray-700 font-handwriting leading-relaxed max-w-3xl transform rotate-1">
-                        {slide.content}
-                    </p>
-
-                    {slide.subContent && (
-                        <div className="mt-12 p-8 bg-white shadow-sm border border-gray-200 rounded-sm transform -rotate-2 w-full max-w-xl relative group">
-                            {/* Tape Effect */}
-                            <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-32 h-8 bg-white/40 border-l border-r border-white/60 shadow-sm opacity-80 backdrop-blur-sm transform rotate-1"></div>
-
-                            <pre className="font-mono text-xl text-gray-600 whitespace-pre-wrap">
-                                {slide.subContent}
-                            </pre>
-
-                            {/* Doodle */}
-                            <div className="absolute -bottom-6 -right-6 text-4xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform rotate-12">
-                                ✨
-                            </div>
-                        </div>
-                    )}
-                </div>
+                ))}
             </div>
         );
     };
 
-    return (
-        <div className="fixed inset-0 z-[100] bg-[#fdfbf7] animate-in fade-in duration-300">
-            {/* Main Notebook Container - Full Screen */}
-            <div className="w-full h-full flex relative overflow-hidden">
+    const slide = slides && slides.length > 0 ? slides[currentSlide] : null;
+    const isDark = slide?.background === 'dark';
 
-                {/* Close Button (Sticky Note Style) */}
+    return (
+        <div 
+            className="fixed inset-0 z-[100] flex flex-col animate-in fade-in duration-300 select-none"
+            style={{ 
+                backgroundColor: isDark ? '#1f2937' : '#ffffff',
+                backgroundImage: isDark ? 'radial-gradient(#374151 1px, transparent 1px)' : 'radial-gradient(#e5e7eb 1px, transparent 1px)',
+                backgroundSize: '20px 20px',
+            }}
+        >
+            <button
+                onClick={onClose}
+                className="absolute top-6 right-8 z-50 w-14 h-14 bg-red-100 text-red-500 hover:bg-red-200 hover:scale-110 flex items-center justify-center rounded-sm shadow-md transition-all duration-300 transform rotate-3"
+                title="Kapat"
+            >
+                <X className="w-8 h-8 font-bold" />
+            </button>
+
+            <div className="flex-1 flex items-center justify-center p-8 md:p-16 relative overflow-hidden">
+                <div className="w-full max-w-7xl mx-auto h-full flex items-center justify-center">
+                    {renderSlideContent()}
+                </div>
+            </div>
+
+            <div className="h-20 px-12 flex items-center justify-between relative shrink-0 pb-6 select-none bg-transparent">
                 <button
-                    onClick={onClose}
-                    className="absolute top-6 right-8 z-50 w-14 h-14 bg-red-100 text-red-500 hover:bg-red-200 hover:scale-110 flex items-center justify-center rounded-sm shadow-md transition-all duration-300 transform rotate-3"
-                    title="Kapat"
+                    onClick={handlePrev}
+                    disabled={currentSlide === 0}
+                    className={`group flex items-center gap-2 transition-transform hover:-translate-x-1 ${currentSlide === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'}`}
                 >
-                    <X className="w-8 h-8 font-bold" />
+                    <span className="font-handwriting text-3xl font-bold text-gray-500 group-hover:text-gray-800">
+                        {'<'} Geri
+                    </span>
                 </button>
 
-                {/* Left Spine / Binding Area */}
-                <div className="w-12 md:w-16 h-full bg-[#3e3e3e] relative flex flex-col items-center py-8 shadow-2xl z-20 shrink-0">
-                    <div className="absolute inset-y-0 right-0 w-2 bg-gradient-to-l from-black/20 to-transparent"></div>
-
-                    {/* Spiral Rings - Repeating Pattern */}
-                    <div className="w-full h-full flex flex-col justify-evenly overflow-hidden pb-4">
-                        {Array.from({ length: 20 }).map((_, i) => (
-                            <div key={i} className="relative w-full h-10 flex items-center justify-center shrink-0">
-                                {/* The Ring */}
-                                <div className="w-16 md:w-20 h-3 md:h-4 bg-gradient-to-b from-gray-300 via-gray-100 to-gray-400 rounded-full shadow-lg transform -rotate-2 z-20"></div>
-                                {/* Hole Shadow on Paper */}
-                                <div className="absolute right-[-4px] w-3 h-3 bg-black/20 rounded-full blur-[1px]"></div>
-                            </div>
-                        ))}
-                    </div>
+                <div className="flex gap-3">
+                    {slides?.map((_, idx) => (
+                        <button
+                            key={idx}
+                            onClick={() => setCurrentSlide(idx)}
+                            className={`w-3.5 h-3.5 rounded-full border-2 border-gray-400 transition-all ${idx === currentSlide ? 'bg-gray-600 scale-110' : 'bg-transparent'}`}
+                        />
+                    ))}
                 </div>
 
-                {/* Right Page Content */}
-                <div className="flex-1 bg-notebook-pattern relative flex flex-col shadow-inner h-full">
-                    {/* Page Overlay Shadows (Depth) */}
-                    <div className="absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-10"></div>
-
-                    {/* Content */}
-                    <div className="flex-1 p-12 pl-20 overflow-y-auto custom-scrollbar flex flex-col justify-center">
-                        <div className="max-w-7xl mx-auto w-full">
-                            {renderSlideContent()}
-                        </div>
-                    </div>
-
-                    {/* Bottom Toolbar (Handwritten Controls) */}
-                    <div className="h-32 px-12 pl-24 flex items-center justify-between relative shrink-0 pb-8">
-                        {/* Doodle Arrow Left */}
-                        <button
-                            onClick={handlePrev}
-                            disabled={currentSlide === 0}
-                            className={`group flex items-center gap-2 transition-transform hover:-translate-x-1 ${currentSlide === 0 ? 'opacity-30 cursor-default' : 'cursor-pointer'
-                                }`}
-                        >
-                            <span className="font-handwriting text-3xl font-bold text-gray-500 group-hover:text-gray-800">
-                                {'<'} Geri
-                            </span>
-                        </button>
-
-                        {/* Page Numbers */}
-                        <div className="flex gap-4">
-                            {slides.map((_, idx) => (
-                                <div
-                                    key={idx}
-                                    className={`w-5 h-5 rounded-full border-2 border-gray-400 transition-all ${idx === currentSlide ? 'bg-gray-600 scale-110' : 'bg-transparent'
-                                        }`}
-                                />
-                            ))}
-                        </div>
-
-                        {/* Doodle Arrow Right */}
-                        <button
-                            onClick={handleNext}
-                            className="group flex items-center gap-3 cursor-pointer transition-transform hover:translate-x-1"
-                        >
-                            <span className="font-handwriting text-4xl font-black text-indigo-600 group-hover:text-indigo-700 underline decoration-wavy decoration-indigo-300 underline-offset-4">
-                                {currentSlide === slides.length - 1 ? 'Oyuna Başla!' : 'Devam Et >'}
-                            </span>
-                        </button>
-                    </div>
-                </div>
+                <button
+                    onClick={handleNext}
+                    className="group flex items-center gap-3 cursor-pointer transition-transform hover:translate-x-1"
+                >
+                    <span className="font-handwriting text-4xl font-black text-indigo-600 group-hover:text-indigo-700 underline decoration-wavy decoration-indigo-300 underline-offset-4">
+                        {currentSlide === (slides?.length || 1) - 1 ? 'Dersi Bitir!' : 'Devam Et >'}
+                    </span>
+                </button>
             </div>
         </div>
     );
