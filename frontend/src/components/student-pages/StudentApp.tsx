@@ -548,7 +548,8 @@ function StudentApp() {
         { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
         { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
-        { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
+        // MVP'de Sepetim sayfası devre dışı
+        // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
@@ -626,6 +627,7 @@ function StudentApp() {
                         <ContentPage purchasedCourses={purchasedCourses} />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
+                    /* MVP'de Sepetim/Ödeme sayfası devre dışı
                     ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
                         <StudentPayment
                             cart={cart}
@@ -633,6 +635,7 @@ function StudentApp() {
                             onBack={() => setActivePage('Kurslar')}
                             onPurchaseComplete={completePurchase}
                         />
+                    */
                     ) : (
                         <div className="p-8">
                             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
