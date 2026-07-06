@@ -237,7 +237,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         {/* DROPDOWN MENU */}
                         {isDropdownOpen && (
                             <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                {Object.values(courses).map((course) => (
+                                {(Object.values(courses) as CourseData[]).map((course) => (
                                     <div
                                         key={course.id}
                                         className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
@@ -615,7 +615,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                     textShadow: `2px 2px 0px ${node.strokeColor}`
                                                                 }}
                                                             >
-                                                                LEVEL {levelCounter}
+                                                                {node.title?.toUpperCase()}
                                                             </span>
                                                         </div>
                                                     </>
@@ -623,53 +623,33 @@ const HomePage: React.FC<HomePageProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Connector (or Divider) */}
+                                        {/* Connector */}
                                         {index < currentNodes.length - 1 && (
-                                            <>
-                                                {/* LESSON TRANSITION CHECK */}
-                                                {(node.lessonNumber && currentNodes[index + 1]?.lessonNumber !== node.lessonNumber && currentNodes[index + 1]?.lessonTopic) ? (
-                                                    // PREMIUM LESSON DIVIDER (Vertical Style)
-                                                    <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
-                                                        {/* Vertical Dashed Line */}
-                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
+                                            // STANDARD CONNECTOR
+                                            <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
+                                                <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
+                                                    <path
+                                                        d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
+                                                        stroke="#6B7280"
+                                                        strokeWidth="12"
+                                                        strokeLinecap="round"
+                                                        strokeDasharray="0 25"
+                                                        fill="none"
+                                                    />
+                                                </svg>
 
-                                                        {/* Main Divider Body */}
-                                                        <div className="relative w-full flex flex-col items-center">
-                                                            {/* Topic Badge */}
-                                                            <div className="bg-white px-8 py-3 rounded-2xl shadow-none border-2 border-gray-100 flex flex-col items-center transform hover:scale-105 transition-transform cursor-pointer z-10">
-                                                                <span className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">DERS {currentNodes[index + 1].lessonNumber}</span>
-                                                                <span className="text-lg font-black font-display tracking-tight text-gray-800">{currentNodes[index + 1].lessonTopic}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    // STANDARD CONNECTOR
-                                                    <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
-                                                        <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
-                                                            <path
-                                                                d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
-                                                                stroke="#6B7280"
-                                                                strokeWidth="12"
-                                                                strokeLinecap="round"
-                                                                strokeDasharray="0 25"
-                                                                fill="none"
-                                                            />
-                                                        </svg>
-
-                                                        {/* Decorative Grass */}
-                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
-                                                            style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
-                                                            style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
-                                                            style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
-                                                            style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
-                                                            style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
-                                                    </div>
-                                                )}
-                                            </>
+                                                {/* Decorative Grass */}
+                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                                                    style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                                                    style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                                                    style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
+                                                    style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
+                                                    style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
+                                            </div>
                                         )}
                                     </React.Fragment>
                                 );
@@ -684,6 +664,7 @@ const HomePage: React.FC<HomePageProps> = ({
             <LessonSlide
                 isOpen={showLessonSlide}
                 lessonTitle={currentCourse.nodes.find(n => n.id === lessonLevel)?.title}
+                slides={currentCourse.nodes.find(n => n.id === lessonLevel)?.slides || []}
                 onClose={handleCloseLesson}
                 onComplete={handleLessonComplete}
             />

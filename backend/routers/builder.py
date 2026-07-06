@@ -5,61 +5,43 @@ Supabase Storage kullanılıyorsa SUPABASE_KEY .env'de tanımlı olmalıdır.
 import os
 import json
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request
 from typing import List
 
 router = APIRouter(prefix="/builder", tags=["lesson-builder"])
 
-# Supabase Ayarları
-SUPABASE_URL = os.getenv("SUPABASE_URL", "https://irjbpzhgoryppxyccgvk.supabase.co")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY", "")
-BUCKET_NAME = "lesson-images"
-
+# Local JSON path
 JSON_PATH = "lesson.json"
-
-def _get_supabase():
-    """Supabase client'ı lazy olarak başlat — KEY yoksa None döner."""
-    if not SUPABASE_KEY:
-        return None
-    try:
-        from supabase import create_client
-        return create_client(SUPABASE_URL, SUPABASE_KEY)
-    except ImportError:
-        return None
 
 
 @router.post("/upload-image")
-async def upload_image(file: UploadFile = File(...)):
-    supabase = _get_supabase()
-    if not supabase:
-        raise HTTPException(
-            status_code=503,
-            detail="Resim yükleme servisi kullanılamıyor. SUPABASE_KEY .env dosyasında tanımlı değil."
-        )
-
+async def upload_image(request: Request, file: UploadFile = File(...)):
     try:
         # Dosya formatı kontrolü
-        if file.content_type not in ["image/jpeg", "image/png", "image/webp"]:
-            raise HTTPException(
-                status_code=400,
-                detail="Sadece JPEG, PNG ve WEBP formatları desteklenir."
-            )
+        allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/bmp"]
+        if file.content_type not in allowed_types:
+            ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
+            if ext not in ["jpg", "jpeg", "png", "webp", "gif", "svg", "bmp"]:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Sadece resim formatları (JPEG, PNG, WEBP, GIF, SVG, BMP) desteklenir."
+                )
 
         # Benzersiz dosya adı oluştur
-        file_ext = file.filename.split(".")[-1]
+        file_ext = file.filename.split(".")[-1] if "." in file.filename else "png"
         file_name = f"{uuid.uuid4()}.{file_ext}"
-        file_path = f"uploads/{file_name}"
 
-        # Dosyayı oku ve Supabase'e yükle
+        # Yerel sunucuya yükle
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
+        os.makedirs(static_dir, exist_ok=True)
+        local_file_path = os.path.join(static_dir, file_name)
+
         contents = await file.read()
-        supabase.storage.from_(BUCKET_NAME).upload(
-            file_path,
-            contents,
-            {"content-type": file.content_type}
-        )
+        with open(local_file_path, "wb") as f:
+            f.write(contents)
 
-        # Public URL'i al
-        public_url = supabase.storage.from_(BUCKET_NAME).get_public_url(file_path)
+        base_url = str(request.base_url).rstrip("/")
+        public_url = f"{base_url}/static/uploads/{file_name}"
 
         # JSON dosyasını güncelle
         lesson_data = []

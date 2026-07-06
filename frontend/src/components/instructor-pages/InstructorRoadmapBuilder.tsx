@@ -20,6 +20,8 @@ import {
   HelpCircle,
   FileText,
   Trash2,
+  Download,
+  Upload,
 } from "lucide-react";
 import api from "../../api";
 
@@ -58,6 +60,76 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [activePlusMenuId, setActivePlusMenuId] = useState<string | number | null>(null);
   const [draggedItem, setDraggedItem] = useState<{ type: "level" | "divider"; index: number } | null>(null);
   const [dragOverItem, setDragOverItem] = useState<{ type: "level" | "divider" | "connector" | "plus_connector" | "plus_divider"; index: number } | null>(null);
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleExportRoadmap = async () => {
+    setIsSaving(true);
+    try {
+      const response = await api.get(`/courses/${courseId}/export_roadmap`);
+      const data = response.data;
+      
+      const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
+        JSON.stringify(data, null, 2)
+      )}`;
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", jsonString);
+      
+      const fileName = `${course?.title ? course.title.replace(/\s+/g, "_") : "course"}_roadmap.json`;
+      downloadAnchor.setAttribute("download", fileName);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (error) {
+      console.error("Yol haritası dışa aktarılırken hata:", error);
+      alert("Yol haritası dışa aktarılamadı.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleImportClick = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleImportFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!window.confirm("Dikkat! Yol haritası yüklemek, bu kursun mevcut tüm müfredatını, ders içeriklerini ve quizlerini tamamen silecektir. Devam etmek istiyor musunuz?")) {
+      return;
+    }
+
+    setIsSaving(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const parsedData = JSON.parse(event.target?.result as string);
+        
+        // Basic validation
+        if (!parsedData.curriculum || !Array.isArray(parsedData.curriculum)) {
+          throw new Error("Geçersiz dosya formatı: 'curriculum' alanı eksik veya hatalı.");
+        }
+
+        const response = await api.post(`/courses/${courseId}/import_roadmap`, parsedData);
+        if (response.data.success) {
+          alert("Yol haritası ve içerikleri başarıyla yüklendi!");
+          window.location.reload();
+        } else {
+          alert(response.data.message || "Yol haritası yüklenirken bir hata oluştu.");
+        }
+      } catch (error: any) {
+        console.error("Yol haritası içe aktarılırken hata:", error);
+        alert(`Yol haritası içe aktarılamadı: ${error.message || error}`);
+      } finally {
+        setIsSaving(false);
+      }
+    };
+    reader.readAsText(file);
+  };
 
   useEffect(() => {
     const fetchCourseData = async () => {
@@ -593,6 +665,34 @@ const InstructorRoadmapBuilder: React.FC = () => {
             <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
             <span>Tümünü Temizle</span>
           </button>
+
+          <button
+            onClick={handleExportRoadmap}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
+            title="Yol Haritasını JSON Olarak İndir"
+          >
+            <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <span>JSON İndir</span>
+          </button>
+
+          <button
+            onClick={handleImportClick}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-[0_4px_0_#b45309] hover:shadow-[0_2px_0_#b45309] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
+            title="JSON Dosyasından Yol Haritası Yükle"
+          >
+            <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <span>JSON Yükle</span>
+          </button>
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImportFileChange}
+            accept=".json"
+            className="hidden"
+          />
 
           <button
             onClick={handleSave}

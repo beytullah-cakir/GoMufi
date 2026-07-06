@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, Request, HTTPException, status
-from sqlalchemy import func, JSON
+from sqlalchemy import func, JSON, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, attributes
@@ -7,6 +7,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from models.course import Course
 from models.teacher import Teacher
 from models.enrollment import Enrollment
+from models.quiz import Quiz
 from connect_db import get_db
 from pydantic import BaseModel
 from typing import List, Optional, Any
@@ -435,3 +436,266 @@ async def stop_session(
     session.status = 'completed'
     await db.commit()
     return {"message": "Session stopped", "session_id": session.id}
+
+
+# --- Roadmap Export/Import with Deep Widget Property Normalization ---
+
+DEFAULT_STYLE = {
+    "bold": None,
+    "italic": None,
+    "underline": None,
+    "color": None,
+    "fontSize": None,
+    "fontFamily": None,
+    "backgroundColor": None,
+    "textAlign": None,
+    "verticalAlign": None,
+    "borderRadius": None,
+    "borderColor": None,
+    "borderWidth": None,
+    "borderPosition": None,
+    "opacity": None
+}
+
+DEFAULT_CODE_CONFIG = {
+    "language": None,
+    "expectedOutput": None,
+    "hint": None,
+    "runnable": None,
+    "theme": None,
+    "enableAutocomplete": None
+}
+
+DEFAULT_ARROW_CONFIG = {
+    "start": None,
+    "end": None,
+    "startConnectedElementId": None,
+    "endConnectedElementId": None,
+    "startSide": None,
+    "endSide": None,
+    "customChannel": None,
+    "customStartOffset": None,
+    "customEndOffset": None,
+    "arrowStyle": None
+}
+
+DEFAULT_ELEMENT = {
+    "id": None,
+    "type": None,
+    "shapeType": None,
+    "x": None,
+    "y": None,
+    "width": None,
+    "height": None,
+    "rotation": None,
+    "content": None,
+    "src": None,
+    "imageUrl": None,
+    "videoUrl": None,
+    "style": None,
+    "extra": None,
+    "codeConfig": None,
+    "arrowConfig": None
+}
+
+DEFAULT_SLIDE = {
+    "id": None,
+    "type": "normal",
+    "gameType": None,
+    "gameConfig": None,
+    "elements": [],
+    "connections": None,
+    "background": "default",
+    "backgroundColor": None
+}
+
+
+def normalize_style(style_dict):
+    if not isinstance(style_dict, dict):
+        return {k: None for k in DEFAULT_STYLE.keys()}
+    return {k: style_dict.get(k) for k in DEFAULT_STYLE.keys()}
+
+
+def normalize_code_config(cfg):
+    if not isinstance(cfg, dict):
+        return {k: None for k in DEFAULT_CODE_CONFIG.keys()}
+    return {k: cfg.get(k) for k in DEFAULT_CODE_CONFIG.keys()}
+
+
+def normalize_arrow_config(cfg):
+    if not isinstance(cfg, dict):
+        return {k: None for k in DEFAULT_ARROW_CONFIG.keys()}
+    normalized = {}
+    for k in DEFAULT_ARROW_CONFIG.keys():
+        val = cfg.get(k)
+        if k in ("start", "end"):
+            if isinstance(val, dict):
+                normalized[k] = {"x": val.get("x"), "y": val.get("y")}
+            else:
+                normalized[k] = {"x": None, "y": None}
+        else:
+            normalized[k] = val
+    return normalized
+
+
+def normalize_element(el):
+    if not isinstance(el, dict):
+        return {}
+    normalized = {}
+    for k in DEFAULT_ELEMENT.keys():
+        if k == "style":
+            normalized[k] = normalize_style(el.get("style"))
+        elif k == "codeConfig":
+            normalized[k] = normalize_code_config(el.get("codeConfig"))
+        elif k == "arrowConfig":
+            normalized[k] = normalize_arrow_config(el.get("arrowConfig"))
+        else:
+            normalized[k] = el.get(k)
+    return normalized
+
+
+def normalize_slide(slide):
+    if not isinstance(slide, dict):
+        return {}
+    normalized = {}
+    for k in DEFAULT_SLIDE.keys():
+        if k == "elements":
+            elements = slide.get("elements") or []
+            normalized[k] = [normalize_element(el) for el in elements]
+        elif k == "connections":
+            conns = slide.get("connections")
+            if isinstance(conns, list):
+                normalized[k] = conns
+            else:
+                normalized[k] = None
+        else:
+            normalized[k] = slide.get(k)
+    return normalized
+
+
+class ImportRoadmapRequest(BaseModel):
+    curriculum: Any
+    notes: List[Any]
+    quizzes: List[Any]
+
+
+@router.get("/courses/{course_id}/export_roadmap")
+async def export_roadmap(
+    course_id: int,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify course ownership
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz."
+        )
+
+    # Fetch all Quiz for this course
+    quizzes_result = await db.execute(
+        select(Quiz).where(Quiz.course_id == course_id)
+    )
+    quizzes = quizzes_result.scalars().all()
+
+    # Normalize slides inside notes
+    raw_notes = course.notes or []
+    normalized_notes = []
+    for note in raw_notes:
+        raw_slides = note.get("slides") or []
+        normalized_slides = [normalize_slide(s) for s in raw_slides]
+        normalized_notes.append({
+            "id": note.get("id"),
+            "noteTitle": note.get("noteTitle", ""),
+            "slides": normalized_slides
+        })
+
+    # Serialize quizzes
+    quizzes_data = []
+    for q in quizzes:
+        quizzes_data.append(q.to_dict())
+
+    return {
+        "success": True,
+        "course_title": course.title,
+        "curriculum": course.curriculum or [],
+        "notes": normalized_notes,
+        "quizzes": quizzes_data
+    }
+
+
+@router.post("/courses/{course_id}/import_roadmap")
+async def import_roadmap(
+    course_id: int,
+    payload: ImportRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    # Verify course ownership
+    result = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )
+    course = result.scalar_one_or_none()
+    if not course:
+        raise HTTPException(
+            status_code=404,
+            detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz."
+        )
+
+    if not payload.curriculum or len(payload.curriculum) == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir."
+        )
+
+    try:
+        # Update course curriculum
+        course.curriculum = payload.curriculum
+        flag_modified(course, "curriculum")
+
+        # Normalize and update notes
+        raw_notes = payload.notes or []
+        normalized_notes = []
+        for note in raw_notes:
+            raw_slides = note.get("slides") or []
+            normalized_slides = [normalize_slide(s) for s in raw_slides]
+            normalized_notes.append({
+                "id": note.get("id"),
+                "noteTitle": note.get("noteTitle", ""),
+                "slides": normalized_slides
+            })
+        course.notes = normalized_notes
+        flag_modified(course, "notes")
+
+        # Delete existing Quiz
+        await db.execute(
+            delete(Quiz).where(Quiz.course_id == course_id)
+        )
+
+        # Insert new Quiz
+        for q in payload.quizzes:
+            new_quiz = Quiz(
+                course_id=course_id,
+                section_id=q.get("section_id"),
+                node_id=q.get("node_id"),
+                topic=q.get("topic", "Genel"),
+                difficulty=q.get("difficulty", "Orta"),
+                question_text=q.get("question_text") or q.get("text") or "",
+                options=q.get("options"),
+                correct_answer=q.get("correct_answer") or q.get("correctAnswer") or "",
+                explanation=q.get("explanation"),
+                question_type=q.get("type") or q.get("question_type") or "multiple-choice"
+            )
+            db.add(new_quiz)
+
+        await db.commit()
+        return {"success": True, "message": "Yol haritası ve içerikleri başarıyla yüklendi."}
+
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in import_roadmap: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Yol haritası yüklenemedi: {str(e)}")
