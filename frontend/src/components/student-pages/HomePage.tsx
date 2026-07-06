@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
+import api from '../../api';
 import { Swords, Users, Shield } from 'lucide-react';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -118,10 +119,50 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowLessonSlide(true);
     };
 
-    const handleLessonComplete = () => {
+    const handleLessonComplete = async () => {
         setShowLessonSlide(false);
         if (lessonLevel !== null) {
-            handleStartGame(lessonLevel);
+            const gameLevel = lessonLevel;
+            
+            // 1. Award XP and Gems in the backend
+            try {
+                await api.post("/profile/student/stats", { xp_gain: 10, gems_gain: 2 });
+            } catch (err) {
+                console.error("Failed to update student stats:", err);
+            }
+
+            // 2. Refresh UI stats
+            if (refreshUserData) {
+                await refreshUserData();
+            }
+
+            // 3. Unlock next node and award 3 stars locally
+            setCourses(prev => {
+                const currentCourseData = prev[activeCourseId];
+                if (!currentCourseData) return prev; // Safety
+
+                const updatedNodes = currentCourseData.nodes.map(node => {
+                    if (node.id === gameLevel) {
+                        return { ...node, stars: 3 };
+                    }
+                    if (node.id === gameLevel + 1) {
+                        return { ...node, isLocked: false };
+                    }
+                    return node;
+                });
+
+                // Persist progress: last completed node ID
+                localStorage.setItem(`progress_${activeCourseId}`, gameLevel.toString());
+
+                return {
+                    ...prev,
+                    [activeCourseId]: {
+                        ...currentCourseData,
+                        nodes: updatedNodes
+                    }
+                };
+            });
+            setLessonLevel(null);
         }
     };
 
@@ -468,7 +509,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 return (
                                     <React.Fragment key={node.id}>
                                         {/* STARTING LESSON HEADER */}
-                                        {index === 0 && node.lessonTopic && (
+                                        {node.lessonTopic && (
                                             <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
                                                 {/* Vertical Dashed Line */}
                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
@@ -629,7 +670,11 @@ const HomePage: React.FC<HomePageProps> = ({
                                             <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
                                                 <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                     <path
-                                                        d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
+                                                        d={
+                                                            currentNodes[index + 1]?.lessonTopic
+                                                                ? (node.curve === 'down' ? "M0 45 Q 60 70 120 45" : "M0 65 Q 60 20 120 45")
+                                                                : (node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45")
+                                                        }
                                                         stroke="#6B7280"
                                                         strokeWidth="12"
                                                         strokeLinecap="round"
