@@ -33,11 +33,12 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: BookOpen,
       id: "Courses",
     },
-    {
-      label: "Ders Oluşturucu",
-      icon: PlusCircle,
-      id: "Builder",
-    },
+    // MVP'de Ders Oluşturucu devre dışı
+    // {
+    //   label: "Ders Oluşturucu",
+    //   icon: PlusCircle,
+    //   id: "Builder",
+    // },
     {
       label: "YZ Soru Oluştur",
       icon: Sparkles,
