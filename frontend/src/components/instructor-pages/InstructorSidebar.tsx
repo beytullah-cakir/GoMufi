@@ -2,6 +2,7 @@ import React from "react";
 import {
   LayoutDashboard,
   BookOpen,
+  Calendar,
   PlusCircle,
   Sparkles,
   User,
@@ -32,6 +33,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "Kurslarım",
       icon: BookOpen,
       id: "Courses",
+    },
+    {
+      label: "Takvim",
+      icon: Calendar,
+      id: "Calendar",
     },
     // MVP'de Ders Oluşturucu devre dışı
     // {

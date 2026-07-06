@@ -10,6 +10,7 @@ import InstructorMessages from './InstructorMessages';
 import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
 import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
+import InstructorCalendar from './InstructorCalendar';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -25,6 +26,7 @@ const InstructorApp: React.FC = () => {
         const mapping: { [key: string]: string } = {
             'dashboard': 'Dashboard',
             'courses': 'Courses',
+            'calendar': 'Calendar',
             'students': 'Students',
             'messages': 'Messages',
             'analytics': 'Analytics',
@@ -68,6 +70,7 @@ const InstructorApp: React.FC = () => {
         const mapping: { [key: string]: string } = {
             'Dashboard': '/instructor/dashboard',
             'Courses': '/instructor/courses',
+            'Calendar': '/instructor/calendar',
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
             'Analytics': '/instructor/analytics',
@@ -124,6 +127,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="/" element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<InstructorDashboard userData={userData} coursesData={coursesData} studentsData={studentsData} />} />
                 <Route path="courses" element={<InstructorCourses coursesData={coursesData} refreshData={fetchUserData} />} />
+                <Route path="calendar" element={<InstructorCalendar coursesData={coursesData} />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
                 <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} />

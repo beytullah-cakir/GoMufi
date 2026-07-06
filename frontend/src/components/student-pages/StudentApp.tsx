@@ -59,8 +59,18 @@ const getNodeMetadata = (idx: number, customTheme?: string) => {
 };
 
 // --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string, theme?: string, slides: any[] = []): PathNode[] => {
-    const metadata = getNodeMetadata(lessonNum - 1, theme);
+const generateLessonNodes = (
+    startId: number,
+    isLockedStart: boolean,
+    title: string,
+    showStars: boolean,
+    sectionId?: string,
+    theme?: string,
+    slides: any[] = [],
+    lessonTopic?: string,
+    lessonNumber?: number
+): PathNode[] => {
+    const metadata = getNodeMetadata(startId - 1, theme);
     
     return [
         {
@@ -68,7 +78,7 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             type: theme === 'quiz' ? 'quiz' : (theme === 'homework' ? 'homework' : 'step'),
             button: metadata.button,
             icon: metadata.icon,
-            curve: (lessonNum - 1) % 2 === 0 ? 'up' : 'down',
+            curve: (startId - 1) % 2 === 0 ? 'up' : 'down',
             iconSize: metadata.iconSize,
             iconOffset: metadata.iconOffset,
             ringColor: metadata.ringColor,
@@ -77,13 +87,13 @@ const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: 
             glowColor: metadata.glowColor,
             strokeColor: metadata.strokeColor,
             baseColor: metadata.baseColor,
-            title: lessonTopic,
+            title: title,
             stars: showStars ? 0 : undefined,
             isLocked: isLockedStart,
-            lessonNumber: lessonNum,
+            lessonNumber: lessonNumber,
             lessonTopic: lessonTopic,
             sectionId: sectionId,
-            localNodeIndex: lessonNum,
+            localNodeIndex: startId,
             slides: slides
         }
     ];
@@ -114,12 +124,22 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             const actualSections = curriculum.filter((item: any) => item.type !== 'live_sessions_config');
 
             actualSections.forEach((section: any, index: number) => {
-                const sectionTitle = section.title || `Bölüm ${index + 1}`;
+                const sectionTitle = section.title || `Ders ${index + 1}`;
                 const sectionId = section.id || `section_${index + 1}`;
                 const matchingNote = course.notes?.find((n: any) => String(n.id) === String(section.id));
                 const slides = matchingNote?.slides || [];
 
-                const lessonNodes = generateLessonNodes(index + 1, index + 1, false, sectionTitle, true, sectionId, section.theme, slides);
+                const lessonNodes = generateLessonNodes(
+                    index + 1,
+                    false,
+                    sectionTitle,
+                    true,
+                    sectionId,
+                    section.theme,
+                    slides,
+                    section.lessonTopic,
+                    section.lessonNumber
+                );
                 
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
@@ -150,7 +170,17 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             const fallbackNodes: PathNode[] = [];
 
             fallbackTopics.forEach((topic, index) => {
-                const lessonNodes = generateLessonNodes(index + 1, index + 1, false, topic, true, undefined, undefined, []);
+                const lessonNodes = generateLessonNodes(
+                    index + 1,
+                    false,
+                    "ANLA",
+                    true,
+                    undefined,
+                    undefined,
+                    [],
+                    topic,
+                    1
+                );
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
                     isLocked: node.id > 1 && node.id > (progress + 1)
