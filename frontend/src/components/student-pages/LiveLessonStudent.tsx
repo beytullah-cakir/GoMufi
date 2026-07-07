@@ -10,6 +10,7 @@ import TrophyIcon from "../../assets/sprites/Trophy.png";
 import ButtonDarkBlue from "../../assets/sprites/ButtonDarkBlue.png";
 import QuestionIcon from "../../assets/sprites/Question.png";
 import BagIcon from "../../assets/sprites/Bag.png";
+import LessonSlide from './LessonSlide';
 
 interface LiveLessonStudentProps {
     currentCourse: any;
@@ -20,6 +21,11 @@ interface LiveLessonStudentProps {
     activeNodeId: number | null;
     handleNodeClick: (node: any) => void;
     handleOpenLesson: (nodeId: number) => void;
+    showLessonSlide: boolean;
+    lessonLevel: number | string | null;
+    handleCloseLesson: () => void;
+    handleLessonComplete: () => void;
+    userData: any;
 }
 
 const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
@@ -30,7 +36,12 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
     setIsLiveSessionJoined,
     activeNodeId,
     handleNodeClick,
-    handleOpenLesson
+    handleOpenLesson,
+    showLessonSlide,
+    lessonLevel,
+    handleCloseLesson,
+    handleLessonComplete,
+    userData
 }) => {
     const activeLiveLessonIndex = (() => {
         if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:")) {
@@ -265,10 +276,22 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
                             );
                         })}
                     </div>
-                </div>
             </div>
+
+            {/* LESSON SLIDE OVERLAY */}
+            <LessonSlide
+                isOpen={showLessonSlide}
+                lessonTitle={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.title}
+                slides={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.slides || []}
+                onClose={handleCloseLesson}
+                onComplete={handleLessonComplete}
+                courseId={currentCourse?.id}
+                lessonIndex={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.lessonNumber}
+                userData={userData}
+            />
         </div>
-    );
+    </div>
+  );
 };
 
 export default LiveLessonStudent;

@@ -378,6 +378,11 @@ const HomePage: React.FC<HomePageProps> = ({
                 activeNodeId={activeNodeId}
                 handleNodeClick={handleNodeClick}
                 handleOpenLesson={handleOpenLesson}
+                showLessonSlide={showLessonSlide}
+                lessonLevel={lessonLevel}
+                handleCloseLesson={handleCloseLesson}
+                handleLessonComplete={handleLessonComplete}
+                userData={userData}
             />
         );
     }
