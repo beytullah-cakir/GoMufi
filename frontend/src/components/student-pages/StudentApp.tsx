@@ -310,6 +310,9 @@ function StudentApp() {
     // --- Instructors mapping (Title -> Instructor Name) ---
     const [instructorsMap, setInstructorsMap] = useState<Record<string, string>>({});
 
+    // --- Live session joined state ---
+    const [isLiveSessionJoined, setIsLiveSessionJoined] = useState<boolean>(false);
+
     // Fetch user data and purchased courses once on mount
     useEffect(() => {
         const fetchData = async () => {
@@ -451,7 +454,7 @@ function StudentApp() {
     return (
         <>
             <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
-                {activePage !== 'Builder' && (
+                {activePage !== 'Builder' && !isLiveSessionJoined && (
                     <Sidebar
                         role="student"
                         activePage={activePage}
@@ -472,6 +475,8 @@ function StudentApp() {
                             userData={userData}
                             isUserDataLoading={isUserDataLoading}
                             refreshUserData={refreshUserData}
+                            isLiveSessionJoined={isLiveSessionJoined}
+                            setIsLiveSessionJoined={setIsLiveSessionJoined}
                         />
                     ) : activePage === 'Kurslar' ? (
                         selectedCourseForDetail ? (
