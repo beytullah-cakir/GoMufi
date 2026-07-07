@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User } from 'lucide-react';
+import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User, Users } from 'lucide-react';
 import api from '../../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
@@ -11,6 +11,7 @@ import AskQuestionPage from './AskQuestionPage';
 import StudentPayment from './StudentPayment';
 import CourseDetailPage from './CourseDetailPage';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
+import StudentClassesPage from './StudentClassesPage';
 
 
 // Import Types
@@ -162,7 +163,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                     isOnline: true
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
-                defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' }
+                defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
+                classes: course.classes || []
             };
         } else {
             // FALLBACK: If no curriculum, show at least one default section
@@ -201,7 +203,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                     isOnline: true
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
-                defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' }
+                defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
+                classes: course.classes || []
             };
         }
     });
@@ -238,6 +241,7 @@ function StudentApp() {
         'Soru Sor!': '/student/ask',
         'Profilim': '/student/profile',
         'PROFILIM': '/student/profile',
+        'Sınıflarım': '/student/my-classes',
         'Sepetim': '/student/cart',
         'Ödeme': '/student/cart'
     };
@@ -248,6 +252,7 @@ function StudentApp() {
         '/student/catalog': 'Kurslar',
         '/student/ask': 'Soru Sor!',
         '/student/profile': 'Profilim',
+        '/student/my-classes': 'Sınıflarım',
         '/student/cart': 'Sepetim'
     };
 
@@ -436,6 +441,7 @@ function StudentApp() {
         { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
         { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
+        { id: 'Sınıflarım', label: 'Sınıflarım', icon: Users },
         // MVP'de Sepetim sayfası devre dışı
         // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
         { id: 'Profilim', label: 'Profilim', icon: User },
@@ -517,6 +523,14 @@ function StudentApp() {
                         <ContentPage purchasedCourses={purchasedCourses} />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
+                    ) : activePage === 'Sınıflarım' ? (
+                        <StudentClassesPage
+                            courses={courses}
+                            onClassJoined={() => {
+                                refreshUserData();
+                                window.location.href = '/student/my-classes';
+                            }}
+                        />
                     /* MVP'de Sepetim/Ödeme sayfası devre dışı
                     ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
                         <StudentPayment

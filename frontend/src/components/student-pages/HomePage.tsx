@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
-import { Swords, Users, Shield } from 'lucide-react';
+import { Swords, Users, Shield, Trophy, ChevronDown } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -84,6 +84,32 @@ const HomePage: React.FC<HomePageProps> = ({
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
     const { sendMessage, lastMessage } = useWebSocket();
+
+    const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
+        class_name: null,
+        classmates: []
+    });
+
+    const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
+
+    useEffect(() => {
+        if (!activeCourseId) return;
+
+        const fetchClassData = async () => {
+            try {
+                const res = await api.get(`/student/my-class/${activeCourseId}`);
+                setMyClass({
+                    class_name: res.data.class_name,
+                    classmates: res.data.classmates || []
+                });
+            } catch (err) {
+                console.error("Failed to fetch student class data:", err);
+                setMyClass({ class_name: null, classmates: [] });
+            }
+        };
+
+        fetchClassData();
+    }, [activeCourseId]);
 
     // Poll session status for enrolled courses to detect when teacher starts/stops lesson
     useEffect(() => {
@@ -469,35 +495,30 @@ const HomePage: React.FC<HomePageProps> = ({
 
                         {/* Instructor Widget */}
                         {currentCourse.instructor && (
-                            <div className="hidden xl:flex h-20 px-5 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3.5 shadow-sm shrink-0">
-                                <div className="relative">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-xl">
+                            <div className="hidden xl:flex h-20 w-56 px-4.5 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3.5 shadow-sm shrink-0">
+                                <div className="relative shrink-0">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl shadow-inner">
                                         {currentCourse.instructor.avatar}
                                     </div>
                                     {currentCourse.instructor.isOnline && (
-                                        <div className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-green-500 border-2 border-white rounded-full"></div>
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
                                     )}
                                 </div>
 
-                                <div className="flex flex-col justify-center">
-                                    <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Eğitmen</span>
-                                    <span className="text-sm font-black text-gray-800 font-display leading-none mb-1">{currentCourse.instructor.name}</span>
-                                    <span className={`text-[9px] font-bold flex items-center gap-1 px-1.5 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
-                                        {currentCourse.instructor.isOnline && <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span>}
+                                <div className="flex flex-col justify-center min-w-0 flex-1">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Eğitmen</span>
+                                    <span className="text-sm font-black text-gray-800 font-display truncate leading-none mb-1.5">{currentCourse.instructor.name}</span>
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full w-fit leading-none ${currentCourse.instructor.isOnline ? 'text-green-600 bg-green-50 border border-green-150' : 'text-gray-400 bg-gray-50 border border-gray-100'}`}>
                                         {currentCourse.instructor.status}
                                     </span>
                                 </div>
-
-                                <button className="w-8 h-8 ml-1 rounded-lg bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
-                                    <span className="text-lg">💬</span>
-                                </button>
                             </div>
                         )}
 
-                        {/* CLAN WIDGET */}
+                        {/* CLAN WIDGET (Restored Premium Gradient Style) */}
                         <div
                             ref={clanDropdownRef}
-                            className="hidden 2xl:flex h-20 px-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-4 shadow-sm shadow-indigo-200 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0"
+                            className="hidden 2xl:flex h-20 px-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-4 shadow-sm shadow-indigo-200 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0 select-none text-white font-sans"
                             onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
                         >
                             <div className="absolute top-1/2 right-6 text-white/10 transform rotate-12 scale-[2.5] pointer-events-none">
@@ -512,44 +533,45 @@ const HomePage: React.FC<HomePageProps> = ({
 
                             <div className="flex flex-col justify-center relative z-10 text-white min-w-[120px]">
                                 <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="font-black text-sm font-display leading-none">Kod Korsanları</span>
+                                    <span className="font-black text-sm font-display leading-none truncate max-w-[140px]">{myClass.class_name || "Sınıf Bulunamadı"}</span>
                                 </div>
                                 <div className="flex items-center gap-2 text-indigo-100">
                                     <Users size={10} />
-                                    <span className="text-[9px] font-bold uppercase tracking-wider">Lvl 5 Klan</span>
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">{myClass.class_name ? "Sınıfım" : "Sınıf Yok"}</span>
                                 </div>
                             </div>
 
                             <div className="h-10 w-px bg-white/20 relative z-10"></div>
 
                             <div className="flex flex-col items-center justify-center relative z-10 text-white">
-                                <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
-                                <span className="text-base font-black text-yellow-300 font-display leading-tight">24.5k</span>
+                                <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">ÜYE</span>
+                                <span className="text-base font-black text-yellow-300 font-display leading-tight">{myClass.classmates.length}</span>
                             </div>
 
                             {/* SQUAD MEMBER DROPDOWN */}
                             {isClanDropdownOpen && (
                                 <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
                                     <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">Squad Üyeleri</span>
-                                        <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">4/5</span>
+                                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">{myClass.class_name ? "Sınıf Arkadaşlarım" : "Sınıf Üyeleri"}</span>
+                                        <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">{myClass.classmates.length}</span>
                                     </div>
                                     <div className="max-h-60 overflow-y-auto">
-                                        {squadMembers.map((member) => (
-                                            <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
-                                                <div className="relative">
-                                                    <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100" />
-                                                    <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
+                                        {myClass.classmates.length > 0 ? (
+                                            myClass.classmates.map((member) => (
+                                                <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
+                                                    <div className="relative shrink-0">
+                                                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-150" />
+                                                        <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-bold text-sm text-gray-800 truncate leading-tight mb-0.5">{member.name}</h4>
+                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'online' ? 'Çevrimiçi' : 'Çevrimdışı'}</span>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <h4 className="font-bold text-sm text-gray-800 leading-none mb-0.5">{member.name}</h4>
-                                                    <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'in-class' ? 'Derste' : 'Çevrimdışı'}</span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                    <div className="p-2 border-t border-indigo-50 bg-gray-50 text-center">
-                                        <button className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-wide">Tümünü Gör</button>
+                                            ))
+                                        ) : (
+                                            <div className="p-6 text-center text-xs text-gray-400 font-bold italic">Sınıf arkadaşı bulunamadı.</div>
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -558,72 +580,76 @@ const HomePage: React.FC<HomePageProps> = ({
 
                     {/* Right Column: Stats + Widgets */}
                     <div className="flex flex-col items-end relative z-50">
-                        <div className="flex flex-col gap-3 w-80">
+                        <div className="flex flex-col gap-3 w-64">
                             {/* REDESIGNED XP BAR (Dynamic values) */}
-                            <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl h-20 px-4 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
-                                <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
-
-                                <div className="flex items-center gap-3 relative z-10">
-                                    <div
-                                        className="w-8 h-8 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform"
-                                        style={{ backgroundColor: currentCourse.themeColor === '#3b82f6' ? '#60a5fa' : '#facc15', borderColor: currentCourse.themeColor === '#3b82f6' ? '#3b82f6' : '#eab308', boxShadow: `0 2px 0 ${currentCourse.themeColor === '#3b82f6' ? '#2563eb' : '#ca8a04'}` }}
-                                    >
-                                        <span className="text-xs font-black text-white">III</span>
+                            <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl h-20 px-4.5 flex items-center justify-between shadow-sm hover:border-amber-300 transition-colors shrink-0">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center shadow-inner shrink-0">
+                                        <Trophy size={20} />
                                     </div>
-                                    <div className="flex flex-col">
-                                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider leading-none">Bronz Lig</span>
-                                        <span className="text-xs font-black text-gray-700 font-display">{(userData?.xp ?? 0)} XP</span>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Bronz Lig</span>
+                                        <span className="text-sm font-black text-gray-800 font-display leading-none">{(userData?.xp ?? 0)} XP</span>
                                     </div>
                                 </div>
 
-                                {/* Segmented Bar */}
-                                <div className="flex gap-1 relative z-10">
-                                    <div className={`w-1.5 h-5 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                    <div className={`w-1.5 h-5 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                    <div className={`w-1.5 h-5 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                    <div className="w-1.5 h-5 rounded-sm bg-gray-200"></div>
-                                    <div className="w-1.5 h-5 rounded-sm bg-gray-200"></div>
+                                {/* Beautiful Continuous Progress Bar */}
+                                <div className="w-24 bg-gray-100 border border-gray-200/50 rounded-full h-3 overflow-hidden shadow-inner shrink-0">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
+                                        style={{ width: `${Math.max(10, Math.min(100, ((userData?.xp ?? 0) % 100) || 30))}%` }}
+                                    ></div>
                                 </div>
                             </div>
                         </div>
 
                         {/* Right Sidebar Widgets */}
-                        <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-80">
+                        <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64">
                             {/* Daily Quest Widget */}
-                            <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
-                                <div className="flex justify-between items-center mb-5">
-                                    <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">Günlük Görevler</h3>
-                                    <a href="#" className="font-bold text-xs text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg">TÜMÜ</a>
+                            <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all group">
+                                <div 
+                                    className="flex justify-between items-center cursor-pointer select-none"
+                                    onClick={() => setIsQuestsExpanded(!isQuestsExpanded)}
+                                >
+                                    <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5">
+                                        🎯 Günlük Görevler
+                                    </h3>
+                                    <div className="text-gray-400 hover:text-gray-600">
+                                        {isQuestsExpanded ? <ChevronDown size={16} className="transform rotate-180 transition-transform duration-200" /> : <ChevronDown size={16} className="transition-transform duration-200" />}
+                                    </div>
                                 </div>
-                                <div className="space-y-5">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-2xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">⚡</div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between mb-1">
-                                                <span className="font-bold text-gray-700 text-sm font-display">10 Puan kazan</span>
-                                                <span className="font-bold text-orange-500 text-xs">{(userData?.xp ?? 0) % 10}/10</span>
+                                
+                                {isQuestsExpanded && (
+                                    <div className="space-y-4 mt-4 animate-in fade-in duration-200">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-lg shadow-sm shrink-0">⚡</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-black text-gray-700 text-xs truncate">10 Puan kazan</span>
+                                                    <span className="font-bold text-orange-500 text-[10px]">{(userData?.xp ?? 0) % 10}/10</span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                                    <div 
+                                                        className="h-full bg-orange-400 rounded-full shadow-sm"
+                                                        style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
+                                                    ></div>
+                                                </div>
                                             </div>
-                                            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                                <div 
-                                                    className="h-full bg-orange-400 rounded-full shadow-sm"
-                                                    style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
-                                                ></div>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-green-100 border border-green-200 flex items-center justify-center text-lg shadow-sm shrink-0">🎯</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-black text-gray-700 text-xs truncate">Hatasız ders</span>
+                                                    <span className="font-bold text-gray-400 text-[10px]">0/1</span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-150">
+                                                    <div className="h-full bg-green-500 w-0 rounded-full"></div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-12 h-12 rounded-2xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">🎯</div>
-                                        <div className="flex-1">
-                                            <div className="flex justify-between mb-1">
-                                                <span className="font-bold text-gray-700 text-sm font-display">Hatasız ders</span>
-                                                <span className="font-bold text-gray-400 text-xs">0/1</span>
-                                            </div>
-                                            <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                                <div className="h-full bg-green-500 w-0 rounded-full"></div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>

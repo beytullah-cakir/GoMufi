@@ -8,6 +8,7 @@ from models.course import Course
 from models.teacher import Teacher
 from models.enrollment import Enrollment
 from models.quiz import Quiz
+from models.student import Student
 from connect_db import get_db
 from pydantic import BaseModel
 from typing import List, Optional, Any
@@ -717,3 +718,147 @@ async def import_roadmap(
         await db.rollback()
         print(f"ERROR in import_roadmap: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Yol haritası yüklenemedi: {str(e)}")
+
+
+class JoinClassRequest(BaseModel):
+    code: str
+
+
+@router.post("/class/join")
+async def join_class(
+    payload: JoinClassRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    student_id = int(user_info["sub"])
+    role = user_info["role"]
+    if role not in ["student", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler veya yöneticiler sınıfa katılabilir.")
+        
+    code_upper = payload.code.strip().upper()
+    if not code_upper:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geçersiz katılım kodu.")
+        
+    # Tüm kursları ve sınıflarını çek
+    stmt = select(Course)
+    result = await db.execute(stmt)
+    courses = result.scalars().all()
+    
+    target_course = None
+    target_class = None
+    
+    for course in courses:
+        classes_list = course.classes or []
+        for cls in classes_list:
+            if cls.get("code", "").strip().upper() == code_upper:
+                target_course = course
+                target_class = cls
+                break
+        if target_course:
+            break
+            
+    if not target_course or not target_class:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sınıf bulunamadı. Lütfen kodu kontrol edin.")
+        
+    # Öğrenciyi kursa kaydet (eğer kayıtlı değilse)
+    enrollment_stmt = select(Enrollment).where(
+        Enrollment.student_id == student_id,
+        Enrollment.course_id == target_course.id
+    )
+    enrollment_result = await db.execute(enrollment_stmt)
+    enrollment = enrollment_result.scalar_one_or_none()
+    
+    if not enrollment:
+        enrollment = Enrollment(student_id=student_id, course_id=target_course.id)
+        db.add(enrollment)
+        
+    # Öğrenciyi sınıfın student_ids listesine ekle
+    student_ids = target_class.get("student_ids") or []
+    student_id_str = str(student_id)
+    if not any(str(sid) == student_id_str for sid in student_ids):
+        student_ids.append(student_id)
+        target_class["student_ids"] = student_ids
+        
+        # Diğer sınıflardan bu öğrenciyi çıkar (Öğrenci sadece bir sınıfta olabilir)
+        for cls in target_course.classes:
+            if cls["id"] != target_class["id"]:
+                other_ids = cls.get("student_ids") or []
+                if any(str(sid) == student_id_str for sid in other_ids):
+                    cls["student_ids"] = [sid for sid in other_ids if str(sid) != student_id_str]
+                    
+        flag_modified(target_course, "classes")
+        
+    try:
+        await db.commit()
+        await db.refresh(target_course)
+        return {
+            "success": True, 
+            "message": f"'{target_class.get('name')}' sınıfına başarıyla katıldınız.",
+            "course_title": target_course.title,
+            "class_name": target_class.get("name")
+        }
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Sınıfa katılırken bir hata oluştu: {str(e)}")
+
+
+@router.get("/student/my-class/{course_id}")
+async def get_student_class(
+    course_id: int,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    student_id = int(user_info["sub"])
+    role = user_info["role"]
+    if role not in ["student", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler veya yöneticiler sınıf detaylarını görebilir.")
+        
+    stmt = select(Course).where(Course.id == course_id)
+    result = await db.execute(stmt)
+    course = result.scalar_one_or_none()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+        
+    student_class = None
+    classes_list = course.classes or []
+    student_id_str = str(student_id)
+    for cls in classes_list:
+        student_ids = cls.get("student_ids") or []
+        if any(str(sid) == student_id_str for sid in student_ids):
+            student_class = cls
+            break
+            
+    if not student_class:
+        return {"class_name": None, "classmates": []}
+        
+    classmate_ids = student_class.get("student_ids") or []
+    classmate_ids_ints = []
+    for cid in classmate_ids:
+        try:
+            classmate_ids_ints.append(int(cid))
+        except (ValueError, TypeError):
+            pass
+            
+    classmates_list = []
+    if classmate_ids_ints:
+        students_stmt = select(Student).where(Student.id.in_(classmate_ids_ints))
+        students_result = await db.execute(students_stmt)
+        students = students_result.scalars().all()
+        
+        for s in students:
+            avatar_seed = s.id * 111 + 456
+            status_val = "online" if (s.id == student_id) else ("offline" if s.id % 2 == 0 else "online")
+            classmates_list.append({
+                "id": s.id,
+                "name": f"{s.first_name} {s.last_name or ''}".strip(),
+                "status": status_val,
+                "avatarSeed": avatar_seed,
+                "email": s.email
+            })
+            
+    return {
+        "class_name": student_class.get("name"),
+        "classmates": classmates_list
+    }
+
