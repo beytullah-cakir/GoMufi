@@ -1,0 +1,400 @@
+[
+  {
+    "id": "6ea4970c-85d2-4039-9b12-42c278cd441a",
+    "category": "ANLA",
+    "title": "Kod Açıklama Şablonu",
+    "description": "Bu şablon örnek kod ve açıklaması içindir.",
+    "elements": [
+      {
+        "id": "1783015417166969",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783386198454029",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783415541947254",
+        "type": "code",
+        "x": 542.4814758300781,
+        "y": 22.888885498046875,
+        "width": 708,
+        "height": 614,
+        "rotation": 0,
+        "content": "#Code Example",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Fira Code",
+          "bold": true
+        }
+      },
+      {
+        "id": "1783415575858072",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 2",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783415643136058",
+        "type": "sticky",
+        "x": 20.481475830078125,
+        "y": 436.8888854980469,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "a96a45bb-18b8-493d-aea1-ba850d43cd78",
+    "category": "ANLA",
+    "title": "Metin Şablonu",
+    "description": "Bu şablonu yeni bir kavramı ilk kez tanıtacağın zaman kullan. Öğrencinin konuya giriş yapmasını sağlayacak kısa ve anlaşılır açıklamalar oluştur. Gereksiz detaylardan kaçın. Maksimum okunabilirlik hedeflenmelidir.",
+    "elements": [
+      {
+        "id": "1783415891887776",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783415891887930",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783415891887381",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 2",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783415891887152",
+        "type": "sticky",
+        "x": 1042.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783416291380554",
+        "type": "sticky",
+        "x": 798.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 2",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783416297576731",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 203.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 2",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "f5cd218b-91bb-41f9-9305-859c6842c87c",
+    "category": "ANLA",
+    "title": "Bilgi Kartı Şablonu",
+    "description": "Bu şablonu birbirinden bağımsız fakat ilişkili kavramları tanıtmak için kullan. Her kart tek bir bilgiyi anlatmalıdır. Kartlarda uzun paragraf yerine kısa açıklamalar kullanılmalıdır.",
+    "elements": [
+      {
+        "id": "1783416381058824",
+        "type": "shape",
+        "x": 76.11110545970776,
+        "y": 322.9629595721214,
+        "width": 321,
+        "height": 339,
+        "rotation": 0,
+        "content": "",
+        "shapeType": "rectangle",
+        "style": {
+          "backgroundColor": "#f43f5e",
+          "borderWidth": 7,
+          "borderRadius": 37,
+          "borderColor": "#b9374d"
+        }
+      },
+      {
+        "id": "1783416402690570",
+        "type": "text",
+        "x": 107.11110545970776,
+        "y": 345.9629595721214,
+        "width": 259,
+        "height": 279,
+        "rotation": 0,
+        "content": "Card 1&nbsp; short text",
+        "style": {
+          "fontSize": 26,
+          "fontFamily": "Fredoka",
+          "color": "#ffffff",
+          "bold": true
+        }
+      },
+      {
+        "id": "1783416424895595",
+        "type": "shape",
+        "x": 480.11110545970786,
+        "y": 317.9629595721214,
+        "width": 321,
+        "height": 339,
+        "rotation": 0,
+        "content": "",
+        "shapeType": "rectangle",
+        "style": {
+          "backgroundColor": "#3b82f6",
+          "borderWidth": 7,
+          "borderRadius": 37,
+          "borderColor": "#3067c0"
+        }
+      },
+      {
+        "id": "1783416424895699",
+        "type": "text",
+        "x": 511.1111054597075,
+        "y": 340.9629595721214,
+        "width": 259,
+        "height": 279,
+        "rotation": 0,
+        "content": "Card 2&nbsp; short text",
+        "style": {
+          "fontSize": 26,
+          "fontFamily": "Fredoka",
+          "bold": true,
+          "color": "#ffffff"
+        }
+      },
+      {
+        "id": "1783416427882246",
+        "type": "shape",
+        "x": 872.1111054597075,
+        "y": 313.9629595721214,
+        "width": 321,
+        "height": 339,
+        "rotation": 0,
+        "content": "",
+        "shapeType": "rectangle",
+        "style": {
+          "backgroundColor": "#84cc16",
+          "borderWidth": 7,
+          "borderRadius": 37,
+          "borderColor": "#70ac15",
+          "borderPosition": "inside"
+        }
+      },
+      {
+        "id": "1783416427882564",
+        "type": "text",
+        "x": 903.1111054597075,
+        "y": 336.9629595721214,
+        "width": 259,
+        "height": 279,
+        "rotation": 0,
+        "content": "Card 3&nbsp; short text",
+        "style": {
+          "fontSize": 26,
+          "fontFamily": "Fredoka",
+          "bold": true,
+          "color": "#ffffff"
+        }
+      },
+      {
+        "id": "1783416611747803",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 42.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783416611747693",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 127.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783416611747941",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 175.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 2",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      }
+    ],
+    "background": "default"
+  }
+]
