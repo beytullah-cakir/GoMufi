@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Trash2, Clock, Users, UserPlus, X, Edit3, Check } from 'lucide-react';
+import { Plus, Trash2, Clock, Users, UserPlus, X, Edit3, Check, Copy } from 'lucide-react';
 import api from '../../api';
 
 interface Student {
@@ -14,6 +14,7 @@ interface ClassModel {
     name: string;
     schedule: { day: string; time: string }[];
     student_ids?: (number | string)[];
+    code?: string;
 }
 
 interface Course {
@@ -39,9 +40,26 @@ const InstructorClasses: React.FC = () => {
         setIsLoading(true);
         try {
             const coursesRes = await api.get("/teacher/content");
-            setCourses(coursesRes.data);
-            if (coursesRes.data.length > 0 && !selectedCourseId) {
-                setSelectedCourseId(coursesRes.data[0].id);
+            const updatedCourses = coursesRes.data.map((course: Course) => {
+                if (course.classes && course.classes.length > 0) {
+                    let hasMissingCode = false;
+                    const classesWithCodes = course.classes.map(cls => {
+                        if (!cls.code) {
+                            hasMissingCode = true;
+                            return { ...cls, code: Math.random().toString(36).substring(2, 8).toUpperCase() };
+                        }
+                        return cls;
+                    });
+                    if (hasMissingCode) {
+                        api.put(`/update_course/${course.id}`, { classes: classesWithCodes }).catch(console.error);
+                        return { ...course, classes: classesWithCodes };
+                    }
+                }
+                return course;
+            });
+            setCourses(updatedCourses);
+            if (updatedCourses.length > 0 && !selectedCourseId) {
+                setSelectedCourseId(updatedCourses[0].id);
             }
         } catch (err) {
             console.error("Failed to load courses", err);
@@ -103,11 +121,13 @@ const InstructorClasses: React.FC = () => {
     const handleAddClass = () => {
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const nextLetter = alphabet[activeClasses.length] || String(activeClasses.length + 1);
+        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const newClass: ClassModel = {
             id: `c_${Date.now()}`,
             name: `${nextLetter} Sınıfı`,
             schedule: [],
-            student_ids: []
+            student_ids: [],
+            code: code
         };
         handleUpdateClasses([...activeClasses, newClass]);
     };
@@ -272,15 +292,31 @@ const InstructorClasses: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 ) : (
-                                                    <div className="flex items-center gap-2">
-                                                        <h4 className="text-base font-black text-gray-800">{cls.name}</h4>
-                                                        <button 
-                                                            onClick={() => handleStartEdit(cls)}
-                                                            className="p-1 text-gray-400 hover:text-sky-500 rounded-md hover:bg-gray-50"
-                                                            title="İsmi Düzenle"
-                                                        >
-                                                            <Edit3 size={14} />
-                                                        </button>
+                                                    <div className="flex flex-wrap items-center gap-4">
+                                                        <div className="flex items-center gap-2">
+                                                            <h4 className="text-base font-black text-gray-800">{cls.name}</h4>
+                                                            <button 
+                                                                onClick={() => handleStartEdit(cls)}
+                                                                className="p-1 text-gray-400 hover:text-sky-500 rounded-md hover:bg-gray-50"
+                                                                title="İsmi Düzenle"
+                                                            >
+                                                                <Edit3 size={14} />
+                                                            </button>
+                                                        </div>
+                                                        {/* Invitation Code Display */}
+                                                        <div className="flex items-center gap-2 bg-sky-50 border border-sky-100 px-3 py-1 rounded-xl text-xs font-bold text-sky-700">
+                                                            <span>Kod: <span className="font-mono text-sm tracking-wider select-all">{cls.code || "KOD_YOK"}</span></span>
+                                                            <button
+                                                                onClick={() => {
+                                                                    navigator.clipboard.writeText(cls.code || "");
+                                                                    alert("Sınıf katılım kodu panoya kopyalandı!");
+                                                                }}
+                                                                className="hover:text-sky-900 transition-colors p-1"
+                                                                title="Kodu Kopyala"
+                                                            >
+                                                                <Copy size={12} />
+                                                            </button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </div>
