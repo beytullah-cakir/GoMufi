@@ -11,6 +11,7 @@ import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
 import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
 import InstructorCalendar from './InstructorCalendar';
+import InstructorClasses from './InstructorClasses';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -27,6 +28,7 @@ const InstructorApp: React.FC = () => {
             'dashboard': 'Dashboard',
             'courses': 'Courses',
             'calendar': 'Calendar',
+            'classes': 'Classes',
             'students': 'Students',
             'messages': 'Messages',
             'analytics': 'Analytics',
@@ -71,6 +73,7 @@ const InstructorApp: React.FC = () => {
             'Dashboard': '/instructor/dashboard',
             'Courses': '/instructor/courses',
             'Calendar': '/instructor/calendar',
+            'Classes': '/instructor/classes',
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
             'Analytics': '/instructor/analytics',
@@ -128,6 +131,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="dashboard" element={<InstructorDashboard userData={userData} coursesData={coursesData} studentsData={studentsData} />} />
                 <Route path="courses" element={<InstructorCourses coursesData={coursesData} refreshData={fetchUserData} />} />
                 <Route path="calendar" element={<InstructorCalendar coursesData={coursesData} />} />
+                <Route path="classes" element={<InstructorClasses />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
                 <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} />

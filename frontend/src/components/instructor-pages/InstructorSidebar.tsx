@@ -39,6 +39,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: Calendar,
       id: "Calendar",
     },
+    {
+      label: "Sınıflarım",
+      icon: Users,
+      id: "Classes",
+    },
     // MVP'de Ders Oluşturucu devre dışı
     // {
     //   label: "Ders Oluşturucu",

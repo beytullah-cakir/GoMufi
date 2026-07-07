@@ -16,6 +16,8 @@ import {
   Clock,
   Video,
   Info,
+  Upload,
+  BookOpen,
 } from "lucide-react";
 import categoryData from "../../data/categories.json";
 
@@ -44,6 +46,8 @@ export interface CourseData {
   liveSessions?: { date: string; time: string }[];
   schedule?: { day: string; time: string }[];
   instructorNotes?: { title: string; type: string }[];
+  classes?: { id: string; name: string; schedule: { day: string; time: string }[] }[];
+  start_date?: string;
 }
 
 interface AddCourseModalProps {
@@ -66,13 +70,13 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   // Taslak Geri Yükleme Mantığı
   const savedDraft = !initialData
     ? (() => {
-        try {
-          const saved = localStorage.getItem(STORAGE_KEY);
-          return saved ? JSON.parse(saved) : null;
-        } catch (e) {
-          return null;
-        }
-      })()
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        return saved ? JSON.parse(saved) : null;
+      } catch (e) {
+        return null;
+      }
+    })()
     : null;
 
   const [activeTab, setActiveTab] = useState<
@@ -91,6 +95,9 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   );
   const [price, setPrice] = useState<number | string>(
     initialData?.price ?? savedDraft?.price ?? 0,
+  );
+  const [startDate, setStartDate] = useState(
+    initialData?.start_date || savedDraft?.startDate || "",
   );
   const [isLive, setIsLive] = useState(
     initialData?.isLive || savedDraft?.isLive || false,
@@ -136,6 +143,13 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         ? savedDraft.schedule
         : [{ day: "Pazartesi", time: "10:00" }],
   );
+  const [classes, setClasses] = useState<{ id: string; name: string; schedule: { day: string; time: string }[] }[]>(
+    initialData?.classes?.length
+      ? initialData.classes
+      : savedDraft?.classes?.length
+        ? savedDraft.classes
+        : [{ id: "c_1", name: "A Sınıfı", schedule: [] }]
+  );
 
   // Otomatik Taslak Kaydetme
   useEffect(() => {
@@ -151,6 +165,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         requirements,
         sections,
         schedule,
+        classes,
         activeTab,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(draft));
@@ -166,6 +181,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     requirements,
     sections,
     schedule,
+    classes,
     activeTab,
     initialData,
     isOpen,
@@ -186,6 +202,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       setRequirements([""]);
       setSections([{ id: "str_1", title: "Giriş", lectures: [] }]);
       setSchedule([{ day: "Pazartesi", time: "10:00" }]);
+      setClasses([{ id: "c_1", name: "A Sınıfı", schedule: [] }]);
       setActiveTab("general");
     }
   };
@@ -325,13 +342,14 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       price: Number(price) || 0,
       isLive,
       liveSessions: isLive ? liveSessions.filter((s) => s.date && s.time) : [],
-      schedule: schedule.filter((s) => s.day && s.time),
-      // instructorNotes removed as they are now managed via Lesson Builder JSON
+      classes: classes,
+      schedule: classes.flatMap((c) => c.schedule || []),
+      start_date: startDate,
     });
   };
 
   return (
-    <div 
+    <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
@@ -370,36 +388,33 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         <div className="flex border-b border-gray-100 px-8">
           <button
             onClick={() => setActiveTab("general")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "general"
+            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "general"
                 ? "border-sky-500 text-sky-600"
                 : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
+              }`}
           >
             <Layout size={18} />
             Genel Bilgiler
           </button>
           <button
             onClick={() => setActiveTab("details")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "details"
+            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "details"
                 ? "border-sky-500 text-sky-600"
                 : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
+              }`}
           >
             <List size={18} />
             Detaylar & Gereksinimler
           </button>
           <button
             onClick={() => setActiveTab("schedule")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${
-              activeTab === "schedule"
+            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "schedule"
                 ? "border-sky-500 text-sky-600"
                 : "border-transparent text-gray-400 hover:text-gray-600"
-            }`}
+              }`}
           >
             <Calendar size={18} />
-            Ders Saatleri
+            Sınıflar & Ders Saatleri
           </button>
         </div>
 
@@ -438,16 +453,14 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                           key={cat.id}
                           type="button"
                           onClick={() => setSelectedCategory(cat.id)}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${
-                            selectedCategory === cat.id
+                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${selectedCategory === cat.id
                               ? "border-sky-500 bg-sky-50 text-sky-700 ring-1 ring-sky-500"
                               : "border-gray-100 bg-white hover:border-gray-300 text-gray-600"
-                          }`}
+                            }`}
                         >
                           <div
-                            className={`p-2 rounded-lg ${
-                              selectedCategory === cat.id ? `bg-sky-100 text-sky-600` : `bg-gray-100 text-gray-600`
-                            }`}
+                            className={`p-2 rounded-lg ${selectedCategory === cat.id ? `bg-sky-100 text-sky-600` : `bg-gray-100 text-gray-600`
+                              }`}
                           >
                             {cat.icon}
                           </div>
@@ -470,26 +483,34 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     />
                   </div>
 
-                  {/* Pricing */}
-                  <div className="pt-6 border-t border-gray-100">
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Kurs Ücreti (TL)
-                    </label>
-                    <div className="relative max-w-[200px]">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                        ₺
-                      </span>
+                  {/* Pricing and Start Date */}
+                  <div className="pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Kurs Ücreti (TL)
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
+                          ₺
+                        </span>
+                        <input
+                          type="number"
+                          value={price}
+                          onChange={(e) => setPrice(Number(e.target.value))}
+                          placeholder="0"
+                          className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-bold text-gray-700 mb-2">
+                        Kurs Başlangıç Tarihi
+                      </label>
                       <input
-                        type="number"
-                        value={price}
-                        onChange={(e) =>
-                          setPrice(
-                            e.target.value === "" ? "" : Number(e.target.value),
-                          )
-                        }
-                        placeholder="0"
-                        min="0"
-                        className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-850 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
                       />
                     </div>
                     <p className="text-xs text-gray-400 mt-2 font-bold italic">
@@ -649,122 +670,142 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     </div>
                     <div>
                       <h4 className="text-2xl font-black text-gray-800">
-                        Ders Programı
+                        Kurs Sınıfları & Ders Programı
                       </h4>
                       <p className="text-sm text-gray-500 font-medium">
-                        Haftalık canlı ders saatlerinizi planlayın
+                        Dersiniz için kaç sınıf istediğinizi ayarlayın, isimlendirin ve ders saatlerini girin.
                       </p>
                     </div>
                   </div>
 
-                  {/* Weekly Grid View */}
-                  <div className="grid grid-cols-1 md:grid-cols-7 gap-4">
-                    {[
-                      "Pazartesi",
-                      "Salı",
-                      "Çarşamba",
-                      "Perşembe",
-                      "Cuma",
-                      "Cumartesi",
-                      "Pazar",
-                    ].map((day) => {
-                      const daySlots = schedule.filter((s) => s.day === day);
-                      return (
-                        <div key={day} className="flex flex-col gap-3">
-                          <div className="text-center py-2 bg-gray-100 rounded-xl">
-                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                              {day}
-                            </span>
-                          </div>
+                  {/* Classes Management */}
+                  <div className="space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h5 className="text-base font-black text-gray-800">
+                        Sınıf Listesi ({classes.length})
+                      </h5>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+                          const nextLetter = alphabet[classes.length] || String(classes.length + 1);
+                          setClasses([
+                            ...classes,
+                            {
+                              id: `c_${Date.now()}`,
+                              name: `${nextLetter} Sınıfı`,
+                              schedule: []
+                            }
+                          ]);
+                        }}
+                        className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md active:scale-95"
+                      >
+                        <Plus size={14} />
+                        Sınıf Ekle
+                      </button>
+                    </div>
 
-                          <div className="space-y-2 min-h-[100px] p-2 rounded-2xl border-2 border-dashed border-gray-50 hover:border-sky-100 transition-colors">
-                            {daySlots.map((slot, sIdx) => (
-                              <div
-                                key={sIdx}
-                                className="group relative bg-white border border-gray-200 p-2 rounded-xl shadow-sm hover:shadow-md transition-all"
-                              >
-                                <div className="flex items-center justify-center gap-1">
-                                  <input 
-                                    type="text"
-                                    maxLength={2}
-                                    value={slot.time.split(":")[0]}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^0-9]/g, '');
-                                      if (val === "" || Number(val) <= 23) {
-                                        const actualIdx = schedule.indexOf(slot);
-                                        const newS = [...schedule];
-                                        const [_, m] = slot.time.split(":");
-                                        newS[actualIdx].time = `${val}:${m}`;
-                                        setSchedule(newS);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      const actualIdx = schedule.indexOf(slot);
-                                      const newS = [...schedule];
-                                      const [h, m] = slot.time.split(":");
-                                      newS[actualIdx].time = `${h.padStart(2, '0')}:${m}`;
-                                      setSchedule(newS);
-                                    }}
-                                    className="w-7 text-center bg-transparent text-sm font-black text-sky-600 focus:outline-none placeholder-sky-200"
-                                    placeholder="00"
-                                  />
-                                  <span className="text-sky-300 font-bold">:</span>
-                                  <input 
-                                    type="text"
-                                    maxLength={2}
-                                    value={slot.time.split(":")[1]}
-                                    onChange={(e) => {
-                                      const val = e.target.value.replace(/[^0-9]/g, '');
-                                      if (val === "" || Number(val) <= 59) {
-                                        const actualIdx = schedule.indexOf(slot);
-                                        const newS = [...schedule];
-                                        const [h, _] = slot.time.split(":");
-                                        newS[actualIdx].time = `${h}:${val}`;
-                                        setSchedule(newS);
-                                      }
-                                    }}
-                                    onBlur={(e) => {
-                                      const actualIdx = schedule.indexOf(slot);
-                                      const newS = [...schedule];
-                                      const [h, m] = slot.time.split(":");
-                                      newS[actualIdx].time = `${h}:${m.padStart(2, '0')}`;
-                                      setSchedule(newS);
-                                    }}
-                                    className="w-7 text-center bg-transparent text-sm font-black text-sky-600 focus:outline-none placeholder-sky-200"
-                                    placeholder="00"
-                                  />
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    setSchedule(
-                                      schedule.filter((s) => s !== slot),
-                                    )
-                                  }
-                                  className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all shadow-sm"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-
+                    <div className="space-y-4">
+                      {classes.map((cls, cIdx) => (
+                        <div key={cls.id} className="bg-white border-2 border-gray-100 p-5 rounded-2xl shadow-sm space-y-4 relative group">
+                          {classes.length > 1 && (
                             <button
                               type="button"
-                              onClick={() =>
-                                setSchedule([
-                                  ...schedule,
-                                  { day, time: "10:00" },
-                                ])
-                              }
-                              className="w-full py-3 rounded-xl border border-dashed border-gray-200 text-gray-400 hover:text-sky-500 hover:border-sky-200 hover:bg-sky-50 transition-all flex items-center justify-center"
-                              title="Saat Ekle"
+                              onClick={() => {
+                                if (confirm("Bu sınıfı silmek istediğinize emin misiniz?")) {
+                                  setClasses(classes.filter((c) => c.id !== cls.id));
+                                }
+                              }}
+                              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Sınıfı Sil"
                             >
-                              <Plus size={16} />
+                              <Trash2 size={16} />
                             </button>
+                          )}
+
+                          <div className="max-w-md">
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                              Sınıf İsmi
+                            </label>
+                            <input
+                              type="text"
+                              value={cls.name}
+                              onChange={(e) => {
+                                const newClasses = [...classes];
+                                newClasses[cIdx].name = e.target.value;
+                                setClasses(newClasses);
+                              }}
+                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors"
+                              placeholder="Örn: A Sınıfı veya Akşam Grubu"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">
+                              Haftalık Canlı Ders Saatleri
+                            </label>
+
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {cls.schedule?.map((slot, sIdx) => (
+                                <div key={sIdx} className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-100 rounded-xl text-xs font-bold text-sky-700">
+                                  <Clock size={12} />
+                                  <span>{slot.day} - {slot.time}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newClasses = [...classes];
+                                      newClasses[cIdx].schedule = cls.schedule.filter((_, idx) => idx !== sIdx);
+                                      setClasses(newClasses);
+                                    }}
+                                    className="text-sky-400 hover:text-sky-700 ml-1 font-black text-xs font-bold"
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              {(!cls.schedule || cls.schedule.length === 0) && (
+                                <span className="text-xs text-gray-400 font-bold italic">Planlanmış ders saati yok</span>
+                              )}
+                            </div>
+
+                            <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 w-fit">
+                              <select
+                                id={`day-select-${cls.id}`}
+                                className="bg-white border border-gray-200 text-xs font-bold text-gray-700 rounded-lg p-2 focus:outline-none"
+                              >
+                                {["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"].map(d => (
+                                  <option key={d} value={d}>{d}</option>
+                                ))}
+                              </select>
+                              <input
+                                type="time"
+                                id={`time-select-${cls.id}`}
+                                defaultValue="14:00"
+                                className="bg-white border border-gray-200 text-xs font-bold text-gray-700 rounded-lg p-1.5 focus:outline-none"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const daySelect = document.getElementById(`day-select-${cls.id}`) as HTMLSelectElement;
+                                  const timeSelect = document.getElementById(`time-select-${cls.id}`) as HTMLInputElement;
+                                  if (daySelect && timeSelect && timeSelect.value) {
+                                    const newClasses = [...classes];
+                                    newClasses[cIdx].schedule = [
+                                      ...(cls.schedule || []),
+                                      { day: daySelect.value, time: timeSelect.value }
+                                    ];
+                                    setClasses(newClasses);
+                                  }
+                                }}
+                                className="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs rounded-lg transition-all"
+                              >
+                                Ekle
+                              </button>
+                            </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      ))}
+                    </div>
                   </div>
 
                   <div className="mt-10 p-6 bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] border border-sky-100 flex gap-5">
@@ -773,12 +814,10 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     </div>
                     <div className="space-y-1">
                       <h5 className="font-black text-sky-900 text-sm">
-                        Takvim Senkronizasyonu
+                        Sınıflara Göre Programlama
                       </h5>
                       <p className="text-sky-700 text-xs font-bold leading-relaxed opacity-80">
-                        Burada belirlediğiniz saatler otomatik olarak eğitmen
-                        takviminize işlenir. Öğrenciler kurs sayfasında bu
-                        saatleri görerek randevu oluşturabilirler.
+                        Her sınıf için özel bir ders programı atayabilirsiniz. Öğrenciler kayıt olduktan sonra eğitmen panelindeki "Sınıflarım" menüsünden sınıflara yerleştirilebilir ve programları yönetilebilir.
                       </p>
                     </div>
                   </div>
@@ -796,7 +835,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               ? "1/3 Genel Bilgiler"
               : activeTab === "details"
                 ? "2/3 Detaylar"
-                : "3/3 Ders Saatleri"}
+                : "3/3 Sınıflar & Ders Saatleri"}
           </div>
           <div className="flex gap-3">
             <button
@@ -825,9 +864,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
-                className={`group relative overflow-hidden px-8 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-sky-200/50 active:scale-[0.98] transition-all duration-300 flex items-center gap-3 ${
-                  isSubmitting ? "opacity-90 cursor-not-allowed pr-10" : ""
-                }`}
+                className={`group relative overflow-hidden px-8 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-sky-200/50 active:scale-[0.98] transition-all duration-300 flex items-center gap-3 ${isSubmitting ? "opacity-90 cursor-not-allowed pr-10" : ""
+                  }`}
               >
                 {isSubmitting ? (
                   <>

@@ -185,6 +185,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
           schedule: courseData.schedule,
+          start_date: courseData.start_date,
         });
 
         setCourses(
@@ -247,6 +248,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
           schedule: courseData.schedule,
+          start_date: courseData.start_date,
         });
 
         const newCourse: Course = {
@@ -316,8 +318,9 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
         const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
         window.open(url, "_blank");
       } catch (jitsiErr) {
-        console.error('Toplantı açılamadı:', jitsiErr);
-        alert('Ders başlatıldı fakat toplantı penceresi açılamadı. "Toplantıya Git" butonunu kullanabilirsiniz.');
+        console.warn('Jitsi JWT hatası, public odaya yönlendiriliyor:', jitsiErr);
+        const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+        window.open(fallbackUrl, "_blank");
       }
     } catch (err) {
       console.error('Ders başlatılamadı:', err);
@@ -502,8 +505,8 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
                   {/* Actions */}
                   <div className="flex items-center gap-3 border-t md:border-t-0 border-gray-100 pt-4 md:pt-0 w-full md:w-auto justify-end relative">
-                    {/* Dersi Başlat Butonu */}
-                    <button
+                    {/* Dersi Başlat Butonu MVP devre dışı - Takvimden başlatılacak */}
+                    {/* <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleStartSession(course.id);
@@ -512,7 +515,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                       className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm shadow-md transition-all active:scale-95 whitespace-nowrap ${
                         startingSessionId === course.id
                           ? 'bg-gray-200 text-gray-400 cursor-wait'
-                          : 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-emerald-200'
+                          : 'bg-emerald-500 hover:bg-emerald-650 text-white shadow-emerald-200'
                       }`}
                     >
                       {startingSessionId === course.id ? (
@@ -523,7 +526,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                           Dersi Başlat
                         </>
                       )}
-                    </button>
+                    </button> */}
 
                     <div className="relative">
                       <button

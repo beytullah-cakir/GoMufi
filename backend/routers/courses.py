@@ -43,6 +43,8 @@ class CourseResponse(BaseModel):
     students_count: int = 0
     rating: Optional[int] = 5
     schedule: Optional[List[Any]] = []
+    classes: Optional[List[Any]] = []
+    start_date: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -235,6 +237,8 @@ class CreateCourseRequest(BaseModel):
     notes: Optional[Any] = []
     rating: Optional[int] = 5
     schedule: Optional[List[Any]] = []
+    classes: Optional[List[Any]] = []
+    start_date: Optional[str] = None
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -247,6 +251,8 @@ class UpdateCourseRequest(BaseModel):
     notes: Optional[Any] = None
     rating: Optional[int] = None
     schedule: Optional[List[Any]] = None
+    classes: Optional[List[Any]] = None
+    start_date: Optional[str] = None
 
 @router.post("/create_course")
 async def create_course(
@@ -272,7 +278,9 @@ async def create_course(
             curriculum=course_data.curriculum,
             notes=course_data.notes if course_data.notes is not None else [],
             rating=course_data.rating if course_data.rating is not None else 5,
-            schedule=course_data.schedule if course_data.schedule is not None else []
+            schedule=course_data.schedule if course_data.schedule is not None else [],
+            classes=course_data.classes if course_data.classes is not None else [],
+            start_date=course_data.start_date
         )
         db.add(new_course)
         await db.commit()
@@ -331,6 +339,13 @@ async def update_course(
             course.schedule = course_data.schedule
             flag_modified(course, "schedule")
             
+        if course_data.classes is not None:
+            course.classes = course_data.classes
+            flag_modified(course, "classes")
+            
+        if course_data.start_date is not None:
+            course.start_date = course_data.start_date
+            
         await db.commit()
         await db.refresh(course)
         return course
@@ -362,10 +377,11 @@ async def delete_course(
 @router.post("/start-session/{course_id}")
 async def start_session(
     course_id: int,
+    title: Optional[str] = None,
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id}")
+    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id} with title {title}")
     # Dersi kontrol et
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
@@ -384,7 +400,7 @@ async def start_session(
     if not session:
         session = LiveSession(
             course_id=course_id,
-            title=f"{course.title} - Canlı Oturum",
+            title=title if title else f"{course.title} - Canlı Oturum",
             status='live',
             type='live'
         )
@@ -392,6 +408,8 @@ async def start_session(
         print("DEBUG: Created new live session")
     else:
         session.status = 'live'
+        if title:
+            session.title = title
         print("DEBUG: Reused existing live session")
     
     await db.commit()
@@ -408,7 +426,7 @@ async def get_session_status(
     session = result.scalars().first()
     
     if session:
-        return {"is_live": True, "session_id": session.id}
+        return {"is_live": True, "session_id": session.id, "title": session.title}
     return {"is_live": False}
 
 @router.post("/stop-session/{course_id}")
