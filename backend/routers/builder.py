@@ -5,7 +5,8 @@ Supabase Storage kullanılıyorsa SUPABASE_KEY .env'de tanımlı olmalıdır.
 import os
 import json
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request
+from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends, status
+from auth.dependencies import get_current_user
 from typing import List
 
 router = APIRouter(prefix="/builder", tags=["lesson-builder"])
@@ -89,3 +90,96 @@ async def upload_image(request: Request, file: UploadFile = File(...)):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+TEMPLATES_PATH = "slide_templates.json"
+
+
+@router.get("/templates")
+async def get_templates():
+    if not os.path.exists(TEMPLATES_PATH):
+        return []
+    try:
+        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        return []
+
+
+@router.post("/templates")
+async def save_template(request: Request, user=Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yalnızca yöneticiler şablon kaydedebilir."
+        )
+        
+    try:
+        body = await request.json()
+        category = body.get("category")
+        title = body.get("title")
+        description = body.get("description")
+        elements = body.get("elements", [])
+        background = body.get("background", "default")
+        
+        if not category or not title:
+            raise HTTPException(status_code=400, detail="Kategori ve Başlık zorunludur.")
+            
+        templates = []
+        if os.path.exists(TEMPLATES_PATH):
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                try:
+                    templates = json.load(f)
+                except json.JSONDecodeError:
+                    templates = []
+                    
+        new_template = {
+            "id": str(uuid.uuid4()),
+            "category": category.upper(),
+            "title": title,
+            "description": description,
+            "elements": elements,
+            "background": background
+        }
+        
+        templates.append(new_template)
+        
+        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+            json.dump(templates, f, indent=2, ensure_ascii=False)
+            
+        return {"success": True, "template": new_template}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(template_id: str, user=Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yalnızca yöneticiler şablon silebilir."
+        )
+        
+    try:
+        if not os.path.exists(TEMPLATES_PATH):
+            raise HTTPException(status_code=404, detail="Şablon dosyası bulunamadı.")
+            
+        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+            templates = json.load(f)
+            
+        new_templates = [t for t in templates if t.get("id") != template_id]
+        
+        if len(new_templates) == len(templates):
+            raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
+            
+        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+            json.dump(new_templates, f, indent=2, ensure_ascii=False)
+            
+        return {"success": True, "message": "Şablon başarıyla silindi."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+

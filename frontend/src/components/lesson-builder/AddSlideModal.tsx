@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
-import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy, Trash2 } from 'lucide-react';
 import SlideThumbnail from './SlideThumbnail';
 import type { Slide } from './types';
+import api from '../../api';
 
 interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template', config?: { gameType?: string; elements?: any[] }) => void;
+    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template', config?: { gameType?: string; elements?: any[]; background?: string }) => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV';
     stageColor: string;
+    isAdmin?: boolean;
 }
 
 const MOCK_GAME_SLIDE: Slide = {
@@ -31,8 +33,21 @@ const MOCK_GAME_SLIDE: Slide = {
     }
 };
 
-const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor }) => {
+const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor, isAdmin = false }) => {
     const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage'>('slide');
+    const [customTemplates, setCustomTemplates] = useState<any[]>([]);
+
+    useEffect(() => {
+        if (isOpen) {
+            api.get('/builder/templates')
+                .then(res => {
+                    setCustomTemplates(res.data || []);
+                })
+                .catch(err => {
+                    console.error("Failed to load templates", err);
+                });
+        }
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -475,6 +490,58 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                         </div>
                                     </button>
                                 )}
+
+                                {/* CUSTOM PERSISTED TEMPLATES FOR ACTIVE STAGE */}
+                                {customTemplates
+                                    .filter(t => t.category?.toUpperCase() === activeStage.toUpperCase())
+                                    .map((t) => (
+                                        <div key={t.id} className="relative group/card">
+                                            <button
+                                                onClick={() => onAddSlide('template', {
+                                                    elements: t.elements,
+                                                    background: t.background
+                                                })}
+                                                className="w-full text-left group"
+                                            >
+                                                <div className="w-full aspect-video bg-gradient-to-br from-indigo-50/50 to-purple-50/50 border-2 border-indigo-100 rounded-2xl mb-3 overflow-hidden group-hover:border-indigo-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-3">
+                                                    <div className="bg-white/80 backdrop-blur border border-indigo-100 rounded-xl p-3 shadow-sm text-center">
+                                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                            Özel Şablon
+                                                        </span>
+                                                        <div className="text-[9px] font-bold text-gray-400 mt-2">
+                                                            {t.elements?.length || 0} Eleman
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="px-1">
+                                                    <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{t.title}</h4>
+                                                    <p className="text-xs text-gray-400 mt-1">{t.description || 'Yönetici tarafından kaydedilen özel şablon.'}</p>
+                                                </div>
+                                            </button>
+                                            
+                                            {isAdmin && (
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        if (confirm("Bu özel şablonu silmek istediğinize emin misiniz?")) {
+                                                            api.delete(`/builder/templates/${t.id}`)
+                                                                .then(() => {
+                                                                    setCustomTemplates(prev => prev.filter(item => item.id !== t.id));
+                                                                })
+                                                                .catch(err => {
+                                                                    alert("Şablon silinirken hata oluştu.");
+                                                                    console.error(err);
+                                                                });
+                                                        }
+                                                    }}
+                                                    className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-lg opacity-0 group-hover/card:opacity-100 transition-opacity shadow-sm z-10"
+                                                    title="Şablonu Sil"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
                             </>
                         )}
 
