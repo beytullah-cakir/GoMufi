@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy, Trash2 } from 'lucide-react';
+import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy, Trash2, Sparkles, Pencil } from 'lucide-react';
 import SlideThumbnail from './SlideThumbnail';
 import type { Slide } from './types';
 import api from '../../api';
@@ -34,8 +34,14 @@ const MOCK_GAME_SLIDE: Slide = {
 };
 
 const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor, isAdmin = false }) => {
-    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage'>('slide');
+    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai'>('slide');
     const [customTemplates, setCustomTemplates] = useState<any[]>([]);
+
+    // Edit Template State
+    const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
+    const [editTitle, setEditTitle] = useState('');
+    const [editDesc, setEditDesc] = useState('');
+    const [isSavingEdit, setIsSavingEdit] = useState(false);
 
     useEffect(() => {
         if (isOpen) {
@@ -74,7 +80,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
 
                         <button
                             onClick={() => setActiveTab('custom_stage')}
-                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-all duration-200 ${activeTab === 'custom_stage' ? 'shadow-md text-white font-bold' : 'text-gray-500 hover:bg-white/50 hover:text-gray-700 font-medium'}`}
+                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-all duration-200 ${activeTab === 'custom_stage' ? 'shadow-md text-white font-bold bg-indigo-600' : 'text-gray-500 hover:bg-white/50 hover:text-gray-700 font-medium'}`}
                             style={{
                                 backgroundColor: activeTab === 'custom_stage' ? stageColor : undefined
                             }}
@@ -84,6 +90,17 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 <span className="text-sm">{activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Şablonları</span>
                             </div>
                             {activeTab === 'custom_stage' && <ChevronRight className="w-4 h-4 text-white" />}
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('custom_ai')}
+                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-all duration-200 ${activeTab === 'custom_ai' ? 'shadow-md text-white font-bold bg-gradient-to-r from-purple-500 to-indigo-500' : 'text-gray-500 hover:bg-white/50 hover:text-gray-700 font-medium'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <Sparkles className="w-5 h-5" />
+                                <span className="text-sm">{activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} AI Şablonları</span>
+                            </div>
+                            {activeTab === 'custom_ai' && <ChevronRight className="w-4 h-4 text-white" />}
                         </button>
 
                         <button
@@ -105,6 +122,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                         <h3 className="text-xl font-bold text-gray-800 font-display">
                             {activeTab === 'slide' && 'Genel Slayt Şablonları'}
                             {activeTab === 'custom_stage' && `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Seviyesi Şablonları`}
+                            {activeTab === 'custom_ai' && `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} AI Şablonları`}
                             {activeTab === 'game' && 'Oyun Şablonları'}
                         </h3>
                         <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
@@ -491,57 +509,85 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </button>
                                 )}
 
-                                {/* CUSTOM PERSISTED TEMPLATES FOR ACTIVE STAGE */}
-                                {customTemplates
-                                    .filter(t => t.category?.toUpperCase() === activeStage.toUpperCase())
-                                    .map((t) => (
-                                        <div key={t.id} className="relative group/card">
-                                            <button
-                                                onClick={() => onAddSlide('template', {
-                                                    elements: t.elements,
-                                                    background: t.background
-                                                })}
-                                                className="w-full text-left group"
-                                            >
-                                                <div className="w-full aspect-video bg-gradient-to-br from-indigo-50/50 to-purple-50/50 border-2 border-indigo-100 rounded-2xl mb-3 overflow-hidden group-hover:border-indigo-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-3">
-                                                    <div className="bg-white/80 backdrop-blur border border-indigo-100 rounded-xl p-3 shadow-sm text-center">
-                                                        <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                                                            Özel Şablon
-                                                        </span>
-                                                        <div className="text-[9px] font-bold text-gray-400 mt-2">
-                                                            {t.elements?.length || 0} Eleman
+                                 {/* Custom templates moved to custom_ai tab */}
+                            </>
+                        )}
+
+                        {/* CUSTOM AI PERSISTED TEMPLATES TAB */}
+                        {activeTab === 'custom_ai' && (
+                            <>
+                                {customTemplates.filter(t => t.category?.toUpperCase() === activeStage.toUpperCase()).length === 0 ? (
+                                    <div className="col-span-3 py-16 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
+                                        <Sparkles className="w-12 h-12 text-gray-300 animate-pulse mb-3" />
+                                        <p className="font-bold text-sm">Henüz bu kategori için özel AI şablonu oluşturulmamış.</p>
+                                        <p className="text-xs text-gray-400 mt-1 font-medium">Ders oluştururken slaytı tasarlayıp sağ üstteki "Şablon Kaydet" butonu ile ekleyebilirsiniz.</p>
+                                    </div>
+                                ) : (
+                                    customTemplates
+                                        .filter(t => t.category?.toUpperCase() === activeStage.toUpperCase())
+                                        .map((t) => (
+                                            <div key={t.id} className="relative group/card">
+                                                <button
+                                                    onClick={() => onAddSlide('template', {
+                                                        elements: t.elements,
+                                                        background: t.background
+                                                    })}
+                                                    className="w-full text-left group"
+                                                >
+                                                    <div className="w-full aspect-video bg-gradient-to-br from-indigo-50/50 to-purple-50/50 border-2 border-indigo-100 rounded-2xl mb-3 overflow-hidden group-hover:border-indigo-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-3">
+                                                        <div className="bg-white/80 backdrop-blur border border-indigo-100 rounded-xl p-3 shadow-sm text-center">
+                                                            <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                                                                Özel Şablon
+                                                            </span>
+                                                            <div className="text-[9px] font-bold text-gray-400 mt-2 font-medium">
+                                                                {t.elements?.length || 0} Eleman
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div className="px-1">
-                                                    <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{t.title}</h4>
-                                                    <p className="text-xs text-gray-400 mt-1">{t.description || 'Yönetici tarafından kaydedilen özel şablon.'}</p>
-                                                </div>
-                                            </button>
-                                            
-                                            {isAdmin && (
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        if (confirm("Bu özel şablonu silmek istediğinize emin misiniz?")) {
-                                                            api.delete(`/builder/templates/${t.id}`)
-                                                                .then(() => {
-                                                                    setCustomTemplates(prev => prev.filter(item => item.id !== t.id));
-                                                                })
-                                                                .catch(err => {
-                                                                    alert("Şablon silinirken hata oluştu.");
-                                                                    console.error(err);
-                                                                });
-                                                        }
-                                                    }}
-                                                    className="absolute top-2 right-2 p-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-lg opacity-0 group-hover/card:opacity-100 transition-opacity shadow-sm z-10"
-                                                    title="Şablonu Sil"
-                                                >
-                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                    <div className="px-1">
+                                                        <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{t.title || 'Başlıksız Şablon'}</h4>
+                                                        <p className="text-xs text-gray-400 mt-1 line-clamp-2">{t.description || 'Açıklama girilmedi.'}</p>
+                                                    </div>
                                                 </button>
-                                            )}
-                                        </div>
-                                    ))}
+                                                
+                                                {isAdmin && (
+                                                    <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                setEditingTemplate(t);
+                                                                setEditTitle(t.title || '');
+                                                                setEditDesc(t.description || '');
+                                                            }}
+                                                            className="p-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-600 rounded-lg shadow-sm"
+                                                            title="Şablonu Düzenle"
+                                                        >
+                                                            <Pencil className="w-3.5 h-3.5" />
+                                                        </button>
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (confirm("Bu özel şablonu silmek istediğinize emin misiniz?")) {
+                                                                    api.delete(`/builder/templates/${t.id}`)
+                                                                        .then(() => {
+                                                                            setCustomTemplates(prev => prev.filter(item => item.id !== t.id));
+                                                                        })
+                                                                        .catch(err => {
+                                                                            alert("Şablon silinirken hata oluştu.");
+                                                                            console.error(err);
+                                                                        });
+                                                                }
+                                                            }}
+                                                            className="p-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-600 rounded-lg shadow-sm"
+                                                            title="Şablonu Sil"
+                                                        >
+                                                            <Trash2 className="w-3.5 h-3.5" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))
+                                )}
                             </>
                         )}
 
@@ -586,6 +632,92 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                     </div>
                 </div>
             </div>
+
+            {/* EDIT TEMPLATE MODAL */}
+            {editingTemplate && (
+                <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onMouseDown={(e) => e.stopPropagation()}>
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                        {/* Modal Header */}
+                        <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-indigo-700 flex items-center justify-between text-white">
+                            <div className="flex items-center gap-2.5">
+                                <Sparkles className="w-6 h-6 animate-pulse" />
+                                <h3 className="text-lg font-black tracking-wide font-display">Şablonu Düzenle</h3>
+                            </div>
+                            <button
+                                onClick={() => setEditingTemplate(null)}
+                                className="p-1.5 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal Body */}
+                        <div className="p-6 flex flex-col gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Şablon Adı</label>
+                                <input
+                                    type="text"
+                                    value={editTitle}
+                                    onChange={(e) => setEditTitle(e.target.value)}
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                                    placeholder="Şablon adı girin..."
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Şablon Açıklaması</label>
+                                <textarea
+                                    value={editDesc}
+                                    onChange={(e) => setEditDesc(e.target.value)}
+                                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm resize-none h-24"
+                                    placeholder="Şablon açıklaması girin..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Modal Footer */}
+                        <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                            <button
+                                onClick={() => setEditingTemplate(null)}
+                                className="px-4 py-2 border-2 border-gray-250 text-gray-500 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                            >
+                                Vazgeç
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    setIsSavingEdit(true);
+                                    try {
+                                        await api.put(`/builder/templates/${editingTemplate.id}`, {
+                                            title: editTitle,
+                                            description: editDesc,
+                                            category: editingTemplate.category
+                                        });
+                                        
+                                        // Update local state
+                                        setCustomTemplates(prev => prev.map(t => {
+                                            if (t.id === editingTemplate.id) {
+                                                return { ...t, title: editTitle, description: editDesc };
+                                            }
+                                            return t;
+                                        }));
+                                        
+                                        setEditingTemplate(null);
+                                    } catch (err: any) {
+                                        console.error(err);
+                                        alert(err.response?.data?.detail || "Şablon güncellenirken bir hata oluştu.");
+                                    } finally {
+                                        setIsSavingEdit(false);
+                                    }
+                                }}
+                                disabled={isSavingEdit}
+                                className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase disabled:opacity-50"
+                            >
+                                {isSavingEdit ? 'Kaydediliyor...' : 'Kaydet'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
