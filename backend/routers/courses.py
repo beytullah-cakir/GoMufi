@@ -883,7 +883,6 @@ async def generate_roadmap_api(
     from google.genai import types
     
     TEMPLATES_PATH = "slide_templates.json"
-    
     try:
         # Load templates
         templates = []
@@ -891,45 +890,45 @@ async def generate_roadmap_api(
             with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
                 templates = json.load(f)
                 
-        # Filter ANLA templates
-        anla_templates = [t for t in templates if t.get("category") == "ANLA"]
-        
-        # Prepare templates info for AI
-        templates_info = []
-        for t in anla_templates:
-            elements_info = []
-            for el in t.get("elements", []):
-                if el.get("type") in ["text", "code", "sticky"]:
-                    elements_info.append({
-                        "id": el.get("id"),
-                        "type": el.get("type"),
-                        "placeholder": el.get("content")
-                    })
-            templates_info.append({
-                "id": t.get("id"),
-                "title": t.get("title"),
-                "description": t.get("description"),
-                "elements": elements_info
-            })
-            
+        # Group templates by category
+        templates_by_category = {
+            "ANLA": [],
+            "UYGULA": [],
+            "BİRLEŞTİR": [],
+            "ÜRET": []
+        }
+        for t in templates:
+            cat = t.get("category", "").upper()
+            if cat in templates_by_category:
+                elements_info = []
+                for el in t.get("elements", []):
+                    if el.get("type") in ["text", "code", "sticky", "challenge", "code_editor"]:
+                        elements_info.append({
+                            "id": el.get("id"),
+                            "type": el.get("type"),
+                            "placeholder": el.get("content")
+                        })
+                templates_by_category[cat].append({
+                    "id": t.get("id"),
+                    "title": t.get("title"),
+                    "description": t.get("description"),
+                    "elements": elements_info
+                })
+                
         client = genai.Client(api_key=settings.MY_API_KEY)
         
-        prompt = f"""
+        # --- PHASE 1: GENERATE ROADMAP STRUCTURE ---
+        prompt_step1 = f"""
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
-Your task is to design a learning roadmap of a course and fill in the slides content for the 'UNDERSTAND' modules.
+Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
 
-Goal: Given the course topic, difficulty, desired lesson count, target audience, and a list of available slide templates, generate a complete course roadmap.
-
-Available Slide Templates for 'UNDERSTAND' modules:
-{json.dumps(templates_info, ensure_ascii=False, indent=2)}
+Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
 
 Requirements:
 - The roadmap consists of lessons.
 - Each lesson contains a list of modules.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- For each lesson, you MUST have EXACTLY one 'UNDERSTAND' module (which represents the learning phase).
-- Inside that single 'UNDERSTAND' module, you MUST generate multiple slides (usually 2 to 4 slides depending on the topic depth) to teach the concepts of the lesson.
-- For each slide, choose the most appropriate template from the Available Slide Templates and fill in the element contents in Turkish.
+- For each lesson, you should follow a pedagogical flow: typically starting with UNDERSTAND, then APPLY, then CONNECT/CREATE, and ending with QUIZ/HOMEWORK.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
 Expected JSON Structure:
@@ -941,30 +940,9 @@ Expected JSON Structure:
       "title": "Lesson title (Türkçe)",
       "objective": "Lesson learning objective (Türkçe)",
       "modules": [
-        {{
-          "type": "UNDERSTAND",
-          "slides": [
-            {{
-              "selectedTemplateId": "template_id_here",
-              "elementContents": {{
-                 "element_id_1": "Generated text explanation in Turkish",
-                 "element_id_2": "Generated python code or note in Turkish..."
-              }}
-            }},
-            {{
-              "selectedTemplateId": "another_template_id",
-              "elementContents": {{
-                 "element_id_x": "..."
-              }}
-            }}
-          ]
-        }},
-        {{
-          "type": "APPLY"
-        }},
-        {{
-          "type": "QUIZ"
-        }}
+        {{ "type": "UNDERSTAND" }},
+        {{ "type": "APPLY" }},
+        {{ "type": "QUIZ" }}
       ]
     }}
   ]
@@ -976,18 +954,83 @@ Difficulty: {req.difficulty}
 Lessons Count: {req.lessons_count}
 Audience: {req.audience}
 """
-        response = client.models.generate_content(
+        response_step1 = client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=prompt,
+            contents=prompt_step1,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
             )
         )
         
-        raw_text = response.text.strip()
-        data = json.loads(raw_text)
+        roadmap_structure = json.loads(response_step1.text.strip())
         
-        generated_lessons = data.get("lessons", [])
+        # --- PHASE 2: GENERATE SLIDES CONTENT FOR ALL MODULES ---
+        prompt_step2 = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to write detailed educational slide contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided curriculum.
+
+Course:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+
+Curriculum Structure to populate:
+{json.dumps(roadmap_structure, ensure_ascii=False, indent=2)}
+
+Available Templates for each category:
+- UNDERSTAND (ANLA) templates:
+{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+
+- APPLY (UYGULA) templates:
+{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+
+- CONNECT (BİRLEŞTİR) templates:
+{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+
+- CREATE (ÜRET) templates:
+{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+
+Requirements:
+- For each module in the curriculum of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
+- For each module, choose the most suitable template from the available templates of its category.
+- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
+- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges.
+- For CONNECT and CREATE: generate 1 to 2 slides with multi-concept scenarios or creative project prompts.
+- Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "levelContents": [
+    {{
+      "lessonNumber": 1,
+      "moduleType": "UNDERSTAND",
+      "slides": [
+        {{
+          "selectedTemplateId": "template_id_here",
+          "elementContents": {{
+             "element_id_1": "Generated text explanation in Turkish",
+             "element_id_2": "Generated python code or note in Turkish..."
+          }}
+        }}
+      ]
+    }}
+  ]
+}}
+"""
+        response_step2 = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt_step2,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        slide_contents_data = json.loads(response_step2.text.strip())
+        level_contents_list = slide_contents_data.get("levelContents", [])
+        
+        # --- PHASE 3: MAP AND CONSTRUCT THE VISUAL CURRICULUM AND NOTES ---
+        generated_lessons = roadmap_structure.get("lessons", [])
         
         curriculum = []
         notes = []
@@ -1002,7 +1045,15 @@ Audience: {req.audience}
           "HOMEWORK": "homework"
         }
         
+        all_templates_map = {
+            "UNDERSTAND": templates_by_category["ANLA"],
+            "APPLY": templates_by_category["UYGULA"],
+            "CONNECT": templates_by_category["BİRLEŞTİR"],
+            "CREATE": templates_by_category["ÜRET"]
+        }
+        
         for l_idx, les in enumerate(generated_lessons):
+            lesson_num = les.get("lessonNumber") or (l_idx + 1)
             modules = les.get("modules", [])
             for m_idx, mod in enumerate(modules):
                 mod_type = mod.get("type", "UNDERSTAND").upper()
@@ -1018,18 +1069,31 @@ Audience: {req.audience}
                 }
                 
                 if m_idx == 0:
-                  node["lessonTopic"] = les.get("title") or f"Ders Konusu {les.get('lessonNumber')}"
-                  node["lessonNumber"] = les.get("lessonNumber") or (l_idx + 1)
+                  node["lessonTopic"] = les.get("title") or f"Ders Konusu {lesson_num}"
+                  node["lessonNumber"] = lesson_num
                   
                 curriculum.append(node)
                 overall_idx += 1
                 
-                # If it's UNDERSTAND, build the slide note from chosen template(s)
-                if mod_type == "UNDERSTAND":
-                    slides_to_add = []
-                    ai_slides = mod.get("slides") or []
+                # Check if we should build slide content for this module type
+                if mod_type in ["UNDERSTAND", "APPLY", "CONNECT", "CREATE"]:
+                    # Find matching generated slide contents
+                    matched_content = next((
+                        lc for lc in level_contents_list 
+                        if lc.get("lessonNumber") == lesson_num and lc.get("moduleType", "").upper() == mod_type
+                    ), None)
                     
-                    # Fallback in case Gemini returned a single dict instead of a list
+                    cat_templates = all_templates_map.get(mod_type, [])
+                    
+                    slides_to_add = []
+                    ai_slides = []
+                    if matched_content:
+                        ai_slides = matched_content.get("slides") or []
+                    
+                    # Fallback if empty but templates exist (create at least 1 placeholder slide)
+                    if not ai_slides and cat_templates:
+                        ai_slides = [{"selectedTemplateId": cat_templates[0]["id"], "elementContents": {}}]
+                        
                     if isinstance(ai_slides, dict):
                         ai_slides = [ai_slides]
                     elif not isinstance(ai_slides, list):
@@ -1039,10 +1103,11 @@ Audience: {req.audience}
                         sel_template_id = ai_slide.get("selectedTemplateId")
                         elem_contents = ai_slide.get("elementContents") or {}
                         
-                        # Find template
-                        selected_t = next((t for t in anla_templates if t.get("id") == sel_template_id), None)
-                        if not selected_t and anla_templates:
-                            selected_t = anla_templates[0]
+                        # Find original template elements
+                        selected_t = next((t for t in templates if t.get("id") == sel_template_id), None)
+                        # Fallback to category template if not found
+                        if not selected_t and cat_templates:
+                            selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
                             
                         if selected_t:
                             copied_elements = []
@@ -1068,11 +1133,355 @@ Audience: {req.audience}
                         }
                         notes.append(note)
                         
-        return {"success": True, "curriculum": curriculum, "notes": notes, "roadmap": data}
+        return {"success": True, "curriculum": curriculum, "notes": notes, "roadmap": roadmap_structure}
         
     except Exception as e:
         print(f"Error generating roadmap: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class GenerateLessonSlidesRequest(BaseModel):
+    topic: str
+    difficulty: str
+    audience: str
+    lesson_number: int
+    lesson_title: str
+    lesson_objective: str
+    modules: List[Any]
 
+
+@router.post("/courses/generate_roadmap_structure")
+async def generate_roadmap_structure_api(
+    req: GenerateRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    from google import genai
+    from google.genai import types
+    
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
+
+Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
+
+Requirements:
+- The roadmap consists of lessons.
+- Each lesson contains a list of modules.
+- Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
+- For each lesson, you should follow a pedagogical flow: typically starting with UNDERSTAND, then APPLY, then CONNECT/CREATE, and ending with QUIZ/HOMEWORK.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "courseTitle": "...",
+  "lessons": [
+    {{
+      "lessonNumber": 1,
+      "title": "Lesson title (Türkçe)",
+      "objective": "Lesson learning objective (Türkçe)",
+      "modules": [
+        {{ "type": "UNDERSTAND" }},
+        {{ "type": "APPLY" }},
+        {{ "type": "QUIZ" }}
+      ]
+    }}
+  ]
+}}
+
+Input:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Lessons Count: {req.lessons_count}
+Audience: {req.audience}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        data = json.loads(response.text.strip())
+        return {"success": True, "roadmap": data}
+    except Exception as e:
+        print(f"Error planning roadmap structure: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/generate_lesson_slides")
+async def generate_lesson_slides_api(
+    req: GenerateLessonSlidesRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    import os
+    import random
+    import copy
+    from google import genai
+    from google.genai import types
+    
+    TEMPLATES_PATH = "slide_templates.json"
+    
+    try:
+        # Load templates
+        templates = []
+        if os.path.exists(TEMPLATES_PATH):
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                templates = json.load(f)
+                
+        # Group templates by category
+        templates_by_category = {
+            "ANLA": [],
+            "UYGULA": [],
+            "BİRLEŞTİR": [],
+            "ÜRET": []
+        }
+        for t in templates:
+            cat = t.get("category", "").upper()
+            if cat in templates_by_category:
+                elements_info = []
+                for el in t.get("elements", []):
+                    if el.get("type") in ["text", "code", "sticky", "challenge", "code_editor"]:
+                        elements_info.append({
+                            "id": el.get("id"),
+                            "type": el.get("type"),
+                            "placeholder": el.get("content")
+                        })
+                templates_by_category[cat].append({
+                    "id": t.get("id"),
+                    "title": t.get("title"),
+                    "description": t.get("description"),
+                    "elements": elements_info
+                })
+                
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to write detailed educational slide and quiz contents for the UNDERSTAND, APPLY, CONNECT, CREATE, and QUIZ modules in the provided single lesson.
+
+Course context:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+
+Lesson to populate:
+Lesson Number: {req.lesson_number}
+Lesson Title: {req.lesson_title}
+Lesson Objective: {req.lesson_objective}
+Modules list: {json.dumps(req.modules, ensure_ascii=False)}
+
+Available Templates for each category:
+- UNDERSTAND (ANLA) templates:
+{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+
+- APPLY (UYGULA) templates:
+{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+
+- CONNECT (BİRLEŞTİR) templates:
+{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+
+- CREATE (ÜRET) templates:
+{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+
+Requirements:
+- For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
+- For each module, choose the most suitable template from the available templates of its category.
+- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
+- For UYGULA/APPLY, BİRLEŞTİR/CONNECT, and ÜRET/CREATE:
+  * Elements of type "challenge" represent the task description or instructions panel. You MUST write the core task description/guidelines here (e.g. "print() fonksiyonunu kullanarak adınızı ekrana yazdırın.").
+  * Elements of type "code_editor" represent the starter code or python boilerplate. You MUST write the coding challenge comments or starter boilerplate code here (e.g. "# Kodunuzu buraya yazın\nprint('Merhaba')").
+  * Elements of type "sticky" are for extra hints, notes, or tips. Do NOT write the main challenge description into sticky elements; they should only contain small hints (e.g. "İpucu: print() fonksiyonu parantez içine yazılan metni ekrana yazdırır.").
+- For QUIZ: generate 3 multiple-choice questions about the lesson topic. Each question must have 1 correct option and 3 incorrect options.
+- Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "slides_map": {{
+    "UNDERSTAND": [
+      {{
+        "selectedTemplateId": "template_id_here",
+        "elementContents": {{
+           "element_id_1": "Generated text explanation in Turkish",
+           "element_id_2": "Generated python code or note..."
+        }}
+      }}
+    ],
+    "APPLY": [
+      {{
+        "selectedTemplateId": "template_id_here",
+        "elementContents": {{
+           "element_id_x": "..."
+        }}
+      }}
+    ]
+  }},
+  "quiz_map": [
+    {{
+      "questionText": "Question text in Turkish?",
+      "options": [
+        {{ "text": "Correct Option text in Turkish", "isCorrect": true }},
+        {{ "text": "Incorrect Option text in Turkish", "isCorrect": false }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false }}
+      ]
+    }}
+  ]
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        slide_contents_data = json.loads(response.text.strip())
+        slides_map = slide_contents_data.get("slides_map") or {}
+        
+        # Build slides and notes
+        theme_map = {
+          "UNDERSTAND": "purple",
+          "APPLY": "cyan",
+          "CONNECT": "green",
+          "CREATE": "yellow",
+          "QUIZ": "quiz",
+          "HOMEWORK": "homework"
+        }
+        
+        all_templates_map = {
+            "UNDERSTAND": templates_by_category["ANLA"],
+            "APPLY": templates_by_category["UYGULA"],
+            "CONNECT": templates_by_category["BİRLEŞTİR"],
+            "CREATE": templates_by_category["ÜRET"]
+        }
+        
+        generated_modules = []
+        generated_notes = []
+        
+        for m_idx, mod in enumerate(req.modules):
+            mod_type = mod.get("type", "UNDERSTAND").upper()
+            mapped_theme = theme_map.get(mod_type, "purple")
+            level_id = f"sec_ai_{int(random.random() * 1000000000)}"
+            
+            node = {
+              "id": level_id,
+              "title": "",
+              "theme": mapped_theme,
+              "lectures": []
+            }
+            
+            if m_idx == 0:
+              node["lessonTopic"] = req.lesson_title
+              node["lessonNumber"] = req.lesson_number
+              
+            generated_modules.append(node)
+            
+            if mod_type in ["UNDERSTAND", "APPLY", "CONNECT", "CREATE"]:
+                ai_slides = slides_map.get(mod_type) or []
+                cat_templates = all_templates_map.get(mod_type, [])
+                
+                # Fallback if empty but templates exist
+                if not ai_slides and cat_templates:
+                    ai_slides = [{"selectedTemplateId": cat_templates[0]["id"], "elementContents": {}}]
+                    
+                if isinstance(ai_slides, dict):
+                    ai_slides = [ai_slides]
+                elif not isinstance(ai_slides, list):
+                    ai_slides = []
+                    
+                slides_to_add = []
+                for ai_slide in ai_slides:
+                    sel_template_id = ai_slide.get("selectedTemplateId")
+                    elem_contents = ai_slide.get("elementContents") or {}
+                    
+                    # Find original template elements
+                    selected_t = next((t for t in templates if t.get("id") == sel_template_id), None)
+                    # Fallback to category template if not found
+                    if not selected_t and cat_templates:
+                        selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
+                        
+                    if selected_t:
+                        copied_elements = []
+                        for el in selected_t.get("elements", []):
+                            el_copy = copy.deepcopy(el)
+                            el_id = el_copy.get("id")
+                            if el_id in elem_contents:
+                                el_copy["content"] = elem_contents[el_id]
+                            copied_elements.append(el_copy)
+                            
+                        slide = {
+                            "id": int(random.random() * 1000000000),
+                            "elements": copied_elements,
+                            "background": selected_t.get("background", "default")
+                        }
+                        slides_to_add.append(slide)
+                        
+                if slides_to_add:
+                    note = {
+                        "id": level_id,
+                        "noteTitle": "",
+                        "slides": slides_to_add
+                    }
+                    generated_notes.append(note)
+            
+            elif mod_type == "QUIZ":
+                quiz_questions = slide_contents_data.get("quiz_map") or []
+                questions_list = []
+                
+                if quiz_questions:
+                    for idx, qq in enumerate(quiz_questions):
+                        options_list = []
+                        for opt_idx, opt in enumerate(qq.get("options", [])):
+                            options_list.append({
+                                "id": str(opt_idx + 1),
+                                "text": opt.get("text", ""),
+                                "isCorrect": opt.get("isCorrect", False)
+                            })
+                        questions_list.append({
+                            "id": f"q-{idx + 1}-{int(random.random() * 100000)}",
+                            "text": qq.get("questionText", "Soru"),
+                            "options": options_list
+                        })
+                
+                # Fallback if empty
+                if not questions_list:
+                    questions_list = [{
+                        "id": "mock-q-1",
+                        "text": f"{req.lesson_title} Konu Değerlendirme Sorusu",
+                        "options": [
+                            { "id": "1", "text": "Doğru Seçenek", "isCorrect": true },
+                            { "id": "2", "text": "Yanlış Seçenek 1", "isCorrect": false },
+                            { "id": "3", "text": "Yanlış Seçenek 2", "isCorrect": false },
+                            { "id": "4", "text": "Yanlış Seçenek 3", "isCorrect": false }
+                        ]
+                    }]
+                
+                quiz_slide = {
+                    "id": int(random.random() * 1000000000),
+                    "type": "game",
+                    "gameType": "matching",
+                    "gameConfig": {
+                        "timeLimit": 60,
+                        "questions": questions_list
+                    },
+                    "elements": []
+                }
+                
+                note = {
+                    "id": level_id,
+                    "noteTitle": "",
+                    "slides": [quiz_slide]
+                }
+                generated_notes.append(note)
+                    
+        return {"success": True, "modules": generated_modules, "notes": generated_notes}
+    except Exception as e:
+        print(f"Error generating lesson slides: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

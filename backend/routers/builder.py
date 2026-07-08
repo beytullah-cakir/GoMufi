@@ -194,9 +194,11 @@ async def update_template(template_id: str, request: Request, user=Depends(get_c
         
     try:
         body = await request.json()
-        title = body.get("title", "")
-        description = body.get("description", "")
+        title = body.get("title")
+        description = body.get("description")
         category = body.get("category")
+        elements = body.get("elements")
+        background = body.get("background")
         
         if not os.path.exists(TEMPLATES_PATH):
             raise HTTPException(status_code=404, detail="Şablon dosyası bulunamadı.")
@@ -207,10 +209,16 @@ async def update_template(template_id: str, request: Request, user=Depends(get_c
         found = False
         for t in templates:
             if t.get("id") == template_id:
-                t["title"] = title
-                t["description"] = description
-                if category:
+                if title is not None:
+                    t["title"] = title
+                if description is not None:
+                    t["description"] = description
+                if category is not None:
                     t["category"] = category.upper()
+                if elements is not None:
+                    t["elements"] = elements
+                if background is not None:
+                    t["background"] = background
                 found = True
                 break
                 
