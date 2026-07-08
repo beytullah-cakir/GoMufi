@@ -42,6 +42,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [templateDesc, setTemplateDesc] = useState('');
     const [templateCategory, setTemplateCategory] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV'>('ANLA');
     const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+    const [templatesList, setTemplatesList] = useState<any[]>([]);
+    const [saveMode, setSaveMode] = useState<"new" | "update">("new");
+    const [selectedTemplateIdToUpdate, setSelectedTemplateIdToUpdate] = useState<string>("");
 
     const savedDraft = (() => {
         try {
@@ -2031,7 +2034,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         setTemplateTitle(`${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Şablonu`);
                         setTemplateDesc('');
                         setTemplateCategory(activeStage);
+                        setSaveMode("new");
+                        setSelectedTemplateIdToUpdate("");
                         setShowSaveTemplateModal(true);
+                        api.get('/builder/templates').then(res => {
+                            setTemplatesList(res.data || []);
+                        }).catch(err => {
+                            console.error("Error loading templates", err);
+                        });
                     }}
                 />
             )}
@@ -2389,7 +2399,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-indigo-700 flex items-center justify-between text-white">
                                 <div className="flex items-center gap-2.5">
                                     <LayoutTemplate className="w-6 h-6 animate-pulse" />
-                                    <h3 className="text-lg font-black tracking-wide font-display">Şablon Olarak Kaydet</h3>
+                                    <h3 className="text-lg font-black tracking-wide font-display">Şablon Kaydet</h3>
                                 </div>
                                 <button
                                     onClick={() => setShowSaveTemplateModal(false)}
@@ -2399,8 +2409,49 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 </button>
                             </div>
 
+                            {/* Save Mode Tabs */}
+                            <div className="flex border-b border-gray-150">
+                                <button
+                                    onClick={() => setSaveMode("new")}
+                                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${saveMode === 'new' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Yeni Şablon
+                                </button>
+                                <button
+                                    onClick={() => setSaveMode("update")}
+                                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${saveMode === 'update' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Mevcut Şablonu Güncelle
+                                </button>
+                            </div>
+
                             {/* Modal Body */}
                             <div className="p-6 flex flex-col gap-4">
+                                {saveMode === "update" && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Güncellenecek Şablon Seçin</label>
+                                        <select
+                                            value={selectedTemplateIdToUpdate}
+                                            onChange={(e) => {
+                                                const tid = e.target.value;
+                                                setSelectedTemplateIdToUpdate(tid);
+                                                const found = templatesList.find(t => t.id === tid);
+                                                if (found) {
+                                                    setTemplateTitle(found.title || "");
+                                                    setTemplateDesc(found.description || "");
+                                                    setTemplateCategory(found.category || "ANLA");
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                                        >
+                                            <option value="">-- Şablon Seçin --</option>
+                                            {templatesList.map(t => (
+                                                <option key={t.id} value={t.id}>{t.title} ({t.category})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Şablon Adı</label>
                                     <input
@@ -2449,20 +2500,35 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 </button>
                                 <button
                                     onClick={async () => {
+                                        if (saveMode === "update" && !selectedTemplateIdToUpdate) {
+                                            alert("Lütfen güncellenecek bir şablon seçin!");
+                                            return;
+                                        }
                                         if (!templateTitle.trim()) {
                                             alert("Şablon adı boş olamaz!");
                                             return;
                                         }
                                         setIsSavingTemplate(true);
                                         try {
-                                            await api.post('/builder/templates', {
-                                                title: templateTitle,
-                                                description: templateDesc,
-                                                category: templateCategory,
-                                                elements: currentSlide.elements,
-                                                background: currentSlide.background
-                                            });
-                                            alert("Şablon başarıyla kaydedildi!");
+                                            if (saveMode === "new") {
+                                                await api.post('/builder/templates', {
+                                                    title: templateTitle,
+                                                    description: templateDesc,
+                                                    category: templateCategory,
+                                                    elements: currentSlide.elements,
+                                                    background: currentSlide.background
+                                                });
+                                                alert("Şablon başarıyla kaydedildi!");
+                                            } else {
+                                                await api.put(`/builder/templates/${selectedTemplateIdToUpdate}`, {
+                                                    title: templateTitle,
+                                                    description: templateDesc,
+                                                    category: templateCategory,
+                                                    elements: currentSlide.elements,
+                                                    background: currentSlide.background
+                                                });
+                                                alert("Şablon başarıyla güncellendi!");
+                                            }
                                             setShowSaveTemplateModal(false);
                                         } catch (err: any) {
                                             console.error(err);
@@ -2474,7 +2540,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                     disabled={isSavingTemplate}
                                     className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase disabled:opacity-50"
                                 >
-                                    {isSavingTemplate ? 'Kaydediliyor...' : 'Kaydet'}
+                                    {isSavingTemplate ? 'Kaydediliyor...' : (saveMode === 'new' ? 'Kaydet' : 'Güncelle')}
                                 </button>
                             </div>
                         </div>

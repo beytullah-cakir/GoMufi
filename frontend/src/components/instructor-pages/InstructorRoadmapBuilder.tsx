@@ -71,6 +71,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [aiLessonsCount, setAiLessonsCount] = useState(6);
   const [aiAudience, setAiAudience] = useState("Hiç kodlama deneyimi olmayan öğrenciler.");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiProgressStatus, setAiProgressStatus] = useState("");
+  const [aiProgressPercent, setAiProgressPercent] = useState(0);
 
 
   const handleExportRoadmap = async () => {
@@ -148,20 +150,88 @@ const InstructorRoadmapBuilder: React.FC = () => {
     }
     
     setIsGeneratingAI(true);
+    setAiProgressStatus("AI ile Yol Haritası Planlanıyor...");
+    setAiProgressPercent(5);
+    
     try {
-      const response = await api.post("/courses/generate_roadmap", {
+      // Step 1: Generate Roadmap Structure
+      const response = await api.post("/courses/generate_roadmap_structure", {
         topic: aiTopic,
         difficulty: aiDifficulty,
         lessons_count: aiLessonsCount,
         audience: aiAudience
       });
       
-      if (response.data?.success && response.data?.curriculum) {
-        const finalSections = recalculateSectionsList(response.data.curriculum);
+      if (response.data?.success && response.data?.roadmap) {
+        const roadmap = response.data.roadmap;
+        const lessons = roadmap.lessons || [];
+        
+        if (lessons.length === 0) {
+          alert("Ders planı oluşturulamadı.");
+          setIsGeneratingAI(false);
+          return;
+        }
+        
+        setAiProgressStatus("Yol haritası başarıyla planlandı. Slaytlar dolduruluyor...");
+        setAiProgressPercent(15);
+        
+        const allModules: any[] = [];
+        const allNotes: any[] = [];
+        let overallIdx = 1;
+        
+        // Step 2: Loop and generate slide content for each lesson
+        for (let i = 0; i < lessons.length; i++) {
+          const lesson = lessons[i];
+          
+          setAiProgressStatus(`Ders ${i + 1}/${lessons.length}: "${lesson.title}" Slaytları Dolduruluyor...`);
+          setAiProgressPercent(Math.round(15 + (i / lessons.length) * 75));
+          
+          const lessonRes = await api.post("/courses/generate_lesson_slides", {
+            topic: aiTopic,
+            difficulty: aiDifficulty,
+            audience: aiAudience,
+            lesson_number: lesson.lessonNumber || (i + 1),
+            lesson_title: lesson.title,
+            lesson_objective: lesson.objective || "",
+            modules: lesson.modules || []
+          });
+          
+          if (lessonRes.data?.success) {
+            const returnedModules = lessonRes.data.modules || [];
+            const returnedNotes = lessonRes.data.notes || [];
+            
+            returnedModules.forEach((node: any) => {
+              node.title = `Ders ${overallIdx}`;
+              overallIdx++;
+            });
+            
+            returnedNotes.forEach((note: any) => {
+              const matchedNode = returnedModules.find((nm: any) => nm.id === note.id);
+              if (matchedNode) {
+                note.noteTitle = matchedNode.title;
+              }
+            });
+            
+            allModules.push(...returnedModules);
+            allNotes.push(...returnedNotes);
+          }
+        }
+        
+        setAiProgressStatus("Yol Haritası Görselleştiriliyor...");
+        setAiProgressPercent(95);
+        
+        const finalSections = recalculateSectionsList(allModules);
         setSections(finalSections);
-        setNotes(response.data.notes || []);
-        setIsAIModalOpen(false);
-        alert("AI başarıyla yol haritasını ve ders anlatım slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
+        setNotes(allNotes);
+        
+        setAiProgressStatus("Tamamlandı!");
+        setAiProgressPercent(100);
+        
+        setTimeout(() => {
+          setIsAIModalOpen(false);
+          alert("AI başarıyla yol haritasını ve tüm ders slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
+        }, 800);
+        
       } else {
         alert("Yol haritası üretilemedi.");
       }
@@ -1314,88 +1384,104 @@ const InstructorRoadmapBuilder: React.FC = () => {
               </button>
             </div>
 
-            {/* Body */}
-            <div className="p-6 flex flex-col gap-4 text-left">
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kurs Konusu</label>
-                <input
-                  type="text"
-                  value={aiTopic}
-                  onChange={(e) => setAiTopic(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
-                  placeholder="örn: Python Programlamaya Giriş"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Zorluk Seviyesi</label>
-                  <select
-                    value={aiDifficulty}
-                    onChange={(e) => setAiDifficulty(e.target.value)}
-                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-850 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
-                  >
-                    <option value="Beginner">Başlangıç</option>
-                    <option value="Intermediate">Orta</option>
-                    <option value="Advanced">İleri</option>
-                  </select>
+            {isGeneratingAI ? (
+              <div className="p-10 flex flex-col items-center justify-center text-center gap-6 min-h-[340px] animate-in fade-in zoom-in-95 duration-200">
+                <div className="relative flex items-center justify-center">
+                  <div className="w-24 h-24 rounded-full border-4 border-purple-100 border-t-purple-650 animate-spin"></div>
+                  <Sparkles className="w-10 h-10 text-indigo-500 absolute animate-pulse" />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex justify-between">
-                    <span>Tahmini Ders Sayısı</span>
-                    <span className="text-indigo-600 font-black">{aiLessonsCount}</span>
-                  </label>
-                  <div className="flex items-center gap-3 h-[48px]">
+                
+                <div className="flex flex-col gap-2 w-full">
+                  <h4 className="font-black text-gray-800 tracking-wide text-sm">GoMufi Yapay Zeka</h4>
+                  <p className="text-xs text-gray-500 font-bold px-4 transition-all duration-300 min-h-[32px]">{aiProgressStatus}</p>
+                </div>
+                
+                {/* Progress bar container */}
+                <div className="w-full max-w-xs bg-gray-150 h-3.5 rounded-full overflow-hidden shadow-inner relative mt-2 border border-gray-200">
+                  <div 
+                    className="bg-gradient-to-r from-purple-500 to-indigo-600 h-full transition-all duration-500 rounded-full"
+                    style={{ width: `${aiProgressPercent}%` }}
+                  ></div>
+                </div>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">% {aiProgressPercent} Tamamlandı</span>
+              </div>
+            ) : (
+              <>
+                {/* Body */}
+                <div className="p-6 flex flex-col gap-4 text-left">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kurs Konusu</label>
                     <input
-                      type="range"
-                      min="2"
-                      max="20"
-                      value={aiLessonsCount}
-                      onChange={(e) => setAiLessonsCount(parseInt(e.target.value))}
-                      className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-550"
+                      type="text"
+                      value={aiTopic}
+                      onChange={(e) => setAiTopic(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                      placeholder="örn: Python Programlamaya Giriş"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Zorluk Seviyesi</label>
+                      <select
+                        value={aiDifficulty}
+                        onChange={(e) => setAiDifficulty(e.target.value)}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-850 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                      >
+                        <option value="Beginner">Başlangıç</option>
+                        <option value="Intermediate">Orta</option>
+                        <option value="Advanced">İleri</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex justify-between">
+                        <span>Tahmini Ders Sayısı</span>
+                        <span className="text-indigo-600 font-black">{aiLessonsCount}</span>
+                      </label>
+                      <div className="flex items-center gap-3 h-[48px]">
+                        <input
+                          type="range"
+                          min="2"
+                          max="20"
+                          value={aiLessonsCount}
+                          onChange={(e) => setAiLessonsCount(parseInt(e.target.value))}
+                          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-550"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Hedef Kitle</label>
+                    <textarea
+                      value={aiAudience}
+                      onChange={(e) => setAiAudience(e.target.value)}
+                      className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm resize-none h-20"
+                      placeholder="örn: Daha önce programlama yapmamış ilkokul öğrencileri."
                     />
                   </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Hedef Kitle</label>
-                <textarea
-                  value={aiAudience}
-                  onChange={(e) => setAiAudience(e.target.value)}
-                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm resize-none h-20"
-                  placeholder="örn: Daha önce programlama yapmamış ilkokul öğrencileri."
-                />
-              </div>
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
-              <button
-                onClick={() => setIsAIModalOpen(false)}
-                className="px-4 py-2 border-2 border-gray-250 text-gray-505 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
-              >
-                Vazgeç
-              </button>
-              <button
-                onClick={handleGenerateAI}
-                disabled={isGeneratingAI}
-                className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2 disabled:opacity-50"
-              >
-                {isGeneratingAI ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>AI Üretiyor...</span>
-                  </>
-                ) : (
-                  <>
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                  <button
+                    onClick={() => setIsAIModalOpen(false)}
+                    className="px-4 py-2 border-2 border-gray-250 text-gray-505 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                  >
+                    Vazgeç
+                  </button>
+                  <button
+                    onClick={handleGenerateAI}
+                    disabled={isGeneratingAI}
+                    className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2 disabled:opacity-50"
+                  >
                     <Sparkles className="w-4 h-4" />
                     <span>Yol Haritası Oluştur</span>
-                  </>
-                )}
-              </button>
-            </div>
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
