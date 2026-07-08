@@ -1,229 +1,5 @@
 [
   {
-    "id": "6ea4970c-85d2-4039-9b12-42c278cd441a",
-    "category": "ANLA",
-    "title": "Kod Açıklama Şablonu",
-    "description": "Bu şablon örnek kod ve açıklaması içindir.",
-    "elements": [
-      {
-        "id": "1783015417166969",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 22.888885498046875,
-        "width": 1222,
-        "height": 85,
-        "rotation": 0,
-        "content": "Header 1",
-        "shapeType": null,
-        "src": null,
-        "imageUrl": null,
-        "videoUrl": null,
-        "extra": null,
-        "style": {
-          "bold": false,
-          "italic": null,
-          "underline": null,
-          "color": null,
-          "fontSize": 60,
-          "fontFamily": "Fredoka",
-          "backgroundColor": null,
-          "textAlign": "left",
-          "verticalAlign": null,
-          "borderRadius": null,
-          "borderColor": null,
-          "borderWidth": null,
-          "borderPosition": null,
-          "opacity": null
-        },
-        "codeConfig": null,
-        "arrowConfig": null
-      },
-      {
-        "id": "1783386198454029",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 107.88888549804688,
-        "width": 482,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 1&nbsp;",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      },
-      {
-        "id": "1783415541947254",
-        "type": "code",
-        "x": 542.4814758300781,
-        "y": 22.888885498046875,
-        "width": 708,
-        "height": 614,
-        "rotation": 0,
-        "content": "#Code Example",
-        "style": {
-          "fontSize": 24,
-          "fontFamily": "Fira Code",
-          "bold": true
-        }
-      },
-      {
-        "id": "1783415575858072",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 155.88888549804688,
-        "width": 482,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 2",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      },
-      {
-        "id": "1783415643136058",
-        "type": "sticky",
-        "x": 20.481475830078125,
-        "y": 436.8888854980469,
-        "width": 200,
-        "height": 200,
-        "rotation": 0,
-        "content": "important note 1",
-        "style": {
-          "fontSize": 24,
-          "fontFamily": "Patrick Hand",
-          "backgroundColor": "#fef3c7"
-        }
-      }
-    ],
-    "background": "default"
-  },
-  {
-    "id": "a96a45bb-18b8-493d-aea1-ba850d43cd78",
-    "category": "ANLA",
-    "title": "Metin Şablonu",
-    "description": "Bu şablonu yeni bir kavramı ilk kez tanıtacağın zaman kullan. Öğrencinin konuya giriş yapmasını sağlayacak kısa ve anlaşılır açıklamalar oluştur. Gereksiz detaylardan kaçın. Maksimum okunabilirlik hedeflenmelidir.",
-    "elements": [
-      {
-        "id": "1783415891887776",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 22.888885498046875,
-        "width": 1222,
-        "height": 85,
-        "rotation": 0,
-        "content": "Header 1",
-        "shapeType": null,
-        "src": null,
-        "imageUrl": null,
-        "videoUrl": null,
-        "extra": null,
-        "style": {
-          "bold": false,
-          "italic": null,
-          "underline": null,
-          "color": null,
-          "fontSize": 60,
-          "fontFamily": "Fredoka",
-          "backgroundColor": null,
-          "textAlign": "left",
-          "verticalAlign": null,
-          "borderRadius": null,
-          "borderColor": null,
-          "borderWidth": null,
-          "borderPosition": null,
-          "opacity": null
-        },
-        "codeConfig": null,
-        "arrowConfig": null
-      },
-      {
-        "id": "1783415891887930",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 107.88888549804688,
-        "width": 482,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 1&nbsp;",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      },
-      {
-        "id": "1783415891887381",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 155.88888549804688,
-        "width": 482,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 2",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      },
-      {
-        "id": "1783415891887152",
-        "type": "sticky",
-        "x": 1042.4814758300781,
-        "y": 31.888885498046875,
-        "width": 200,
-        "height": 200,
-        "rotation": 0,
-        "content": "important note 1",
-        "style": {
-          "fontSize": 24,
-          "fontFamily": "Patrick Hand",
-          "backgroundColor": "#fef3c7"
-        }
-      },
-      {
-        "id": "1783416291380554",
-        "type": "sticky",
-        "x": 798.4814758300781,
-        "y": 31.888885498046875,
-        "width": 200,
-        "height": 200,
-        "rotation": 0,
-        "content": "important note 2",
-        "style": {
-          "fontSize": 24,
-          "fontFamily": "Patrick Hand",
-          "backgroundColor": "#fef3c7"
-        }
-      },
-      {
-        "id": "1783416297576731",
-        "type": "text",
-        "x": 20.481475830078125,
-        "y": 203.88888549804688,
-        "width": 482,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 2",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      }
-    ],
-    "background": "default"
-  },
-  {
     "id": "f5cd218b-91bb-41f9-9305-859c6842c87c",
     "category": "ANLA",
     "title": "Bilgi Kartı Şablonu",
@@ -393,6 +169,840 @@
           "textAlign": "left",
           "underline": false
         }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "eded9f09-7b18-42c9-9faf-0472c6d62eb7",
+    "category": "ANLA",
+    "title": "Kod Örneği Şablonu",
+    "description": "Kod örneği üzerinden yeni bir programlama kavramını öğretmek. Kod kısa, okunabilir ve tek bir fikri anlatmalıdır. Açıklamalar doğrudan kodu desteklemelidir. Gerekirse tek bir önemli not eklenebilir.",
+    "elements": [
+      {
+        "id": "1783415891887776",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783415891887930",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783415891887504",
+        "type": "code",
+        "x": 542.4814758300781,
+        "y": 22.888885498046875,
+        "width": 708,
+        "height": 614,
+        "rotation": 0,
+        "content": "#Code Example",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Fira Code",
+          "bold": true
+        }
+      },
+      {
+        "id": "1783415891887381",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 162.88888549804688,
+        "width": 482,
+        "height": 232,
+        "rotation": 0,
+        "content": "Explanation Long Text",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false,
+          "verticalAlign": "top"
+        }
+      },
+      {
+        "id": "1783415891887152",
+        "type": "sticky",
+        "x": 20.481475830078125,
+        "y": 436.8888854980469,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "fbb4fbae-57a5-4239-9938-065cc6127df6",
+    "category": "ANLA",
+    "title": "Metin Şablonu",
+    "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
+    "elements": [
+      {
+        "id": "1783466500609338",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783466500609387",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783466500609943",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 742,
+        "height": 528,
+        "rotation": 0,
+        "content": "Explanation Long Text 1",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false,
+          "verticalAlign": "top"
+        }
+      },
+      {
+        "id": "1783466500609214",
+        "type": "sticky",
+        "x": 1042.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783466500609851",
+        "type": "sticky",
+        "x": 798.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 2",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "49f0fbb8-a3bc-45cc-bfc5-e912ee46517d",
+    "category": "UYGULA",
+    "title": "Metin Şablonu",
+    "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
+    "elements": [
+      {
+        "id": "1783466705877097",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783466705877855",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783466705877912",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 742,
+        "height": 528,
+        "rotation": 0,
+        "content": "Explanation Long Text 1",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false,
+          "verticalAlign": "top"
+        }
+      },
+      {
+        "id": "1783466705877789",
+        "type": "sticky",
+        "x": 1042.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783466705877570",
+        "type": "sticky",
+        "x": 798.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 2",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "c7276d2e-7faf-48c6-9aac-8c00c368ea30",
+    "category": "UYGULA",
+    "title": "Mini Görev",
+    "description": "Öğrenciye gerçek hayata yakın küçük görev ver. Görev tamamlandığında yeni öğrendiği bilgiyi kullanmış olmalıdır.",
+    "elements": [
+      {
+        "type": "challenge",
+        "x": 40.481475830078125,
+        "y": 219,
+        "width": 486,
+        "height": 249,
+        "content": "Challenge Description",
+        "extra": {
+          "title": "🎯 Challenge (Mini Görev)",
+          "submittedText": "",
+          "submittedCode": "# Çözüm kodunuzu buraya yazın\n",
+          "submittedFile": "",
+          "isSubmitted": false,
+          "linkedCodeEditorId": "1783466749782361",
+          "activeTab": "code"
+        },
+        "id": "1783466745768362"
+      },
+      {
+        "id": "1783466749782361",
+        "type": "code_editor",
+        "x": 553,
+        "y": 14,
+        "width": 654,
+        "height": 692,
+        "rotation": 0,
+        "content": "#Challenge Code Text",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        },
+        "extra": {
+          "isLinkedToChallenge": true,
+          "parentChallengeId": "1783466745768362"
+        }
+      },
+      {
+        "id": "1783466801752471",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 42.888885498046875,
+        "width": 385,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783466801752475",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 127.88888549804688,
+        "width": 382,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783466827326898",
+        "type": "sticky",
+        "x": 183.48147583007812,
+        "y": 484.8888854980469,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "8851cc95-acb5-4da9-bc1a-6120f50f3c50",
+    "category": "BİRLEŞTİR",
+    "title": "Metin Şablonu",
+    "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
+    "elements": [
+      {
+        "id": "1783466705877097",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783466705877855",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783466705877912",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 742,
+        "height": 528,
+        "rotation": 0,
+        "content": "Explanation Long Text 1",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false,
+          "verticalAlign": "top"
+        }
+      },
+      {
+        "id": "1783466705877789",
+        "type": "sticky",
+        "x": 1042.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783466705877570",
+        "type": "sticky",
+        "x": 798.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 2",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "7fcc0180-08b5-4fb8-8b0a-35c139f7cab0",
+    "category": "ÜRET",
+    "title": "Metin Şablonu",
+    "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
+    "elements": [
+      {
+        "id": "1783466705877097",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 22.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783466705877855",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 107.88888549804688,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      },
+      {
+        "id": "1783466705877912",
+        "type": "text",
+        "x": 20.481475830078125,
+        "y": 155.88888549804688,
+        "width": 742,
+        "height": 528,
+        "rotation": 0,
+        "content": "Explanation Long Text 1",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false,
+          "verticalAlign": "top"
+        }
+      },
+      {
+        "id": "1783466705877789",
+        "type": "sticky",
+        "x": 1042.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 1",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      },
+      {
+        "id": "1783466705877570",
+        "type": "sticky",
+        "x": 798.4814758300781,
+        "y": 31.888885498046875,
+        "width": 200,
+        "height": 200,
+        "rotation": 0,
+        "content": "important note 2",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Patrick Hand",
+          "backgroundColor": "#fef3c7"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "b55bb958-0679-438b-9dbc-b98e12ac889d",
+    "category": "BİRLEŞTİR",
+    "title": "Bağlantı Kur Şablonu ",
+    "description": "Önceki modüllerden hangisi bağlantılı ise bu şablonda verilecek olan görev için  öğrenilen kavramları hatırlat ve öğrencinin bunları yeni görevde birlikte kullanmasını iste.",
+    "elements": [
+      {
+        "type": "connection_task",
+        "x": 40.481475830078125,
+        "y": 166,
+        "width": 640,
+        "height": 537,
+        "rotation": 0,
+        "content": "Birlestir Task Text",
+        "extra": {
+          "title": "Bağlantı Görevi (Connection Task)",
+          "previousTopic": "Previous Topic Name",
+          "currentTopic": "Current Topic Name",
+          "submittedAnswer": "",
+          "isSubmitted": false,
+          "linkedCodeEditorId": "1783467268937178",
+          "activeTab": "code"
+        },
+        "id": "1783467267111528"
+      },
+      {
+        "id": "1783467268937178",
+        "type": "code_editor",
+        "x": 707,
+        "y": 166,
+        "width": 564,
+        "height": 541,
+        "rotation": 0,
+        "content": "#Birlestir Code Area",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        },
+        "extra": {
+          "isLinkedToChallenge": true,
+          "parentChallengeId": "1783467267111528"
+        }
+      },
+      {
+        "id": "1783467287089144",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 22.5,
+        "width": 244,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783467287089632",
+        "type": "text",
+        "x": 40.481475830078125,
+        "y": 106,
+        "width": 482,
+        "height": 48,
+        "rotation": 0,
+        "content": "Explanation Short Line 1&nbsp;",
+        "style": {
+          "fontSize": 28,
+          "fontFamily": "Fredoka",
+          "textAlign": "left",
+          "underline": false
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "b9f398c5-68fa-464c-9d41-1a75b9010f1d",
+    "category": "ÜRET",
+    "title": "Üret Şablonu",
+    "description": "Öğrencinin öğrendiği tüm bilgileri kullanarak küçük ama tamamlanabilir bir proje üretmesini sağla. Proje tek ders içerisinde tamamlanabilecek büyüklükte olmalıdır.",
+    "elements": [
+      {
+        "id": "1783015692337403",
+        "type": "production_task",
+        "x": 40,
+        "y": 126,
+        "width": 648,
+        "height": 546,
+        "rotation": 0,
+        "content": "Project Explanation Text",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": {
+          "title": "Proje Görevi (Produce Task)",
+          "projectTitle": "Project Header Text",
+          "expectedOutput": "Expected Output Text",
+          "estimatedTime": "Estimated Time Text",
+          "hints": "Hint Text",
+          "isSubmitted": false,
+          "linkedCodeEditorId": "1783015733158464",
+          "activeTab": "code"
+        },
+        "style": null,
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783015733158464",
+        "type": "code_editor",
+        "x": 716.4814758300781,
+        "y": 127.88888549804688,
+        "width": 546,
+        "height": 545,
+        "rotation": 0,
+        "content": "#Üret Code Text",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": {
+          "isLinkedToChallenge": true,
+          "parentChallengeId": "1783015692337403"
+        },
+        "style": {
+          "bold": null,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 14,
+          "fontFamily": "Fira Code",
+          "backgroundColor": null,
+          "textAlign": null,
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
+      },
+      {
+        "id": "1783467560946968",
+        "type": "text",
+        "x": 40,
+        "y": 33.888885498046875,
+        "width": 1222,
+        "height": 85,
+        "rotation": 0,
+        "content": "Header 1",
+        "shapeType": null,
+        "src": null,
+        "imageUrl": null,
+        "videoUrl": null,
+        "extra": null,
+        "style": {
+          "bold": false,
+          "italic": null,
+          "underline": null,
+          "color": null,
+          "fontSize": 60,
+          "fontFamily": "Fredoka",
+          "backgroundColor": null,
+          "textAlign": "left",
+          "verticalAlign": null,
+          "borderRadius": null,
+          "borderColor": null,
+          "borderWidth": null,
+          "borderPosition": null,
+          "opacity": null
+        },
+        "codeConfig": null,
+        "arrowConfig": null
       }
     ],
     "background": "default"

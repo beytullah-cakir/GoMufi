@@ -183,3 +183,47 @@ async def delete_template(template_id: str, user=Depends(get_current_user)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.put("/templates/{template_id}")
+async def update_template(template_id: str, request: Request, user=Depends(get_current_user)):
+    if user.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Yalnızca yöneticiler şablon güncelleyebilir."
+        )
+        
+    try:
+        body = await request.json()
+        title = body.get("title", "")
+        description = body.get("description", "")
+        category = body.get("category")
+        
+        if not os.path.exists(TEMPLATES_PATH):
+            raise HTTPException(status_code=404, detail="Şablon dosyası bulunamadı.")
+            
+        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+            templates = json.load(f)
+            
+        found = False
+        for t in templates:
+            if t.get("id") == template_id:
+                t["title"] = title
+                t["description"] = description
+                if category:
+                    t["category"] = category.upper()
+                found = True
+                break
+                
+        if not found:
+            raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
+            
+        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
+            json.dump(templates, f, indent=2, ensure_ascii=False)
+            
+        return {"success": True, "message": "Şablon başarıyla güncellendi."}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+

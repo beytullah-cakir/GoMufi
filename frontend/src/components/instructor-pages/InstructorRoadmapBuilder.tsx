@@ -53,6 +53,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   const [course, setCourse] = useState<any>(null);
   const [sections, setSections] = useState<SectionNode[]>([]);
+  const [notes, setNotes] = useState<any[]>([]);
   const [liveSessionsConfig, setLiveSessionsConfig] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -62,6 +63,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [dragOverItem, setDragOverItem] = useState<{ type: "level" | "divider" | "connector" | "plus_connector" | "plus_divider"; index: number } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // AI Roadmap Generator States
+  const [isAIModalOpen, setIsAIModalOpen] = useState(false);
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiDifficulty, setAiDifficulty] = useState("Beginner");
+  const [aiLessonsCount, setAiLessonsCount] = useState(6);
+  const [aiAudience, setAiAudience] = useState("Hiç kodlama deneyimi olmayan öğrenciler.");
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+
 
   const handleExportRoadmap = async () => {
     setIsSaving(true);
@@ -131,11 +141,46 @@ const InstructorRoadmapBuilder: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleGenerateAI = async () => {
+    if (!aiTopic.trim()) {
+      alert("Lütfen bir ders konusu girin.");
+      return;
+    }
+    
+    setIsGeneratingAI(true);
+    try {
+      const response = await api.post("/courses/generate_roadmap", {
+        topic: aiTopic,
+        difficulty: aiDifficulty,
+        lessons_count: aiLessonsCount,
+        audience: aiAudience
+      });
+      
+      if (response.data?.success && response.data?.curriculum) {
+        const finalSections = recalculateSectionsList(response.data.curriculum);
+        setSections(finalSections);
+        setNotes(response.data.notes || []);
+        setIsAIModalOpen(false);
+        alert("AI başarıyla yol haritasını ve ders anlatım slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
+      } else {
+        alert("Yol haritası üretilemedi.");
+      }
+    } catch (error: any) {
+      console.error("AI Generation error:", error);
+      alert(error.response?.data?.detail || "AI yol haritası üretirken hata oluştu.");
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
+
+
   useEffect(() => {
     const fetchCourseData = async () => {
       try {
         const response = await api.get(`/courses/${courseId}`);
         setCourse(response.data);
+        setAiTopic(response.data.title || "");
+        setNotes(response.data.notes || []);
         
         const rawCurriculum = response.data?.curriculum || [];
         const pattern = ["purple", "cyan", "green", "yellow"];
@@ -189,6 +234,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
       await api.put(`/update_course/${courseId}`, {
         curriculum: curriculumPayload,
+        notes: notes,
       });
     } catch (error) {
       console.error("Error auto-saving curriculum:", error);
@@ -368,6 +414,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
       await api.put(`/update_course/${courseId}`, {
         curriculum: curriculumPayload,
+        notes: notes,
       });
 
       alert("Yol haritası başarıyla kaydedildi!");
@@ -664,6 +711,16 @@ const InstructorRoadmapBuilder: React.FC = () => {
           >
             <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
             <span>Tümünü Temizle</span>
+          </button>
+
+          <button
+            onClick={() => setIsAIModalOpen(true)}
+            disabled={isSaving}
+            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-650 hover:to-indigo-750 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
+            title="AI ile Yol Haritası Oluştur"
+          >
+            <Sparkles className="w-4 h-4 group-hover:animate-pulse transition-transform text-purple-200" />
+            <span>AI ile Oluştur</span>
           </button>
 
           <button
@@ -1238,6 +1295,110 @@ const InstructorRoadmapBuilder: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* AI ROADMAP GENERATOR MODAL */}
+      {isAIModalOpen && (
+        <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onMouseDown={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-indigo-700 flex items-center justify-between text-white">
+              <div className="flex items-center gap-2.5">
+                <Sparkles className="w-6 h-6 animate-pulse text-purple-200" />
+                <h3 className="text-lg font-black tracking-wide font-display">AI ile Yol Haritası Oluştur</h3>
+              </div>
+              <button
+                onClick={() => setIsAIModalOpen(false)}
+                className="p-1.5 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-6 flex flex-col gap-4 text-left">
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kurs Konusu</label>
+                <input
+                  type="text"
+                  value={aiTopic}
+                  onChange={(e) => setAiTopic(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                  placeholder="örn: Python Programlamaya Giriş"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Zorluk Seviyesi</label>
+                  <select
+                    value={aiDifficulty}
+                    onChange={(e) => setAiDifficulty(e.target.value)}
+                    className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-850 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                  >
+                    <option value="Beginner">Başlangıç</option>
+                    <option value="Intermediate">Orta</option>
+                    <option value="Advanced">İleri</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex justify-between">
+                    <span>Tahmini Ders Sayısı</span>
+                    <span className="text-indigo-600 font-black">{aiLessonsCount}</span>
+                  </label>
+                  <div className="flex items-center gap-3 h-[48px]">
+                    <input
+                      type="range"
+                      min="2"
+                      max="20"
+                      value={aiLessonsCount}
+                      onChange={(e) => setAiLessonsCount(parseInt(e.target.value))}
+                      className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-550"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Hedef Kitle</label>
+                <textarea
+                  value={aiAudience}
+                  onChange={(e) => setAiAudience(e.target.value)}
+                  className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm resize-none h-20"
+                  placeholder="örn: Daha önce programlama yapmamış ilkokul öğrencileri."
+                />
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+              <button
+                onClick={() => setIsAIModalOpen(false)}
+                className="px-4 py-2 border-2 border-gray-250 text-gray-505 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+              >
+                Vazgeç
+              </button>
+              <button
+                onClick={handleGenerateAI}
+                disabled={isGeneratingAI}
+                className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2 disabled:opacity-50"
+              >
+                {isGeneratingAI ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>AI Üretiyor...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    <span>Yol Haritası Oluştur</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

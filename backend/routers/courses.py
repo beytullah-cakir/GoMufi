@@ -862,3 +862,217 @@ async def get_student_class(
         "classmates": classmates_list
     }
 
+
+class GenerateRoadmapRequest(BaseModel):
+    topic: str
+    difficulty: str
+    lessons_count: int
+    audience: str
+
+
+@router.post("/courses/generate_roadmap")
+async def generate_roadmap_api(
+    req: GenerateRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    import os
+    import random
+    import copy
+    from google import genai
+    from google.genai import types
+    
+    TEMPLATES_PATH = "slide_templates.json"
+    
+    try:
+        # Load templates
+        templates = []
+        if os.path.exists(TEMPLATES_PATH):
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                templates = json.load(f)
+                
+        # Filter ANLA templates
+        anla_templates = [t for t in templates if t.get("category") == "ANLA"]
+        
+        # Prepare templates info for AI
+        templates_info = []
+        for t in anla_templates:
+            elements_info = []
+            for el in t.get("elements", []):
+                if el.get("type") in ["text", "code", "sticky"]:
+                    elements_info.append({
+                        "id": el.get("id"),
+                        "type": el.get("type"),
+                        "placeholder": el.get("content")
+                    })
+            templates_info.append({
+                "id": t.get("id"),
+                "title": t.get("title"),
+                "description": t.get("description"),
+                "elements": elements_info
+            })
+            
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to design a learning roadmap of a course and fill in the slides content for the 'UNDERSTAND' modules.
+
+Goal: Given the course topic, difficulty, desired lesson count, target audience, and a list of available slide templates, generate a complete course roadmap.
+
+Available Slide Templates for 'UNDERSTAND' modules:
+{json.dumps(templates_info, ensure_ascii=False, indent=2)}
+
+Requirements:
+- The roadmap consists of lessons.
+- Each lesson contains a list of modules.
+- Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
+- For each lesson, you MUST have EXACTLY one 'UNDERSTAND' module (which represents the learning phase).
+- Inside that single 'UNDERSTAND' module, you MUST generate multiple slides (usually 2 to 4 slides depending on the topic depth) to teach the concepts of the lesson.
+- For each slide, choose the most appropriate template from the Available Slide Templates and fill in the element contents in Turkish.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "courseTitle": "...",
+  "lessons": [
+    {{
+      "lessonNumber": 1,
+      "title": "Lesson title (Türkçe)",
+      "objective": "Lesson learning objective (Türkçe)",
+      "modules": [
+        {{
+          "type": "UNDERSTAND",
+          "slides": [
+            {{
+              "selectedTemplateId": "template_id_here",
+              "elementContents": {{
+                 "element_id_1": "Generated text explanation in Turkish",
+                 "element_id_2": "Generated python code or note in Turkish..."
+              }}
+            }},
+            {{
+              "selectedTemplateId": "another_template_id",
+              "elementContents": {{
+                 "element_id_x": "..."
+              }}
+            }}
+          ]
+        }},
+        {{
+          "type": "APPLY"
+        }},
+        {{
+          "type": "QUIZ"
+        }}
+      ]
+    }}
+  ]
+}}
+
+Input:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Lessons Count: {req.lessons_count}
+Audience: {req.audience}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        raw_text = response.text.strip()
+        data = json.loads(raw_text)
+        
+        generated_lessons = data.get("lessons", [])
+        
+        curriculum = []
+        notes = []
+        overall_idx = 1
+        
+        theme_map = {
+          "UNDERSTAND": "purple",
+          "APPLY": "cyan",
+          "CONNECT": "green",
+          "CREATE": "yellow",
+          "QUIZ": "quiz",
+          "HOMEWORK": "homework"
+        }
+        
+        for l_idx, les in enumerate(generated_lessons):
+            modules = les.get("modules", [])
+            for m_idx, mod in enumerate(modules):
+                mod_type = mod.get("type", "UNDERSTAND").upper()
+                mapped_theme = theme_map.get(mod_type, "purple")
+                
+                level_id = f"sec_ai_{int(random.random() * 1000000000)}"
+                
+                node = {
+                  "id": level_id,
+                  "title": f"Ders {overall_idx}",
+                  "theme": mapped_theme,
+                  "lectures": []
+                }
+                
+                if m_idx == 0:
+                  node["lessonTopic"] = les.get("title") or f"Ders Konusu {les.get('lessonNumber')}"
+                  node["lessonNumber"] = les.get("lessonNumber") or (l_idx + 1)
+                  
+                curriculum.append(node)
+                overall_idx += 1
+                
+                # If it's UNDERSTAND, build the slide note from chosen template(s)
+                if mod_type == "UNDERSTAND":
+                    slides_to_add = []
+                    ai_slides = mod.get("slides") or []
+                    
+                    # Fallback in case Gemini returned a single dict instead of a list
+                    if isinstance(ai_slides, dict):
+                        ai_slides = [ai_slides]
+                    elif not isinstance(ai_slides, list):
+                        ai_slides = []
+                        
+                    for ai_slide in ai_slides:
+                        sel_template_id = ai_slide.get("selectedTemplateId")
+                        elem_contents = ai_slide.get("elementContents") or {}
+                        
+                        # Find template
+                        selected_t = next((t for t in anla_templates if t.get("id") == sel_template_id), None)
+                        if not selected_t and anla_templates:
+                            selected_t = anla_templates[0]
+                            
+                        if selected_t:
+                            copied_elements = []
+                            for el in selected_t.get("elements", []):
+                                el_copy = copy.deepcopy(el)
+                                el_id = el_copy.get("id")
+                                if el_id in elem_contents:
+                                    el_copy["content"] = elem_contents[el_id]
+                                copied_elements.append(el_copy)
+                                
+                            slide = {
+                                "id": int(random.random() * 1000000000),
+                                "elements": copied_elements,
+                                "background": selected_t.get("background", "default")
+                            }
+                            slides_to_add.append(slide)
+                            
+                    if slides_to_add:
+                        note = {
+                            "id": level_id,
+                            "noteTitle": node["title"],
+                            "slides": slides_to_add
+                        }
+                        notes.append(note)
+                        
+        return {"success": True, "curriculum": curriculum, "notes": notes, "roadmap": data}
+        
+    except Exception as e:
+        print(f"Error generating roadmap: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+
