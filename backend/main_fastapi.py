@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
+from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from connect_db import engine, Base
@@ -28,6 +29,19 @@ async def lifespan(app: FastAPI):
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            try:
+                await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS classes JSON DEFAULT '[]';"))
+                await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS start_date VARCHAR(50);"))
+                logger.info("Database migration: classes and start_date columns checked/added.")
+            except Exception as dberr:
+                logger.warning(f"Alter table column checking: {dberr}")
+            
+            # Clean up dangling live sessions from previous runs
+            try:
+                await conn.execute(text("UPDATE live_sessions SET status = 'ended' WHERE status = 'live';"))
+                logger.info("Database cleanup: Leftover live sessions marked as ended on startup.")
+            except Exception as cleanerr:
+                logger.warning(f"Live sessions cleanup failed: {cleanerr}")
         logger.info("Tablolar hazır.")
     except Exception as e:
         logger.error(f"Tablo oluşturma hatası: {e}")
@@ -71,6 +85,7 @@ _allowed_origins = [
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
+    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -357,11 +357,19 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                             </button>
                             {isAlignMenuOpen && (
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 pt-3 z-[1001]">
-                                    <div className="bg-gray-900 p-2 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-2 w-32" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                    <div className="bg-gray-900 p-2 rounded-xl shadow-xl border border-gray-600 flex flex-col gap-2 w-32 animate-in fade-in slide-in-from-top-1 duration-150" onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                                        <div className="text-[9px] font-black text-gray-500 uppercase tracking-wider px-1">Yatay</div>
                                         <div className="flex justify-between bg-gray-800 rounded p-1">
-                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignLeft className="w-4 h-4" /></button>
-                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.textAlign || firstEl.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`}><AlignCenter className="w-4 h-4" /></button>
-                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`}><AlignRight className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'left' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'left' ? 'text-indigo-400' : 'text-gray-400'}`} title="Sola Hizala"><AlignLeft className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'center' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.textAlign || firstEl.style?.textAlign === 'center') ? 'text-indigo-400' : 'text-gray-400'}`} title="Ortala"><AlignCenter className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ textAlign: 'right' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.textAlign === 'right' ? 'text-indigo-400' : 'text-gray-400'}`} title="Sağa Hizala"><AlignRight className="w-4 h-4" /></button>
+                                        </div>
+                                        
+                                        <div className="text-[9px] font-black text-gray-500 uppercase tracking-wider px-1 mt-1">Dikey</div>
+                                        <div className="flex justify-between bg-gray-800 rounded p-1">
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ verticalAlign: 'top' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.verticalAlign === 'top' ? 'text-indigo-400' : 'text-gray-400'}`} title="Üste Hizala"><ArrowUpToLine className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ verticalAlign: 'middle' })} className={`p-1 rounded hover:bg-gray-700 ${(!firstEl.style?.verticalAlign || firstEl.style?.verticalAlign === 'middle') ? 'text-indigo-400' : 'text-gray-400'}`} title="Dikey Ortala"><FoldVertical className="w-4 h-4" /></button>
+                                            <button onMouseDown={(e) => e.preventDefault()} onClick={() => bulkUpdateStyle({ verticalAlign: 'bottom' })} className={`p-1 rounded hover:bg-gray-700 ${firstEl.style?.verticalAlign === 'bottom' ? 'text-indigo-400' : 'text-gray-400'}`} title="Alta Hizala"><ArrowDownToLine className="w-4 h-4" /></button>
                                         </div>
                                     </div>
                                 </div>

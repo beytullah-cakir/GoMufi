@@ -1,21 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User } from 'lucide-react';
+import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User, Users } from 'lucide-react';
 import api from '../../api';
 import HomePage from './HomePage';
 import CoursesPage from './CoursesPage';
 import ProfilePage from './ProfilePage';
 import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
-// import StudentPayment from './StudentPayment'; // satın alma akışı devre dışı — kod ile katılım kullanılıyor
+import StudentPayment from './StudentPayment';
 import CourseDetailPage from './CourseDetailPage';
-import JoinCourseModal from './JoinCourseModal';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
+import StudentClassesPage from './StudentClassesPage';
 
 
 // Import Types
-import type { CourseData, PathNode, NodeType } from '../../types';
+import type { CourseData, PathNode } from '../../types';
 
 // Import Assets for Course Data
 import ButtonCyan from '../../assets/sprites/ButtonCyan.png';
@@ -40,299 +40,70 @@ interface CartItem {
 }
 
 // --- Helper to Generate Lesson Nodes ---
-const generateLessonNodes = (startId: number, lessonNum: number, isLockedStart: boolean, lessonTopic: string, showStars: boolean, sectionId?: string, theme?: string): PathNode[] => {
-    const baseId = startId;
-    const isLessonLocked = isLockedStart;
+// --- Helper to get theme metadata ---
+const getNodeMetadata = (idx: number, customTheme?: string) => {
+    const themes: { [key: string]: any } = {
+        purple: { button: ButtonPurple, icon: BrainIcon, ringColor: "border-fuchsia-400 bg-white", baseColor: "#d946ef", strokeColor: "#c026d3", pastelColor: "#fae8ff", glowColor: "rgba(232, 121, 249, 0.4)", iconSize: "w-20 h-20", iconOffset: "-mt-22" },
+        cyan: { button: ButtonCyan, icon: PencilIcon, ringColor: "border-cyan-400 bg-white", baseColor: "#06b6d4", strokeColor: "#0891b2", pastelColor: "#cffafe", glowColor: "rgba(34, 211, 238, 0.4)", iconSize: "w-24 h-24", iconOffset: "-mt-20" },
+        green: { button: ButtonGreen, icon: PuzzleIcon, ringColor: "border-green-400 bg-white", baseColor: "#22c55e", strokeColor: "#16a34a", pastelColor: "#dcfce7", glowColor: "rgba(74, 222, 128, 0.4)", iconSize: "w-20 h-20", iconOffset: "-mt-20" },
+        yellow: { button: ButtonYellow, icon: TrophyIcon, ringColor: "border-yellow-400 bg-white", baseColor: "#eab308", strokeColor: "#ca8a04", pastelColor: "#fef9c3", glowColor: "rgba(250, 204, 21, 0.4)", iconSize: "w-24 h-24", iconOffset: "-mt-20" },
+        quiz: { button: ButtonDarkPurple, icon: QuestionIcon, ringColor: "border-purple-400 bg-white", baseColor: "#7c3aed", strokeColor: "#6d28d9", pastelColor: "#ede9fe", glowColor: "rgba(139, 92, 246, 0.4)", iconSize: "w-26 h-26", iconOffset: "-mt-24" },
+        homework: { button: ButtonDarkBlue, icon: BagIcon, ringColor: "border-indigo-400 bg-white", baseColor: "#2563eb", strokeColor: "#1d4ed8", pastelColor: "#e0e7ff", glowColor: "rgba(99, 102, 241, 0.4)", iconSize: "w-26 h-26", iconOffset: "-mt-24" },
+    };
 
-    const nodes: PathNode[] = [
+    if (customTheme && themes[customTheme]) {
+        return themes[customTheme];
+    }
+    const pattern = ["purple", "cyan", "green", "yellow"];
+    const defaultTheme = pattern[idx % pattern.length];
+    return themes[defaultTheme];
+};
+
+// --- Helper to Generate Lesson Nodes ---
+const generateLessonNodes = (
+    startId: number,
+    isLockedStart: boolean,
+    title: string,
+    showStars: boolean,
+    sectionId?: string,
+    theme?: string,
+    slides: any[] = [],
+    lessonTopic?: string,
+    lessonNumber?: number
+): PathNode[] => {
+    const metadata = getNodeMetadata(startId - 1, theme);
+    
+    return [
         {
-            id: baseId,
-            type: 'step', // Number Node 1 -> Brain
-            button: ButtonPurple,
-            icon: BrainIcon,
-            curve: 'up',
-            iconSize: 'w-20 h-20', // Slightly smaller than main
-            iconOffset: '-mt-22',
-            ringColor: 'border-fuchsia-400 bg-white',
+            id: startId,
+            type: theme === 'quiz' ? 'quiz' : (theme === 'homework' ? 'homework' : 'step'),
+            button: metadata.button,
+            icon: metadata.icon,
+            curve: (startId - 1) % 2 === 0 ? 'up' : 'down',
+            iconSize: metadata.iconSize,
+            iconOffset: metadata.iconOffset,
+            ringColor: metadata.ringColor,
             numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-            pastelColor: '#fae8ff',
-            glowColor: 'rgba(232, 121, 249, 0.4)',
-            strokeColor: '#c026d3',
-            baseColor: '#d946ef',
-            title: 'BÖLÜM 1',
+            pastelColor: metadata.pastelColor,
+            glowColor: metadata.glowColor,
+            strokeColor: metadata.strokeColor,
+            baseColor: metadata.baseColor,
+            title: title,
             stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
+            isLocked: isLockedStart,
+            lessonNumber: lessonNumber,
             lessonTopic: lessonTopic,
             sectionId: sectionId,
-            localNodeIndex: 1
-        },
-        {
-            id: baseId + 1,
-            type: 'start', // BRAIN
-            button: ButtonPurple,
-            icon: BrainIcon,
-            curve: 'down',
-            iconSize: 'w-24 h-24',
-            iconOffset: '-mt-24',
-            ringColor: 'border-fuchsia-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-            pastelColor: '#fae8ff',
-            glowColor: 'rgba(232, 121, 249, 0.4)',
-            strokeColor: '#c026d3',
-            baseColor: '#d946ef',
-            title: 'ANLA: Konuyu Kavra',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 2
-        },
-        {
-            id: baseId + 2,
-            type: 'step', // Number Node 2 -> Pencil
-            button: ButtonCyan,
-            icon: PencilIcon,
-            curve: 'up',
-            iconSize: 'w-24 h-24', // Slightly smaller
-            iconOffset: '-mt-20',
-            ringColor: 'border-cyan-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-            pastelColor: '#cffafe',
-            glowColor: 'rgba(34, 211, 238, 0.4)',
-            strokeColor: '#0891b2',
-            baseColor: '#06b6d4',
-            title: 'BÖLÜM 2',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 3
-        },
-        {
-            id: baseId + 3,
-            type: 'paw', // PENCIL
-            button: ButtonCyan,
-            icon: PencilIcon,
-            curve: 'down',
-            iconSize: 'w-28 h-28',
-            iconOffset: '-mt-20',
-            ringColor: 'border-cyan-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-            pastelColor: '#cffafe',
-            glowColor: 'rgba(34, 211, 238, 0.4)',
-            strokeColor: '#0891b2',
-            baseColor: '#06b6d4',
-            title: 'UYGULA: Alıştırma Yap',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 4
-        },
-        {
-            id: baseId + 4,
-            type: 'step', // Number Node 3 -> Puzzle
-            button: ButtonGreen,
-            icon: PuzzleIcon,
-            curve: 'up',
-            iconSize: 'w-20 h-20',
-            iconOffset: '-mt-20',
-            ringColor: 'border-green-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-            pastelColor: '#dcfce7',
-            glowColor: 'rgba(74, 222, 128, 0.4)',
-            strokeColor: '#16a34a',
-            baseColor: '#22c55e',
-            title: 'BÖLÜM 3',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 5
-        },
-        {
-            id: baseId + 5,
-            type: 'paw', // PUZZLE
-            button: ButtonGreen,
-            icon: PuzzleIcon,
-            curve: 'down',
-            iconSize: 'w-22 h-22',
-            iconOffset: '-mt-22',
-            ringColor: 'border-green-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-            pastelColor: '#dcfce7',
-            glowColor: 'rgba(74, 222, 128, 0.4)',
-            strokeColor: '#16a34a',
-            baseColor: '#22c55e',
-            title: 'BİRLEŞTİR: Parçaları Tamamla',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 6
-        },
-        {
-            id: baseId + 6,
-            type: 'chest', // TROPHY
-            button: ButtonYellow,
-            icon: TrophyIcon,
-            curve: 'up',
-            iconSize: 'w-24 h-24',
-            iconOffset: '-mt-24',
-            // Yellow Scheme
-            ringColor: 'border-yellow-400 bg-white',
-            numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400',
-            pastelColor: '#fef9c3',
-            glowColor: 'rgba(250, 204, 21, 0.4)',
-            strokeColor: '#ca8a04',
-            baseColor: '#eab308',
-            title: 'ÜRET: Kendini Göster',
-            stars: showStars ? 0 : undefined,
-            isLocked: isLessonLocked,
-            lastInLesson: true,
-            lessonNumber: lessonNum,
-            lessonTopic: lessonTopic,
-            sectionId: sectionId,
-            localNodeIndex: 7
+            localNodeIndex: startId,
+            slides: slides
         }
     ];
-
-    if (theme === 'quiz') {
-        return nodes.map(node => ({
-            ...node,
-            button: ButtonDarkPurple,
-            icon: QuestionIcon,
-            iconSize: 'w-26 h-26',
-            iconOffset: '-mt-24',
-            ringColor: 'border-purple-400 bg-white',
-            pastelColor: '#ede9fe',
-            glowColor: 'rgba(139, 92, 246, 0.4)',
-            strokeColor: '#6d28d9',
-            baseColor: '#7c3aed',
-            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'QUİZ') : 'QUİZ: Testi Çöz'
-        }));
-    } else if (theme === 'homework') {
-        return nodes.map(node => ({
-            ...node,
-            button: ButtonDarkBlue,
-            icon: BagIcon,
-            iconSize: 'w-26 h-26',
-            iconOffset: '-mt-24',
-            ringColor: 'border-indigo-400 bg-white',
-            pastelColor: '#e0e7ff',
-            glowColor: 'rgba(99, 102, 241, 0.4)',
-            strokeColor: '#1d4ed8',
-            baseColor: '#2563eb',
-            title: node.title.startsWith('BÖLÜM') ? node.title.replace('BÖLÜM', 'ÖDEV') : 'ÖDEV: Görevi Yap'
-        }));
-    }
-
-    return nodes;
 };
 
 const generateCourseData = (purchasedList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
     const getProgress = (courseId: string) => {
         const saved = localStorage.getItem(`progress_${courseId}`);
         return saved ? parseInt(saved) : 0; // Default to 0
-    };
-
-    const themeMetadata: Record<string, {
-        button: string;
-        icon: string;
-        ringColor: string;
-        numberGradient: string;
-        pastelColor: string;
-        glowColor: string;
-        strokeColor: string;
-        baseColor: string;
-        iconSize: string;
-        iconOffset: string;
-        type: NodeType;
-    }> = {
-        purple: { 
-            button: ButtonPurple, 
-            icon: BrainIcon, 
-            ringColor: "border-fuchsia-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-fuchsia-100 to-fuchsia-400',
-            pastelColor: '#fae8ff', 
-            glowColor: 'rgba(232, 121, 249, 0.4)', 
-            strokeColor: '#c026d3', 
-            baseColor: '#d946ef', 
-            iconSize: 'w-20 h-20', 
-            iconOffset: '-mt-22', 
-            type: 'step' 
-        },
-        cyan: { 
-            button: ButtonCyan, 
-            icon: PencilIcon, 
-            ringColor: "border-cyan-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-cyan-100 to-cyan-400',
-            pastelColor: '#cffafe', 
-            glowColor: 'rgba(34, 211, 238, 0.4)', 
-            strokeColor: '#0891b2', 
-            baseColor: '#06b6d4', 
-            iconSize: 'w-24 h-24', 
-            iconOffset: '-mt-20', 
-            type: 'paw' 
-        },
-        green: { 
-            button: ButtonGreen, 
-            icon: PuzzleIcon, 
-            ringColor: "border-green-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-green-100 to-green-400',
-            pastelColor: '#dcfce7', 
-            glowColor: 'rgba(74, 222, 128, 0.4)', 
-            strokeColor: '#16a34a', 
-            baseColor: '#22c55e', 
-            iconSize: 'w-20 h-20', 
-            iconOffset: '-mt-20', 
-            type: 'paw' 
-        },
-        yellow: { 
-            button: ButtonYellow, 
-            icon: TrophyIcon, 
-            ringColor: "border-yellow-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-yellow-100 to-yellow-400',
-            pastelColor: '#fef9c3', 
-            glowColor: 'rgba(250, 204, 21, 0.4)', 
-            strokeColor: '#ca8a04', 
-            baseColor: '#eab308', 
-            iconSize: 'w-24 h-24', 
-            iconOffset: '-mt-20', 
-            type: 'chest' 
-        },
-        quiz: { 
-            button: ButtonDarkPurple, 
-            icon: QuestionIcon, 
-            ringColor: "border-purple-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-purple-100 to-purple-400',
-            pastelColor: '#ede9fe', 
-            glowColor: 'rgba(139, 92, 246, 0.4)', 
-            strokeColor: '#6d28d9', 
-            baseColor: '#7c3aed', 
-            iconSize: 'w-26 h-26', 
-            iconOffset: '-mt-24', 
-            type: 'step' 
-        },
-        homework: { 
-            button: ButtonDarkBlue, 
-            icon: BagIcon, 
-            ringColor: "border-indigo-400 bg-white", 
-            numberGradient: 'bg-gradient-to-b from-indigo-100 to-indigo-400',
-            pastelColor: '#e0e7ff', 
-            glowColor: 'rgba(99, 102, 241, 0.4)', 
-            strokeColor: '#1d4ed8', 
-            baseColor: '#2563eb', 
-            iconSize: 'w-26 h-26', 
-            iconOffset: '-mt-24', 
-            type: 'step' 
-        }
     };
 
     const result: Record<string, CourseData> = {};
@@ -354,32 +125,29 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
             const actualSections = curriculum.filter((item: any) => item.type !== 'live_sessions_config');
 
             actualSections.forEach((section: any, index: number) => {
-                const sectionTheme = section.theme || (index % 4 === 0 ? "purple" : index % 4 === 1 ? "cyan" : index % 4 === 2 ? "green" : "yellow");
-                const meta = themeMetadata[sectionTheme] || themeMetadata.purple;
-                const sectionTitle = section.title || `Bölüm ${index + 1}`;
+                const sectionTitle = section.title || `Ders ${index + 1}`;
                 const sectionId = section.id || `section_${index + 1}`;
+                const matchingNote = course.notes?.find((n: any) => String(n.id) === String(section.id));
+                const slides = matchingNote?.slides || [];
 
-                dynamicNodes.push({
-                    id: index + 1,
-                    type: meta.type,
-                    button: meta.button,
-                    icon: meta.icon,
-                    curve: index % 2 === 0 ? 'up' : 'down',
-                    iconSize: meta.iconSize,
-                    iconOffset: meta.iconOffset,
-                    ringColor: meta.ringColor,
-                    numberGradient: meta.numberGradient,
-                    pastelColor: meta.pastelColor,
-                    glowColor: meta.glowColor,
-                    strokeColor: meta.strokeColor,
-                    baseColor: meta.baseColor,
-                    title: sectionTitle,
-                    stars: 0,
-                    isLocked: index > progress,
-                    lessonNumber: section.lessonNumber || index + 1,
-                    lessonTopic: section.lessonTopic || null,
-                    sectionId: sectionId
-                });
+                const lessonNodes = generateLessonNodes(
+                    index + 1,
+                    false,
+                    sectionTitle,
+                    true,
+                    sectionId,
+                    section.theme,
+                    slides,
+                    section.lessonTopic,
+                    section.lessonNumber
+                );
+                
+                const processedNodes = lessonNodes.map(node => ({
+                    ...node,
+                    isLocked: node.id > 1 && node.id > (progress + 1)
+                }));
+                
+                dynamicNodes.push(...processedNodes);
             });
 
             result[courseIdStr] = {
@@ -396,32 +164,30 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
-                notes: course.notes || []
+                classes: course.classes || []
             };
         } else {
             // FALLBACK: If no curriculum, show at least one default section
+            const fallbackTopics = ['Giriş'];
             const fallbackNodes: PathNode[] = [];
-            const meta = themeMetadata.purple;
-            fallbackNodes.push({
-                id: 1,
-                type: 'step',
-                button: meta.button,
-                icon: meta.icon,
-                curve: 'up',
-                iconSize: meta.iconSize,
-                iconOffset: meta.iconOffset,
-                ringColor: meta.ringColor,
-                numberGradient: meta.numberGradient,
-                pastelColor: meta.pastelColor,
-                glowColor: meta.glowColor,
-                strokeColor: meta.strokeColor,
-                baseColor: meta.baseColor,
-                title: 'Giriş',
-                stars: 0,
-                isLocked: false,
-                lessonNumber: 1,
-                lessonTopic: courseName,
-                sectionId: 'section_1'
+
+            fallbackTopics.forEach((topic, index) => {
+                const lessonNodes = generateLessonNodes(
+                    index + 1,
+                    false,
+                    "ANLA",
+                    true,
+                    undefined,
+                    undefined,
+                    [],
+                    topic,
+                    1
+                );
+                const processedNodes = lessonNodes.map(node => ({
+                    ...node,
+                    isLocked: node.id > 1 && node.id > (progress + 1)
+                }));
+                fallbackNodes.push(...processedNodes);
             });
 
             result[courseIdStr] = {
@@ -438,13 +204,15 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
-                notes: course.notes || []
+                classes: course.classes || []
             };
         }
     });
 
     return result;
 };
+
+
 
 function StudentApp() {
     const navigate = useNavigate();
@@ -473,6 +241,7 @@ function StudentApp() {
         'Soru Sor!': '/student/ask',
         'Profilim': '/student/profile',
         'PROFILIM': '/student/profile',
+        'Sınıflarım': '/student/my-classes',
         'Sepetim': '/student/cart',
         'Ödeme': '/student/cart'
     };
@@ -483,6 +252,7 @@ function StudentApp() {
         '/student/catalog': 'Kurslar',
         '/student/ask': 'Soru Sor!',
         '/student/profile': 'Profilim',
+        '/student/my-classes': 'Sınıflarım',
         '/student/cart': 'Sepetim'
     };
 
@@ -536,11 +306,8 @@ function StudentApp() {
     const [purchasedCourses, setPurchasedCourses] = useState<any[]>([]);
     const [purchasedCourseIds, setPurchasedCourseIds] = useState<number[]>([]);
 
-    // --- Shopping Cart State (satın alma akışı devre dışı, bkz. aşağıdaki yorum bloğu) ---
-    // const [cart, setCart] = useState<CartItem[]>([]);
-
-    // --- Join-by-code Modal State ---
-    const [showJoinModal, setShowJoinModal] = useState(false);
+    // --- Shopping Cart State ---
+    const [cart, setCart] = useState<CartItem[]>([]);
 
     // --- Course Data State ---
     const [courses, setCourses] = useState<Record<string, CourseData>>({});
@@ -548,49 +315,51 @@ function StudentApp() {
     // --- Instructors mapping (Title -> Instructor Name) ---
     const [instructorsMap, setInstructorsMap] = useState<Record<string, string>>({});
 
-    // Kayıtlı kurs + profil verisini çeker (mount'ta ve kod ile katılım sonrası tekrar çağrılabilir)
-    const fetchStudentContent = async () => {
-        try {
-            // Fetch both profile and content in PARALLEL to save time
-            const [profileRes, contentRes] = await Promise.all([
-                api.get("/profile"),
-                api.get('/my-content')
-            ]);
-
-            // Handle Profile Data
-            setUserData(profileRes.data);
-
-            // Handle Course Content Data
-            const newMap: Record<string, string> = {};
-            contentRes.data.forEach((c: any) => {
-                if (c.teacher) {
-                    newMap[c.title] = `${c.teacher.first_name} ${c.teacher.last_name}`;
-                }
-            });
-
-            setInstructorsMap(newMap);
-
-            // Update purchased courses (Overwrite with full objects)
-            setPurchasedCourses(contentRes.data);
-            setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
-
-            // Generate course data synchronously to batch with isUserDataLoading(false)
-            const newCourseData = generateCourseData(contentRes.data, newMap);
-            setCourses(newCourseData);
-            const availableCourseKeys = Object.keys(newCourseData);
-            if (availableCourseKeys.length > 0) {
-                setActiveCourseId(availableCourseKeys[0]);
-            }
-        } catch (err) {
-            console.error("Failed to fetch user data or courses", err);
-        } finally {
-            setIsUserDataLoading(false);
-        }
-    };
+    // --- Live session joined state ---
+    const [isLiveSessionJoined, setIsLiveSessionJoined] = useState<boolean>(false);
 
     // Fetch user data and purchased courses once on mount
     useEffect(() => {
-        fetchStudentContent();
+        const fetchData = async () => {
+            try {
+                // Fetch both profile and content in PARALLEL to save time
+                const [profileRes, contentRes] = await Promise.all([
+                    api.get("/profile"),
+                    api.get('/my-content')
+                ]);
+
+                // Handle Profile Data
+                setUserData(profileRes.data);
+
+                // Handle Course Content Data
+                const titles = contentRes.data.map((c: any) => c.title);
+                const newMap = { ...instructorsMap };
+                contentRes.data.forEach((c: any) => {
+                    if (c.teacher) {
+                        newMap[c.title] = `${c.teacher.first_name} ${c.teacher.last_name}`;
+                    }
+                });
+                
+                setInstructorsMap(newMap);
+
+                // Update purchased courses (Overwrite with full objects)
+                setPurchasedCourses(contentRes.data);
+                setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
+
+                // Generate course data synchronously to batch with isUserDataLoading(false)
+                const newCourseData = generateCourseData(contentRes.data, newMap);
+                setCourses(newCourseData);
+                const availableCourseKeys = Object.keys(newCourseData);
+                if (availableCourseKeys.length > 0) {
+                    setActiveCourseId(availableCourseKeys[0]);
+                }
+            } catch (err) {
+                console.error("Failed to fetch user data or courses", err);
+            } finally {
+                setIsUserDataLoading(false);
+            }
+        };
+        fetchData();
     }, []);
 
     // Sync roadmap state whenever purchasedCourses list changes
@@ -611,56 +380,55 @@ function StudentApp() {
         }
     }, [purchasedCourses, instructorsMap]);
 
-    // Sepet/satın alma akışı devre dışı — kurslara artık kod ile katılınıyor (bkz. JoinCourseModal)
-    // const addToCart = (item: CartItem) => {
-    //     if (!cart.find(i => i.id === item.id)) {
-    //         const newCart = [...cart, item];
-    //         setCart(newCart);
-    //     }
-    // };
+    const addToCart = (item: CartItem) => {
+        if (!cart.find(i => i.id === item.id)) {
+            const newCart = [...cart, item];
+            setCart(newCart);
+        }
+    };
 
-    // const removeFromCart = (id: number) => {
-    //     const newCart = cart.filter(item => item.id !== id);
-    //     setCart(newCart);
-    // };
+    const removeFromCart = (id: number) => {
+        const newCart = cart.filter(item => item.id !== id);
+        setCart(newCart);
+    };
 
-    // const completePurchase = () => {
-    //     // Construct mock objects for the newly purchased items from cart
-    //     const newPurchasedFromCart = cart.map(item => ({
-    //         id: item.id,
-    //         title: item.title,
-    //         curriculum: [{ title: 'Giriş', lectures: [] }] // Default curriculum for new purchase
-    //     }));
-    //
-    //     const newPurchased = [...purchasedCourses, ...newPurchasedFromCart];
-    //
-    //     // Save instructors from cart
-    //     const newMap = { ...instructorsMap };
-    //     cart.forEach(item => {
-    //         newMap[item.title] = item.instructor;
-    //     });
-    //     setInstructorsMap(newMap);
-    //
-    //     // Remove duplicates just in case
-    //     const uniquePurchased = Array.from(new Set(newPurchased));
-    //     setPurchasedCourses(uniquePurchased);
-    //
-    //     // CRITICAL: Update roadmap data state IMMEDIATELY for instant UI feedback
-    //     const updatedCourseData = generateCourseData(newPurchased, newMap);
-    //     setCourses(updatedCourseData);
-    //
-    //     // Clear cart
-    //     setCart([]);
-    //
-    //     // Redirect to Home or Courses
-    //     setActivePage('Ana Sayfa');
-    //
-    //     // Update active course if currently empty
-    //     if (activeCourseId === '' && newPurchased.length > 0) {
-    //         const course = newPurchased[0];
-    //         setActiveCourseId(course.title);
-    //     }
-    // };
+    const completePurchase = () => {
+        // Construct mock objects for the newly purchased items from cart
+        const newPurchasedFromCart = cart.map(item => ({
+            id: item.id,
+            title: item.title,
+            curriculum: [{ title: 'Giriş', lectures: [] }] // Default curriculum for new purchase
+        }));
+        
+        const newPurchased = [...purchasedCourses, ...newPurchasedFromCart];
+        
+        // Save instructors from cart
+        const newMap = { ...instructorsMap };
+        cart.forEach(item => {
+            newMap[item.title] = item.instructor;
+        });
+        setInstructorsMap(newMap);
+
+        // Remove duplicates just in case
+        const uniquePurchased = Array.from(new Set(newPurchased));
+        setPurchasedCourses(uniquePurchased);
+
+        // CRITICAL: Update roadmap data state IMMEDIATELY for instant UI feedback
+        const updatedCourseData = generateCourseData(newPurchased, newMap);
+        setCourses(updatedCourseData);
+
+        // Clear cart
+        setCart([]);
+
+        // Redirect to Home or Courses
+        setActivePage('Ana Sayfa');
+        
+        // Update active course if currently empty
+        if (activeCourseId === '' && newPurchased.length > 0) {
+            const course = newPurchased[0];
+            setActiveCourseId(course.title);
+        }
+    };
 
     const handleCourseChange = (id: string) => {
         setActiveCourseId(id);
@@ -673,7 +441,9 @@ function StudentApp() {
         { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
         { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
-        // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length }, // satın alma akışı devre dışı
+        { id: 'Sınıflarım', label: 'Sınıflarım', icon: Users },
+        // MVP'de Sepetim sayfası devre dışı
+        // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
@@ -690,7 +460,7 @@ function StudentApp() {
     return (
         <>
             <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
-                {activePage !== 'Builder' && (
+                {activePage !== 'Builder' && !isLiveSessionJoined && (
                     <Sidebar
                         role="student"
                         activePage={activePage}
@@ -711,7 +481,8 @@ function StudentApp() {
                             userData={userData}
                             isUserDataLoading={isUserDataLoading}
                             refreshUserData={refreshUserData}
-                            onOpenJoinModal={() => setShowJoinModal(true)}
+                            isLiveSessionJoined={isLiveSessionJoined}
+                            setIsLiveSessionJoined={setIsLiveSessionJoined}
                         />
                     ) : activePage === 'Kurslar' ? (
                         selectedCourseForDetail ? (
@@ -721,29 +492,55 @@ function StudentApp() {
                                     setSelectedCourseForDetail(null);
                                 }}
                                 isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
-                                onEnrollSuccess={fetchStudentContent}
+                                onAddToCart={(course) => {
+                                    addToCart({
+                                        id: course.id,
+                                        title: course.title,
+                                        price: `₺${course.price.toLocaleString('tr-TR')}`,
+                                        icon: '🚀',
+                                        instructor: course.teacher ? `${course.teacher.first_name} ${course.teacher.last_name}` : "Anonim Eğitmen"
+                                    });
+                                }}
+                                onGoToCart={() => setActivePage('Sepetim')}
                             />
                         ) : (
-                            <CoursesPage
-                                onSelectCourse={(id) => setSelectedCourseForDetail(id)}
+                            <CoursesPage 
+                                addToCart={addToCart} 
+                                cart={cart} 
+                                onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
                                 purchasedCourseIds={purchasedCourseIds}
                                 onGoToMyCourses={() => setActivePage('Kurslarım')}
                             />
                         )
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
-                        <ProfilePage
-                            userData={userData}
-                            isLoading={isUserDataLoading}
-                            courses={courses}
-                            currentCourse={currentCourse}
+                        <ProfilePage 
+                            userData={userData} 
+                            isLoading={isUserDataLoading} 
+                            courses={courses} 
+                            currentCourse={currentCourse} 
                         />
                     ) : activePage === 'Kurslarım' ? (
-                        <ContentPage purchasedCourses={purchasedCourses} onOpenJoinModal={() => setShowJoinModal(true)} />
+                        <ContentPage purchasedCourses={purchasedCourses} />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
+                    ) : activePage === 'Sınıflarım' ? (
+                        <StudentClassesPage
+                            courses={courses}
+                            onClassJoined={() => {
+                                refreshUserData();
+                                window.location.href = '/student/my-classes';
+                            }}
+                        />
+                    /* MVP'de Sepetim/Ödeme sayfası devre dışı
+                    ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
+                        <StudentPayment
+                            cart={cart}
+                            removeFromCart={removeFromCart}
+                            onBack={() => setActivePage('Kurslar')}
+                            onPurchaseComplete={completePurchase}
+                        />
+                    */
                     ) : (
-                        // Satın alma akışı devre dışı: 'Sepetim' / 'Ödeme' sayfaları artık render edilmiyor.
-                        // (Bkz. yukarıdaki yorumlanmış StudentPayment importu ve cart state'i)
                         <div className="p-8">
                             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
                             <p className="mt-4 text-gray-600">This page is under construction.</p>
@@ -765,12 +562,6 @@ function StudentApp() {
                     </div>
                 </div>
             )}
-
-            <JoinCourseModal
-                isOpen={showJoinModal}
-                onClose={() => setShowJoinModal(false)}
-                onSuccess={fetchStudentContent}
-            />
         </>
     );
 }

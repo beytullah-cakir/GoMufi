@@ -17,7 +17,8 @@ import PropertiesPanel from './lesson-builder/PropertiesPanel';
 import SelectionOverlay from './lesson-builder/SelectionOverlay';
 import SaveToCourseModal from "./lesson-builder/SaveToCourseModal";
 import api from "../api";
-import { Loader2, X } from 'lucide-react';
+import { Loader2, X, LayoutTemplate } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 
 interface LessonBuilderProps {
     onExit: () => void;
@@ -34,6 +35,16 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const initialCurriculum = location.state?.curriculum;
     const initialNotes = location.state?.notes;
     const [isLoadingCourse, setIsLoadingCourse] = useState(!!courseId && !initialCurriculum && !initialNotes);
+
+    const { userData } = useAuth();
+    const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+    const [templateTitle, setTemplateTitle] = useState('');
+    const [templateDesc, setTemplateDesc] = useState('');
+    const [templateCategory, setTemplateCategory] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV'>('ANLA');
+    const [isSavingTemplate, setIsSavingTemplate] = useState(false);
+    const [templatesList, setTemplatesList] = useState<any[]>([]);
+    const [saveMode, setSaveMode] = useState<"new" | "update">("new");
+    const [selectedTemplateIdToUpdate, setSelectedTemplateIdToUpdate] = useState<string>("");
 
     const savedDraft = (() => {
         try {
@@ -2008,6 +2019,20 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     previewRole={previewRole}
                     setPreviewRole={setPreviewRole}
                     isStageLocked={!!searchParams.get("category")}
+                    isAdmin={userData?.role === 'admin'}
+                    onSaveAsTemplate={() => {
+                        setTemplateTitle(`${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Şablonu`);
+                        setTemplateDesc('');
+                        setTemplateCategory(activeStage);
+                        setSaveMode("new");
+                        setSelectedTemplateIdToUpdate("");
+                        setShowSaveTemplateModal(true);
+                        api.get('/builder/templates').then(res => {
+                            setTemplatesList(res.data || []);
+                        }).catch(err => {
+                            console.error("Error loading templates", err);
+                        });
+                    }}
                 />
             )}
 
@@ -2308,11 +2333,12 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     onClose={() => setShowAddSlideModal(false)}
                     activeStage={activeStage}
                     stageColor={stageColor}
+                    isAdmin={userData?.role === 'admin'}
                     onAddSlide={(type, config) => {
                         const newSlide: Slide = {
                             id: Date.now(),
                             type: (type === 'notebook' || type === 'coding' || type === 'template') ? 'normal' : type,
-                            background: type === 'notebook' ? 'notebook' : 'default',
+                            background: (config?.background ? config.background : (type === 'notebook' ? 'notebook' : 'default')) as any,
                             gameType: type === 'game' ? (config?.gameType as 'matching' | 'monster' || 'matching') : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
                             elements: config?.elements ? config.elements.map((el: any) => ({
@@ -2355,6 +2381,161 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     initialCourseId={courseId ? parseInt(courseId) : undefined}
                     courseTitle={projectName}
                 />
+
+                {showSaveTemplateModal && (
+                    <div className="fixed inset-0 z-[300] bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+                        <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+                            {/* Modal Header */}
+                            <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-indigo-700 flex items-center justify-between text-white">
+                                <div className="flex items-center gap-2.5">
+                                    <LayoutTemplate className="w-6 h-6 animate-pulse" />
+                                    <h3 className="text-lg font-black tracking-wide font-display">Şablon Kaydet</h3>
+                                </div>
+                                <button
+                                    onClick={() => setShowSaveTemplateModal(false)}
+                                    className="p-1.5 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            {/* Save Mode Tabs */}
+                            <div className="flex border-b border-gray-150">
+                                <button
+                                    onClick={() => setSaveMode("new")}
+                                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${saveMode === 'new' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Yeni Şablon
+                                </button>
+                                <button
+                                    onClick={() => setSaveMode("update")}
+                                    className={`flex-1 py-3 text-xs font-black uppercase tracking-wider border-b-2 transition-all ${saveMode === 'update' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-400 hover:text-gray-600'}`}
+                                >
+                                    Mevcut Şablonu Güncelle
+                                </button>
+                            </div>
+
+                            {/* Modal Body */}
+                            <div className="p-6 flex flex-col gap-4">
+                                {saveMode === "update" && (
+                                    <div>
+                                        <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Güncellenecek Şablon Seçin</label>
+                                        <select
+                                            value={selectedTemplateIdToUpdate}
+                                            onChange={(e) => {
+                                                const tid = e.target.value;
+                                                setSelectedTemplateIdToUpdate(tid);
+                                                const found = templatesList.find(t => t.id === tid);
+                                                if (found) {
+                                                    setTemplateTitle(found.title || "");
+                                                    setTemplateDesc(found.description || "");
+                                                    setTemplateCategory(found.category || "ANLA");
+                                                }
+                                            }}
+                                            className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                                        >
+                                            <option value="">-- Şablon Seçin --</option>
+                                            {templatesList.map(t => (
+                                                <option key={t.id} value={t.id}>{t.title} ({t.category})</option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )}
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Şablon Adı</label>
+                                    <input
+                                        type="text"
+                                        value={templateTitle}
+                                        onChange={(e) => setTemplateTitle(e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                                        placeholder="Örn: Konu Giriş Tahtası"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Şablon Açıklaması</label>
+                                    <textarea
+                                        value={templateDesc}
+                                        onChange={(e) => setTemplateDesc(e.target.value)}
+                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm resize-none h-20"
+                                        placeholder="Örn: Bu şablon sol tarafta metin, sağ tarafta kod kutusu içerir."
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Kategori / Seviye</label>
+                                    <select
+                                        value={templateCategory}
+                                        onChange={(e) => setTemplateCategory(e.target.value as any)}
+                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-black text-gray-700 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm uppercase"
+                                    >
+                                        <option value="ANLA">ANLA</option>
+                                        <option value="UYGULA">UYGULA</option>
+                                        <option value="BİRLEŞTİR">BİRLEŞTİR</option>
+                                        <option value="ÜRET">ÜRET</option>
+                                        <option value="QUIZ">QUİZ</option>
+                                        <option value="ÖDEV">ÖDEV</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            {/* Modal Footer */}
+                            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
+                                <button
+                                    onClick={() => setShowSaveTemplateModal(false)}
+                                    className="px-4 py-2 border-2 border-gray-200 text-gray-500 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                                >
+                                    Vazgeç
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        if (saveMode === "update" && !selectedTemplateIdToUpdate) {
+                                            alert("Lütfen güncellenecek bir şablon seçin!");
+                                            return;
+                                        }
+                                        if (!templateTitle.trim()) {
+                                            alert("Şablon adı boş olamaz!");
+                                            return;
+                                        }
+                                        setIsSavingTemplate(true);
+                                        try {
+                                            if (saveMode === "new") {
+                                                await api.post('/builder/templates', {
+                                                    title: templateTitle,
+                                                    description: templateDesc,
+                                                    category: templateCategory,
+                                                    elements: currentSlide.elements,
+                                                    background: currentSlide.background
+                                                });
+                                                alert("Şablon başarıyla kaydedildi!");
+                                            } else {
+                                                await api.put(`/builder/templates/${selectedTemplateIdToUpdate}`, {
+                                                    title: templateTitle,
+                                                    description: templateDesc,
+                                                    category: templateCategory,
+                                                    elements: currentSlide.elements,
+                                                    background: currentSlide.background
+                                                });
+                                                alert("Şablon başarıyla güncellendi!");
+                                            }
+                                            setShowSaveTemplateModal(false);
+                                        } catch (err: any) {
+                                            console.error(err);
+                                            alert(err.response?.data?.detail || "Şablon kaydedilirken bir hata oluştu.");
+                                        } finally {
+                                            setIsSavingTemplate(false);
+                                        }
+                                    }}
+                                    disabled={isSavingTemplate}
+                                    className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase disabled:opacity-50"
+                                >
+                                    {isSavingTemplate ? 'Kaydediliyor...' : (saveMode === 'new' ? 'Kaydet' : 'Güncelle')}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );
