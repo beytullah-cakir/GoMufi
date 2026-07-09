@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
-import { Swords, Users, Shield } from 'lucide-react';
+import api from '../../api';
+import { Swords, Users, Shield, Trophy, ChevronDown } from 'lucide-react';
+import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
-import api from '../../api';
+import LiveLessonStudent from './LiveLessonStudent';
 import type { CourseData, PathNode } from '../../types';
 
 interface HomePageProps {
@@ -15,7 +17,8 @@ interface HomePageProps {
     userData?: any;
     isUserDataLoading: boolean;
     refreshUserData: () => Promise<void>;
-    onOpenJoinModal: () => void;
+    isLiveSessionJoined: boolean;
+    setIsLiveSessionJoined: (val: boolean) => void;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -27,7 +30,8 @@ const HomePage: React.FC<HomePageProps> = ({
     userData,
     isUserDataLoading,
     refreshUserData,
-    onOpenJoinModal
+    isLiveSessionJoined,
+    setIsLiveSessionJoined
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -74,8 +78,142 @@ const HomePage: React.FC<HomePageProps> = ({
     // Lesson Slide State
     const [showLessonSlide, setShowLessonSlide] = useState(false);
     const [lessonLevel, setLessonLevel] = useState<number | null>(null);
-    const [activeLessonSlides, setActiveLessonSlides] = useState<any[]>([]);
-    const [isLoadingLesson, setIsLoadingLesson] = useState(false);
+
+    // Real-time Class Session States
+    const [isClassActive, setIsClassActive] = useState<boolean>(false);
+    const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
+    const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
+    const { sendMessage, lastMessage } = useWebSocket();
+
+    const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
+        class_name: null,
+        classmates: []
+    });
+
+    const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
+
+    useEffect(() => {
+        if (!activeCourseId) return;
+
+        const fetchClassData = async () => {
+            try {
+                const res = await api.get(`/student/my-class/${activeCourseId}`);
+                setMyClass({
+                    class_name: res.data.class_name,
+                    classmates: res.data.classmates || []
+                });
+            } catch (err) {
+                console.error("Failed to fetch student class data:", err);
+                setMyClass({ class_name: null, classmates: [] });
+            }
+        };
+
+        fetchClassData();
+    }, [activeCourseId]);
+
+    // Poll session status for enrolled courses to detect when teacher starts/stops lesson
+    useEffect(() => {
+        const coursesList = Object.values(courses);
+        if (coursesList.length === 0) return;
+
+        const checkSessionStatus = async () => {
+            try {
+                let anyActive = false;
+                for (const course of coursesList) {
+                    const res = await api.get(`/session-status/${course.id}`);
+                    if (res.data.is_live) {
+                        setIsClassActive(true);
+                        setLiveCourseId(course.id);
+                        anyActive = true;
+                        if (res.data.title) {
+                            setLastActiveSessionTitle(res.data.title);
+                        }
+                        break;
+                    }
+                }
+                
+                // Transition from active to inactive -> auto unlock check
+                if (!anyActive && isClassActive) {
+                    setIsClassActive(false);
+                    setLiveCourseId(null);
+                    setIsLiveSessionJoined(false);
+                    
+                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:")) {
+                        const parts = lastActiveSessionTitle.split(":");
+                        const lessonIndex = parseInt(parts[1]);
+                        
+                        if (!isNaN(lessonIndex) && liveCourseId) {
+                            const currentProgressStr = localStorage.getItem(`progress_${liveCourseId}`);
+                            const currentProgress = currentProgressStr ? parseInt(currentProgressStr) : 0;
+                            
+                            if (lessonIndex > currentProgress) {
+                                localStorage.setItem(`progress_${liveCourseId}`, lessonIndex.toString());
+                                alert(`Tebrikler! Ders ${lessonIndex} tamamlandı. Bir sonraki modülün kilidi açıldı!`);
+                                window.location.reload();
+                            }
+                        }
+                    }
+                    setLastActiveSessionTitle(null);
+                }
+            } catch (err) {
+                console.error("Session status check failed:", err);
+            }
+        };
+
+        checkSessionStatus();
+        const interval = setInterval(checkSessionStatus, 4000);
+        return () => clearInterval(interval);
+    }, [courses, isClassActive, lastActiveSessionTitle, liveCourseId, setIsLiveSessionJoined]);
+
+    const handleJoinLiveClass = async () => {
+        const targetCourseId = liveCourseId || activeCourseId;
+        try {
+            // Open Jitsi Room in new window
+            try {
+                const jitsiRes = await api.get(`/jitsi/token/${targetCourseId}`);
+                const { token, room, domain } = jitsiRes.data;
+                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                window.open(url, "_blank");
+            } catch (jitsiErr) {
+                console.warn('Jitsi token error, using freeFallback meet.jit.si', jitsiErr);
+                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${targetCourseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                window.open(fallbackUrl, "_blank");
+            }
+
+            // Student enters live session roadmap dashboard
+            setIsLiveSessionJoined(true);
+
+            // Report student readiness & stats via websocket
+            sendMessage({
+                type: "student_status",
+                courseId: targetCourseId,
+                name: userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : "Öğrenci",
+                isReady: true,
+                currentSlide: 0
+            });
+        } catch (err) {
+            console.error("Join live class helper error:", err);
+        }
+    };
+
+    // Listen to WebSocket level_changed messages to automatically open/close slides for students
+    useEffect(() => {
+        if (!isLiveSessionJoined) return;
+        if (lastMessage) {
+            if (lastMessage.type === 'level_changed') {
+                const { courseId: msgCourseId, nodeId: msgNodeId, isOpen: msgIsOpen } = lastMessage;
+                
+                if (msgCourseId && currentCourse && String(msgCourseId) === String(currentCourse.id)) {
+                    if (msgIsOpen) {
+                        setLessonLevel(msgNodeId);
+                        setShowLessonSlide(true);
+                    } else {
+                        setShowLessonSlide(false);
+                    }
+                }
+            }
+        }
+    }, [lastMessage, currentCourse, isLiveSessionJoined]);
 
     // Initialize/Update Header when currentCourse changes
     useEffect(() => {
@@ -118,29 +256,55 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowGameOverlay(true);
     };
 
-    const handleOpenLesson = async (levelId: number) => {
-        const node = currentCourse?.nodes?.find(n => n.id === levelId);
-        const sectionId = node?.sectionId;
-        if (!sectionId) return;
-
-        setIsLoadingLesson(true);
-        try {
-            const response = await api.get(`/courses/${currentCourse.id}/lessons/${sectionId}`);
-            setActiveLessonSlides(response.data.slides || []);
-            setLessonLevel(levelId);
-            setShowLessonSlide(true);
-        } catch (error) {
-            console.error("Ders icerikleri yuklenemedi:", error);
-            alert("Ders icerigi yuklenirken bir hata olustu.");
-        } finally {
-            setIsLoadingLesson(false);
-        }
+    const handleOpenLesson = (levelId: number) => {
+        setLessonLevel(levelId);
+        setShowLessonSlide(true);
     };
 
-    const handleLessonComplete = () => {
+    const handleLessonComplete = async () => {
         setShowLessonSlide(false);
         if (lessonLevel !== null) {
-            handleStartGame(lessonLevel);
+            const gameLevel = lessonLevel;
+            
+            // 1. Award XP and Gems in the backend
+            try {
+                await api.post("/profile/student/stats", { xp_gain: 10, gems_gain: 2 });
+            } catch (err) {
+                console.error("Failed to update student stats:", err);
+            }
+
+            // 2. Refresh UI stats
+            if (refreshUserData) {
+                await refreshUserData();
+            }
+
+            // 3. Unlock next node and award 3 stars locally
+            setCourses(prev => {
+                const currentCourseData = prev[activeCourseId];
+                if (!currentCourseData) return prev; // Safety
+
+                const updatedNodes = currentCourseData.nodes.map(node => {
+                    if (node.id === gameLevel) {
+                        return { ...node, stars: 3 };
+                    }
+                    if (node.id === gameLevel + 1) {
+                        return { ...node, isLocked: false };
+                    }
+                    return node;
+                });
+
+                // Persist progress: last completed node ID
+                localStorage.setItem(`progress_${activeCourseId}`, gameLevel.toString());
+
+                return {
+                    ...prev,
+                    [activeCourseId]: {
+                        ...currentCourseData,
+                        nodes: updatedNodes
+                    }
+                };
+            });
+            setLessonLevel(null);
         }
     };
 
@@ -211,13 +375,13 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz Bir Kursun Yok!</h2>
                 <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Maceraya başlamak için eğitmeninden aldığın katılım kodunu gir.
+                    Maceraya başlamak için Market'ten harika kurslarimizi keşfedebilir ve ilk adimini atabilirsin.
                 </p>
-                <button
-                    onClick={onOpenJoinModal}
+                <button 
+                    onClick={() => (window as any).setActivePage ? (window as any).setActivePage('Kurslar') : window.location.reload()}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
                 >
-                    Kod ile Katıl
+                    Kurslari Keşfet
                 </button>
             </div>
         );
@@ -229,232 +393,267 @@ const HomePage: React.FC<HomePageProps> = ({
         color: currentCourse.themeColor
     };
 
+    if (isLiveSessionJoined) {
+        return (
+            <LiveLessonStudent
+                currentCourse={currentCourse}
+                activeCourseId={activeCourseId}
+                lastActiveSessionTitle={lastActiveSessionTitle}
+                isLiveSessionJoined={isLiveSessionJoined}
+                setIsLiveSessionJoined={setIsLiveSessionJoined}
+                activeNodeId={activeNodeId}
+                handleNodeClick={handleNodeClick}
+                handleOpenLesson={handleOpenLesson}
+                showLessonSlide={showLessonSlide}
+                lessonLevel={lessonLevel}
+                handleCloseLesson={handleCloseLesson}
+                handleLessonComplete={handleLessonComplete}
+                userData={userData}
+            />
+        );
+    }
+
     return (
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap justify-between items-start gap-4 z-30 relative">
-                {/* Left Side Container: Course Box + Unit Header + Instructor Widget */}
-                <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
-                    {/* Course Info Box (Dropdown Enabled) */}
-                    <div className="relative" ref={courseDropdownRef}>
-                        <div
-                            className="w-28 h-28 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
-                            style={courseBoxStyle}
-                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        >
-                            <span className="text-4xl mb-1">{currentCourse.icon}</span>
-                            <span className="font-black text-sm uppercase tracking-wider font-display truncate max-w-[90px]">{currentCourse.title}</span>
-                            {/* Dropdown Indicator */}
-                            <div className="absolute top-2 right-2 opacity-50">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M6 9l6 6 6-6" />
-                                </svg>
-                            </div>
-                        </div>
-
-                        {/* DROPDOWN MENU */}
-                        {isDropdownOpen && (
-                            <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                {Object.values(courses).map((course) => (
-                                    <div
-                                        key={course.id}
-                                        className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
-                                        onClick={() => handleCourseChange(course.id)}
-                                    >
-                                        <span className="text-2xl">{course.icon}</span>
-                                        <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
-                                            {course.title}
-                                        </span>
-                                        {activeCourseId === course.id && (
-                                            <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Unit Header (Left) */}
-                    <div
-                        className="rounded-2xl p-4 md:p-6 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[450px] h-28 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
-                        style={{ backgroundColor: headerColor }}
-                    >
-                        <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
-
-                        <div className="relative z-10">
-                            <h2 className="text-sm font-black tracking-widest opacity-90 mb-1 uppercase font-display">{headerSubtitle}</h2>
-                            <h1 className="text-2xl md:text-3xl font-black font-display tracking-tight drop-shadow-sm truncate max-w-[280px]">{headerTitle}</h1>
-                        </div>
-
-                        <button className="bg-white/20 hover:bg-white/30 text-white font-black px-5 py-3 rounded-xl text-sm transition-colors uppercase tracking-wider flex items-center gap-2 border-2 border-transparent">
-                            <span className="text-xl">📖</span> REHBER
-                        </button>
-                    </div>
-
-                    {/* Instructor Widget */}
-                    {currentCourse.instructor && (
-                        <div className="hidden xl:flex h-28 px-8 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-5 shadow-sm ml-2 shrink-0">
-                            <div className="relative">
-                                <div className="w-14 h-14 rounded-2xl bg-indigo-100 border-2 border-indigo-200 flex items-center justify-center text-3xl">
-                                    {currentCourse.instructor.avatar}
+            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap justify-between items-center gap-4 z-30 relative">
+                {/* Left Side Container: Course Box + Unit Header + Live Join Button + Instructor Widget */}
+                    <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
+                        {/* Course Info Box (Dropdown Enabled) */}
+                        <div className="relative" ref={courseDropdownRef}>
+                            <div
+                                className="w-20 h-20 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
+                                style={courseBoxStyle}
+                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            >
+                                <span className="text-3xl mb-0.5">{currentCourse.icon}</span>
+                                <span className="font-black text-[10px] uppercase tracking-wider font-display truncate max-w-[70px]">{currentCourse.title}</span>
+                                {/* Dropdown Indicator */}
+                                <div className="absolute top-1 right-1 opacity-50">
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
+                                        <path d="M6 9l6 6 6-6" />
+                                    </svg>
                                 </div>
-                                {currentCourse.instructor.isOnline && (
-                                    <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-4 border-white rounded-full"></div>
-                                )}
                             </div>
 
-                            <div className="flex flex-col justify-center">
-                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Eğitmen</span>
-                                <span className="text-lg font-black text-gray-800 font-display leading-none mb-1">{currentCourse.instructor.name}</span>
-                                <span className={`text-xs font-bold flex items-center gap-1 px-2 py-0.5 rounded-full w-fit ${currentCourse.instructor.isOnline ? 'text-green-500 bg-green-50' : 'text-gray-400 bg-gray-100'}`}>
-                                    {currentCourse.instructor.isOnline && <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>}
-                                    {currentCourse.instructor.status}
-                                </span>
-                            </div>
-
-                            <button className="w-10 h-10 ml-2 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-400 hover:text-sky-500 flex items-center justify-center transition-colors border-2 border-transparent hover:border-gray-200">
-                                <span className="text-xl">💬</span>
-                            </button>
-                        </div>
-                    )}
-
-                    {/* CLAN WIDGET */}
-                    <div
-                        ref={clanDropdownRef}
-                        className="hidden 2xl:flex h-28 px-6 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-6 shadow-sm shadow-indigo-200 ml-2 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0"
-                        onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
-                    >
-                        <div className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[3] pointer-events-none">
-                            <Swords size={24} />
-                        </div>
-
-                        <div className="relative z-10">
-                            <div className="w-14 h-14 rounded-2xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-3xl shadow-md backdrop-blur-sm">
-                                🚀
-                            </div>
-                        </div>
-
-                        <div className="flex flex-col justify-center relative z-10 text-white min-w-[140px]">
-                            <div className="flex items-center gap-2 mb-0.5">
-                                <span className="font-black text-lg font-display leading-none">Kod Korsanları</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-indigo-100 mb-1">
-                                <Users size={12} />
-                                <span className="text-[10px] font-bold uppercase tracking-wider">Lvl 5 Klan</span>
-                            </div>
-                        </div>
-
-                        <div className="h-12 w-px bg-white/20 relative z-10"></div>
-
-                        <div className="flex flex-col items-center justify-center relative z-10 text-white">
-                            <span className="text-[9px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">KLAN SKORU</span>
-                            <span className="text-xl font-black text-yellow-300 font-display leading-tight">24.5k</span>
-                        </div>
-
-                        {/* SQUAD MEMBER DROPDOWN */}
-                        {isClanDropdownOpen && (
-                            <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                                    <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">Squad Üyeleri</span>
-                                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">4/5</span>
-                                </div>
-                                <div className="max-h-60 overflow-y-auto">
-                                    {squadMembers.map((member) => (
-                                        <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
-                                            <div className="relative">
-                                                <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100" />
-                                                <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
-                                            </div>
-                                            <div>
-                                                <h4 className="font-bold text-sm text-gray-800 leading-none mb-0.5">{member.name}</h4>
-                                                <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'in-class' ? 'Derste' : 'Çevrimdışı'}</span>
-                                            </div>
+                            {/* DROPDOWN MENU */}
+                            {isDropdownOpen && (
+                                <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {(Object.values(courses) as CourseData[]).map((course) => (
+                                        <div
+                                            key={course.id}
+                                            className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
+                                            onClick={() => handleCourseChange(course.id)}
+                                        >
+                                            <span className="text-2xl">{course.icon}</span>
+                                            <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
+                                                {course.title}
+                                            </span>
+                                            {activeCourseId === course.id && (
+                                                <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
+                                            )}
                                         </div>
                                     ))}
                                 </div>
-                                <div className="p-2 border-t border-indigo-50 bg-gray-50 text-center">
-                                    <button className="text-[10px] font-black text-indigo-500 hover:text-indigo-600 uppercase tracking-wide">Tümünü Gör</button>
+                            )}
+                        </div>
+
+                        {/* Unit Header (Left) */}
+                        <div
+                            className="rounded-2xl p-4 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[380px] h-20 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
+                            style={{ backgroundColor: headerColor }}
+                        >
+                            <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
+
+                            <div className="relative z-10">
+                                <h2 className="text-[9px] font-black tracking-widest opacity-90 mb-0.5 uppercase font-display">{headerSubtitle}</h2>
+                                <h1 className="text-base font-black font-display tracking-tight drop-shadow-sm truncate max-w-[200px]">{headerTitle}</h1>
+                            </div>
+
+                            <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-2 rounded-xl text-xs transition-colors uppercase tracking-wider flex items-center gap-1.5 border-2 border-transparent">
+                                <span className="text-base">📖</span> REHBER
+                            </button>
+                        </div>
+
+                        {/* Prominent Live Join Lesson Button */}
+                        {isClassActive && (
+                            <button
+                                onClick={handleJoinLiveClass}
+                                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black px-6 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-emerald-100 cursor-pointer animate-bounce h-20 shrink-0 select-none border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px] transition-all hover:scale-105"
+                            >
+                                <span className="flex h-3 w-3 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                                </span>
+                                <div className="flex flex-col text-left">
+                                    <span className="text-[9px] font-black text-emerald-100 uppercase tracking-widest leading-none mb-1">Ders Başladı!</span>
+                                    <span className="text-xs font-black tracking-wide leading-none">DERSE KATIL</span>
+                                </div>
+                            </button>
+                        )}
+
+                        {/* Instructor Widget */}
+                        {currentCourse.instructor && (
+                            <div className="hidden xl:flex h-20 w-56 px-4.5 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3.5 shadow-sm shrink-0">
+                                <div className="relative shrink-0">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl shadow-inner">
+                                        {currentCourse.instructor.avatar}
+                                    </div>
+                                    {currentCourse.instructor.isOnline && (
+                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
+                                    )}
+                                </div>
+
+                                <div className="flex flex-col justify-center min-w-0 flex-1">
+                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Eğitmen</span>
+                                    <span className="text-sm font-black text-gray-800 font-display truncate leading-none mb-1.5">{currentCourse.instructor.name}</span>
+                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full w-fit leading-none ${currentCourse.instructor.isOnline ? 'text-green-600 bg-green-50 border border-green-150' : 'text-gray-400 bg-gray-50 border border-gray-100'}`}>
+                                        {currentCourse.instructor.status}
+                                    </span>
                                 </div>
                             </div>
                         )}
+
+                        {/* CLAN WIDGET (Restored Premium Gradient Style) */}
+                        <div
+                            ref={clanDropdownRef}
+                            className="hidden 2xl:flex h-20 px-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-4 shadow-sm shadow-indigo-200 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0 select-none text-white font-sans"
+                            onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
+                        >
+                            <div className="absolute top-1/2 right-6 text-white/10 transform rotate-12 scale-[2.5] pointer-events-none">
+                                <Swords size={20} />
+                            </div>
+
+                            <div className="relative z-10">
+                                <div className="w-10 h-10 rounded-xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl shadow-md backdrop-blur-sm">
+                                    🚀
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col justify-center relative z-10 text-white min-w-[120px]">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <span className="font-black text-sm font-display leading-none truncate max-w-[140px]">{myClass.class_name || "Sınıf Bulunamadı"}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-indigo-100">
+                                    <Users size={10} />
+                                    <span className="text-[9px] font-bold uppercase tracking-wider">{myClass.class_name ? "Sınıfım" : "Sınıf Yok"}</span>
+                                </div>
+                            </div>
+
+                            <div className="h-10 w-px bg-white/20 relative z-10"></div>
+
+                            <div className="flex flex-col items-center justify-center relative z-10 text-white">
+                                <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">ÜYE</span>
+                                <span className="text-base font-black text-yellow-300 font-display leading-tight">{myClass.classmates.length}</span>
+                            </div>
+
+                            {/* SQUAD MEMBER DROPDOWN */}
+                            {isClanDropdownOpen && (
+                                <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
+                                    <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+                                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">{myClass.class_name ? "Sınıf Arkadaşlarım" : "Sınıf Üyeleri"}</span>
+                                        <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">{myClass.classmates.length}</span>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto">
+                                        {myClass.classmates.length > 0 ? (
+                                            myClass.classmates.map((member) => (
+                                                <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
+                                                    <div className="relative shrink-0">
+                                                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-150" />
+                                                        <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <h4 className="font-bold text-sm text-gray-800 truncate leading-tight mb-0.5">{member.name}</h4>
+                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'online' ? 'Çevrimiçi' : 'Çevrimdışı'}</span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="p-6 text-center text-xs text-gray-400 font-bold italic">Sınıf arkadaşı bulunamadı.</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
 
-                {/* Right Column: Stats + Widgets */}
-                <div className="flex flex-col items-end relative z-50">
-                    <div className="flex flex-col gap-3 w-80">
+                    {/* Right Column: Stats + Widgets */}
+                    <div className="flex flex-col items-end relative z-50">
+                        <div className="flex flex-col gap-3 w-64">
+                            {/* REDESIGNED XP BAR (Dynamic values) */}
+                            <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl h-20 px-4.5 flex items-center justify-between shadow-sm hover:border-amber-300 transition-colors shrink-0">
+                                <div className="flex items-center gap-3 min-w-0">
+                                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center shadow-inner shrink-0">
+                                        <Trophy size={20} />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Bronz Lig</span>
+                                        <span className="text-sm font-black text-gray-800 font-display leading-none">{(userData?.xp ?? 0)} XP</span>
+                                    </div>
+                                </div>
 
-                        {/* REDESIGNED XP BAR (Dynamic values) */}
-                        <div className="w-full bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-2 flex items-center justify-between shadow-sm relative overflow-hidden group hover:border-yellow-200 transition-colors">
-                            <div className="absolute left-0 top-0 bottom-0 bg-yellow-50 w-[40%] z-0"></div>
+                                {/* Beautiful Continuous Progress Bar */}
+                                <div className="w-24 bg-gray-100 border border-gray-200/50 rounded-full h-3 overflow-hidden shadow-inner shrink-0">
+                                    <div 
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
+                                        style={{ width: `${Math.max(10, Math.min(100, ((userData?.xp ?? 0) % 100) || 30))}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        </div>
 
-                            <div className="flex items-center gap-3 relative z-10">
-                                <div
-                                    className="w-9 h-9 rounded-full bg-yellow-400 border-2 border-yellow-500 flex items-center justify-center shadow-[0_2px_0_#ca8a04] group-hover:scale-110 transition-transform"
-                                    style={{ backgroundColor: currentCourse.themeColor === '#3b82f6' ? '#60a5fa' : '#facc15', borderColor: currentCourse.themeColor === '#3b82f6' ? '#3b82f6' : '#eab308', boxShadow: `0 2px 0 ${currentCourse.themeColor === '#3b82f6' ? '#2563eb' : '#ca8a04'}` }}
+                        {/* Right Sidebar Widgets */}
+                        <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64">
+                            {/* Daily Quest Widget */}
+                            <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all group">
+                                <div 
+                                    className="flex justify-between items-center cursor-pointer select-none"
+                                    onClick={() => setIsQuestsExpanded(!isQuestsExpanded)}
                                 >
-                                    <span className="text-sm font-black text-white">III</span>
-                                </div>
-                                <div className="flex flex-col">
-                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider leading-none">Bronz Lig</span>
-                                    <span className="text-sm font-black text-gray-700 font-display">{(userData?.xp ?? 0)} XP</span>
-                                </div>
-                            </div>
-
-                            {/* Segmented Bar */}
-                            <div className="flex gap-1 relative z-10">
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className={`w-2 h-6 rounded-sm ${currentCourse.id === 'Matematik' ? 'bg-blue-400' : 'bg-yellow-400'}`}></div>
-                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
-                                <div className="w-2 h-6 rounded-sm bg-gray-200"></div>
-                            </div>
-                        </div>
-
-                    </div>
-
-                    {/* Right Sidebar Widgets */}
-                    <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-80">
-                        {/* Daily Quest Widget */}
-                        <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-5 shadow-sm hover:shadow-md transition-all group">
-                            <div className="flex justify-between items-center mb-5">
-                                <h3 className="text-gray-700 font-black text-lg font-display tracking-tight">Günlük Görevler</h3>
-                                <a href="#" className="font-bold text-xs text-green-500 hover:text-green-600 transition-colors uppercase tracking-wider bg-green-50 px-3 py-1 rounded-lg">TÜMÜ</a>
-                            </div>
-                            <div className="space-y-5">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-orange-100 border-2 border-orange-200 flex items-center justify-center text-2xl shadow-sm shrink-0">⚡</div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-bold text-gray-700 text-sm font-display">10 Puan kazan</span>
-                                            <span className="font-bold text-orange-500 text-xs">{(userData?.xp ?? 0) % 10}/10</span>
-                                        </div>
-                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                            <div 
-                                                className="h-full bg-orange-400 rounded-full shadow-sm"
-                                                style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
-                                            ></div>
-                                        </div>
+                                    <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5">
+                                        🎯 Günlük Görevler
+                                    </h3>
+                                    <div className="text-gray-400 hover:text-gray-600">
+                                        {isQuestsExpanded ? <ChevronDown size={16} className="transform rotate-180 transition-transform duration-200" /> : <ChevronDown size={16} className="transition-transform duration-200" />}
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 rounded-2xl bg-green-100 border-2 border-green-200 flex items-center justify-center text-2xl shadow-sm shrink-0">🎯</div>
-                                    <div className="flex-1">
-                                        <div className="flex justify-between mb-1">
-                                            <span className="font-bold text-gray-700 text-sm font-display">Hatasız ders</span>
-                                            <span className="font-bold text-gray-400 text-xs">0/1</span>
+                                
+                                {isQuestsExpanded && (
+                                    <div className="space-y-4 mt-4 animate-in fade-in duration-200">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-lg shadow-sm shrink-0">⚡</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-black text-gray-700 text-xs truncate">10 Puan kazan</span>
+                                                    <span className="font-bold text-orange-500 text-[10px]">{(userData?.xp ?? 0) % 10}/10</span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
+                                                    <div 
+                                                        className="h-full bg-orange-400 rounded-full shadow-sm"
+                                                        style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
+                                                    ></div>
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                            <div className="h-full bg-green-500 w-0 rounded-full"></div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-9 h-9 rounded-xl bg-green-100 border border-green-200 flex items-center justify-center text-lg shadow-sm shrink-0">🎯</div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <span className="font-black text-gray-700 text-xs truncate">Hatasız ders</span>
+                                                    <span className="font-bold text-gray-400 text-[10px]">0/1</span>
+                                                </div>
+                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-150">
+                                                    <div className="h-full bg-green-500 w-0 rounded-full"></div>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
             {/* Middle Section: Horizontal Path */}
             <div className="w-full flex-1 flex items-center justify-center relative z-20">
@@ -487,7 +686,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 return (
                                     <React.Fragment key={node.id}>
                                         {/* STARTING LESSON HEADER */}
-                                        {index === 0 && node.lessonTopic && (
+                                        {node.lessonTopic && (
                                             <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
                                                 {/* Vertical Dashed Line */}
                                                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
@@ -555,7 +754,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             {node.title || "Ders Başlığı"}
                                                         </h3>
                                                         <span className="text-white/90 font-bold text-xs uppercase tracking-widest mb-4">
-                                                            DERS: {index + 1}/{currentNodes.length}
+                                                            DERS: {index + 1}/9
                                                         </span>
 
                                                         <button
@@ -634,7 +833,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                     textShadow: `2px 2px 0px ${node.strokeColor}`
                                                                 }}
                                                             >
-                                                                {node.title}
+                                                                {node.title?.toUpperCase()}
                                                             </span>
                                                         </div>
                                                     </>
@@ -642,53 +841,37 @@ const HomePage: React.FC<HomePageProps> = ({
                                             </div>
                                         </div>
 
-                                        {/* Connector (or Divider) */}
+                                        {/* Connector */}
                                         {index < currentNodes.length - 1 && (
-                                            <>
-                                                {/* LESSON TRANSITION CHECK */}
-                                                {(node.lessonNumber && currentNodes[index + 1]?.lessonNumber !== node.lessonNumber && currentNodes[index + 1]?.lessonTopic) ? (
-                                                    // PREMIUM LESSON DIVIDER (Vertical Style)
-                                                    <div className="w-64 h-64 -mx-4 relative z-0 flex items-center justify-center">
-                                                        {/* Vertical Dashed Line */}
-                                                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
+                                            // STANDARD CONNECTOR
+                                            <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
+                                                <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
+                                                    <path
+                                                        d={
+                                                            currentNodes[index + 1]?.lessonTopic
+                                                                ? (node.curve === 'down' ? "M0 45 Q 60 70 120 45" : "M0 65 Q 60 20 120 45")
+                                                                : (node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45")
+                                                        }
+                                                        stroke="#6B7280"
+                                                        strokeWidth="12"
+                                                        strokeLinecap="round"
+                                                        strokeDasharray="0 25"
+                                                        fill="none"
+                                                    />
+                                                </svg>
 
-                                                        {/* Main Divider Body */}
-                                                        <div className="relative w-full flex flex-col items-center">
-                                                            {/* Topic Badge */}
-                                                            <div className="bg-white px-8 py-3 rounded-2xl shadow-none border-2 border-gray-100 flex flex-col items-center transform hover:scale-105 transition-transform cursor-pointer z-10">
-                                                                <span className="text-[10px] font-bold text-gray-400 tracking-[0.2em] uppercase mb-1">DERS {currentNodes[index + 1].lessonNumber}</span>
-                                                                <span className="text-lg font-black font-display tracking-tight text-gray-800">{currentNodes[index + 1].lessonTopic}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                ) : (
-                                                    // STANDARD CONNECTOR
-                                                    <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
-                                                        <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
-                                                            <path
-                                                                d={node.curve === 'down' ? "M0 45 Q 60 110 120 65" : "M0 65 Q 60 0 120 45"}
-                                                                stroke="#6B7280"
-                                                                strokeWidth="12"
-                                                                strokeLinecap="round"
-                                                                strokeDasharray="0 25"
-                                                                fill="none"
-                                                            />
-                                                        </svg>
-
-                                                        {/* Decorative Grass */}
-                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
-                                                            style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
-                                                            style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
-                                                            style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
-                                                            style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
-                                                        <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
-                                                            style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
-                                                    </div>
-                                                )}
-                                            </>
+                                                {/* Decorative Grass */}
+                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                                                    style={{ left: '10%', top: node.curve === 'down' ? '45%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '5px' : '-5px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-90 ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                                                    style={{ left: '30%', top: node.curve === 'down' ? '65%' : '35%', transform: `translate(0, ${index % 3 === 0 ? '-8px' : '4px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-7 opacity-85 ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                                                    style={{ left: '50%', top: node.curve === 'down' ? '80%' : '25%', transform: `translate(0, ${index % 4 === 0 ? '10px' : '-2px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-5 opacity-80 ${index % 2 === 0 ? 'rotate-12' : '-rotate-6'}`}
+                                                    style={{ left: '70%', top: node.curve === 'down' ? '85%' : '25%', transform: `translate(0, ${index % 2 !== 0 ? '6px' : '-6px'})` }} />
+                                                <img src={GrassIcon} alt="" className={`absolute w-6 opacity-75 ${index % 3 === 0 ? '-rotate-3' : 'rotate-6'}`}
+                                                    style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
+                                            </div>
                                         )}
                                     </React.Fragment>
                                 );
@@ -700,33 +883,25 @@ const HomePage: React.FC<HomePageProps> = ({
 
 
             {/* LESSON SLIDE OVERLAY */}
-            {showLessonSlide && (
-                <LessonSlide
-                    isOpen={showLessonSlide}
-                    lessonTitle={currentCourse?.nodes?.find(n => n.id === lessonLevel)?.title}
-                    customSlides={activeLessonSlides}
-                    onClose={handleCloseLesson}
-                    onComplete={handleLessonComplete}
-                />
-            )}
-
-            {/* DERS YÜKLEME OVERLAY */}
-            {isLoadingLesson && (
-                <div className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-gray-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="w-16 h-16 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin mb-4"></div>
-                    <h3 className="text-white font-black text-xl tracking-wide uppercase font-display">Ders Yukleniyor...</h3>
-                    <p className="text-sky-200 text-xs font-bold uppercase tracking-widest mt-1">Lutfen bekleyin</p>
-                </div>
-            )}
+            <LessonSlide
+                isOpen={showLessonSlide}
+                lessonTitle={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.title}
+                slides={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.slides || []}
+                onClose={handleCloseLesson}
+                onComplete={handleLessonComplete}
+                courseId={currentCourse.id}
+                lessonIndex={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.lessonNumber}
+                userData={userData}
+            />
 
             {/* GAME PAGE OVERLAY */}
             <GameOverlay
                 isOpen={showGameOverlay}
                 level={gameLevel}
-                lessonTitle={currentCourse.nodes.find(n => n.id === gameLevel)?.title}
+                lessonTitle={currentCourse.nodes.find(n => String(n.id) === String(gameLevel))?.title}
                 courseId={currentCourse.id}
-                sectionId={currentCourse.nodes.find(n => n.id === gameLevel)?.sectionId}
-                localNodeIndex={currentCourse.nodes.find(n => n.id === gameLevel)?.localNodeIndex}
+                sectionId={currentCourse.nodes.find(n => String(n.id) === String(gameLevel))?.sectionId}
+                localNodeIndex={currentCourse.nodes.find(n => String(n.id) === String(gameLevel))?.localNodeIndex}
                 onClose={handleCloseGame}
                 onComplete={handleGameComplete}
                 onStatsUpdate={refreshUserData}

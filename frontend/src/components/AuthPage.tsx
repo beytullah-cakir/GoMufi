@@ -260,7 +260,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     <ChevronRight className="text-gray-200 group-hover:text-cyan-400 group-hover:translate-x-2 transition-all w-8 h-8" />
                   </button>
 
-                  {/* <button
+                  {/* MVP'de Ebeveyn seçeneği devre dışı
+                  <button
                     onClick={() => handleRoleSelect("parent")}
                     className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-purple-300 hover:scale-[1.02] transition-all duration-300"
                   >
@@ -276,7 +277,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       </p>
                     </div>
                     <ChevronRight className="text-gray-200 group-hover:text-purple-400 group-hover:translate-x-2 transition-all w-8 h-8" />
-                  </button> */}
+                  </button>
+                  */}
                 </div>
               </div>
             ) : (

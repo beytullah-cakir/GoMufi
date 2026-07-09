@@ -1,7 +1,7 @@
 import random
 import string
 from fastapi import APIRouter, Depends, Request, HTTPException, status
-from sqlalchemy import func, JSON
+from sqlalchemy import func, JSON, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload, attributes
@@ -11,6 +11,7 @@ from models.teacher import Teacher
 from models.enrollment import Enrollment
 from models.lesson_content import LessonContent
 from models.quiz import Quiz
+from models.student import Student
 from connect_db import get_db
 from sqlalchemy import delete
 from pydantic import BaseModel
@@ -101,6 +102,8 @@ class CourseResponse(BaseModel):
     rating: Optional[int] = 5
     schedule: Optional[List[Any]] = []
     enrollment_code: Optional[str] = None
+    classes: Optional[List[Any]] = []
+    start_date: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -395,6 +398,8 @@ class CreateCourseRequest(BaseModel):
     notes: Optional[Any] = []
     rating: Optional[int] = 5
     schedule: Optional[List[Any]] = []
+    classes: Optional[List[Any]] = []
+    start_date: Optional[str] = None
 
 class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
@@ -407,6 +412,8 @@ class UpdateCourseRequest(BaseModel):
     notes: Optional[Any] = None
     rating: Optional[int] = None
     schedule: Optional[List[Any]] = None
+    classes: Optional[List[Any]] = None
+    start_date: Optional[str] = None
 
 @router.post("/create_course", response_model=TeacherCourseResponse)
 async def create_course(
@@ -435,6 +442,8 @@ async def create_course(
             rating=course_data.rating if course_data.rating is not None else 5,
             schedule=course_data.schedule if course_data.schedule is not None else [],
             enrollment_code=enrollment_code
+            classes=course_data.classes if course_data.classes is not None else [],
+            start_date=course_data.start_date
         )
         db.add(new_course)
         await db.commit()
@@ -499,6 +508,13 @@ async def update_course(
             course.schedule = course_data.schedule
             flag_modified(course, "schedule")
             
+        if course_data.classes is not None:
+            course.classes = course_data.classes
+            flag_modified(course, "classes")
+            
+        if course_data.start_date is not None:
+            course.start_date = course_data.start_date
+            
         await db.commit()
         # teacher ilişkisini eager-load ile tekrar çek — aksi halde response_model
         # serileştirmesi sırasında lazy-load MissingGreenlet hatası oluşur.
@@ -536,10 +552,11 @@ async def delete_course(
 @router.post("/start-session/{course_id}")
 async def start_session(
     course_id: int,
+    title: Optional[str] = None,
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id}")
+    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id} with title {title}")
     # Dersi kontrol et
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
@@ -558,7 +575,7 @@ async def start_session(
     if not session:
         session = LiveSession(
             course_id=course_id,
-            title=f"{course.title} - Canlı Oturum",
+            title=title if title else f"{course.title} - Canlı Oturum",
             status='live',
             type='live'
         )
@@ -566,6 +583,8 @@ async def start_session(
         print("DEBUG: Created new live session")
     else:
         session.status = 'live'
+        if title:
+            session.title = title
         print("DEBUG: Reused existing live session")
     
     await db.commit()
@@ -582,7 +601,7 @@ async def get_session_status(
     session = result.scalars().first()
     
     if session:
-        return {"is_live": True, "session_id": session.id}
+        return {"is_live": True, "session_id": session.id, "title": session.title}
     return {"is_live": False}
 
 @router.post("/stop-session/{course_id}")
@@ -773,11 +792,145 @@ async def delete_lesson_content(
         await db.rollback()
         print(f"ERROR in delete_lesson_content: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+# --- Roadmap Export/Import with Deep Widget Property Normalization ---
+
+DEFAULT_STYLE = {
+    "bold": None,
+    "italic": None,
+    "underline": None,
+    "color": None,
+    "fontSize": None,
+    "fontFamily": None,
+    "backgroundColor": None,
+    "textAlign": None,
+    "verticalAlign": None,
+    "borderRadius": None,
+    "borderColor": None,
+    "borderWidth": None,
+    "borderPosition": None,
+    "opacity": None
+}
+
+DEFAULT_CODE_CONFIG = {
+    "language": None,
+    "expectedOutput": None,
+    "hint": None,
+    "runnable": None,
+    "theme": None,
+    "enableAutocomplete": None
+}
+
+DEFAULT_ARROW_CONFIG = {
+    "start": None,
+    "end": None,
+    "startConnectedElementId": None,
+    "endConnectedElementId": None,
+    "startSide": None,
+    "endSide": None,
+    "customChannel": None,
+    "customStartOffset": None,
+    "customEndOffset": None,
+    "arrowStyle": None
+}
+
+DEFAULT_ELEMENT = {
+    "id": None,
+    "type": None,
+    "shapeType": None,
+    "x": None,
+    "y": None,
+    "width": None,
+    "height": None,
+    "rotation": None,
+    "content": None,
+    "src": None,
+    "imageUrl": None,
+    "videoUrl": None,
+    "style": None,
+    "extra": None,
+    "codeConfig": None,
+    "arrowConfig": None
+}
+
+DEFAULT_SLIDE = {
+    "id": None,
+    "type": "normal",
+    "gameType": None,
+    "gameConfig": None,
+    "elements": [],
+    "connections": None,
+    "background": "default",
+    "backgroundColor": None
+}
+
+
+def normalize_style(style_dict):
+    if not isinstance(style_dict, dict):
+        return {k: None for k in DEFAULT_STYLE.keys()}
+    return {k: style_dict.get(k) for k in DEFAULT_STYLE.keys()}
+
+
+def normalize_code_config(cfg):
+    if not isinstance(cfg, dict):
+        return {k: None for k in DEFAULT_CODE_CONFIG.keys()}
+    return {k: cfg.get(k) for k in DEFAULT_CODE_CONFIG.keys()}
+
+
+def normalize_arrow_config(cfg):
+    if not isinstance(cfg, dict):
+        return {k: None for k in DEFAULT_ARROW_CONFIG.keys()}
+    normalized = {}
+    for k in DEFAULT_ARROW_CONFIG.keys():
+        val = cfg.get(k)
+        if k in ("start", "end"):
+            if isinstance(val, dict):
+                normalized[k] = {"x": val.get("x"), "y": val.get("y")}
+            else:
+                normalized[k] = {"x": None, "y": None}
+        else:
+            normalized[k] = val
+    return normalized
+
+
+def normalize_element(el):
+    if not isinstance(el, dict):
+        return {}
+    normalized = {}
+    for k in DEFAULT_ELEMENT.keys():
+        if k == "style":
+            normalized[k] = normalize_style(el.get("style"))
+        elif k == "codeConfig":
+            normalized[k] = normalize_code_config(el.get("codeConfig"))
+        elif k == "arrowConfig":
+            normalized[k] = normalize_arrow_config(el.get("arrowConfig"))
+        else:
+            normalized[k] = el.get(k)
+    return normalized
+
+
+def normalize_slide(slide):
+    if not isinstance(slide, dict):
+        return {}
+    normalized = {}
+    for k in DEFAULT_SLIDE.keys():
+        if k == "elements":
+            elements = slide.get("elements") or []
+            normalized[k] = [normalize_element(el) for el in elements]
+        elif k == "connections":
+            conns = slide.get("connections")
+            if isinstance(conns, list):
+                normalized[k] = conns
+            else:
+                normalized[k] = None
+        else:
+            normalized[k] = slide.get(k)
+    return normalized
 
 
 class ImportRoadmapRequest(BaseModel):
     curriculum: Any
     lesson_contents: List[Any]
+    notes: List[Any]
     quizzes: List[Any]
 
 
@@ -810,13 +963,16 @@ async def export_roadmap(
     )
     quizzes = quizzes_result.scalars().all()
 
-    # Serialize lesson contents
-    lesson_contents_data = []
-    for l in lessons:
-        lesson_contents_data.append({
-            "node_id": l.node_id,
-            "title": l.title or "",
-            "slides": l.slides or []
+    # Normalize slides inside notes
+    raw_notes = course.notes or []
+    normalized_notes = []
+    for note in raw_notes:
+        raw_slides = note.get("slides") or []
+        normalized_slides = [normalize_slide(s) for s in raw_slides]
+        normalized_notes.append({
+            "id": note.get("id"),
+            "noteTitle": note.get("noteTitle", ""),
+            "slides": normalized_slides
         })
 
     # Serialize quizzes
@@ -829,6 +985,7 @@ async def export_roadmap(
         "course_title": course.title,
         "curriculum": course.curriculum or [],
         "lesson_contents": lesson_contents_data,
+        "notes": normalized_notes,
         "quizzes": quizzes_data
     }
 
@@ -903,3 +1060,770 @@ async def import_roadmap(
         await db.rollback()
         print(f"ERROR in import_roadmap: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Yol haritası yüklenemedi: {str(e)}")
+
+
+class JoinClassRequest(BaseModel):
+    code: str
+
+
+@router.post("/class/join")
+async def join_class(
+    payload: JoinClassRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    student_id = int(user_info["sub"])
+    role = user_info["role"]
+    if role not in ["student", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler veya yöneticiler sınıfa katılabilir.")
+        
+    code_upper = payload.code.strip().upper()
+    if not code_upper:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geçersiz katılım kodu.")
+        
+    # Tüm kursları ve sınıflarını çek
+    stmt = select(Course)
+    result = await db.execute(stmt)
+    courses = result.scalars().all()
+    
+    target_course = None
+    target_class = None
+    
+    for course in courses:
+        classes_list = course.classes or []
+        for cls in classes_list:
+            if cls.get("code", "").strip().upper() == code_upper:
+                target_course = course
+                target_class = cls
+                break
+        if target_course:
+            break
+            
+    if not target_course or not target_class:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sınıf bulunamadı. Lütfen kodu kontrol edin.")
+        
+    # Öğrenciyi kursa kaydet (eğer kayıtlı değilse)
+    enrollment_stmt = select(Enrollment).where(
+        Enrollment.student_id == student_id,
+        Enrollment.course_id == target_course.id
+    )
+    enrollment_result = await db.execute(enrollment_stmt)
+    enrollment = enrollment_result.scalar_one_or_none()
+    
+    if not enrollment:
+        enrollment = Enrollment(student_id=student_id, course_id=target_course.id)
+        db.add(enrollment)
+        
+    # Öğrenciyi sınıfın student_ids listesine ekle
+    student_ids = target_class.get("student_ids") or []
+    student_id_str = str(student_id)
+    if not any(str(sid) == student_id_str for sid in student_ids):
+        student_ids.append(student_id)
+        target_class["student_ids"] = student_ids
+        
+        # Diğer sınıflardan bu öğrenciyi çıkar (Öğrenci sadece bir sınıfta olabilir)
+        for cls in target_course.classes:
+            if cls["id"] != target_class["id"]:
+                other_ids = cls.get("student_ids") or []
+                if any(str(sid) == student_id_str for sid in other_ids):
+                    cls["student_ids"] = [sid for sid in other_ids if str(sid) != student_id_str]
+                    
+        flag_modified(target_course, "classes")
+        
+    try:
+        await db.commit()
+        await db.refresh(target_course)
+        return {
+            "success": True, 
+            "message": f"'{target_class.get('name')}' sınıfına başarıyla katıldınız.",
+            "course_title": target_course.title,
+            "class_name": target_class.get("name")
+        }
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Sınıfa katılırken bir hata oluştu: {str(e)}")
+
+
+@router.get("/student/my-class/{course_id}")
+async def get_student_class(
+    course_id: int,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    student_id = int(user_info["sub"])
+    role = user_info["role"]
+    if role not in ["student", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler veya yöneticiler sınıf detaylarını görebilir.")
+        
+    stmt = select(Course).where(Course.id == course_id)
+    result = await db.execute(stmt)
+    course = result.scalar_one_or_none()
+    
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+        
+    student_class = None
+    classes_list = course.classes or []
+    student_id_str = str(student_id)
+    for cls in classes_list:
+        student_ids = cls.get("student_ids") or []
+        if any(str(sid) == student_id_str for sid in student_ids):
+            student_class = cls
+            break
+            
+    if not student_class:
+        return {"class_name": None, "classmates": []}
+        
+    classmate_ids = student_class.get("student_ids") or []
+    classmate_ids_ints = []
+    for cid in classmate_ids:
+        try:
+            classmate_ids_ints.append(int(cid))
+        except (ValueError, TypeError):
+            pass
+            
+    classmates_list = []
+    if classmate_ids_ints:
+        students_stmt = select(Student).where(Student.id.in_(classmate_ids_ints))
+        students_result = await db.execute(students_stmt)
+        students = students_result.scalars().all()
+        
+        for s in students:
+            avatar_seed = s.id * 111 + 456
+            status_val = "online" if (s.id == student_id) else ("offline" if s.id % 2 == 0 else "online")
+            classmates_list.append({
+                "id": s.id,
+                "name": f"{s.first_name} {s.last_name or ''}".strip(),
+                "status": status_val,
+                "avatarSeed": avatar_seed,
+                "email": s.email
+            })
+            
+    return {
+        "class_name": student_class.get("name"),
+        "classmates": classmates_list
+    }
+
+
+class GenerateRoadmapRequest(BaseModel):
+    topic: str
+    difficulty: str
+    lessons_count: int
+    audience: str
+
+
+@router.post("/courses/generate_roadmap")
+async def generate_roadmap_api(
+    req: GenerateRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    import os
+    import random
+    import copy
+    from google import genai
+    from google.genai import types
+    
+    TEMPLATES_PATH = "slide_templates.json"
+    try:
+        # Load templates
+        templates = []
+        if os.path.exists(TEMPLATES_PATH):
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                templates = json.load(f)
+                
+        # Group templates by category
+        templates_by_category = {
+            "ANLA": [],
+            "UYGULA": [],
+            "BİRLEŞTİR": [],
+            "ÜRET": []
+        }
+        for t in templates:
+            cat = t.get("category", "").upper()
+            if cat in templates_by_category:
+                elements_info = []
+                for el in t.get("elements", []):
+                    if el.get("type") in ["text", "code", "sticky", "challenge", "code_editor"]:
+                        elements_info.append({
+                            "id": el.get("id"),
+                            "type": el.get("type"),
+                            "placeholder": el.get("content")
+                        })
+                templates_by_category[cat].append({
+                    "id": t.get("id"),
+                    "title": t.get("title"),
+                    "description": t.get("description"),
+                    "elements": elements_info
+                })
+                
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        # --- PHASE 1: GENERATE ROADMAP STRUCTURE ---
+        prompt_step1 = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
+
+Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
+
+Requirements:
+- The roadmap consists of lessons.
+- Each lesson contains a list of modules.
+- Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
+- For each lesson, you should follow a pedagogical flow: typically starting with UNDERSTAND, then APPLY, then CONNECT/CREATE, and ending with QUIZ/HOMEWORK.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "courseTitle": "...",
+  "lessons": [
+    {{
+      "lessonNumber": 1,
+      "title": "Lesson title (Türkçe)",
+      "objective": "Lesson learning objective (Türkçe)",
+      "modules": [
+        {{ "type": "UNDERSTAND" }},
+        {{ "type": "APPLY" }},
+        {{ "type": "QUIZ" }}
+      ]
+    }}
+  ]
+}}
+
+Input:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Lessons Count: {req.lessons_count}
+Audience: {req.audience}
+"""
+        response_step1 = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt_step1,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        roadmap_structure = json.loads(response_step1.text.strip())
+        
+        # --- PHASE 2: GENERATE SLIDES CONTENT FOR ALL MODULES ---
+        prompt_step2 = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to write detailed educational slide contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided curriculum.
+
+Course:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+
+Curriculum Structure to populate:
+{json.dumps(roadmap_structure, ensure_ascii=False, indent=2)}
+
+Available Templates for each category:
+- UNDERSTAND (ANLA) templates:
+{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+
+- APPLY (UYGULA) templates:
+{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+
+- CONNECT (BİRLEŞTİR) templates:
+{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+
+- CREATE (ÜRET) templates:
+{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+
+Requirements:
+- For each module in the curriculum of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
+- For each module, choose the most suitable template from the available templates of its category.
+- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
+- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges.
+- For CONNECT and CREATE: generate 1 to 2 slides with multi-concept scenarios or creative project prompts.
+- Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "levelContents": [
+    {{
+      "lessonNumber": 1,
+      "moduleType": "UNDERSTAND",
+      "slides": [
+        {{
+          "selectedTemplateId": "template_id_here",
+          "elementContents": {{
+             "element_id_1": "Generated text explanation in Turkish",
+             "element_id_2": "Generated python code or note in Turkish..."
+          }}
+        }}
+      ]
+    }}
+  ]
+}}
+"""
+        response_step2 = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt_step2,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        slide_contents_data = json.loads(response_step2.text.strip())
+        level_contents_list = slide_contents_data.get("levelContents", [])
+        
+        # --- PHASE 3: MAP AND CONSTRUCT THE VISUAL CURRICULUM AND NOTES ---
+        generated_lessons = roadmap_structure.get("lessons", [])
+        
+        curriculum = []
+        notes = []
+        overall_idx = 1
+        
+        theme_map = {
+          "UNDERSTAND": "purple",
+          "APPLY": "cyan",
+          "CONNECT": "green",
+          "CREATE": "yellow",
+          "QUIZ": "quiz",
+          "HOMEWORK": "homework"
+        }
+        
+        all_templates_map = {
+            "UNDERSTAND": templates_by_category["ANLA"],
+            "APPLY": templates_by_category["UYGULA"],
+            "CONNECT": templates_by_category["BİRLEŞTİR"],
+            "CREATE": templates_by_category["ÜRET"]
+        }
+        
+        for l_idx, les in enumerate(generated_lessons):
+            lesson_num = les.get("lessonNumber") or (l_idx + 1)
+            modules = les.get("modules", [])
+            for m_idx, mod in enumerate(modules):
+                mod_type = mod.get("type", "UNDERSTAND").upper()
+                mapped_theme = theme_map.get(mod_type, "purple")
+                
+                level_id = f"sec_ai_{int(random.random() * 1000000000)}"
+                
+                node = {
+                  "id": level_id,
+                  "title": f"Ders {overall_idx}",
+                  "theme": mapped_theme,
+                  "lectures": []
+                }
+                
+                if m_idx == 0:
+                  node["lessonTopic"] = les.get("title") or f"Ders Konusu {lesson_num}"
+                  node["lessonNumber"] = lesson_num
+                  
+                curriculum.append(node)
+                overall_idx += 1
+                
+                # Check if we should build slide content for this module type
+                if mod_type in ["UNDERSTAND", "APPLY", "CONNECT", "CREATE"]:
+                    # Find matching generated slide contents
+                    matched_content = next((
+                        lc for lc in level_contents_list 
+                        if lc.get("lessonNumber") == lesson_num and lc.get("moduleType", "").upper() == mod_type
+                    ), None)
+                    
+                    cat_templates = all_templates_map.get(mod_type, [])
+                    
+                    slides_to_add = []
+                    ai_slides = []
+                    if matched_content:
+                        ai_slides = matched_content.get("slides") or []
+                    
+                    # Fallback if empty but templates exist (create at least 1 placeholder slide)
+                    if not ai_slides and cat_templates:
+                        ai_slides = [{"selectedTemplateId": cat_templates[0]["id"], "elementContents": {}}]
+                        
+                    if isinstance(ai_slides, dict):
+                        ai_slides = [ai_slides]
+                    elif not isinstance(ai_slides, list):
+                        ai_slides = []
+                        
+                    for ai_slide in ai_slides:
+                        sel_template_id = ai_slide.get("selectedTemplateId")
+                        elem_contents = ai_slide.get("elementContents") or {}
+                        
+                        # Find original template elements
+                        selected_t = next((t for t in templates if t.get("id") == sel_template_id), None)
+                        # Fallback to category template if not found
+                        if not selected_t and cat_templates:
+                            selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
+                            
+                        if selected_t:
+                            copied_elements = []
+                            for el in selected_t.get("elements", []):
+                                el_copy = copy.deepcopy(el)
+                                el_id = el_copy.get("id")
+                                if el_id in elem_contents:
+                                    el_copy["content"] = elem_contents[el_id]
+                                copied_elements.append(el_copy)
+                                
+                            slide = {
+                                "id": int(random.random() * 1000000000),
+                                "elements": copied_elements,
+                                "background": selected_t.get("background", "default")
+                            }
+                            slides_to_add.append(slide)
+                            
+                    if slides_to_add:
+                        note = {
+                            "id": level_id,
+                            "noteTitle": node["title"],
+                            "slides": slides_to_add
+                        }
+                        notes.append(note)
+                        
+        return {"success": True, "curriculum": curriculum, "notes": notes, "roadmap": roadmap_structure}
+        
+    except Exception as e:
+        print(f"Error generating roadmap: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+class GenerateLessonSlidesRequest(BaseModel):
+    topic: str
+    difficulty: str
+    audience: str
+    lesson_number: int
+    lesson_title: str
+    lesson_objective: str
+    modules: List[Any]
+
+
+@router.post("/courses/generate_roadmap_structure")
+async def generate_roadmap_structure_api(
+    req: GenerateRoadmapRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    from google import genai
+    from google.genai import types
+    
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
+
+Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
+
+Requirements:
+- The roadmap consists of lessons.
+- Each lesson contains a list of modules.
+- Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
+- For each lesson, you should follow a pedagogical flow: typically starting with UNDERSTAND, then APPLY, then CONNECT/CREATE, and ending with QUIZ/HOMEWORK.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "courseTitle": "...",
+  "lessons": [
+    {{
+      "lessonNumber": 1,
+      "title": "Lesson title (Türkçe)",
+      "objective": "Lesson learning objective (Türkçe)",
+      "modules": [
+        {{ "type": "UNDERSTAND" }},
+        {{ "type": "APPLY" }},
+        {{ "type": "QUIZ" }}
+      ]
+    }}
+  ]
+}}
+
+Input:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Lessons Count: {req.lessons_count}
+Audience: {req.audience}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        data = json.loads(response.text.strip())
+        return {"success": True, "roadmap": data}
+    except Exception as e:
+        print(f"Error planning roadmap structure: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/generate_lesson_slides")
+async def generate_lesson_slides_api(
+    req: GenerateLessonSlidesRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    import json
+    import os
+    import random
+    import copy
+    from google import genai
+    from google.genai import types
+    
+    TEMPLATES_PATH = "slide_templates.json"
+    
+    try:
+        # Load templates
+        templates = []
+        if os.path.exists(TEMPLATES_PATH):
+            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
+                templates = json.load(f)
+                
+        # Group templates by category
+        templates_by_category = {
+            "ANLA": [],
+            "UYGULA": [],
+            "BİRLEŞTİR": [],
+            "ÜRET": []
+        }
+        for t in templates:
+            cat = t.get("category", "").upper()
+            if cat in templates_by_category:
+                elements_info = []
+                for el in t.get("elements", []):
+                    if el.get("type") in ["text", "code", "sticky", "challenge", "code_editor"]:
+                        elements_info.append({
+                            "id": el.get("id"),
+                            "type": el.get("type"),
+                            "placeholder": el.get("content")
+                        })
+                templates_by_category[cat].append({
+                    "id": t.get("id"),
+                    "title": t.get("title"),
+                    "description": t.get("description"),
+                    "elements": elements_info
+                })
+                
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to write detailed educational slide and quiz contents for the UNDERSTAND, APPLY, CONNECT, CREATE, and QUIZ modules in the provided single lesson.
+
+Course context:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+
+Lesson to populate:
+Lesson Number: {req.lesson_number}
+Lesson Title: {req.lesson_title}
+Lesson Objective: {req.lesson_objective}
+Modules list: {json.dumps(req.modules, ensure_ascii=False)}
+
+Available Templates for each category:
+- UNDERSTAND (ANLA) templates:
+{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+
+- APPLY (UYGULA) templates:
+{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+
+- CONNECT (BİRLEŞTİR) templates:
+{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+
+- CREATE (ÜRET) templates:
+{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+
+Requirements:
+- For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
+- For each module, choose the most suitable template from the available templates of its category.
+- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
+- For UYGULA/APPLY, BİRLEŞTİR/CONNECT, and ÜRET/CREATE:
+  * Elements of type "challenge" represent the task description or instructions panel. You MUST write the core task description/guidelines here (e.g. "print() fonksiyonunu kullanarak adınızı ekrana yazdırın.").
+  * Elements of type "code_editor" represent the starter code or python boilerplate. You MUST write the coding challenge comments or starter boilerplate code here (e.g. "# Kodunuzu buraya yazın\nprint('Merhaba')").
+  * Elements of type "sticky" are for extra hints, notes, or tips. Do NOT write the main challenge description into sticky elements; they should only contain small hints (e.g. "İpucu: print() fonksiyonu parantez içine yazılan metni ekrana yazdırır.").
+- For QUIZ: generate 3 multiple-choice questions about the lesson topic. Each question must have 1 correct option and 3 incorrect options.
+- Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "slides_map": {{
+    "UNDERSTAND": [
+      {{
+        "selectedTemplateId": "template_id_here",
+        "elementContents": {{
+           "element_id_1": "Generated text explanation in Turkish",
+           "element_id_2": "Generated python code or note..."
+        }}
+      }}
+    ],
+    "APPLY": [
+      {{
+        "selectedTemplateId": "template_id_here",
+        "elementContents": {{
+           "element_id_x": "..."
+        }}
+      }}
+    ]
+  }},
+  "quiz_map": [
+    {{
+      "questionText": "Question text in Turkish?",
+      "options": [
+        {{ "text": "Correct Option text in Turkish", "isCorrect": true }},
+        {{ "text": "Incorrect Option text in Turkish", "isCorrect": false }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false }}
+      ]
+    }}
+  ]
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json"
+            )
+        )
+        
+        slide_contents_data = json.loads(response.text.strip())
+        slides_map = slide_contents_data.get("slides_map") or {}
+        
+        # Build slides and notes
+        theme_map = {
+          "UNDERSTAND": "purple",
+          "APPLY": "cyan",
+          "CONNECT": "green",
+          "CREATE": "yellow",
+          "QUIZ": "quiz",
+          "HOMEWORK": "homework"
+        }
+        
+        all_templates_map = {
+            "UNDERSTAND": templates_by_category["ANLA"],
+            "APPLY": templates_by_category["UYGULA"],
+            "CONNECT": templates_by_category["BİRLEŞTİR"],
+            "CREATE": templates_by_category["ÜRET"]
+        }
+        
+        generated_modules = []
+        generated_notes = []
+        
+        for m_idx, mod in enumerate(req.modules):
+            mod_type = mod.get("type", "UNDERSTAND").upper()
+            mapped_theme = theme_map.get(mod_type, "purple")
+            level_id = f"sec_ai_{int(random.random() * 1000000000)}"
+            
+            node = {
+              "id": level_id,
+              "title": "",
+              "theme": mapped_theme,
+              "lectures": []
+            }
+            
+            if m_idx == 0:
+              node["lessonTopic"] = req.lesson_title
+              node["lessonNumber"] = req.lesson_number
+              
+            generated_modules.append(node)
+            
+            if mod_type in ["UNDERSTAND", "APPLY", "CONNECT", "CREATE"]:
+                ai_slides = slides_map.get(mod_type) or []
+                cat_templates = all_templates_map.get(mod_type, [])
+                
+                # Fallback if empty but templates exist
+                if not ai_slides and cat_templates:
+                    ai_slides = [{"selectedTemplateId": cat_templates[0]["id"], "elementContents": {}}]
+                    
+                if isinstance(ai_slides, dict):
+                    ai_slides = [ai_slides]
+                elif not isinstance(ai_slides, list):
+                    ai_slides = []
+                    
+                slides_to_add = []
+                for ai_slide in ai_slides:
+                    sel_template_id = ai_slide.get("selectedTemplateId")
+                    elem_contents = ai_slide.get("elementContents") or {}
+                    
+                    # Find original template elements
+                    selected_t = next((t for t in templates if t.get("id") == sel_template_id), None)
+                    # Fallback to category template if not found
+                    if not selected_t and cat_templates:
+                        selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
+                        
+                    if selected_t:
+                        copied_elements = []
+                        for el in selected_t.get("elements", []):
+                            el_copy = copy.deepcopy(el)
+                            el_id = el_copy.get("id")
+                            if el_id in elem_contents:
+                                el_copy["content"] = elem_contents[el_id]
+                            copied_elements.append(el_copy)
+                            
+                        slide = {
+                            "id": int(random.random() * 1000000000),
+                            "elements": copied_elements,
+                            "background": selected_t.get("background", "default")
+                        }
+                        slides_to_add.append(slide)
+                        
+                if slides_to_add:
+                    note = {
+                        "id": level_id,
+                        "noteTitle": "",
+                        "slides": slides_to_add
+                    }
+                    generated_notes.append(note)
+            
+            elif mod_type == "QUIZ":
+                quiz_questions = slide_contents_data.get("quiz_map") or []
+                questions_list = []
+                
+                if quiz_questions:
+                    for idx, qq in enumerate(quiz_questions):
+                        options_list = []
+                        for opt_idx, opt in enumerate(qq.get("options", [])):
+                            options_list.append({
+                                "id": str(opt_idx + 1),
+                                "text": opt.get("text", ""),
+                                "isCorrect": opt.get("isCorrect", False)
+                            })
+                        questions_list.append({
+                            "id": f"q-{idx + 1}-{int(random.random() * 100000)}",
+                            "text": qq.get("questionText", "Soru"),
+                            "options": options_list
+                        })
+                
+                # Fallback if empty
+                if not questions_list:
+                    questions_list = [{
+                        "id": "mock-q-1",
+                        "text": f"{req.lesson_title} Konu Değerlendirme Sorusu",
+                        "options": [
+                            { "id": "1", "text": "Doğru Seçenek", "isCorrect": true },
+                            { "id": "2", "text": "Yanlış Seçenek 1", "isCorrect": false },
+                            { "id": "3", "text": "Yanlış Seçenek 2", "isCorrect": false },
+                            { "id": "4", "text": "Yanlış Seçenek 3", "isCorrect": false }
+                        ]
+                    }]
+                
+                quiz_slide = {
+                    "id": int(random.random() * 1000000000),
+                    "type": "game",
+                    "gameType": "matching",
+                    "gameConfig": {
+                        "timeLimit": 60,
+                        "questions": questions_list
+                    },
+                    "elements": []
+                }
+                
+                note = {
+                    "id": level_id,
+                    "noteTitle": "",
+                    "slides": [quiz_slide]
+                }
+                generated_notes.append(note)
+                    
+        return {"success": True, "modules": generated_modules, "notes": generated_notes}
+    except Exception as e:
+        print(f"Error generating lesson slides: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

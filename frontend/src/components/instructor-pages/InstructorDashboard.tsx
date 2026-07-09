@@ -212,17 +212,27 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                       `/start-session/${upcomingSession.courseId}`,
                     );
                     // 2. JWT token al (moderator yetkili)
-                    const jitsiRes = await api.get(
-                      `/jitsi/token/${upcomingSession.courseId}`,
-                    );
-                    const { token, room, domain } = jitsiRes.data;
-                    // 3. Jitsi'yi JWT token ile aç
-                    const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-                    window.open(
-                      url,
-                      "_blank",
-                      "width=1280,height=720,toolbar=no,menubar=no,scrollbars=no",
-                    );
+                    try {
+                      const jitsiRes = await api.get(
+                        `/jitsi/token/${upcomingSession.courseId}`,
+                      );
+                      const { token, room, domain } = jitsiRes.data;
+                      // 3. Jitsi'yi JWT token ile aç
+                      const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+                      window.open(
+                        url,
+                        "_blank",
+                        "width=1280,height=720,toolbar=no,menubar=no,scrollbars=no",
+                      );
+                    } catch (jitsiErr) {
+                      console.warn("Jitsi JWT token failed, falling back to public Jitsi Meet:", jitsiErr);
+                      const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${upcomingSession.courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
+                      window.open(
+                        fallbackUrl,
+                        "_blank",
+                        "width=1280,height=720,toolbar=no,menubar=no,scrollbars=no",
+                      );
+                    }
                   } catch (err) {
                     console.error("Ders başlatılamadı:", err);
                     alert(

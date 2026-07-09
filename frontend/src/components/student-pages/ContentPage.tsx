@@ -265,9 +265,10 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
 
     const [timeLeftStr, setTimeLeftStr] = useState<string>("");
     const [nextLessonData, setNextLessonData] = useState<{title: string, subtitle: string, courseId?: string} | null>(null);
-    const [isClassActive, setIsClassActive] = useState<boolean>(false);
+        const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [userProfile, setUserProfile] = useState<{firstName: string, lastName: string} | null>(null);
+    const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
     
     
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
@@ -302,13 +303,39 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                             subtitle: '',
                             courseId: course.id
                         });
+                        // Track the current live session title (contains current lesson number)
+                        if (res.data.title) {
+                            setLastActiveSessionTitle(res.data.title);
+                        }
                         return;
                     }
                 }
-                // Hiçbir kurs canlı değilse
-                setIsClassActive(false);
-                setLiveCourseId(null);
-                setTimeLeftStr("");
+                
+                // Hiçbir kurs canlı değilse:
+                // Eğer daha önce canlı bir ders varsa ve şimdi bittiyse (transition from live to not-live)
+                if (isClassActive) {
+                    setIsClassActive(false);
+                    setLiveCourseId(null);
+                    setTimeLeftStr("");
+                    
+                    // Eğer canlı dersin başlığı gomufi_session formatındaysa, ilerlemeyi güncelle
+                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:")) {
+                        const parts = lastActiveSessionTitle.split(":");
+                        const lessonIndex = parseInt(parts[1]); // e.g. 1
+                        
+                        if (!isNaN(lessonIndex) && liveCourseId) {
+                            const currentProgressStr = localStorage.getItem(`progress_${liveCourseId}`);
+                            const currentProgress = currentProgressStr ? parseInt(currentProgressStr) : 0;
+                            
+                            if (lessonIndex > currentProgress) {
+                                localStorage.setItem(`progress_${liveCourseId}`, lessonIndex.toString());
+                                alert(`Tebrikler! Ders ${lessonIndex} tamamlandı. Bir sonraki modülün kilidi açıldı!`);
+                                window.location.reload();
+                            }
+                        }
+                    }
+                    setLastActiveSessionTitle(null);
+                }
             } catch (err) {
                 console.error("Session status kontrol hatası:", err);
             }
@@ -317,7 +344,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
         checkSessionStatus();
         const interval = setInterval(checkSessionStatus, 5000);
         return () => clearInterval(interval);
-    }, [courses]);
+    }, [courses, isClassActive, lastActiveSessionTitle, liveCourseId]);
 
     const squadMembers: SquadMember[] = [
         { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
@@ -522,8 +549,9 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                                                 const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
                                                 window.open(url, "_blank");
                                             } catch (err) {
-                                                console.error("Derse katılınamadı:", err);
-                                                alert("Derse katılırken bir hata oluştu. Lütfen tekrar deneyin.");
+                                                console.warn("Jitsi JWT hatası, public odaya bağlanılıyor:", err);
+                                                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseIdToJoin}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                                                window.open(fallbackUrl, "_blank");
                                             }
                                         }}
                                         className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${

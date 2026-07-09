@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil, Save } from 'lucide-react';
+import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil, Save, LayoutTemplate } from 'lucide-react';
 
 interface LessonBuilderHeaderProps {
     onExit: () => void;
@@ -18,6 +18,8 @@ interface LessonBuilderHeaderProps {
     previewRole?: 'student' | 'teacher';
     setPreviewRole?: (v: 'student' | 'teacher') => void;
     isStageLocked?: boolean;
+    isAdmin?: boolean;
+    onSaveAsTemplate?: () => void;
 }
 
 const stages = [
@@ -45,7 +47,9 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
     setIsPreview,
     previewRole = 'student',
     setPreviewRole,
-    isStageLocked = false
+    isStageLocked = false,
+    isAdmin = false,
+    onSaveAsTemplate
 }) => {
     const getHeaderStyles = () => {
         if (activeStage === 'ANLA') return 'from-fuchsia-600 to-pink-600 border-fuchsia-800';
@@ -159,6 +163,16 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         {isPreview ? <Pencil className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
                         <span>{isPreview ? 'Düzenle' : 'Önizle'}</span>
                     </button>
+
+                    {isAdmin && !isPreview && (
+                        <button
+                            onClick={onSaveAsTemplate}
+                            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group mr-1"
+                        >
+                            <LayoutTemplate className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            <span>Şablon Kaydet</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={onSave}

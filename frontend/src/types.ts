@@ -1,4 +1,4 @@
-export type NodeType = 'start' | 'chest' | 'house' | 'paw' | 'step';
+export type NodeType = 'start' | 'chest' | 'house' | 'paw' | 'step' | 'quiz' | 'homework';
 export type CurveType = 'up' | 'down';
 
 export interface PathNode {
@@ -23,6 +23,7 @@ export interface PathNode {
     sectionId?: string;
     localNodeIndex?: number;
     lastInLesson?: boolean;
+    slides?: any[];
 }
 
 export interface Instructor {
@@ -51,5 +52,5 @@ export interface CourseData {
         title: string;
         subtitle: string;
     };
-    notes?: any[];
+    classes?: any[];
 }

@@ -21,6 +21,8 @@ class Course(Base):
     status = Column(String, default="active")
     schedule = Column(JSON, default=[])
     enrollment_code = Column(String(12), unique=True, index=True, nullable=True)
+    classes = Column(JSON, default=[])
+    start_date = Column(String(50), nullable=True)
 
 
     teacher = relationship("Teacher", back_populates="courses")
