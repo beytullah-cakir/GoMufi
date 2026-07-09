@@ -489,115 +489,6 @@
     "background": "default"
   },
   {
-    "id": "c7276d2e-7faf-48c6-9aac-8c00c368ea30",
-    "category": "UYGULA",
-    "title": "Mini Görev",
-    "description": "Öğrenciye gerçek hayata yakın küçük görev ver. Görev tamamlandığında yeni öğrendiği bilgiyi kullanmış olmalıdır.",
-    "elements": [
-      {
-        "type": "challenge",
-        "x": 40.481475830078125,
-        "y": 219,
-        "width": 486,
-        "height": 249,
-        "content": "Challenge Description",
-        "extra": {
-          "title": "🎯 Challenge (Mini Görev)",
-          "submittedText": "",
-          "submittedCode": "# Çözüm kodunuzu buraya yazın\n",
-          "submittedFile": "",
-          "isSubmitted": false,
-          "linkedCodeEditorId": "1783466749782361",
-          "activeTab": "code"
-        },
-        "id": "1783466745768362"
-      },
-      {
-        "id": "1783466749782361",
-        "type": "code_editor",
-        "x": 553,
-        "y": 14,
-        "width": 654,
-        "height": 692,
-        "rotation": 0,
-        "content": "#Challenge Code Text",
-        "style": {
-          "fontSize": 14,
-          "fontFamily": "Fira Code"
-        },
-        "extra": {
-          "isLinkedToChallenge": true,
-          "parentChallengeId": "1783466745768362"
-        }
-      },
-      {
-        "id": "1783466801752471",
-        "type": "text",
-        "x": 40.481475830078125,
-        "y": 42.888885498046875,
-        "width": 385,
-        "height": 85,
-        "rotation": 0,
-        "content": "Header 1",
-        "shapeType": null,
-        "src": null,
-        "imageUrl": null,
-        "videoUrl": null,
-        "extra": null,
-        "style": {
-          "bold": false,
-          "italic": null,
-          "underline": null,
-          "color": null,
-          "fontSize": 60,
-          "fontFamily": "Fredoka",
-          "backgroundColor": null,
-          "textAlign": "left",
-          "verticalAlign": null,
-          "borderRadius": null,
-          "borderColor": null,
-          "borderWidth": null,
-          "borderPosition": null,
-          "opacity": null
-        },
-        "codeConfig": null,
-        "arrowConfig": null
-      },
-      {
-        "id": "1783466801752475",
-        "type": "text",
-        "x": 40.481475830078125,
-        "y": 127.88888549804688,
-        "width": 382,
-        "height": 48,
-        "rotation": 0,
-        "content": "Explanation Short Line 1&nbsp;",
-        "style": {
-          "fontSize": 28,
-          "fontFamily": "Fredoka",
-          "textAlign": "left",
-          "underline": false
-        }
-      },
-      {
-        "id": "1783466827326898",
-        "type": "sticky",
-        "x": 183.48147583007812,
-        "y": 484.8888854980469,
-        "width": 200,
-        "height": 200,
-        "rotation": 0,
-        "content": "important note 1",
-        "style": {
-          "fontSize": 24,
-          "fontFamily": "Patrick Hand",
-          "backgroundColor": "#fef3c7"
-        }
-      }
-    ],
-    "background": "default"
-  },
-  {
     "id": "8851cc95-acb5-4da9-bc1a-6120f50f3c50",
     "category": "BİRLEŞTİR",
     "title": "Metin Şablonu",
@@ -1003,6 +894,187 @@
         },
         "codeConfig": null,
         "arrowConfig": null
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "92305f38-4458-44dd-b564-105bace7406c",
+    "category": "UYGULA",
+    "title": "Soruyu Kodla",
+    "description": "Eğitmenin sorusuna uygun kodun yazıldığı bir widget",
+    "elements": [
+      {
+        "id": "1783596779539417",
+        "type": "challenge",
+        "x": 43.75,
+        "y": 33.999996185302734,
+        "width": 550,
+        "height": 627.9166666666666,
+        "rotation": 0,
+        "content": "5 dakikada bu fonksiyonu yaz.",
+        "extra": {
+          "title": "Challenge (Mini Görev)",
+          "submittedText": "",
+          "submittedCode": "# Çözüm kodunuzu buraya yazın\n",
+          "submittedFile": "",
+          "isSubmitted": false,
+          "linkedCodeEditorId": "1783596788433826",
+          "activeTab": "code"
+        }
+      },
+      {
+        "id": "1783596788433826",
+        "type": "code_editor",
+        "x": 613.75,
+        "y": 33.999996185302734,
+        "width": 622.5,
+        "height": 621.25,
+        "rotation": 0,
+        "content": "# Kodlama Görevi# Çözümünüzü buraya yazın\n",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        },
+        "extra": {
+          "isLinkedToChallenge": true,
+          "parentChallengeId": "1783596779539417"
+        }
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "3195e86d-2654-4cfb-8d4c-f5b9b7a66a60",
+    "category": "UYGULA",
+    "title": "Çıktıyı Tahmin Et",
+    "description": "Eğitmenin yazdığı kodun çıktısının öğrencinin tahmin etmesi istenir",
+    "elements": [
+      {
+        "id": "1783596974486976",
+        "type": "code_editor",
+        "x": 42.85714285714286,
+        "y": 42.57143293108254,
+        "width": 590,
+        "height": 621.4285714285713,
+        "rotation": 0,
+        "content": "# Kodunuzu buraya yazın\n\n",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        }
+      },
+      {
+        "id": "1783596977104375",
+        "type": "answer_box",
+        "x": 675.7142857142857,
+        "y": 42.57143293108254,
+        "width": 552.8571428571429,
+        "height": 614.2857142857142,
+        "rotation": 0,
+        "content": "Sizce kodun çıktısı ne olur?",
+        "src": ""
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "2d6e5de5-ca61-4566-8233-36e77c21abee",
+    "category": "UYGULA",
+    "title": "Hatayı Bul",
+    "description": "Eğitmenin yazdığı kodda bir hata var. Öğrencinin görev ise bu hatayı bulmakta",
+    "elements": [
+      {
+        "id": "1783597319788057",
+        "type": "code_editor",
+        "x": 49.99999999999995,
+        "y": 69.71429007393974,
+        "width": 607.1428571428571,
+        "height": 608.5714285714286,
+        "rotation": 0,
+        "content": "# Kodunuzu buraya yazın\n\n",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        }
+      },
+      {
+        "id": "1783597327247948",
+        "type": "answer_box",
+        "x": 677.142857142857,
+        "y": 69.71429007393974,
+        "width": 568.5714285714286,
+        "height": 602.8571428571428,
+        "rotation": 0,
+        "content": "Sizce koddaki hata nerde?",
+        "src": ""
+      }
+    ],
+    "background": "default"
+  },
+  {
+    "id": "7315479d-2975-4d77-a24e-25b533e499a0",
+    "category": "UYGULA",
+    "title": "Mini Proje",
+    "description": "Eğitmenin kurguladığı senaryoyu öğrencisinden kodlamasını istenir",
+    "elements": [
+      {
+        "id": "1783597535558883",
+        "type": "code_editor",
+        "x": 591.0714285714284,
+        "y": 29.7142900739397,
+        "width": 665,
+        "height": 657.4999999999999,
+        "rotation": 0,
+        "content": "# Kodunuzu buraya yazın\n",
+        "style": {
+          "fontSize": 14,
+          "fontFamily": "Fira Code"
+        }
+      },
+      {
+        "id": "1783597556213047",
+        "type": "text",
+        "x": 81.42857142857142,
+        "y": 29.7142900739397,
+        "width": 451.42857142857144,
+        "height": 60,
+        "rotation": 0,
+        "content": "Senaryo",
+        "style": {
+          "fontSize": 54,
+          "fontFamily": "Fredoka"
+        }
+      },
+      {
+        "id": "1783597603258048",
+        "type": "shape",
+        "x": 35.428571428571416,
+        "y": 99.57142421177454,
+        "width": 523.4285714285714,
+        "height": 570,
+        "rotation": 0,
+        "content": "",
+        "shapeType": "rectangle",
+        "style": {
+          "backgroundColor": "#1f2937",
+          "borderWidth": 0
+        }
+      },
+      {
+        "id": "1783597656685848",
+        "type": "text",
+        "x": 48.76190476190479,
+        "y": 112.90475754510791,
+        "width": 496.6666666666666,
+        "height": 536.6666666666666,
+        "rotation": 0,
+        "content": "Senaryoyu yazmak için çift tıkla",
+        "style": {
+          "fontSize": 24,
+          "fontFamily": "Fredoka",
+          "color": "#ffffff"
+        }
       }
     ],
     "background": "default"

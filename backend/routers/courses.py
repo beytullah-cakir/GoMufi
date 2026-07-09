@@ -441,7 +441,7 @@ async def create_course(
             notes=course_data.notes if course_data.notes is not None else [],
             rating=course_data.rating if course_data.rating is not None else 5,
             schedule=course_data.schedule if course_data.schedule is not None else [],
-            enrollment_code=enrollment_code
+            enrollment_code=enrollment_code,
             classes=course_data.classes if course_data.classes is not None else [],
             start_date=course_data.start_date
         )
