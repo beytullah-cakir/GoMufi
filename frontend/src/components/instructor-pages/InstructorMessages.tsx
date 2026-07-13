@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Send, User, MessageCircle, X } from 'lucide-react';
+import { Search, Send, User, MessageCircle, X, Paperclip, Image as ImageIcon } from 'lucide-react';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import api from '../../api';
 
 interface Message {
     id: string;
@@ -8,6 +10,8 @@ interface Message {
     content: string;
     timestamp: string;
     type: 'text' | 'image' | 'file';
+    fileUrl?: string;
+    fileName?: string;
 }
 
 interface ChatSession {
@@ -39,6 +43,101 @@ const InstructorMessages: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [newMessage, setNewMessage] = useState('');
 
+    const { sendMessage, lastMessage } = useWebSocket();
+
+    // Multi-tab sync
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'gomufi_chats') {
+                setChats(e.newValue ? JSON.parse(e.newValue) : []);
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    // WebSocket Message receiver
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        if (lastMessage.type === 'chat_message') {
+            const { chatId, senderId, senderType, content, timestamp, fileType, fileUrl, fileName } = lastMessage;
+            
+            setChats(prevChats => {
+                const chatExists = prevChats.some(c => c.id === chatId);
+                if (chatExists) {
+                    return prevChats.map(c => {
+                        if (c.id === chatId) {
+                            const msgExists = c.messages.some(m => m.content === content && m.senderType === senderType && m.timestamp === timestamp);
+                            if (msgExists) return c;
+
+                            return {
+                                ...c,
+                                messages: [
+                                    ...c.messages,
+                                    {
+                                        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                                        senderId,
+                                        senderType,
+                                        content,
+                                        timestamp,
+                                        type: fileType || 'text',
+                                        fileUrl,
+                                        fileName
+                                    }
+                                ],
+                                lastMessage: fileType === 'image' ? '📷 Görsel' : fileType === 'file' ? `📁 ${fileName}` : content,
+                                lastMessageTime: timestamp,
+                                unreadCount: selectedChatId === chatId ? c.unreadCount : c.unreadCount + 1
+                            };
+                        }
+                        return c;
+                    });
+                }
+                return prevChats;
+            });
+        } else if (lastMessage.type === 'new_chat_session') {
+            const { chatId, lessonTitle, topic, instructorName, instructorId, instructorStatus, message, timestamp } = lastMessage;
+            
+            setChats(prevChats => {
+                const chatExists = prevChats.some(c => c.id === chatId);
+                if (chatExists) return prevChats;
+
+                const newChat: ChatSession = {
+                    id: chatId,
+                    lessonTitle,
+                    topic,
+                    instructorName,
+                    instructorId,
+                    instructorStatus,
+                    lastMessage: message,
+                    lastMessageTime: timestamp,
+                    unreadCount: 1,
+                    status: 'active',
+                    messages: [
+                        {
+                            id: 'sys1',
+                            senderId: 'system',
+                            senderType: 'system',
+                            content: `Soru ${instructorName} hocasına iletildi.`,
+                            timestamp: timestamp,
+                            type: 'text'
+                        },
+                        {
+                            id: 'msg1',
+                            senderId: 'user',
+                            senderType: 'user',
+                            content: message,
+                            timestamp: timestamp,
+                            type: 'text'
+                        }
+                    ]
+                };
+                return [newChat, ...prevChats];
+            });
+        }
+    }, [lastMessage, selectedChatId]);
+
     const activeChat = chats.find(c => c.id === selectedChatId);
 
     const filteredChats = chats.filter(chat => {
@@ -49,6 +148,8 @@ const InstructorMessages: React.FC = () => {
 
     const handleSendMessage = () => {
         if (!newMessage.trim() || !selectedChatId || !activeChat) return;
+
+        const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
 
         const updatedChats = chats.map(chat => {
             if (chat.id === selectedChatId) {
@@ -61,19 +162,99 @@ const InstructorMessages: React.FC = () => {
                             senderId: activeChat.instructorId,
                             senderType: 'instructor' as const,
                             content: newMessage,
-                            timestamp: 'Şimdi',
+                            timestamp: timeStr,
                             type: 'text' as const
                         }
                     ],
                     lastMessage: newMessage,
-                    lastMessageTime: 'Şimdi'
+                    lastMessageTime: timeStr
                 };
             }
             return chat;
         });
 
         setChats(updatedChats);
+
+        sendMessage({
+            type: 'chat_message',
+            chatId: selectedChatId,
+            senderId: activeChat.instructorId,
+            senderType: 'instructor',
+            content: newMessage,
+            timestamp: timeStr
+        });
+
         setNewMessage('');
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: 'file' | 'image') => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedChatId || !activeChat) return;
+
+        // Size check: 5MB
+        const max_size = 5 * 1024 * 1024;
+        if (file.size > max_size) {
+            alert("Dosya boyutu 5MB sınırını aşamaz.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await api.post("/builder/upload-chat-file", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            if (res.data && res.data.url) {
+                const publicUrl = res.data.url;
+                const fileName = file.name;
+                const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                // Update local chat
+                const updatedChats = chats.map(chat => {
+                    if (chat.id === selectedChatId) {
+                        return {
+                            ...chat,
+                            messages: [
+                                ...chat.messages,
+                                {
+                                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                                    senderId: activeChat.instructorId,
+                                    senderType: 'instructor' as const,
+                                    content: fileType === 'image' ? publicUrl : fileName,
+                                    timestamp: timeStr,
+                                    type: fileType,
+                                    fileUrl: publicUrl,
+                                    fileName: fileName
+                                }
+                            ],
+                            lastMessage: fileType === 'image' ? '📷 Görsel' : `📁 ${fileName}`,
+                            lastMessageTime: timeStr
+                        };
+                    }
+                    return chat;
+                });
+
+                setChats(updatedChats);
+
+                // Broadcast
+                sendMessage({
+                    type: 'chat_message',
+                    chatId: selectedChatId,
+                    senderId: activeChat.instructorId,
+                    senderType: 'instructor',
+                    content: fileType === 'image' ? publicUrl : fileName,
+                    timestamp: timeStr,
+                    fileType: fileType,
+                    fileUrl: publicUrl,
+                    fileName: fileName
+                });
+            }
+        } catch (err: any) {
+            console.error("Upload error", err);
+            alert(err.response?.data?.detail || "Dosya yüklenirken hata oluştu.");
+        }
     };
 
     return (
@@ -183,33 +364,72 @@ const InstructorMessages: React.FC = () => {
                                                 <div className={`px-5 py-3 rounded-2xl text-sm font-medium leading-relaxed shadow-sm
                                                     ${isInstructor ? 'bg-sky-500 text-white rounded-br-sm' : 'bg-white border border-gray-200 text-gray-700 rounded-bl-sm'}`}
                                                 >
-                                                    {msg.content}
+                                                    {msg.type === 'image' ? (
+                                                        <img src={msg.fileUrl || msg.content} alt="Resim" className="max-w-full rounded-lg max-h-60 object-contain cursor-pointer" onClick={() => window.open(msg.fileUrl || msg.content, '_blank')} />
+                                                    ) : msg.type === 'file' ? (
+                                                        <a href={msg.fileUrl} target="_blank" rel="noreferrer" className={`flex items-center gap-2 hover:underline font-bold ${isInstructor ? 'text-sky-100' : 'text-sky-600'}`}>
+                                                            <Paperclip size={16} />
+                                                            <span>{msg.fileName || 'Dosya İndir'}</span>
+                                                        </a>
+                                                    ) : (
+                                                        msg.content
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
                                     );
                                 })}
-                            </div>
-
-                            <div className="p-4 bg-white border-t border-gray-100">
-                                <div className="flex gap-2">
-                                    <input
-                                        type="text"
-                                        placeholder="Cevabınızı yazın..."
-                                        className="flex-1 bg-gray-50 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm font-medium text-gray-700 focus:outline-none focus:border-sky-300 focus:bg-white transition-colors"
-                                        value={newMessage}
-                                        onChange={(e) => setNewMessage(e.target.value)}
-                                        onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                                            <div className="p-4 bg-white border-t border-gray-100">
+                                <div className="relative flex items-end gap-2 bg-gray-50 border-2 border-gray-200 focus-within:border-sky-300 focus-within:ring-4 focus-within:ring-sky-50 rounded-2xl p-2 transition-all">
+                                    <input 
+                                        type="file" 
+                                        id="instructor-file-input" 
+                                        className="hidden" 
+                                        onChange={(e) => handleFileUpload(e, 'file')} 
+                                    />
+                                    <input 
+                                        type="file" 
+                                        id="instructor-image-input" 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, 'image')} 
                                     />
                                     <button 
-                                        onClick={handleSendMessage}
-                                        disabled={!newMessage.trim()}
-                                        className="w-12 h-12 bg-sky-500 hover:bg-sky-600 disabled:bg-gray-300 text-white rounded-xl flex items-center justify-center transition-all shadow-sm active:scale-95 disabled:active:scale-100"
+                                        onClick={() => document.getElementById('instructor-file-input')?.click()}
+                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors shrink-0"
                                     >
-                                        <Send size={20} className="ml-1" />
+                                        <Paperclip size={20} />
+                                    </button>
+                                    <button 
+                                        onClick={() => document.getElementById('instructor-image-input')?.click()}
+                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors shrink-0"
+                                    >
+                                        <ImageIcon size={20} />
+                                    </button>
+
+                                    <textarea
+                                        className="flex-1 bg-transparent border-none focus:ring-0 text-sm font-medium max-h-32 min-h-[44px] py-3 resize-none text-gray-700 placeholder:text-gray-400 focus:outline-none"
+                                        placeholder="Cevabınızı yazın..."
+                                        rows={1}
+                                        value={newMessage}
+                                        onChange={(e) => setNewMessage(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSendMessage();
+                                            }
+                                        }}
+                                    />
+
+                                    <button
+                                        onClick={handleSendMessage}
+                                        className={`p-3 rounded-xl shadow-lg transition-all shrink-0 ${newMessage.trim() ? 'bg-sky-500 text-white hover:bg-sky-600 hover:scale-105' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                                        disabled={!newMessage.trim()}
+                                    >
+                                        <Send size={18} fill={newMessage.trim() ? "currentColor" : "none"} />
                                     </button>
                                 </div>
-                            </div>
+                            </div>                     </div>
                         </>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-10 bg-[#F8F9FA]">

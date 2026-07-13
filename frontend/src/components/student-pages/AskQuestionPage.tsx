@@ -11,6 +11,8 @@ import {
     User,
     Wifi
 } from 'lucide-react';
+import { useWebSocket } from '../../hooks/useWebSocket';
+import api from '../../api';
 
 // --- Types ---
 import type { CourseData } from '../../types';
@@ -83,10 +85,67 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
     useEffect(() => {
         localStorage.setItem('gomufi_chats', JSON.stringify(chats));
     }, [chats]);
+
     const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
     const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
     const [searchTerm, setSearchTerm] = useState('');
     const [newMessage, setNewMessage] = useState('');
+
+    const { sendMessage, lastMessage } = useWebSocket();
+
+    // Multi-tab sync
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'gomufi_chats') {
+                setChats(e.newValue ? JSON.parse(e.newValue) : []);
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    // WebSocket Message receiver
+    useEffect(() => {
+        if (!lastMessage) return;
+
+        if (lastMessage.type === 'chat_message') {
+            const { chatId, senderId, senderType, content, timestamp, fileType, fileUrl, fileName } = lastMessage;
+            
+            setChats(prevChats => {
+                const chatExists = prevChats.some(c => c.id === chatId);
+                if (chatExists) {
+                    return prevChats.map(c => {
+                        if (c.id === chatId) {
+                            const msgExists = c.messages.some(m => m.content === content && m.senderType === senderType && m.timestamp === timestamp);
+                            if (msgExists) return c;
+                            
+                            return {
+                                ...c,
+                                messages: [
+                                    ...c.messages,
+                                    {
+                                        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                                        senderId,
+                                        senderType,
+                                        content,
+                                        timestamp,
+                                        type: fileType || 'text',
+                                        fileUrl,
+                                        fileName
+                                    }
+                                ],
+                                lastMessage: fileType === 'image' ? '📷 Görsel' : fileType === 'file' ? `📁 ${fileName}` : content,
+                                lastMessageTime: timestamp,
+                                unreadCount: selectedChatId === chatId ? c.unreadCount : c.unreadCount + 1
+                            };
+                        }
+                        return c;
+                    });
+                }
+                return prevChats;
+            });
+        }
+    }, [lastMessage, selectedChatId]);
 
     // New Question Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -111,6 +170,8 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
     const handleSendMessage = () => {
         if (!newMessage.trim() || !selectedChatId) return;
 
+        const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
         const updatedChats = chats.map(chat => {
             if (chat.id === selectedChatId) {
                 return {
@@ -122,41 +183,124 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                             senderId: 'user',
                             senderType: 'user' as const,
                             content: newMessage,
-                            timestamp: 'Şimdi',
+                            timestamp: timeStr,
                             type: 'text' as const
                         }
                     ],
                     lastMessage: newMessage,
-                    lastMessageTime: 'Şimdi'
+                    lastMessageTime: timeStr
                 };
             }
             return chat;
         });
 
         setChats(updatedChats);
+
+        sendMessage({
+            type: 'chat_message',
+            chatId: selectedChatId,
+            senderId: 'user',
+            senderType: 'user',
+            content: newMessage,
+            timestamp: timeStr
+        });
+
         setNewMessage('');
     };
 
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, fileType: 'file' | 'image') => {
+        const file = e.target.files?.[0];
+        if (!file || !selectedChatId) return;
+
+        // Size check: 5MB
+        const max_size = 5 * 1024 * 1024;
+        if (file.size > max_size) {
+            alert("Dosya boyutu 5MB sınırını aşamaz.");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        try {
+            const res = await api.post("/builder/upload-chat-file", formData, {
+                headers: { "Content-Type": "multipart/form-data" }
+            });
+
+            if (res.data && res.data.url) {
+                const publicUrl = res.data.url;
+                const fileName = file.name;
+                const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+
+                // Update local chat
+                const updatedChats = chats.map(chat => {
+                    if (chat.id === selectedChatId) {
+                        return {
+                            ...chat,
+                            messages: [
+                                ...chat.messages,
+                                {
+                                    id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+                                    senderId: 'user',
+                                    senderType: 'user' as const,
+                                    content: fileType === 'image' ? publicUrl : fileName,
+                                    timestamp: timeStr,
+                                    type: fileType,
+                                    fileUrl: publicUrl,
+                                    fileName: fileName
+                                }
+                            ],
+                            lastMessage: fileType === 'image' ? '📷 Görsel' : `📁 ${fileName}`,
+                            lastMessageTime: timeStr
+                        };
+                    }
+                    return chat;
+                });
+
+                setChats(updatedChats);
+
+                // Broadcast
+                sendMessage({
+                    type: 'chat_message',
+                    chatId: selectedChatId,
+                    senderId: 'user',
+                    senderType: 'user',
+                    content: fileType === 'image' ? publicUrl : fileName,
+                    timestamp: timeStr,
+                    fileType: fileType,
+                    fileUrl: publicUrl,
+                    fileName: fileName
+                });
+            }
+        } catch (err: any) {
+            console.error("Upload error", err);
+            alert(err.response?.data?.detail || "Dosya yüklenirken hata oluştu.");
+        }
+    };
+
     const handleNewQuestionSubmit = () => {
-        // Logic to find instructor
         let assignedInstructor = activeInstructors.find(i => i.id === newQuestionForm.instructor);
 
-        // Fallback or Auto assign logic
         if (!assignedInstructor || newQuestionForm.instructor === 'auto') {
-            assignedInstructor = activeInstructors.find(i => i.branch === newQuestionForm.lesson && i.status === 'online') ||
-                activeInstructors.find(i => i.branch === newQuestionForm.lesson) ||
+            assignedInstructor = activeInstructors.find(i => String(i.branch) === String(newQuestionForm.lesson) && i.status === 'online') ||
+                activeInstructors.find(i => String(i.branch) === String(newQuestionForm.lesson)) ||
                 (activeInstructors.length > 0 ? activeInstructors[0] : { id: 'sys', name: 'Sistem', branch: 'Genel', status: 'online', avatarSeed: 0 });
         }
 
+        const chatId = Date.now().toString();
+        const timeStr = new Date().toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+        const selectedCourse = courses[newQuestionForm.lesson];
+        const resolvedTitle = selectedCourse?.title || `Kurs ${newQuestionForm.lesson}`;
+
         const newChat: ChatSession = {
-            id: Date.now().toString(),
-            lessonTitle: newQuestionForm.lesson,
+            id: chatId,
+            lessonTitle: resolvedTitle,
             topic: newQuestionForm.topic || 'Genel Soru',
             instructorName: assignedInstructor.name,
             instructorId: assignedInstructor.id,
             instructorStatus: assignedInstructor.status,
             lastMessage: newQuestionForm.message,
-            lastMessageTime: 'Şimdi',
+            lastMessageTime: timeStr,
             unreadCount: 0,
             status: 'active',
             messages: [
@@ -165,7 +309,7 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                     senderId: 'system',
                     senderType: 'system',
                     content: `Soru ${assignedInstructor.name} hocasına iletildi.`,
-                    timestamp: 'Şimdi',
+                    timestamp: timeStr,
                     type: 'text'
                 },
                 {
@@ -173,16 +317,29 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                     senderId: 'user',
                     senderType: 'user',
                     content: newQuestionForm.message,
-                    timestamp: 'Şimdi',
+                    timestamp: timeStr,
                     type: 'text'
                 }
             ]
         };
 
         setChats([newChat, ...chats]);
-        setSelectedChatId(newChat.id);
+        setSelectedChatId(chatId);
+
+        sendMessage({
+            type: 'new_chat_session',
+            chatId: chatId,
+            lessonTitle: resolvedTitle,
+            topic: newQuestionForm.topic || 'Genel Soru',
+            instructorName: assignedInstructor.name,
+            instructorId: assignedInstructor.id,
+            instructorStatus: assignedInstructor.status,
+            message: newQuestionForm.message,
+            timestamp: timeStr
+        });
+
         setIsModalOpen(false);
-        setNewQuestionForm({ lesson: 'Python', topic: '', instructor: 'auto', message: '' });
+        setNewQuestionForm({ lesson: Object.keys(courses || {})[0] || 'Python', topic: '', instructor: 'auto', message: '' });
     };
 
     return (
@@ -355,7 +512,16 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                                                         : 'bg-white border-2 border-gray-100 text-gray-700 rounded-tl-none'
                                                     }
                                                 `}>
-                                                    {msg.content}
+                                                    {msg.type === 'image' ? (
+                                                        <img src={msg.fileUrl || msg.content} alt="Resim" className="max-w-full rounded-lg max-h-60 object-contain cursor-pointer" onClick={() => window.open(msg.fileUrl || msg.content, '_blank')} />
+                                                    ) : msg.type === 'file' ? (
+                                                        <a href={msg.fileUrl} target="_blank" rel="noreferrer" className={`flex items-center gap-2 hover:underline font-bold ${isMe ? 'text-indigo-100' : 'text-indigo-650'}`}>
+                                                            <Paperclip size={16} />
+                                                            <span>{msg.fileName || 'Dosya İndir'}</span>
+                                                        </a>
+                                                    ) : (
+                                                        msg.content
+                                                    )}
                                                 </div>
                                                 <span className="text-[10px] font-bold text-gray-300 mt-1 px-1">{msg.timestamp}</span>
                                             </div>
@@ -373,10 +539,29 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                             {/* Input Area */}
                             <div className="p-4 bg-white border-t border-gray-100">
                                 <div className="relative flex items-end gap-2 bg-gray-50 border-2 border-gray-200 focus-within:border-indigo-300 focus-within:ring-4 focus-within:ring-indigo-50 rounded-2xl p-2 transition-all">
-                                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors">
+                                    <input 
+                                        type="file" 
+                                        id="chat-file-input" 
+                                        className="hidden" 
+                                        onChange={(e) => handleFileUpload(e, 'file')} 
+                                    />
+                                    <input 
+                                        type="file" 
+                                        id="chat-image-input" 
+                                        className="hidden" 
+                                        accept="image/*"
+                                        onChange={(e) => handleFileUpload(e, 'image')} 
+                                    />
+                                    <button 
+                                        onClick={() => document.getElementById('chat-file-input')?.click()}
+                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors"
+                                    >
                                         <Paperclip size={20} />
                                     </button>
-                                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors">
+                                    <button 
+                                        onClick={() => document.getElementById('chat-image-input')?.click()}
+                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200/50 rounded-lg transition-colors"
+                                    >
                                         <ImageIcon size={20} />
                                     </button>
 
@@ -457,12 +642,19 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                                     {Object.keys(courses || {}).map(opt => (
                                         <button
                                             key={opt}
-                                            onClick={() => setNewQuestionForm({ ...newQuestionForm, lesson: opt })}
+                                            onClick={() => {
+                                                const relatedInstructor = activeInstructors.find(i => String(i.branch) === String(opt));
+                                                setNewQuestionForm({ 
+                                                    ...newQuestionForm, 
+                                                    lesson: opt,
+                                                    instructor: relatedInstructor ? relatedInstructor.id : 'auto'
+                                                });
+                                            }}
                                             className={`py-3 px-4 rounded-xl text-sm font-bold border-2 transition-all ${newQuestionForm.lesson === opt
                                                 ? 'border-indigo-500 bg-indigo-50 text-indigo-700 shadow-sm'
                                                 : 'border-gray-100 bg-white text-gray-600 hover:border-gray-200'}`}
                                         >
-                                            {opt}
+                                            {courses[opt]?.title || `Kurs ${opt}`}
                                         </button>
                                     ))}
                                 </div>
@@ -476,19 +668,17 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                                     value={newQuestionForm.instructor}
                                     onChange={(e) => setNewQuestionForm({ ...newQuestionForm, instructor: e.target.value })}
                                 >
-                                    <option value="auto">Otomatik (Müsait Olan)</option>
-                                    {activeInstructors.map(inst => (
+                                    {activeInstructors.filter(i => String(i.branch) === String(newQuestionForm.lesson)).map(inst => (
                                         <option key={inst.id} value={inst.id}>
                                             {inst.name} ({inst.status === 'online' ? '🟢 Çevrimiçi' : '🔴 Çevrimdışı'})
                                         </option>
                                     ))}
+                                    <option value="auto">Otomatik (Müsait Olan)</option>
                                 </select>
-                                {newQuestionForm.instructor === 'auto' && (
-                                    <div className="flex items-center gap-2 mt-2 text-xs text-indigo-500 font-medium">
-                                        <Wifi size={14} />
-                                        <span>Satın aldığınız dersin yetkili hocasına sorunuz yönlendirilecek.</span>
-                                    </div>
-                                )}
+                                <div className="flex items-center gap-2 mt-2 text-xs text-indigo-500 font-medium">
+                                    <Wifi size={14} />
+                                    <span>Satın aldığınız dersin yetkili hocasına sorunuz yönlendirilecek.</span>
+                                </div>
                             </div>
 
                             {/* Question Text */}

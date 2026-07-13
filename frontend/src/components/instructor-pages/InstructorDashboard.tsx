@@ -35,8 +35,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
       'Classes': '/instructor/classes',
       'Students': '/instructor/students',
       'Messages': '/instructor/messages',
-      'Analytics': '/instructor/analytics',
-      'AIQuestions': '/instructor/ai-questions',
+      // 'Analytics': '/instructor/analytics',
+      // 'AIQuestions': '/instructor/ai-questions',
       'Profile': '/instructor/profile',
       'Builder': '/instructor/builder'
     };
@@ -357,8 +357,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                 <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
               </div>
 
-              {/* Task 2 */}
-              <div 
+              {/* Task 2 (Disabled in MVP) */}
+              {/* <div 
                 onClick={() => handleNavigate("Analytics")}
                 className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
               >
