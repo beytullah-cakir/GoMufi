@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
-import { Swords, Users, Shield, Trophy, ChevronDown } from 'lucide-react';
+import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
 import LiveLessonStudent from './LiveLessonStudent';
+import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
 
 interface HomePageProps {
@@ -78,6 +79,9 @@ const HomePage: React.FC<HomePageProps> = ({
     // Lesson Slide State
     const [showLessonSlide, setShowLessonSlide] = useState(false);
     const [lessonLevel, setLessonLevel] = useState<number | null>(null);
+
+    // Homework Overlay State
+    const [activeHomeworkSlide, setActiveHomeworkSlide] = useState<any | null>(null);
 
     // Real-time Class Session States
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
@@ -196,7 +200,7 @@ const HomePage: React.FC<HomePageProps> = ({
         }
     };
 
-    // Listen to WebSocket level_changed messages to automatically open/close slides for students
+    // Listen to WebSocket level_changed and lesson_completed messages for students
     useEffect(() => {
         if (!isLiveSessionJoined) return;
         if (lastMessage) {
@@ -211,9 +215,39 @@ const HomePage: React.FC<HomePageProps> = ({
                         setShowLessonSlide(false);
                     }
                 }
+            } else if (lastMessage.type === 'lesson_completed') {
+                const { courseId: msgCourseId, lessonIndex: msgLessonIndex, stars: msgStars } = lastMessage;
+                
+                if (msgCourseId && currentCourse && String(msgCourseId) === String(currentCourse.id)) {
+                    const completedLessonLevel = Number(msgLessonIndex);
+                    setCourses(prev => {
+                        const currentCourseData = prev[activeCourseId];
+                        if (!currentCourseData) return prev;
+
+                        const updatedNodes = currentCourseData.nodes.map(node => {
+                            if (node.id === completedLessonLevel) {
+                                return { ...node, stars: msgStars || 3 };
+                            }
+                            if (node.id === completedLessonLevel + 1) {
+                                return { ...node, isLocked: false };
+                            }
+                            return node;
+                        });
+
+                        localStorage.setItem(`progress_${activeCourseId}`, completedLessonLevel.toString());
+
+                        return {
+                            ...prev,
+                            [activeCourseId]: {
+                                ...currentCourseData,
+                                nodes: updatedNodes
+                            }
+                        };
+                    });
+                }
             }
         }
-    }, [lastMessage, currentCourse, isLiveSessionJoined]);
+    }, [lastMessage, currentCourse, isLiveSessionJoined, activeCourseId, setCourses]);
 
     // Initialize/Update Header when currentCourse changes
     useEffect(() => {
@@ -651,6 +685,50 @@ const HomePage: React.FC<HomePageProps> = ({
                                     </div>
                                 )}
                             </div>
+
+                            {/* Active Homeworks Widget */}
+                            {(() => {
+                                if (!currentCourse || !currentCourse.nodes) return null;
+                                // Find all unsubmitted homeworks in unlocked nodes
+                                const activeHws = currentCourse.nodes
+                                    .filter(n => !n.isLocked && n.slides)
+                                    .flatMap(n => {
+                                        const hs = n.slides?.find((s: any) => s.type === 'homework');
+                                        if (hs && localStorage.getItem(`homework_submitted_${currentCourse.id}_${hs.id}`) !== 'true') {
+                                            return [{
+                                                nodeId: n.id,
+                                                lessonTitle: n.title,
+                                                slide: hs
+                                            }];
+                                        }
+                                        return [];
+                                    });
+
+                                if (activeHws.length === 0) return null;
+
+                                return (
+                                    <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all animate-in slide-in-from-bottom duration-300">
+                                        <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5 mb-3">
+                                            📝 Aktif Ödevler ({activeHws.length})
+                                        </h3>
+                                        <div className="space-y-3">
+                                            {activeHws.map((hw, idx) => (
+                                                <div 
+                                                    key={idx}
+                                                    onClick={() => setActiveHomeworkSlide(hw.slide)}
+                                                    className="p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-2xl flex flex-col gap-1 cursor-pointer transition-all hover:shadow-sm"
+                                                >
+                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">{hw.lessonTitle}</span>
+                                                    <h5 className="font-bold text-gray-800 text-xs truncate">{hw.slide.homeworkConfig?.title || 'Ödev Görevi'}</h5>
+                                                    <span className="text-[9px] font-black text-yellow-600 flex items-center gap-1 mt-1">
+                                                        ★ +{hw.slide.homeworkConfig?.points || 100} XP
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
@@ -766,6 +844,35 @@ const HomePage: React.FC<HomePageProps> = ({
                                                         >
                                                             <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 PUAN</span>
                                                         </button>
+
+                                                        {(() => {
+                                                            const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
+                                                            if (!hwSlide) return null;
+                                                            
+                                                            const isHwSubmitted = localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true';
+                                                            
+                                                            if (isHwSubmitted) {
+                                                                return (
+                                                                    <div className="w-full mt-2.5 px-4 py-2.5 bg-green-500/20 border border-green-500/30 rounded-2xl text-center flex items-center justify-center gap-2">
+                                                                        <span className="text-[10px] font-black uppercase tracking-wider text-green-100">✅ ÖDEV TESLİM EDİLDİ</span>
+                                                                    </div>
+                                                                );
+                                                            }
+                                                            
+                                                            return (
+                                                                <button
+                                                                    className="w-full mt-2.5 bg-yellow-400 hover:bg-yellow-350 text-yellow-950 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/10 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setActiveHomeworkSlide(hwSlide);
+                                                                    }}
+                                                                >
+                                                                    <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
+                                                                        📝 ÖDEVİ TESLİM ET (+{hwSlide.homeworkConfig?.points || 100} XP)
+                                                                    </span>
+                                                                </button>
+                                                            );
+                                                        })()}
                                                     </div>
                                                 </div>
                                             </div>
@@ -886,7 +993,7 @@ const HomePage: React.FC<HomePageProps> = ({
             <LessonSlide
                 isOpen={showLessonSlide}
                 lessonTitle={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.title}
-                slides={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.slides || []}
+                slides={(currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.slides || []).filter((s: any) => s.type !== 'homework')}
                 onClose={handleCloseLesson}
                 onComplete={handleLessonComplete}
                 courseId={currentCourse.id}
@@ -906,6 +1013,19 @@ const HomePage: React.FC<HomePageProps> = ({
                 onComplete={handleGameComplete}
                 onStatsUpdate={refreshUserData}
             />
+
+            {/* HOMEWORK OVERLAY */}
+            {activeHomeworkSlide && (
+                <StudentHomeworkView
+                    slide={activeHomeworkSlide}
+                    courseId={currentCourse.id}
+                    onClose={() => setActiveHomeworkSlide(null)}
+                    onComplete={() => {
+                        setActiveHomeworkSlide(null);
+                        refreshUserData();
+                    }}
+                />
+            )}
 
         </div>
     );

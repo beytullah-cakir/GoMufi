@@ -10,6 +10,7 @@ import PaymentError from './components/student-pages/PaymentError';
 import AdminApp from './components/admin-pages/AdminApp';
 
 import CompleteProfile from './components/CompleteProfile';
+import Animation from './components/Animation';
 import { WebSocketProvider } from './context/WebSocketContext';
 
 function App() {
@@ -44,6 +45,7 @@ function App() {
       <WebSocketProvider>
         <Routes>
         <Route path="/" element={<LandingPage />} />
+        <Route path="/animation" element={<Animation />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
         <Route
           path="/auth"

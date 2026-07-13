@@ -6,7 +6,7 @@
     "description": "Bu şablonu birbirinden bağımsız fakat ilişkili kavramları tanıtmak için kullan. Her kart tek bir bilgiyi anlatmalıdır. Kartlarda uzun paragraf yerine kısa açıklamalar kullanılmalıdır.",
     "elements": [
       {
-        "id": "1783416381058824",
+        "id": "1783573301097778",
         "type": "shape",
         "x": 76.11110545970776,
         "y": 322.9629595721214,
@@ -23,7 +23,7 @@
         }
       },
       {
-        "id": "1783416402690570",
+        "id": "1783573301097333",
         "type": "text",
         "x": 107.11110545970776,
         "y": 345.9629595721214,
@@ -36,10 +36,11 @@
           "fontFamily": "Fredoka",
           "color": "#ffffff",
           "bold": true
-        }
+        },
+        "maxChars": 142
       },
       {
-        "id": "1783416424895595",
+        "id": "1783573301097428",
         "type": "shape",
         "x": 480.11110545970786,
         "y": 317.9629595721214,
@@ -56,7 +57,7 @@
         }
       },
       {
-        "id": "1783416424895699",
+        "id": "1783573301097533",
         "type": "text",
         "x": 511.1111054597075,
         "y": 340.9629595721214,
@@ -69,10 +70,11 @@
           "fontFamily": "Fredoka",
           "bold": true,
           "color": "#ffffff"
-        }
+        },
+        "maxChars": 142
       },
       {
-        "id": "1783416427882246",
+        "id": "1783573301097309",
         "type": "shape",
         "x": 872.1111054597075,
         "y": 313.9629595721214,
@@ -90,7 +92,7 @@
         }
       },
       {
-        "id": "1783416427882564",
+        "id": "1783573301097316",
         "type": "text",
         "x": 903.1111054597075,
         "y": 336.9629595721214,
@@ -103,10 +105,11 @@
           "fontFamily": "Fredoka",
           "bold": true,
           "color": "#ffffff"
-        }
+        },
+        "maxChars": 142
       },
       {
-        "id": "1783416611747803",
+        "id": "1783573301097196",
         "type": "text",
         "x": 40.481475830078125,
         "y": 42.888885498046875,
@@ -136,10 +139,11 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 38
       },
       {
-        "id": "1783416611747693",
+        "id": "1783573301097834",
         "type": "text",
         "x": 40.481475830078125,
         "y": 127.88888549804688,
@@ -152,23 +156,26 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 50
       },
       {
-        "id": "1783416611747941",
+        "id": "1783573301097758",
         "type": "text",
         "x": 40.481475830078125,
         "y": 175.88888549804688,
-        "width": 482,
-        "height": 48,
+        "width": 1165,
+        "height": 104,
         "rotation": 0,
-        "content": "Explanation Short Line 2",
+        "content": "Explanation Long Line",
         "style": {
           "fontSize": 28,
           "fontFamily": "Fredoka",
           "textAlign": "left",
-          "underline": false
-        }
+          "underline": false,
+          "verticalAlign": "top"
+        },
+        "maxChars": 206
       }
     ],
     "background": "default"
@@ -180,7 +187,7 @@
     "description": "Kod örneği üzerinden yeni bir programlama kavramını öğretmek. Kod kısa, okunabilir ve tek bir fikri anlatmalıdır. Açıklamalar doğrudan kodu desteklemelidir. Gerekirse tek bir önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783415891887776",
+        "id": "1783573347660011",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -210,14 +217,15 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 38
       },
       {
-        "id": "1783415891887930",
+        "id": "1783573347660283",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
-        "width": 482,
+        "width": 1229,
         "height": 48,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
@@ -226,15 +234,16 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 100
       },
       {
-        "id": "1783415891887504",
+        "id": "1783573347660043",
         "type": "code",
         "x": 542.4814758300781,
-        "y": 22.888885498046875,
+        "y": 188.88888549804688,
         "width": 708,
-        "height": 614,
+        "height": 448,
         "rotation": 0,
         "content": "#Code Example",
         "style": {
@@ -244,7 +253,7 @@
         }
       },
       {
-        "id": "1783415891887381",
+        "id": "1783573347660052",
         "type": "text",
         "x": 20.481475830078125,
         "y": 162.88888549804688,
@@ -258,10 +267,11 @@
           "textAlign": "left",
           "underline": false,
           "verticalAlign": "top"
-        }
+        },
+        "maxChars": 190
       },
       {
-        "id": "1783415891887152",
+        "id": "1783573347660535",
         "type": "sticky",
         "x": 20.481475830078125,
         "y": 436.8888854980469,
@@ -273,7 +283,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -285,11 +296,11 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783466500609338",
+        "id": "1783573387450070",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
-        "width": 1222,
+        "width": 759,
         "height": 85,
         "rotation": 0,
         "content": "Header 1",
@@ -315,14 +326,15 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
-        "id": "1783466500609387",
+        "id": "1783573387450278",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
-        "width": 482,
+        "width": 744,
         "height": 48,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
@@ -331,10 +343,11 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 60
       },
       {
-        "id": "1783466500609943",
+        "id": "1783573387450969",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -348,10 +361,11 @@
           "textAlign": "left",
           "underline": false,
           "verticalAlign": "top"
-        }
+        },
+        "maxChars": 666
       },
       {
-        "id": "1783466500609214",
+        "id": "1783573387450746",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -363,10 +377,11 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       },
       {
-        "id": "1783466500609851",
+        "id": "1783573387450311",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -378,7 +393,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -390,11 +406,11 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783466705877097",
+        "id": "1783573387450070",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
-        "width": 1222,
+        "width": 759,
         "height": 85,
         "rotation": 0,
         "content": "Header 1",
@@ -420,14 +436,15 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
-        "id": "1783466705877855",
+        "id": "1783573387450278",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
-        "width": 482,
+        "width": 744,
         "height": 48,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
@@ -436,10 +453,11 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 60
       },
       {
-        "id": "1783466705877912",
+        "id": "1783573387450969",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -453,10 +471,11 @@
           "textAlign": "left",
           "underline": false,
           "verticalAlign": "top"
-        }
+        },
+        "maxChars": 666
       },
       {
-        "id": "1783466705877789",
+        "id": "1783573387450746",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -468,10 +487,11 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       },
       {
-        "id": "1783466705877570",
+        "id": "1783573387450311",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -483,7 +503,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -510,7 +531,8 @@
           "linkedCodeEditorId": "1783466749782361",
           "activeTab": "code"
         },
-        "id": "1783466745768362"
+        "id": "1783466745768362",
+        "maxChars": 498
       },
       {
         "id": "1783466749782361",
@@ -561,7 +583,8 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
         "id": "1783466801752475",
@@ -577,7 +600,8 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 50
       },
       {
         "id": "1783466827326898",
@@ -592,7 +616,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -604,11 +629,11 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783466705877097",
+        "id": "1783573387450070",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
-        "width": 1222,
+        "width": 759,
         "height": 85,
         "rotation": 0,
         "content": "Header 1",
@@ -634,14 +659,15 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
-        "id": "1783466705877855",
+        "id": "1783573387450278",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
-        "width": 482,
+        "width": 744,
         "height": 48,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
@@ -650,10 +676,11 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 60
       },
       {
-        "id": "1783466705877912",
+        "id": "1783573387450969",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -667,10 +694,11 @@
           "textAlign": "left",
           "underline": false,
           "verticalAlign": "top"
-        }
+        },
+        "maxChars": 666
       },
       {
-        "id": "1783466705877789",
+        "id": "1783573387450746",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -682,10 +710,11 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       },
       {
-        "id": "1783466705877570",
+        "id": "1783573387450311",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -697,7 +726,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -709,11 +739,11 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783466705877097",
+        "id": "1783573387450070",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
-        "width": 1222,
+        "width": 759,
         "height": 85,
         "rotation": 0,
         "content": "Header 1",
@@ -739,14 +769,15 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
-        "id": "1783466705877855",
+        "id": "1783573387450278",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
-        "width": 482,
+        "width": 744,
         "height": 48,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
@@ -755,10 +786,11 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 60
       },
       {
-        "id": "1783466705877912",
+        "id": "1783573387450969",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -772,10 +804,11 @@
           "textAlign": "left",
           "underline": false,
           "verticalAlign": "top"
-        }
+        },
+        "maxChars": 666
       },
       {
-        "id": "1783466705877789",
+        "id": "1783573387450746",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -787,10 +820,11 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       },
       {
-        "id": "1783466705877570",
+        "id": "1783573387450311",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -802,7 +836,8 @@
           "fontSize": 24,
           "fontFamily": "Patrick Hand",
           "backgroundColor": "#fef3c7"
-        }
+        },
+        "maxChars": 92
       }
     ],
     "background": "default"
@@ -881,7 +916,8 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 30
       },
       {
         "id": "1783467287089632",
@@ -897,7 +933,8 @@
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false
-        }
+        },
+        "maxChars": 50
       }
     ],
     "background": "default"
@@ -1002,7 +1039,8 @@
           "opacity": null
         },
         "codeConfig": null,
-        "arrowConfig": null
+        "arrowConfig": null,
+        "maxChars": 38
       }
     ],
     "background": "default"

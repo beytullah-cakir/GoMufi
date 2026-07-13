@@ -7,6 +7,7 @@ interface DragDropGameBuilderProps {
     updateSlide: (updates: Partial<Slide>) => void;
     isPreview?: boolean;
     previewRole?: 'student' | 'teacher';
+    onComplete?: (stars: number) => void;
 }
 
 interface DragDropQuestion {
@@ -21,7 +22,7 @@ interface DragDropQuestion {
     timelineEvents?: { id: string; event: string; year: string }[]; // sorted chronological
 }
 
-const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, updateSlide, isPreview, previewRole = 'student' }) => {
+const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, updateSlide, isPreview, previewRole = 'student', onComplete }) => {
     const [mode, setMode] = useState<'editor' | 'preview'>('editor');
     
     // Sync mode with isPreview
@@ -1310,6 +1311,16 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     >
                                         Kontrol Et
                                     </button>
+                                    {showResults && isPreview && (
+                                        <button
+                                            onClick={() => {
+                                                if (onComplete) onComplete(3);
+                                            }}
+                                            className="w-full bg-indigo-650 hover:bg-indigo-750 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-indigo-850 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
+                                        >
+                                            Devam Et
+                                        </button>
+                                    )}
                                     <button
                                         onClick={() => {
                                             startPreviewGame();

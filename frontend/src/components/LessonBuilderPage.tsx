@@ -7,6 +7,8 @@ import CanvasElement from './lesson-builder/CanvasElement';
 import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 import GameBuilder from './lesson-builder/GameBuilder';
 import CodingSlideBuilder from './lesson-builder/CodingSlideBuilder';
+import HomeworkBuilder from './lesson-builder/HomeworkBuilder';
+import StudentHomeworkView from './student-pages/StudentHomeworkView';
 import LessonBuilderHeader from './lesson-builder/LessonBuilderHeader';
 import LessonBuilderSlideStrip from './lesson-builder/LessonBuilderSlideStrip';
 import LessonBuilderZoomControls from './lesson-builder/LessonBuilderZoomControls';
@@ -2088,6 +2090,24 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             onExitPreview={() => setIsPreview(false)}
                         />
                     </div>
+                ) : currentSlide.type === 'homework' ? (
+                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-gray-50 flex items-center justify-center' : 'h-full overflow-y-auto'}`}>
+                        {isPreview ? (
+                            <StudentHomeworkView 
+                                slide={currentSlide}
+                                isPreviewMode={true}
+                                onComplete={() => setIsPreview(false)}
+                                onClose={() => setIsPreview(false)}
+                            />
+                        ) : (
+                            <HomeworkBuilder 
+                                slide={currentSlide}
+                                updateSlide={(updates) => {
+                                    setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
+                                }}
+                            />
+                        )}
+                    </div>
                 ) : currentSlide.type === 'coding' ? (
                     <div className="flex-1 bg-gray-100 flex items-center justify-center overflow-hidden">
                         <CodingSlideBuilder
@@ -2351,6 +2371,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             background: (config?.background ? config.background : (type === 'notebook' ? 'notebook' : 'default')) as any,
                             gameType: type === 'game' ? (config?.gameType as 'matching' | 'monster' || 'matching') : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
+                            homeworkConfig: type === 'homework' ? {
+                                title: 'Yeni Ödev Görevi',
+                                instructions: 'Lütfen ödev talimatlarını buraya yazın.',
+                                submissionType: 'text',
+                                points: 100,
+                                starterCode: '# Kodunuzu buraya yazın\n'
+                            } : undefined,
                             elements: config?.elements ? config.elements.map((el: any) => ({
                                 ...el,
                                 id: Date.now().toString() + Math.random().toString().slice(2, 5)

@@ -773,6 +773,24 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     }}
                     onComplete={async () => {
                         setShowLessonSlide(false);
+                        
+                        // Save completed stars (3 stars) in teacher's localStorage
+                        if (activeLaunchCourseId && activeLessonIndex !== null) {
+                            const key = `completed_lessons_${activeLaunchCourseId}`;
+                            const saved = localStorage.getItem(key);
+                            const completedObj = saved ? JSON.parse(saved) : {};
+                            completedObj[activeLessonIndex] = 3;
+                            localStorage.setItem(key, JSON.stringify(completedObj));
+
+                            // Broadcast lesson completion to student clients so their roadmap updates
+                            sendMessage({
+                                type: "lesson_completed",
+                                courseId: activeLaunchCourseId,
+                                lessonIndex: activeLessonIndex,
+                                stars: 3
+                            });
+                        }
+
                         // Broadcast closing event (so student returns to roadmap)
                         if (activeLaunchCourseId) {
                             sendMessage({
@@ -799,6 +817,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     setActiveLessonIndexState={setActiveLessonIndexState}
                     setActiveLessonTitle={setActiveLessonTitle}
                     setShowLessonSlide={setShowLessonSlide}
+                    setActiveLessonIndex={setActiveLessonIndex}
                     onStopSession={async () => {
                         try {
                             await api.post(`/stop-session/${activeLaunchCourseId}`);
