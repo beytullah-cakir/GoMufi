@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Rive as RiveCanvas } from '@rive-app/canvas';
 import { 
     Brain, 
     Layout, 
@@ -61,8 +62,30 @@ const LandingPage: React.FC = () => {
     const navigate = useNavigate();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [joinCode, setJoinCode] = useState('');
+    const [selectedRive, setSelectedRive] = useState<'marty' | 'vehicles'>('marty');
     const [activePreviewTab, setActivePreviewTab] = useState<'roadmap' | 'editor' | 'live' | 'student'>('roadmap');
     const [faqOpen, setFaqOpen] = useState<number | null>(null);
+
+    const canvasRef = React.useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        if (!canvasRef.current) return;
+        
+        try {
+            const r = new RiveCanvas({
+                src: selectedRive === 'marty' ? '/marty.riv' : '/vehicles.riv',
+                canvas: canvasRef.current,
+                autoplay: true,
+                stateMachines: selectedRive === 'marty' ? 'State Machine 1' : 'bouncing',
+            });
+            
+            return () => {
+                r.cleanup();
+            };
+        } catch (err) {
+            console.error("Rive canvas error:", err);
+        }
+    }, [selectedRive]);
 
     // AI dynamic creation loop states (Step 0 to 5)
     const [simStep, setSimStep] = useState(0);
@@ -541,146 +564,66 @@ const LandingPage: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Hero Animation (Highly Active AI Production Pipeline Simulation) */}
+                    {/* Hero Rive Interactive Animation Section */}
                     <div className="lg:col-span-6 flex justify-center relative animate-in fade-in slide-in-from-right-6 duration-700">
-                        <img src={MufiMascot} alt="Mufi" className="absolute -top-10 -left-6 w-16 h-16 object-contain z-20 animate-bounce-slow" />
+                        <img src={MufiMascot} alt="Mufi" className="absolute -top-12 -left-6 w-16 h-16 object-contain z-20 animate-bounce-slow" />
 
-                        <div className="w-full max-w-[440px] bg-white border-2 border-b-[8px] border-slate-200 rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col p-6 font-sans">
+                        <div className="w-full max-w-[460px] bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-b-[8px] border-slate-800 rounded-[2.5rem] shadow-2xl relative overflow-hidden flex flex-col p-6 font-sans">
                             {/* Window Header */}
-                            <div className="flex items-center justify-between pb-3.5 border-b-2 border-slate-100 shrink-0">
+                            <div className="flex items-center justify-between pb-4 border-b border-slate-800 shrink-0">
                                 <div className="flex gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></div>
-                                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                                    <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
                                 </div>
-                                <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">GoMufi AI Üretim Hattı</span>
+                                <span className="text-[9px] text-slate-400 font-black tracking-widest uppercase flex items-center gap-1.5">
+                                    <span className="w-2 h-2 rounded-full bg-green-500 animate-ping"></span>
+                                    GOMUFI İNTERAKTİF RIVE MOTORU
+                                </span>
                                 <div className="w-8"></div>
                             </div>
 
-                            {/* Simulation Body */}
-                            <div className="flex-1 flex flex-col justify-between mt-5 min-h-[290px] text-left">
-                                <div className="space-y-4">
-                                    {/* Topic Card */}
-                                    <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4">
-                                        <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase mb-1">
-                                            <span>AI Girdisi (Prompt)</span>
-                                            {simStep === 5 ? (
-                                                <span className="text-emerald-500 font-black animate-bounce flex items-center gap-1">
-                                                    ✓ TAMAMLANDI
-                                                </span>
-                                            ) : (
-                                                <span className="text-[#8b5cf6] font-black animate-pulse flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6] inline-block animate-ping"></span>
-                                                    ÜRETİLİYOR
-                                                </span>
-                                            )}
-                                        </div>
-                                        <div className="text-sm font-black text-slate-805 min-h-[20px] font-mono border-r-2 border-purple-500 animate-pulse">
-                                            "{typedPrompt || " "}"
-                                        </div>
-                                    </div>
+                            {/* State Selector Tab */}
+                            <div className="flex p-1 bg-slate-800/60 rounded-2xl border border-slate-800 mt-4">
+                                <button
+                                    onClick={() => setSelectedRive('marty')}
+                                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                                        selectedRive === 'marty'
+                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    🤖 MUFİ AI ROBOTU
+                                </button>
+                                <button
+                                    onClick={() => setSelectedRive('vehicles')}
+                                    className={`flex-1 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                                        selectedRive === 'vehicles'
+                                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-md'
+                                            : 'text-slate-400 hover:text-slate-200'
+                                    }`}
+                                >
+                                    🛸 İNTERAKTİF ARAÇLAR
+                                </button>
+                            </div>
 
-                                    {/* Dynamic Simulation Screens based on simStep */}
-                                    <div className="h-[155px] bg-slate-50 border-2 border-slate-105 rounded-2xl p-4 flex flex-col justify-center relative overflow-hidden transition-all duration-300">
-                                        
-                                        {/* Step 0: Input/Ready State */}
-                                        {simStep === 0 && (
-                                            <div className="space-y-2 text-center animate-in fade-in zoom-in-95 duration-200">
-                                                <div className="text-4xl">🤖</div>
-                                                <p className="text-xs font-black text-slate-655">Yapay zeka konusu analiz ediliyor...</p>
-                                            </div>
-                                        )}
+                            {/* Rive Canvas Container */}
+                            <div className="h-[260px] bg-slate-900/50 border border-slate-800 rounded-3xl mt-4 flex items-center justify-center relative overflow-hidden group shadow-inner">
+                                <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-indigo-500/10 via-transparent to-transparent opacity-60"></div>
+                                <canvas 
+                                    ref={canvasRef} 
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
 
-                                        {/* Step 1: Roadmap Creation */}
-                                        {simStep === 1 && (
-                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Yol Haritası Node'ları</span>
-                                                    <span>{roadNodeCount}/5 Node</span>
-                                                </div>
-                                                <div className="flex justify-center items-center gap-2 relative py-2">
-                                                    {[
-                                                        { img: BrainSprite, label: "Anla" },
-                                                        { img: PencilSprite, label: "Uygula" },
-                                                        { img: PuzzleSprite, label: "Birleştir" },
-                                                        { img: TrophySprite, label: "Üret" },
-                                                        { img: QuestionSprite, label: "Quiz" }
-                                                    ].map((node, i) => (
-                                                        <div key={i} className={`w-9 h-9 rounded-xl border-2 bg-white flex items-center justify-center transition-all duration-300 shadow-sm ${
-                                                            roadNodeCount > i ? "border-purple-300 scale-105 opacity-100" : "border-slate-100 opacity-20"
-                                                        }`}>
-                                                            <img src={node.img} alt="" className="w-6 h-6 object-contain" />
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                                <p className="text-[10px] font-black text-[#8b5cf6] text-center uppercase animate-pulse"># Modüller yerleştiriliyor...</p>
-                                            </div>
-                                        )}
-
-                                        {/* Step 2: Slide Generation */}
-                                        {simStep === 2 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Canva Editörü</span>
-                                                    <span>Slayt 2/12</span>
-                                                </div>
-                                                <div className="bg-white border-2 border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-inner">
-                                                    <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-xl">🖼️</div>
-                                                    <div className="text-left">
-                                                        <div className="text-xs font-black text-slate-855">1. Slayt: Değişken Tanımı</div>
-                                                        <div className="text-[9px] text-slate-400 font-bold">Görseller ve şablonlar ekleniyor...</div>
-                                                    </div>
-                                                </div>
-                                                <p className="text-[10px] font-black text-blue-500 text-center uppercase animate-pulse"># 34 interaktif slayt üretildi!</p>
-                                            </div>
-                                        )}
-
-                                        {/* Step 3: Code Examples */}
-                                        {simStep === 3 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Kod Editörü (Egzersiz)</span>
-                                                    <span className="text-amber-500 font-bold">Python</span>
-                                                </div>
-                                                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 font-mono text-[10px] text-emerald-400 shadow-lg min-h-[75px] flex flex-col justify-center">
-                                                    <div><span className="text-purple-400"># Değişken tanımlama</span></div>
-                                                    <div>name = <span className="text-yellow-350">"Mufi"</span></div>
-                                                    <div>score = <span className="text-yellow-350">100</span></div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 4: Quiz Compilation */}
-                                        {simStep === 4 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Etkileşimli Quiz</span>
-                                                    <span>Soru 1/8</span>
-                                                </div>
-                                                <div className="bg-white border-2 border-slate-100 rounded-xl p-2.5 shadow-sm text-left">
-                                                    <div className="text-[10px] font-black text-slate-800 leading-tight">Yazı tipindeki verileri hangi değişken saklar?</div>
-                                                    <div className="grid grid-cols-2 gap-1.5 mt-2">
-                                                        <div className="bg-green-50 border border-green-200 text-green-700 text-[9px] font-black p-1 rounded text-center">A) str ✓</div>
-                                                        <div className="bg-slate-50 border border-slate-100 text-slate-500 text-[9px] font-black p-1 rounded text-center">B) int</div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 5: Completed / Ready */}
-                                        {simStep === 5 && (
-                                            <div className="space-y-3 text-center animate-in zoom-in-95 duration-300">
-                                                <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-400 text-emerald-500 flex items-center justify-center text-xl mx-auto animate-bounce shadow-sm">
-                                                    ✓
-                                                </div>
-                                                <div>
-                                                    <h5 className="text-xs font-black text-slate-800">Ders Hazırlandı!</h5>
-                                                    <p className="text-[10px] text-slate-400 font-bold">Öğrenci Kodu: <span className="text-emerald-600 font-black tracking-widest text-sm bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg">45CZWT</span></p>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
+                            {/* Description/Interaction Guide */}
+                            <div className="mt-4 pt-3.5 border-t border-slate-800/80 text-center">
+                                <p className="text-[11px] text-slate-400 font-bold leading-relaxed">
+                                    {selectedRive === 'marty' 
+                                        ? "Mouse ile robotun üzerine gelerek veya tıklayarak Rive kemik hareketlerini tetikleyin! AI derslerinde bu animasyonlar kullanılır." 
+                                        : "Tekerlekler, pervaneler ve süspansiyonlar tamamen interaktiftir. Öğrencilerin dersleri bu düzeyde oyunlaştırılmıştır."
+                                    }
+                                </p>
                             </div>
                         </div>
                     </div>
