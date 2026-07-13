@@ -133,6 +133,24 @@ async def save_template(request: Request, user=Depends(get_current_user)):
                 except json.JSONDecodeError:
                     templates = []
                     
+        # Dynamically calculate maxChars for text elements
+        for el in elements:
+            el_type = el.get("type")
+            if el_type in ["text", "sticky", "challenge"]:
+                width = el.get("width") or 300
+                height = el.get("height") or 150
+                style = el.get("style") or {}
+                font_size = style.get("fontSize") or 18
+                
+                max_chars = int((width * height) / (0.75 * (font_size ** 2)))
+                
+                if el_type == "text" and font_size >= 32:
+                    max_chars = max(30, min(120, max_chars))
+                else:
+                    max_chars = max(50, min(1000, max_chars))
+                    
+                el["maxChars"] = max_chars
+
         new_template = {
             "id": str(uuid.uuid4()),
             "category": category.upper(),

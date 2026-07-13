@@ -25,6 +25,7 @@ interface LiveLessonTeacherProps {
     setActiveLessonTitle: (title: string) => void;
     setShowLessonSlide: (val: boolean) => void;
     onStopSession: () => Promise<void>;
+    setActiveLessonIndex: (idx: number | null) => void;
 }
 
 const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
@@ -38,7 +39,8 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
     setActiveLessonIndexState,
     setActiveLessonTitle,
     setShowLessonSlide,
-    onStopSession
+    onStopSession,
+    setActiveLessonIndex
 }) => {
     const activeCourse = coursesData.find(c => String(c.id) === String(activeLaunchCourseId));
     
@@ -69,6 +71,18 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
             const defaultTheme = pattern[index % pattern.length];
             const selectedTheme = theme && themes[theme] ? themes[theme] : themes[defaultTheme];
             
+            const savedStarsKey = `completed_lessons_${activeLaunchCourseId}`;
+            const savedStarsData = localStorage.getItem(savedStarsKey);
+            let savedStars = 0;
+            if (savedStarsData) {
+                try {
+                    const parsed = JSON.parse(savedStarsData);
+                    savedStars = parsed[index + 1] || 0;
+                } catch (e) {
+                    console.error("Error parsing completed stars:", e);
+                }
+            }
+
             dynamicNodes.push({
                 id: index + 1,
                 type: theme === 'quiz' ? 'quiz' : (theme === 'homework' ? 'homework' : 'step'),
@@ -83,7 +97,7 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                 strokeColor: selectedTheme.strokeColor,
                 baseColor: selectedTheme.baseColor,
                 title: sectionTitle,
-                stars: 0,
+                stars: savedStars,
                 isLocked: false,
                 lessonNumber: section.lessonNumber,
                 lessonTopic: section.lessonTopic,
@@ -180,6 +194,7 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                         const handleNodeClick = () => {
                             setActiveLessonIndexState(firstSlideIndex);
                             setActiveLessonTitle(node.title);
+                            setActiveLessonIndex(node.id);
                             setShowLessonSlide(true);
 
                             // Broadcast level change via WebSocket
@@ -225,7 +240,7 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                                                         xmlns="http://www.w3.org/2000/svg"
                                                         viewBox="0 0 24 24"
                                                         fill="currentColor"
-                                                        className={`w-8 h-8 drop-shadow-md transition-transform text-gray-300`}
+                                                        className={`w-8 h-8 drop-shadow-md transition-transform ${i < (node.stars || 0) ? 'text-yellow-400' : 'text-gray-300'}`}
                                                     >
                                                         <path fillRule="evenodd" d="M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z" clipRule="evenodd" />
                                                     </svg>
