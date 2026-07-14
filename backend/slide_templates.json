@@ -296,7 +296,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783573387450070",
+        "id": "1783968960174255",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -330,7 +330,7 @@
         "maxChars": 30
       },
       {
-        "id": "1783573387450278",
+        "id": "1783968960174338",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -347,7 +347,7 @@
         "maxChars": 60
       },
       {
-        "id": "1783573387450969",
+        "id": "1783968960174717",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -365,7 +365,7 @@
         "maxChars": 666
       },
       {
-        "id": "1783573387450746",
+        "id": "1783968960174186",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -381,7 +381,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783573387450311",
+        "id": "1783968960174012",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -395,6 +395,17 @@
           "backgroundColor": "#fef3c7"
         },
         "maxChars": 92
+      },
+      {
+        "id": "1783968960174094",
+        "type": "image",
+        "x": 779.4814758300781,
+        "y": 336,
+        "width": 490,
+        "height": 289,
+        "rotation": 0,
+        "content": "image concept query description",
+        "src": ""
       }
     ],
     "background": "default"
@@ -406,7 +417,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783573387450070",
+        "id": "1783968960174255",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -440,7 +451,7 @@
         "maxChars": 30
       },
       {
-        "id": "1783573387450278",
+        "id": "1783968960174338",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -457,7 +468,7 @@
         "maxChars": 60
       },
       {
-        "id": "1783573387450969",
+        "id": "1783968960174717",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -475,7 +486,7 @@
         "maxChars": 666
       },
       {
-        "id": "1783573387450746",
+        "id": "1783968960174186",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -491,7 +502,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783573387450311",
+        "id": "1783968960174012",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -505,6 +516,17 @@
           "backgroundColor": "#fef3c7"
         },
         "maxChars": 92
+      },
+      {
+        "id": "1783968960174094",
+        "type": "image",
+        "x": 779.4814758300781,
+        "y": 336,
+        "width": 490,
+        "height": 289,
+        "rotation": 0,
+        "content": "image concept query description",
+        "src": ""
       }
     ],
     "background": "default"
@@ -629,7 +651,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783573387450070",
+        "id": "1783968960174255",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -663,7 +685,7 @@
         "maxChars": 30
       },
       {
-        "id": "1783573387450278",
+        "id": "1783968960174338",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -680,7 +702,7 @@
         "maxChars": 60
       },
       {
-        "id": "1783573387450969",
+        "id": "1783968960174717",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -698,7 +720,7 @@
         "maxChars": 666
       },
       {
-        "id": "1783573387450746",
+        "id": "1783968960174186",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -714,7 +736,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783573387450311",
+        "id": "1783968960174012",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -728,6 +750,17 @@
           "backgroundColor": "#fef3c7"
         },
         "maxChars": 92
+      },
+      {
+        "id": "1783968960174094",
+        "type": "image",
+        "x": 779.4814758300781,
+        "y": 336,
+        "width": 490,
+        "height": 289,
+        "rotation": 0,
+        "content": "image concept query description",
+        "src": ""
       }
     ],
     "background": "default"
@@ -739,7 +772,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783573387450070",
+        "id": "1783968960174255",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -773,7 +806,7 @@
         "maxChars": 30
       },
       {
-        "id": "1783573387450278",
+        "id": "1783968960174338",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -790,7 +823,7 @@
         "maxChars": 60
       },
       {
-        "id": "1783573387450969",
+        "id": "1783968960174717",
         "type": "text",
         "x": 20.481475830078125,
         "y": 155.88888549804688,
@@ -808,7 +841,7 @@
         "maxChars": 666
       },
       {
-        "id": "1783573387450746",
+        "id": "1783968960174186",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -824,7 +857,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783573387450311",
+        "id": "1783968960174012",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -838,6 +871,17 @@
           "backgroundColor": "#fef3c7"
         },
         "maxChars": 92
+      },
+      {
+        "id": "1783968960174094",
+        "type": "image",
+        "x": 779.4814758300781,
+        "y": 336,
+        "width": 490,
+        "height": 289,
+        "rotation": 0,
+        "content": "image concept query description",
+        "src": ""
       }
     ],
     "background": "default"
