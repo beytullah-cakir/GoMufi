@@ -5,8 +5,9 @@ import json
 import os
 import random
 import copy
+import io
 from typing import List, Optional, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
@@ -59,11 +60,18 @@ def get_web_image(query: str, is_fallback: bool = False) -> str:
 router = APIRouter()
 
 
+class CustomLessonInput(BaseModel):
+    title: str
+    topics: List[str]
+
+
 class GenerateRoadmapRequest(BaseModel):
     topic: str
     difficulty: str
     lessons_count: int
     audience: str
+    pdf_content: Optional[str] = None
+    custom_lessons: Optional[List[CustomLessonInput]] = None
 
 
 class GenerateLessonSlidesRequest(BaseModel):
@@ -74,6 +82,7 @@ class GenerateLessonSlidesRequest(BaseModel):
     lesson_title: str
     lesson_objective: str
     modules: List[Any]
+    pdf_content: Optional[str] = None
 
 
 # --- GEMINI STRUCTURED OUTPUT SCHEMAS ---
@@ -91,6 +100,68 @@ class RoadmapLessonStructure(BaseModel):
 class RoadmapStructureResponse(BaseModel):
     courseTitle: str
     lessons: List[RoadmapLessonStructure]
+
+
+class SuggestLessonModulesRequest(BaseModel):
+    lesson_title: str
+    course_topic: str
+    difficulty: str
+    audience: str
+    pdf_content: Optional[str] = None
+
+
+class SuggestLessonModulesResponse(BaseModel):
+    objective: str
+    modules: List[RoadmapModuleStructure]
+
+
+class SuggestLessonTitleRequest(BaseModel):
+    course_topic: str
+    difficulty: str
+    audience: str
+    lesson_number: int
+    existing_lessons: List[str]
+    pdf_content: Optional[str] = None
+
+
+class SuggestLessonTitleResponse(BaseModel):
+    titles: List[str]
+
+
+class SuggestLevelDetailsRequest(BaseModel):
+    course_topic: str
+    difficulty: str
+    audience: str
+    lesson_title: str
+    module_type: str
+    sibling_modules: List[Dict[str, str]]
+    pdf_content: Optional[str] = None
+
+
+class SuggestLevelDetailsResponse(BaseModel):
+    title: str
+    topic: str
+
+
+class SuggestedLessonPlanItem(BaseModel):
+    lesson_number: int
+    title: str
+    topics: List[str]
+
+
+class SuggestCurriculumParametersResponse(BaseModel):
+    suggested_lessons: List[SuggestedLessonPlanItem]
+    suggested_lessons_count: int
+
+
+class SuggestRawTopicsResponse(BaseModel):
+    suggested_topics: List[str]
+
+
+class DistributeTopicsRequest(BaseModel):
+    topics: List[str]
+    lesson_duration: int
+    lessons_count: int
 
 
 class ElementContentPair(BaseModel):
@@ -459,6 +530,152 @@ Expected JSON Structure:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/courses/suggest_raw_topics")
+async def suggest_raw_topics_api(
+    topic: str = Form(...),
+    difficulty: str = Form(...),
+    audience: str = Form(...),
+    pdf_file: Optional[UploadFile] = File(None),
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    try:
+        pdf_text = ""
+        if pdf_file:
+            pdf_bytes = await pdf_file.read()
+            try:
+                from pypdf import PdfReader
+                reader = PdfReader(io.BytesIO(pdf_bytes))
+                for page in reader.pages:
+                    text = page.extract_text()
+                    if text:
+                        pdf_text += text + "\n"
+            except Exception as e:
+                print(f"Error parsing PDF: {e}")
+                raise HTTPException(status_code=400, detail=f"PDF dosyası okunurken bir hata oluştu: {str(e)}")
+
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        pdf_context = ""
+        if pdf_text:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{pdf_text[:40000]}\n\nInstruction: Base your curriculum topic suggestions strictly on the provided Source Material PDF above."
+
+        prompt = f"""
+Role: You are an expert computer science curriculum architect and educational planner. Türkçe cevap ver.
+Your task is to analyze the course topic, difficulty, audience, and optional PDF content, and suggest:
+- A flat sequence of substantive, practical coding topics (subject headings) that must be covered in this course (typically between 5 and 15 topics).
+- **Strictly Ban Trivial/Fluff Headings**: Do not generate separate topics for history (e.g., Python history, versions 2.x vs 3.x), compiler/interpreter definitions, syntax trivia (like comment `#` character), or individual data types (like string, integer, float as separate topics).
+- **Cluster Into Substantive Headings**: Group minor details and syntax trivia together into comprehensive, high-density practical headers (each representing a significant coding outcome and at least 20-30 minutes of real teaching time).
+  - *Incorrect (Do NOT suggest)*: ["Python Tarihçesi", "Python Kurulumu", "print() kullanımı", "Yorum satırları"]
+  - *Correct (Instead suggest)*: ["Python Kurulumu, İlk Programı Çalıştırma (print, yorumlar)"]
+  - *Incorrect (Do NOT suggest)*: ["Değişken Nedir", "string veri tipi", "integer veri tipi", "float veri tipi", "tip dönüşümleri"]
+  - *Correct (Instead suggest)*: ["Değişkenler, Temel Veri Tipleri (str, int, float, bool) ve Tip Dönüşümleri (casting)"]
+  - *Incorrect (Do NOT suggest)*: ["Aritmetik Operatörler", "String Birleştirme", "len() metodu"]
+  - *Correct (Instead suggest)*: ["Temel Aritmetik ve String Operatörleri (len(), birleştirme)"]
+
+{pdf_context}
+
+Course Parameters:
+Course Topic: {topic}
+Difficulty: {difficulty}
+Target Audience: {audience}
+
+Return ONLY valid JSON matching the structure below. No markdown formatting.
+
+Expected JSON Structure:
+{{
+  "suggested_topics": [
+    "Python Kurulumu, İlk Programı Çalıştırma (print, yorumlar)",
+    "Değişkenler, Temel Veri Tipleri (str, int, float, bool) ve Tip Dönüşümleri (casting)",
+    "Temel Aritmetik ve String Operatörleri (len(), birleştirme)"
+  ]
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SuggestRawTopicsResponse
+            )
+        )
+        data = json.loads(response.text.strip())
+        return {
+            "success": True, 
+            "suggested_topics": data.get("suggested_topics", []), 
+            "pdf_text": pdf_text
+        }
+    except Exception as e:
+        print(f"Error suggesting raw topics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/distribute_topics_into_lessons")
+async def distribute_topics_into_lessons_api(
+    req: DistributeTopicsRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        prompt = f"""
+Role: You are an expert computer science curriculum architect and instructional designer. Türkçe cevap ver.
+Your task is to take a flat list of course sub-topics, the duration of each lesson in minutes, and the target lesson count, and distribute these topics logically across lessons.
+
+Input Parameters:
+Topics to distribute: {req.topics}
+Lesson Duration: {req.lesson_duration} minutes per lesson.
+Target Lessons Count: {req.lessons_count if req.lessons_count > 0 else 'AI to determine optimal count based on duration and topic list (typically between 3 and 12).'}
+
+Critical Pedagogical & Weight-Balancing Requirements:
+1. **Analyze Topic Complexity/Weight**: 
+   - Simple introductory sub-topics (e.g., printing, comments, variables, simple data types, type conversion) should be grouped together logically.
+   - Substantive/complex topics (e.g., loops, functions, OOP, databases, external libraries like `pygame`, web frameworks like `flask`) are heavy and require dedicated lessons.
+2. **Teachable Content Ceiling & Full Utilization (Crucial)**:
+   - Ensure each lesson is fully and realistically utilized according to the requested duration. A 60-minute lesson should cover a rich set of topics, ideally **2 to 3 substantive topic headings** (or 3 to 5 if they are smaller).
+   - Do NOT leave a lesson with only a single simple/minor topic heading (like only "installation and print") if there are other basic topics that can logically be combined into it (like "variables and data types"). Group them together.
+   - However, do NOT assign more than 3 to 5 topic headings to a single lesson (6 or more is unteachable in 60 minutes).
+   - If the user requested a target lesson count that is larger than the number of clustered lessons, use the extra/later lessons for hands-on projects, labs, or reviews, rather than stretching 10-15 minute basic topics across separate lessons.
+3. **Prevent Cramming of Advanced Concepts**:
+   - Under no circumstances should massive distinct frameworks (like `pygame` and `flask`) be combined in a single lesson, especially not alongside control flows (like loops).
+   - If the list includes advanced frameworks/libraries, give them their own dedicated lessons.
+4. **No Information Loss**: All input topics must be mapped to at least one lesson. Do not skip or omit any of them.
+5. **Lesson Titles**: Provide a concise title for each lesson reflecting its consolidated focus (e.g., "Ders 1: Giriş, print() ve Temel Veri Tipleri", "Ders 2: Kontrol Yapıları ve Döngüler", etc.).
+6. Return ONLY valid JSON matching the structure below. No markdown formatting.
+
+Expected JSON Structure:
+{{
+  "suggested_lessons": [
+    {{
+      "lesson_number": 1,
+      "title": "Suggested Lesson 1 Title",
+      "topics": [
+        "Topic A",
+        "Topic B"
+      ]
+    }}
+  ],
+  "suggested_lessons_count": 1
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SuggestCurriculumParametersResponse
+            )
+        )
+        data = json.loads(response.text.strip())
+        return {
+            "success": True, 
+            "suggested_lessons": data.get("suggested_lessons", []), 
+            "suggested_lessons_count": data.get("suggested_lessons_count", 6)
+        }
+    except Exception as e:
+        print(f"Error distributing topics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/courses/generate_roadmap_structure")
 async def generate_roadmap_structure_api(
     req: GenerateRoadmapRequest,
@@ -466,17 +683,45 @@ async def generate_roadmap_structure_api(
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        pdf_context = ""
+        if req.pdf_content:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:40000]}\n\nInstruction: Base the curriculum topics, order, and explanations strictly on the provided Source Material PDF above."
+
+        custom_lessons_instruction = ""
+        if req.custom_lessons:
+            custom_lessons_instruction = f"\n\nTarget Lessons Structure:\nThe teacher has requested to create exactly {len(req.custom_lessons)} lessons, with these exact titles and sub-topics in this order:\n"
+            for i, l in enumerate(req.custom_lessons):
+                custom_lessons_instruction += f"- Lesson {i+1}: \"{l.title}\"\n  Topics to cover in this lesson:\n"
+                for t in l.topics:
+                    custom_lessons_instruction += f"    * {t}\n"
+            custom_lessons_instruction += "\nInstruction: You MUST structure the curriculum lessons list to match this exact list of lessons. For each lesson, generate the appropriate pedagogical modules sequence (UNDERSTAND, APPLY, etc.) covering the specific sub-topics listed for that lesson."
+
+        lessons_count_instruction = f"Lessons Count: {req.lessons_count}" if req.lessons_count > 0 else "Lessons Count: [AI, please determine the optimal number of lessons (typically between 3 and 12) based on the depth of the course topic or the length of the PDF content. Design a complete, self-contained curriculum with that optimal number of lessons.]"
+
         prompt = f"""
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
+{pdf_context}
+{custom_lessons_instruction}
 
-Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
+Goal: Given the course topic, difficulty, desired lesson count, target audience, and target lessons list, generate the sequence of lessons and modules.
 
 Requirements:
 - The roadmap consists of lessons.
-- Each lesson contains a list of modules.
+- Each lesson contains a list of modules representing levels.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- For each lesson, you should follow a strict pedagogical flow: start with exactly one UNDERSTAND module, then exactly one APPLY module, then optionally you can add a CONNECT module, optionally a CREATE module (you can add BOTH CONNECT and CREATE in the same lesson if it benefits the learning path), and end with exactly one QUIZ or HOMEWORK module. Do NOT duplicate UNDERSTAND, APPLY, QUIZ or HOMEWORK module types within a single lesson.
+- **Pedagogical Flow & Duplication Rules**:
+  - To teach multiple distinct sub-topics in a single lesson (e.g., if-else AND while loops, or setup AND variables), you MUST generate a pair of exactly one UNDERSTAND module (theory explanation) followed immediately by exactly one APPLY module (hands-on coding practice) FOR EACH concept.
+  - **Strict Concept Symmetry**: For every APPLY module, the immediately preceding UNDERSTAND module's `"topic"` MUST explicitly contain and list the syntax, keywords, or concepts that will be practiced. For example, if the APPLY module is about "print() ile ekrana çıktı verme", the preceding UNDERSTAND module topic MUST be "Python Kurulumu ve print() Çıktı Fonksiyonu". Do NOT request practice on any function/syntax in APPLY that wasn't explicitly included in the preceding UNDERSTAND module's topic name.
+  - For example, if a lesson has custom sub-topics: "if-else yapısı" and "while döngüleri", the modules sequence MUST be:
+    1. `{{"type": "UNDERSTAND", "topic": "if-else Karar Yapıları ve Karşılaştırma"}}`
+    2. `{{"type": "APPLY", "topic": "if-else ile Kullanıcı Giriş Kontrolü"}}`
+    3. `{{"type": "UNDERSTAND", "topic": "while Döngüleri ve Sayaçlar"}}`
+    4. `{{"type": "APPLY", "topic": "while Döngüsü ile Sayı Toplama Pratiği"}}`
+    5. `{{"type": "QUIZ", "topic": "Ders Değerlendirme Testi"}}`
+  - This learn-then-practice sandwich pattern (UNDERSTAND followed by APPLY) can repeat as many times as there are distinct sub-topics in that lesson. This ensures both theory and coding practice are covered for every concept.
+  - End the lesson with exactly one QUIZ or HOMEWORK module.
 - Each module in the lessons modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -501,7 +746,7 @@ Expected JSON Structure:
 Input:
 Topic: {req.topic}
 Difficulty: {req.difficulty}
-Lessons Count: {req.lessons_count}
+{lessons_count_instruction}
 Audience: {req.audience}
 """
         response = client.models.generate_content(
@@ -517,6 +762,196 @@ Audience: {req.audience}
         return {"success": True, "roadmap": data}
     except Exception as e:
         print(f"Error planning roadmap structure: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/suggest_lesson_modules")
+async def suggest_lesson_modules_api(
+    req: SuggestLessonModulesRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        pdf_context = ""
+        if req.pdf_content:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the lesson objective and modular topic titles strictly on the provided Source Material PDF above."
+            
+        prompt = f"""
+Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
+Your task is to design the sub-modules (levels) for a single lesson in a learning roadmap.
+{pdf_context}
+
+Course Context:
+Main Course Topic: {req.course_topic}
+Course Difficulty: {req.difficulty}
+Target Audience: {req.audience}
+
+Lesson to design:
+Lesson Title: {req.lesson_title}
+
+Requirements:
+- Plan the modules sequence for this lesson.
+- Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
+- **Pedagogical Flow & Duplication Rules**:
+  - To teach multiple distinct sub-topics in a single lesson (e.g., if-else AND while loops, or setup AND variables), you MUST generate a pair of exactly one UNDERSTAND module (theory explanation) followed immediately by exactly one APPLY module (hands-on coding practice) FOR EACH concept.
+  - **Strict Concept Symmetry**: For every APPLY module, the immediately preceding UNDERSTAND module's `"topic"` MUST explicitly contain and list the syntax, keywords, or concepts that will be practiced. For example, if the APPLY module is about "print() ile ekrana çıktı verme", the preceding UNDERSTAND module topic MUST be "Python Kurulumu ve print() Çıktı Fonksiyonu". Do NOT request practice on any function/syntax in APPLY that wasn't explicitly included in the preceding UNDERSTAND module's topic name.
+  - For example, if a lesson has custom sub-topics: "if-else yapısı" and "while döngüleri", the modules sequence MUST be:
+    1. `{{"type": "UNDERSTAND", "topic": "if-else Karar Yapıları ve Karşılaştırma"}}`
+    2. `{{"type": "APPLY", "topic": "if-else ile Kullanıcı Giriş Kontrolü"}}`
+    3. `{{"type": "UNDERSTAND", "topic": "while Döngüleri ve Sayaçlar"}}`
+    4. `{{"type": "APPLY", "topic": "while Döngüsü ile Sayı Toplama Pratiği"}}`
+    5. `{{"type": "QUIZ", "topic": "Ders Değerlendirme Testi"}}`
+  - This learn-then-practice sandwich pattern (UNDERSTAND followed by APPLY) can repeat as many times as there are distinct sub-topics in that lesson. This ensures both theory and coding practice are covered for every concept.
+  - End the lesson with exactly one QUIZ or HOMEWORK module.
+- Each module in the modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
+- Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
+
+Expected JSON Structure:
+{{
+  "objective": "Lesson learning objective (Türkçe)",
+  "modules": [
+    {{ "type": "UNDERSTAND", "topic": "Brief topic title for this module (Türkçe)" }},
+    {{ "type": "APPLY", "topic": "Brief topic of the coding challenge (Türkçe)" }},
+    {{ "type": "QUIZ", "topic": "Quiz topic (Türkçe)" }}
+  ]
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SuggestLessonModulesResponse
+            )
+        )
+        
+        data = json.loads(response.text.strip())
+        return {"success": True, "objective": data.get("objective"), "modules": data.get("modules", [])}
+    except Exception as e:
+        print(f"Error suggesting lesson modules: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/suggest_lesson_title")
+async def suggest_lesson_title_api(
+    req: SuggestLessonTitleRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        # Calculate preceding and succeeding lessons for clear contextual instruction
+        preceding = req.existing_lessons[req.lesson_number - 2] if req.lesson_number > 1 and len(req.existing_lessons) >= req.lesson_number - 1 else None
+        succeeding = req.existing_lessons[req.lesson_number] if len(req.existing_lessons) > req.lesson_number else None
+        
+        pdf_context = ""
+        if req.pdf_content:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the title suggestions strictly on the provided Source Material PDF content above."
+
+        prompt = f"""
+Role: You are an expert instructional designer and computer science curriculum planner. Türkçe cevap ver.
+Your task is to suggest 5 alternative relevant lesson titles for lesson number {req.lesson_number} in a course curriculum.
+{pdf_context}
+
+Course Context:
+Main Course Topic: {req.course_topic}
+Course Difficulty: {req.difficulty}
+Target Audience: {req.audience}
+
+Curriculum Context:
+Full Current Lesson Titles Sequence: {json.dumps(req.existing_lessons, ensure_ascii=False)}
+Lesson Number to suggest: {req.lesson_number}
+Preceding Lesson Title: {f'"{preceding}"' if preceding else "Yok (İlk Ders)"}
+Succeeding Lesson Title: {f'"{succeeding}"' if succeeding else "Yok (Son Ders)"}
+
+Requirements:
+1. Suggest exactly 5 distinct, highly logical alternative lesson titles (in Turkish) for lesson number {req.lesson_number}.
+2. Crucially check the surrounding titles: the suggested title MUST bridge the gap between the preceding lesson ("{preceding or ''}") and the succeeding lesson ("{succeeding or ''}").
+3. For example:
+   - If preceding is "Değişkenler" (variables) and succeeding is "Döngüler" (loops), the most standard and logical bridge topic in programming is "Koşullu İfadeler / Karar Yapıları (if-else, karşılaştırma operatörleri)".
+   - Do NOT jump directly to advanced topics, and do NOT repeat concepts already covered in preceding/succeeding lessons.
+4. Return ONLY valid JSON matching the structure below. No markdown formatting.
+
+Expected JSON Structure:
+{{
+  "titles": [
+    "Alternative Title 1",
+    "Alternative Title 2",
+    "Alternative Title 3",
+    "Alternative Title 4",
+    "Alternative Title 5"
+  ]
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SuggestLessonTitleResponse
+            )
+        )
+        data = json.loads(response.text.strip())
+        return {"success": True, "titles": data.get("titles", [])}
+    except Exception as e:
+        print(f"Error suggesting lesson title: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/courses/suggest_level_details")
+async def suggest_level_details_api(
+    req: SuggestLevelDetailsRequest,
+    teacher_id: int = Depends(get_current_teacher_id)
+):
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        
+        pdf_context = ""
+        if req.pdf_content:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the module title and topic suggestions strictly on the provided Source Material PDF content above."
+
+        prompt = f"""
+Role: You are an expert instructional designer. Türkçe cevap ver.
+Your task is to suggest the title and detailed topic content for a specific module (level) inside a lesson.
+{pdf_context}
+
+Course Context:
+Main Course Topic: {req.course_topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+
+Lesson Context:
+Lesson Title: {req.lesson_title}
+
+Module Context:
+Type of module: {req.module_type} (UNDERSTAND = theory, APPLY = practice challenge, CONNECT = combine concepts, CREATE = mini project, QUIZ = topic quiz, HOMEWORK = homework assignment)
+Other modules already planned in this lesson: {json.dumps(req.sibling_modules, ensure_ascii=False)}
+
+Requirements:
+- Suggest a short display title (max 20 characters) and a detailed description/topic (1-2 sentences) of what should be taught/practiced in this module.
+- It must be relevant to both the lesson title and the pedagogical module type.
+- Avoid repeating topics that are already covered by sibling modules.
+- Return ONLY valid JSON matching the structure below. No markdown formatting.
+
+Expected JSON Structure:
+{{
+  "title": "Short title (Türkçe)",
+  "topic": "Detailed description / coding task prompt (Türkçe)"
+}}
+"""
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=SuggestLevelDetailsResponse
+            )
+        )
+        data = json.loads(response.text.strip())
+        return {"success": True, "title": data.get("title"), "topic": data.get("topic")}
+    except Exception as e:
+        print(f"Error suggesting level details: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -562,9 +997,14 @@ async def generate_lesson_slides_api(
                 
         client = genai.Client(api_key=settings.MY_API_KEY)
         
+        pdf_context = ""
+        if req.pdf_content:
+            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the slide contents, descriptions, explanations, code snippets, quizzes, and homework topics strictly on the provided Source Material PDF above."
+
         prompt = f"""
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
-Your task is to write detailed educational slide, quiz, and homework contents for the UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, and HOMEWORK modules in the provided single lesson.
+Your task is to write detailed educational slide, quiz, and homework contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided single lesson.
+{pdf_context}
 
 Course context:
 Topic: {req.topic}
@@ -593,8 +1033,8 @@ Available Templates for each category:
 Requirements:
 - For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
-- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
-- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges.
+- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts. Crucially cover all concepts mentioned in the module's topic string. For instance, if the topic contains multiple distinct sub-topics, distribute the slides to cover all of them. Do NOT ignore or skip any part of the topic name. Also, check the topic of the subsequent APPLY module in the lesson and make sure the UNDERSTAND slides explicitly teach all the syntax, keywords, structures, libraries, and functions needed to solve that APPLY module's challenge. The student must never be asked to write code, call functions, or use keywords in APPLY that were not explicitly explained and demonstrated in these UNDERSTAND slides.
+- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges. Ensure the challenge only requires syntax, keywords, functions, and coding concepts that were explicitly taught and explained in the immediately preceding UNDERSTAND slides.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
     {{"previousTopic": "Name of previous topic (e.g. Değişken Tanımlama)", "currentTopic": "Name of current topic (e.g. Koşullu İfadeler)", "taskText": "Detailed connection coding challenge instructions asking the student to combine both topics."}}
