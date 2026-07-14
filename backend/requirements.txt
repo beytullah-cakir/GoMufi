@@ -19,3 +19,4 @@ email-validator
 pytz
 redis>=4.2.0
 websockets>=12.0
+pypdf

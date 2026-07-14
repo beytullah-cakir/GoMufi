@@ -22,6 +22,8 @@ import {
   Trash2,
   Download,
   Upload,
+  RefreshCw,
+  Settings,
 } from "lucide-react";
 import api from "../../api";
 
@@ -69,13 +71,373 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [aiTopic, setAiTopic] = useState("");
   const [aiDifficulty, setAiDifficulty] = useState("Beginner");
   const [aiLessonsCount, setAiLessonsCount] = useState(6);
+  const [autoLessonsCount, setAutoLessonsCount] = useState(true);
   const [aiAudience, setAiAudience] = useState("Hiç kodlama deneyimi olmayan öğrenciler.");
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [aiProgressStatus, setAiProgressStatus] = useState("");
   const [aiProgressPercent, setAiProgressPercent] = useState(0);
   const [aiLessons, setAiLessons] = useState<any[]>([]);
   const [currentLessonIndex, setCurrentLessonIndex] = useState<number>(-1);
+  const [aiStep, setAiStep] = useState<"form" | "topics_raw_edit" | "topics_edit" | "planning" | "generating">("form");
+  const [suggestedTopics, setSuggestedTopics] = useState<string[]>([]);
+  const [newTopicInput, setNewTopicInput] = useState<string>("");
+  interface SuggestedLesson {
+    lessonNumber: number;
+    title: string;
+    topics: string[];
+  }
+  const [suggestedLessons, setSuggestedLessons] = useState<SuggestedLesson[]>([]);
+  const [aiLessonDuration, setAiLessonDuration] = useState<number>(60);
+  const [isSuggestingParameters, setIsSuggestingParameters] = useState<boolean>(false);
+  const [hasDraftAIContent, setHasDraftAIContent] = useState(false);
+  const [isRegeneratingLessonIndex, setIsRegeneratingLessonIndex] = useState<number | null>(null);
+  const [isSuggestingTitleId, setIsSuggestingTitleId] = useState<string | number | null>(null);
+  const [isSuggestingLevelId, setIsSuggestingLevelId] = useState<string | number | null>(null);
+  const [isPlanningStructure, setIsPlanningStructure] = useState(false);
+  const [activeSuggestionsMenuId, setActiveSuggestionsMenuId] = useState<string | number | null>(null);
+  const [suggestedTitles, setSuggestedTitles] = useState<string[]>([]);
+  const [pdfFile, setPdfFile] = useState<File | null>(null);
+  const [pdfContent, setPdfContent] = useState<string>("");
   const roadmapScrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleCloseAIModal = () => {
+    setIsAIModalOpen(false);
+    setAiStep("form");
+  };
+
+  const handleUpdateModuleTopicField = (id: string | number, val: string) => {
+    setSections((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, aiModuleTopic: val } : s))
+    );
+  };
+
+  const handleRegenerateLessonLevels = async (targetLessonNumber: number, lessonTopic: string) => {
+    if (!lessonTopic.trim()) {
+      alert("Lütfen ders başlığı girin.");
+      return;
+    }
+    
+    setIsRegeneratingLessonIndex(targetLessonNumber);
+    try {
+      const response = await api.post("/courses/suggest_lesson_modules", {
+        lesson_title: lessonTopic,
+        course_topic: aiTopic,
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        pdf_content: pdfContent || null
+      });
+      
+      if (response.data?.success && response.data?.modules) {
+        const modules = response.data.modules;
+        const objective = response.data.objective;
+        
+        setSections((prevSections) => {
+          const startIndex = prevSections.findIndex(s => s.lessonNumber === targetLessonNumber);
+          if (startIndex === -1) return prevSections;
+          
+          let endIndex = startIndex + 1;
+          while (endIndex < prevSections.length && !prevSections[endIndex].lessonNumber) {
+            endIndex++;
+          }
+          
+          const newNodes = modules.map((m: any, j: number) => {
+            const isFirstModule = j === 0;
+            const theme = getThemeFromModuleType(m.type);
+            const levelId = `sec_ai_draft_${Date.now()}_${targetLessonNumber}_${j}_${Math.floor(Math.random() * 1000)}`;
+            const shortTitle = getShortTitle(m.topic) || `Ders ${targetLessonNumber}`;
+            
+            const node: any = {
+              id: levelId,
+              title: shortTitle,
+              theme: theme,
+              lectures: [],
+              isAIDraft: true,
+              aiModuleTopic: m.topic || "",
+              aiLessonObjective: objective || `Bu derste ${lessonTopic} konusu öğrenilecektir.`
+            };
+            
+            if (isFirstModule) {
+              node.lessonTopic = lessonTopic;
+              node.lessonNumber = targetLessonNumber;
+            }
+            return node;
+          });
+          
+          const updated = [...prevSections];
+          updated.splice(startIndex, endIndex - startIndex, ...newNodes);
+          return recalculateSectionsList(updated);
+        });
+        
+        // Also close edit panel in case active node was deleted/replaced
+        setActiveNodeId(null);
+      } else {
+        alert("Ders seviyeleri yeniden oluşturulamadı.");
+      }
+    } catch (error: any) {
+      console.error("Error regenerating lesson levels:", error);
+      alert(error.response?.data?.detail || "Ders seviyeleri yeniden oluşturulurken hata oluştu.");
+    } finally {
+      setIsRegeneratingLessonIndex(null);
+    }
+  };
+
+  const handleSuggestLessonTitle = async (sectionId: string | number, lessonNumber: number) => {
+    setActiveSuggestionsMenuId(sectionId);
+    setSuggestedTitles([]);
+    setIsSuggestingTitleId(sectionId);
+    try {
+      const existingLessons: string[] = [];
+      sections.forEach((s) => {
+        if (s.lessonTopic !== undefined) {
+          existingLessons.push(s.lessonTopic);
+        }
+      });
+
+      const response = await api.post("/courses/suggest_lesson_title", {
+        course_topic: aiTopic || course?.title || "Ders",
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        lesson_number: lessonNumber,
+        existing_lessons: existingLessons,
+        pdf_content: pdfContent || null
+      });
+
+      if (response.data?.success && response.data?.titles) {
+        setSuggestedTitles(response.data.titles);
+      }
+    } catch (error) {
+      console.error("Error suggesting lesson title:", error);
+    } finally {
+      setIsSuggestingTitleId(null);
+    }
+  };
+
+  const handleSelectSuggestedTitle = (sectionId: string | number, title: string) => {
+    handleUpdateLessonTopic(sectionId, title);
+    setActiveSuggestionsMenuId(null);
+  };
+
+  const handleSuggestLevelDetails = async (id: string | number, theme?: string) => {
+    const sectionIndex = sections.findIndex(s => s.id === id);
+    if (sectionIndex === -1) return;
+    const section = sections[sectionIndex];
+    
+    let lessonTitle = "";
+    for (let i = sectionIndex; i >= 0; i--) {
+      if (sections[i].lessonTopic !== undefined) {
+        lessonTitle = sections[i].lessonTopic || "";
+        break;
+      }
+    }
+    
+    const siblingModules: any[] = [];
+    let idx = sectionIndex;
+    while (idx >= 0) {
+      if (idx !== sectionIndex) {
+        siblingModules.push({
+          type: getModuleTypeFromTheme(sections[idx].theme),
+          topic: sections[idx].aiModuleTopic || sections[idx].title
+        });
+      }
+      if (sections[idx].lessonTopic !== undefined) break;
+      idx--;
+    }
+    idx = sectionIndex + 1;
+    while (idx < sections.length && sections[idx].lessonTopic === undefined) {
+      siblingModules.push({
+        type: getModuleTypeFromTheme(sections[idx].theme),
+        topic: sections[idx].aiModuleTopic || sections[idx].title
+      });
+      idx++;
+    }
+
+    setIsSuggestingLevelId(id);
+    try {
+      const response = await api.post("/courses/suggest_level_details", {
+        course_topic: aiTopic || course?.title || "Ders",
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        lesson_title: lessonTitle || "Giriş",
+        module_type: getModuleTypeFromTheme(theme),
+        sibling_modules: siblingModules,
+        pdf_content: pdfContent || null
+      });
+
+      if (response.data?.success) {
+        const { title, topic } = response.data;
+        setSections((prev) =>
+          prev.map((s) => (s.id === id ? { ...s, title: title, aiModuleTopic: topic } : s))
+        );
+      }
+    } catch (error) {
+      console.error("Error suggesting level details:", error);
+    } finally {
+      setIsSuggestingLevelId(null);
+    }
+  };
+
+  const getModuleTypeFromTheme = (theme?: string) => {
+    if (!theme) return "UNDERSTAND";
+    const t = theme.toLowerCase();
+    if (t === "purple") return "UNDERSTAND";
+    if (t === "cyan") return "APPLY";
+    if (t === "green") return "CONNECT";
+    if (t === "yellow") return "CREATE";
+    if (t === "quiz") return "QUIZ";
+    if (t === "homework") return "HOMEWORK";
+    return "UNDERSTAND";
+  };
+
+  const handleCancelDraft = async () => {
+    if (window.confirm("AI Ders Taslağını iptal etmek istiyor musunuz? Yol haritası eski haline dönecektir.")) {
+      setHasDraftAIContent(false);
+      setIsLoading(true);
+      try {
+        const response = await api.get(`/courses/${courseId}`);
+        setCourse(response.data);
+        setAiTopic(response.data.title || "");
+        setNotes(response.data.notes || []);
+        
+        const rawCurriculum = response.data?.curriculum || [];
+        const pattern = ["purple", "cyan", "green", "yellow"];
+        const actualSections = rawCurriculum
+          .filter((item: any) => item.type !== "live_sessions_config")
+          .map((item: any, idx: number) => {
+            if (!item.theme) {
+              return { ...item, theme: pattern[idx % pattern.length] };
+            }
+            return item;
+          });
+        const configItem = rawCurriculum.find(
+          (item: any) => item.type === "live_sessions_config"
+        );
+        
+        if (actualSections.length > 0 && !actualSections[0].lessonTopic) {
+          actualSections[0].lessonTopic = response.data.title || "Giriş Konusu";
+          actualSections[0].lessonNumber = 1;
+        }
+        
+        setSections(actualSections);
+        setLiveSessionsConfig(configItem || null);
+      } catch (error) {
+        console.error("Error reverting draft:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const handleStartGeneratingSlidesFromDraft = async () => {
+    const chapters = getChaptersFromSections(sections);
+    if (chapters.length === 0) {
+      alert("Haritada ders bulunamadı.");
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    setAiProgressStatus("Ders slaytları ve içerikleri üretiliyor...");
+    setAiProgressPercent(5);
+    setCurrentLessonIndex(0);
+
+    const allNotes: any[] = [];
+    let overallIdx = 1;
+
+    try {
+      for (let i = 0; i < chapters.length; i++) {
+        setCurrentLessonIndex(i);
+        const chapter = chapters[i];
+
+        const firstNodeId = chapter.levels[0]?.id;
+        const firstNodeIndex = sections.findIndex(s => s.id === firstNodeId);
+        if (firstNodeIndex !== -1) {
+          scrollActiveNodeIntoView(firstNodeIndex);
+        }
+
+        // Show spinner on current chapter nodes
+        setSections((prev) =>
+          prev.map((s) =>
+            chapter.levels.some((cl) => cl.id === s.id)
+              ? { ...s, isAILoading: true }
+              : s
+          )
+        );
+
+        setAiProgressStatus(`Ders ${i + 1}/${chapters.length}: "${chapter.topic}" Slaytları Dolduruluyor...`);
+        setAiProgressPercent(Math.round(15 + (i / chapters.length) * 75));
+
+        const modules = chapter.levels.map((lvl) => ({
+          type: getModuleTypeFromTheme(lvl.theme),
+          topic: lvl.title
+        }));
+
+        const objective = chapter.levels[0]?.aiLessonObjective || `Bu derste ${chapter.topic} konusu öğrenilecektir.`;
+
+        const lessonRes = await api.post("/courses/generate_lesson_slides", {
+          topic: aiTopic || course?.title || "Ders",
+          difficulty: aiDifficulty,
+          audience: aiAudience,
+          lesson_number: chapter.number,
+          lesson_title: chapter.topic,
+          lesson_objective: objective,
+          modules: modules,
+          pdf_content: pdfContent || null
+        });
+
+        if (lessonRes.data?.success) {
+          const returnedModules = lessonRes.data.modules || [];
+          const returnedNotes = lessonRes.data.notes || [];
+
+          returnedModules.forEach((node: any) => {
+            node.title = `Ders ${overallIdx}`;
+            overallIdx++;
+            delete node.isAIDraft;
+            delete node.isAILoading;
+          });
+
+          returnedNotes.forEach((note: any) => {
+            const matchedNode = returnedModules.find((nm: any) => nm.id === note.id);
+            if (matchedNode) {
+              note.noteTitle = matchedNode.title;
+            }
+          });
+
+          allNotes.push(...returnedNotes);
+
+          setSections((prevSections) => {
+            const updated = [...prevSections];
+            const chapterLevelIds = chapter.levels.map((l) => l.id);
+            const firstPlaceholderIdx = updated.findIndex((s) => chapterLevelIds.includes(s.id));
+            if (firstPlaceholderIdx !== -1) {
+              updated.splice(firstPlaceholderIdx, chapter.levels.length, ...returnedModules);
+            }
+            return recalculateSectionsList(updated);
+          });
+        }
+      }
+
+      setCurrentLessonIndex(chapters.length);
+      setAiProgressStatus("Yol Haritası Görselleştiriliyor...");
+      setAiProgressPercent(95);
+
+      setNotes(allNotes);
+      setHasDraftAIContent(false);
+
+      setAiProgressStatus("Tamamlandı!");
+      setAiProgressPercent(100);
+
+      setTimeout(() => {
+        alert("AI başarıyla yol haritasını ve tüm ders slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
+      }, 300);
+
+    } catch (error: any) {
+      console.error("AI Generation error:", error);
+      alert(error.response?.data?.detail || "AI ders slaytlarını üretirken hata oluştu.");
+    } finally {
+      setIsGeneratingAI(false);
+      setSections((prev) => prev.map((s) => ({ ...s, isAILoading: false })));
+      setCurrentLessonIndex(-1);
+    }
+  };
 
 
   const getThemeFromModuleType = (type: string) => {
@@ -168,26 +530,159 @@ const InstructorRoadmapBuilder: React.FC = () => {
     reader.readAsText(file);
   };
 
-  const handleGenerateAI = async () => {
+  const getShortTitle = (fullText: string) => {
+    if (!fullText) return "";
+    const parts = fullText.split(/[?:-]/);
+    const firstPart = parts[0].trim();
+    if (firstPart.length > 25) {
+      return firstPart.substring(0, 22) + "...";
+    }
+    return firstPart;
+  };
+
+  const handleEditLessonTitle = (lIdx: number, title: string) => {
+    setSuggestedLessons(prev => prev.map((l, idx) => idx === lIdx ? { ...l, title } : l));
+  };
+
+  const handleDeleteLesson = (lIdx: number) => {
+    setSuggestedLessons(prev => prev.filter((_, idx) => idx !== lIdx).map((l, idx) => ({ ...l, lessonNumber: idx + 1 })));
+  };
+
+  const handleAddLesson = () => {
+    setSuggestedLessons(prev => [
+      ...prev,
+      {
+        lessonNumber: prev.length + 1,
+        title: `Ders ${prev.length + 1}`,
+        topics: ["Yeni Konu Başlığı"]
+      }
+    ]);
+  };
+
+  const handleEditTopicTitle = (lIdx: number, tIdx: number, topicVal: string) => {
+    setSuggestedLessons(prev => prev.map((l, idx) => {
+      if (idx !== lIdx) return l;
+      const updatedTopics = l.topics.map((t, tIdx2) => tIdx2 === tIdx ? topicVal : t);
+      return { ...l, topics: updatedTopics };
+    }));
+  };
+
+  const handleDeleteTopic = (lIdx: number, tIdx: number) => {
+    setSuggestedLessons(prev => prev.map((l, idx) => {
+      if (idx !== lIdx) return l;
+      return { ...l, topics: l.topics.filter((_, tIdx2) => tIdx2 !== tIdx) };
+    }));
+  };
+
+  const handleAddTopic = (lIdx: number) => {
+    setSuggestedLessons(prev => prev.map((l, idx) => {
+      if (idx !== lIdx) return l;
+      return { ...l, topics: [...l.topics, "Yeni Konu Başlığı"] };
+    }));
+  };
+
+  const [isDistributingTopics, setIsDistributingTopics] = useState<boolean>(false);
+
+  const handleSuggestRawTopics = async () => {
     if (!aiTopic.trim()) {
       alert("Lütfen bir ders konusu girin.");
       return;
     }
+    setIsSuggestingParameters(true);
+    setPdfContent(""); // Clear previous PDF text
+    try {
+      const formData = new FormData();
+      formData.append("topic", aiTopic);
+      formData.append("difficulty", aiDifficulty);
+      formData.append("audience", aiAudience);
+      if (pdfFile) {
+        formData.append("pdf_file", pdfFile);
+      }
 
-    setIsAIModalOpen(false); // Close modal immediately so the user sees the main canvas builder
-    setIsGeneratingAI(true);
-    setAiProgressStatus("AI ile Yol Haritası Planlanıyor...");
-    setAiProgressPercent(5);
-    setAiLessons([]);
-    setCurrentLessonIndex(-1);
+      const response = await api.post("/courses/suggest_raw_topics", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+
+      if (response.data?.success) {
+        setSuggestedTopics(response.data.suggested_topics || []);
+        if (response.data.pdf_text) {
+          setPdfContent(response.data.pdf_text);
+        }
+        setAiStep("topics_raw_edit");
+      } else {
+        alert("Konu önerileri alınamadı.");
+      }
+    } catch (error: any) {
+      console.error("Error suggesting raw topics:", error);
+      alert(error.response?.data?.detail || "Konu önerileri alınırken hata oluştu.");
+    } finally {
+      setIsSuggestingParameters(false);
+    }
+  };
+
+  const handleDistributeTopics = async (customTopicsList?: string[], customCount?: number) => {
+    const listToDistribute = customTopicsList || suggestedTopics;
+    if (listToDistribute.length === 0) {
+      alert("Lütfen en az bir konu başlığı ekleyin.");
+      return;
+    }
+    
+    setIsDistributingTopics(true);
+    const targetCount = customCount !== undefined ? customCount : (autoLessonsCount ? 0 : aiLessonsCount);
     
     try {
-      // Step 1: Generate Roadmap Structure
+      const response = await api.post("/courses/distribute_topics_into_lessons", {
+        topics: listToDistribute,
+        lesson_duration: aiLessonDuration,
+        lessons_count: targetCount
+      });
+
+      if (response.data?.success) {
+        const lessons = response.data.suggested_lessons || [];
+        const formatted = lessons.map((l: any) => ({
+          lessonNumber: l.lesson_number,
+          title: l.title,
+          topics: l.topics || []
+        }));
+        setSuggestedLessons(formatted);
+        setAiLessonsCount(response.data.suggested_lessons_count || 6);
+        setAiStep("topics_edit");
+      } else {
+        alert("Konular derslere bölüştürülemedi.");
+      }
+    } catch (error: any) {
+      console.error("Error distributing topics:", error);
+      alert(error.response?.data?.detail || "Konular derslere bölüştürülürken hata oluştu.");
+    } finally {
+      setIsDistributingTopics(false);
+    }
+  };
+
+  const handleSuggestRoadmap = async () => {
+    if (!aiTopic.trim()) {
+      alert("Lütfen bir ders konusu girin.");
+      return;
+    }
+    
+    setIsAIModalOpen(false);
+    setIsPlanningStructure(true);
+    setAiLessons([]);
+    
+    try {
+      const payloadLessons = suggestedLessons.map((l) => ({
+        title: l.title,
+        topics: l.topics
+      }));
+
       const response = await api.post("/courses/generate_roadmap_structure", {
         topic: aiTopic,
         difficulty: aiDifficulty,
-        lessons_count: aiLessonsCount,
-        audience: aiAudience
+        lessons_count: autoLessonsCount ? 0 : aiLessonsCount,
+        audience: aiAudience,
+        pdf_content: pdfContent || null,
+        custom_lessons: payloadLessons.length > 0 ? payloadLessons : null
       });
       
       if (response.data?.success && response.data?.roadmap) {
@@ -196,14 +691,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
         
         if (lessons.length === 0) {
           alert("Ders planı oluşturulamadı.");
-          setIsGeneratingAI(false);
           return;
         }
         
-        setAiLessons(lessons);
-        setCurrentLessonIndex(0);
-        
-        // Build the temporary placeholder sections list to show visual nodes immediately!
+        // Build the temporary draft sections list to show visual draft nodes immediately on the canvas!
         const tempSections: any[] = [];
         let tempLessonNum = 1;
         lessons.forEach((lesson: any, i: number) => {
@@ -211,117 +702,39 @@ const InstructorRoadmapBuilder: React.FC = () => {
           modules.forEach((m: any, j: number) => {
             const isFirstModule = j === 0;
             const theme = getThemeFromModuleType(m.type);
+            const levelId = `sec_ai_draft_${Date.now()}_${i}_${j}_${Math.floor(Math.random() * 1000)}`;
+            const shortTitle = getShortTitle(m.topic) || `Ders ${tempLessonNum}`;
             
-            const tempSec: any = {
-              id: `temp_sec_${i}_${j}`,
-              title: m.topic || `Ders ${tempLessonNum}`,
+            const node: any = {
+              id: levelId,
+              title: shortTitle,
               theme: theme,
-              isAILoading: true, // Custom visual loading indicator flag
-              aiLessonIndex: i,
-              aiModuleIndex: j
+              lectures: [],
+              isAIDraft: true, // Mark as draft
+              aiModuleTopic: m.topic || "", // Store full detailed suggestion here
+              aiLessonObjective: lesson.objective || `Bu derste ${lesson.title} konusu öğrenilecektir.`
             };
             
             if (isFirstModule) {
-              tempSec.lessonTopic = lesson.title;
-              tempSec.lessonNumber = tempLessonNum;
+              node.lessonTopic = lesson.title;
+              node.lessonNumber = tempLessonNum;
               tempLessonNum++;
             }
-            tempSections.push(tempSec);
+            tempSections.push(node);
           });
         });
         
         setSections(recalculateSectionsList(tempSections));
-        setAiProgressStatus("Yol haritası başarıyla planlandı. Slaytlar dolduruluyor...");
-        setAiProgressPercent(15);
-        
-        const allModules: any[] = [];
-        const allNotes: any[] = [];
-        let overallIdx = 1;
-        
-        // Step 2: Loop and generate slide content for each lesson
-        for (let i = 0; i < lessons.length; i++) {
-          setCurrentLessonIndex(i);
-          
-          // Scroll the roadmap canvas dynamically to center the active node!
-          // Find approximate index of the first node of this lesson
-          const firstNodeIndex = tempSections.findIndex(s => s.id === `temp_sec_${i}_0`);
-          if (firstNodeIndex !== -1) {
-            scrollActiveNodeIntoView(firstNodeIndex);
-          }
-          
-          const lesson = lessons[i];
-          setAiProgressStatus(`Ders ${i + 1}/${lessons.length}: "${lesson.title}" Slaytları Dolduruluyor...`);
-          setAiProgressPercent(Math.round(15 + (i / lessons.length) * 75));
-          
-          const lessonRes = await api.post("/courses/generate_lesson_slides", {
-            topic: aiTopic,
-            difficulty: aiDifficulty,
-            audience: aiAudience,
-            lesson_number: lesson.lessonNumber || (i + 1),
-            lesson_title: lesson.title,
-            lesson_objective: lesson.objective || "",
-            modules: lesson.modules || []
-          });
-          
-          if (lessonRes.data?.success) {
-            const returnedModules = lessonRes.data.modules || [];
-            const returnedNotes = lessonRes.data.notes || [];
-            
-            returnedModules.forEach((node: any) => {
-              node.title = `Ders ${overallIdx}`;
-              overallIdx++;
-            });
-            
-            returnedNotes.forEach((note: any) => {
-              const matchedNode = returnedModules.find((nm: any) => nm.id === note.id);
-              if (matchedNode) {
-                note.noteTitle = matchedNode.title;
-              }
-            });
-            
-            allModules.push(...returnedModules);
-            allNotes.push(...returnedNotes);
-            
-            // Replace the placeholders for this lesson with the real generated modules in sections state!
-            setSections((prevSections) => {
-              const updated = [...prevSections];
-              const firstPlaceholderIdx = updated.findIndex(s => s.id === `temp_sec_${i}_0`);
-              if (firstPlaceholderIdx !== -1) {
-                const placeholderCount = lesson.modules.length;
-                updated.splice(firstPlaceholderIdx, placeholderCount, ...returnedModules);
-              }
-              return recalculateSectionsList(updated);
-            });
-          }
-        }
-        
-        setCurrentLessonIndex(lessons.length);
-        setAiProgressStatus("Yol Haritası Görselleştiriliyor...");
-        setAiProgressPercent(95);
-        
-        const finalSections = recalculateSectionsList(allModules);
-        setSections(finalSections);
-        setNotes(allNotes);
-        
-        setAiProgressStatus("Tamamlandı!");
-        setAiProgressPercent(100);
-        
-        setTimeout(() => {
-          alert("AI başarıyla yol haritasını ve tüm ders slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
-        }, 300);
-        
+        setHasDraftAIContent(true);
       } else {
-        alert("Yol haritası üretilemedi.");
+        alert("Ders planı önerilemedi.");
       }
     } catch (error: any) {
-      console.error("AI Generation error:", error);
-      alert(error.response?.data?.detail || "AI yol haritası üretirken hata oluştu.");
+      console.error("AI Roadmap Structure Generation error:", error);
+      alert(error.response?.data?.detail || "AI ders planı önerirken hata oluştu.");
     } finally {
-      setIsGeneratingAI(false);
-      setTimeout(() => {
-        setAiLessons([]);
-        setCurrentLessonIndex(-1);
-      }, 500);
+      setIsPlanningStructure(false);
+      setAiStep("form"); // Reset modal step
     }
   };
 
@@ -402,10 +815,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
       let updatedTopic = s.lessonTopic;
       let updatedNum = s.lessonNumber;
 
-      if (idx === 0 && !s.lessonTopic) {
+      if (idx === 0 && s.lessonTopic === undefined) {
         updatedTopic = course?.title || "Giriş Konusu";
         updatedNum = lessonNum++;
-      } else if (s.lessonTopic) {
+      } else if (s.lessonTopic !== undefined) {
         updatedNum = lessonNum++;
       }
 
@@ -958,7 +1371,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
             return (
               <React.Fragment key={section.id}>
                 {/* STARTING/CUSTOM LESSON HEADER DIVIDER CARD */}
-                {section.lessonTopic && (
+                {section.lessonTopic !== undefined && (
                   <div className="w-48 h-64 -mx-4 relative z-10 flex items-center justify-center">
                     {/* Vertical Dashed Line */}
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[2px] bg-gray-300 border-l-2 border-dashed border-gray-300 h-96 -z-10 opacity-50" />
@@ -988,6 +1401,47 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           : ""
                       }`}
                     >
+                      {/* Title Suggestions Popover Menu */}
+                      {activeSuggestionsMenuId === section.id && (
+                        <div
+                          className="absolute bottom-full mb-3 bg-slate-900 border-2 border-indigo-500 rounded-2xl shadow-2xl p-3.5 flex flex-col gap-1.5 w-60 z-50 animate-in fade-in slide-in-from-bottom-2 duration-150 text-left"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest pb-1.5 border-b border-slate-800 mb-1 flex items-center justify-between">
+                            <span>DERS BAŞLIĞI SEÇİN</span>
+                            <button
+                              onClick={() => setActiveSuggestionsMenuId(null)}
+                              className="text-slate-500 hover:text-slate-350 transition-colors"
+                            >
+                              <X size={10} />
+                            </button>
+                          </span>
+
+                          {isSuggestingTitleId === section.id ? (
+                            <div className="flex flex-col items-center justify-center py-6 gap-2 text-slate-400">
+                              <div className="w-5 h-5 rounded-full border-2 border-indigo-500/20 border-t-indigo-500 animate-spin"></div>
+                              <span className="text-[9px] font-bold uppercase tracking-wider text-slate-450">Konular Hazırlanıyor...</span>
+                            </div>
+                          ) : suggestedTitles.length === 0 ? (
+                            <span className="text-[10px] font-bold text-slate-450 text-center py-2">Öneri bulunamadı.</span>
+                          ) : (
+                            <div className="flex flex-col gap-1 max-h-48 overflow-y-auto custom-scrollbar">
+                              {suggestedTitles.map((title, tIdx) => (
+                                <button
+                                  key={tIdx}
+                                  onClick={() => handleSelectSuggestedTitle(section.id, title)}
+                                  className="w-full text-left px-3 py-2 text-[11px] font-bold text-slate-200 hover:bg-slate-800 hover:text-white rounded-xl transition-all border border-transparent hover:border-slate-700/60 leading-normal"
+                                >
+                                  {title}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Arrow Tail pointing down */}
+                          <div className="absolute top-full left-1/2 -translate-x-1/2 w-3.5 h-3.5 rotate-45 bg-slate-900 border-b-2 border-r-2 border-indigo-500 -mt-1.5"></div>
+                        </div>
+                      )}
                       {/* Delete Divider Button on Hover */}
                       {index > 0 && (
                         <button
@@ -1008,7 +1462,9 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           ? "border-indigo-500 ring-4 ring-indigo-100 shadow-2xl"
                           : "border-indigo-100"
                       }`}>
-                        <span className="text-[10px] font-black text-gray-400 tracking-[0.2em] uppercase mb-1 shrink-0">DERS {section.lessonNumber || 1}</span>
+                        <span className="text-[10px] font-black text-gray-400 tracking-[0.2em] uppercase mb-1 shrink-0">
+                          DERS {section.lessonNumber || 1}
+                        </span>
                         <textarea
                           rows={2}
                           value={section.lessonTopic}
@@ -1018,13 +1474,52 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           onChange={(e) => handleUpdateLessonTopic(section.id, e.target.value)}
                           className="text-sm font-black font-display tracking-tight text-gray-800 text-center bg-transparent focus:outline-none w-full resize-none leading-tight py-0.5 border-b border-transparent hover:border-gray-200 focus:border-indigo-500"
                         />
+                        {hasDraftAIContent && (
+                          <div className="flex flex-col gap-1.5 mt-2.5 pt-2.5 border-t border-gray-100 w-full shrink-0 animate-in fade-in slide-in-from-top-1 duration-150">
+                            {/* Title Suggestion */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSuggestLessonTitle(section.id, section.lessonNumber || 1);
+                              }}
+                              disabled={isSuggestingTitleId === section.id}
+                              className="w-full py-1 px-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 border border-indigo-100/60 text-indigo-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] shrink-0"
+                            >
+                              {isSuggestingTitleId === section.id ? (
+                                <div className="w-3 h-3 rounded-full border-2 border-indigo-500/25 border-t-indigo-650 animate-spin"></div>
+                              ) : (
+                                <Sparkles size={11} />
+                              )}
+                              <span className="text-[9px] font-black tracking-wide uppercase">Başlık Öner</span>
+                            </button>
+
+                            {/* Levels Suggestion */}
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRegenerateLessonLevels(section.lessonNumber, section.lessonTopic);
+                              }}
+                              disabled={isRegeneratingLessonIndex === section.lessonNumber}
+                              className="w-full py-1 px-2 rounded-lg bg-purple-50 hover:bg-purple-100 border border-purple-100/60 text-purple-750 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5 active:scale-[0.98] shrink-0"
+                            >
+                              {isRegeneratingLessonIndex === section.lessonNumber ? (
+                                <div className="w-3 h-3 rounded-full border-2 border-purple-500/25 border-t-purple-650 animate-spin"></div>
+                              ) : (
+                                <RefreshCw size={10} />
+                              )}
+                              <span className="text-[9px] font-black tracking-wide uppercase">Konuları Yenile</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                 )}
 
                 {/* Connector line from Divider to Level Node (only when lessonTopic is set) */}
-                {section.lessonTopic && (
+                {section.lessonTopic !== undefined && (
                   <div className={`w-40 h-20 -mx-4 relative flex items-center justify-center ${
                     activePlusMenuId === `div_${section.id}` ? 'z-50' : 'z-0'
                   }`}>
@@ -1166,7 +1661,9 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                         {/* Title Editable Input */}
                         <div className="relative z-10 flex flex-col w-full">
-                          <label className="text-white/85 text-[10px] font-black tracking-widest uppercase mb-1">DERS BAŞLIĞI</label>
+                          <label className="text-white/85 text-[10px] font-black tracking-widest uppercase mb-1">
+                            {section.isAIDraft ? "KISA DERS BAŞLIĞI" : "DERS BAŞLIĞI"}
+                          </label>
                           <input
                             type="text"
                             value={section.title}
@@ -1177,6 +1674,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                             className="bg-white/20 text-white font-black text-sm px-3 py-2 rounded-xl focus:outline-none focus:bg-white/30 border border-white/10 placeholder-white/50 w-full"
                           />
                         </div>
+
+
 
                         {/* Level Type Selector */}
                         <div className="relative z-10 flex flex-col w-full">
@@ -1229,6 +1728,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   {/* Button Sprite background */}
                   <img src={metadata.button} alt="Button Sprite" className={`w-36 relative z-10 transition-all duration-200 ${
                     section.isAILoading ? "opacity-20 blur-[1px] animate-pulse" : ""
+                  } ${
+                    section.isAIDraft ? "opacity-60 saturate-[0.6]" : ""
                   } ${
                     dragOverItem?.type === "level" && dragOverItem.index === index
                       ? "filter drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]"
@@ -1289,6 +1790,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       >
                         {section.title}
                       </span>
+                      {section.isAIDraft && (
+                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-250 px-1.5 py-0.5 rounded-full mt-1.5 tracking-wider uppercase shrink-0">
+                          TASLAK
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -1296,19 +1802,25 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   <div className="absolute top-[110%] left-1/2 -translate-x-1/2 w-48 text-center z-30 flex flex-col items-center">
                     {/* Play/Edit Content Button slides down under the node when clicked - mt-12 pushes it below LEVEL label */}
                     {activeNodeId === section.id && (
-                      <button
-                        onClick={async (e) => {
-                          e.stopPropagation();
-                          setIsSaving(true);
-                          await handleSaveCurriculumOnly();
-                          setIsSaving(false);
-                          navigate(`/instructor/builder?courseId=${courseId}&noteId=${section.id}&category=${getCategoryFromTheme(section.theme, index)}`);
-                        }}
-                        className="flex items-center gap-1.5 px-4 py-2 mt-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg border-b-[3px] border-black/10 active:border-b-0 active:translate-y-[3px] transition-all animate-in slide-in-from-top-2 duration-200"
-                      >
-                        <Play size={12} fill="currentColor" />
-                        <span>İçeriği Düzenle</span>
-                      </button>
+                      section.isAIDraft ? (
+                        <div className="mt-16 px-4 py-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg border-b-[3px] border-black/10 transition-all select-none">
+                          Taslak Ders Seviyesi
+                        </div>
+                      ) : (
+                        <button
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            setIsSaving(true);
+                            await handleSaveCurriculumOnly();
+                            setIsSaving(false);
+                            navigate(`/instructor/builder?courseId=${courseId}&noteId=${section.id}&category=${getCategoryFromTheme(section.theme, index)}`);
+                          }}
+                          className="flex items-center gap-1.5 px-4 py-2 mt-12 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-650 hover:to-teal-650 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg border-b-[3px] border-black/10 active:border-b-0 active:translate-y-[3px] transition-all animate-in slide-in-from-top-2 duration-200"
+                        >
+                          <Play size={12} fill="currentColor" />
+                          <span>İçeriği Düzenle</span>
+                        </button>
+                      )
                     )}
                   </div>
                 </div>
@@ -1336,7 +1848,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                     <path
                       d={
-                        sections[index + 1]?.lessonTopic
+                        sections[index + 1]?.lessonTopic !== undefined
                           ? (curve === "up" ? "M0 65 Q 60 70 120 45" : "M0 45 Q 60 20 120 45")
                           : (curve === "up" ? "M0 65 Q 60 0 120 45" : "M0 45 Q 60 110 120 65")
                       }
@@ -1465,7 +1977,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       {/* AI ROADMAP GENERATOR MODAL */}
       {isAIModalOpen && (
         <div className="fixed inset-0 z-[200] bg-black/60 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200" onMouseDown={(e) => e.stopPropagation()}>
-          <div className={`bg-white rounded-3xl shadow-2xl w-full ${isGeneratingAI ? 'max-w-2xl' : 'max-w-lg'} overflow-hidden transition-all duration-300 animate-in zoom-in-95 duration-200`}>
+          <div className={`bg-white rounded-3xl shadow-2xl w-full ${aiStep === 'topics_edit' ? 'max-w-5xl h-[85vh] flex flex-col' : (aiStep === 'planning' || aiStep === 'generating') ? 'max-w-2xl' : 'max-w-lg'} overflow-hidden transition-all duration-300 animate-in zoom-in-95 duration-200`}>
             {/* Header */}
             <div className="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 border-b border-indigo-700 flex items-center justify-between text-white">
               <div className="flex items-center gap-2.5">
@@ -1473,14 +1985,29 @@ const InstructorRoadmapBuilder: React.FC = () => {
                 <h3 className="text-lg font-black tracking-wide font-display">AI ile Yol Haritası Oluştur</h3>
               </div>
               <button
-                onClick={() => setIsAIModalOpen(false)}
+                onClick={handleCloseAIModal}
                 className="p-1.5 hover:bg-white/10 rounded-full text-white/80 hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {isGeneratingAI ? (
+            {aiStep === "planning" && (
+              <div className="p-8 flex flex-col items-center justify-center text-center gap-6 min-h-[360px] animate-in fade-in duration-300">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-purple-600/20 border-2 border-purple-500 flex items-center justify-center animate-ping absolute inset-0"></div>
+                  <div className="w-16 h-16 rounded-full bg-indigo-600 border border-indigo-500 flex items-center justify-center relative z-10 shadow-lg">
+                    <Sparkles className="w-8 h-8 text-white animate-spin duration-[4000ms]" />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-black text-indigo-600 uppercase tracking-widest animate-pulse">Müfredat Planlanıyor</span>
+                  <span className="text-sm text-gray-550 font-bold">Yapay zeka ders konularını ve modülleri tasarlıyor, lütfen bekleyin...</span>
+                </div>
+              </div>
+            )}
+
+            {aiStep === "generating" && (
               <div className="p-8 flex flex-col items-center justify-center text-center gap-6 min-h-[420px] animate-in fade-in duration-300">
                 {/* Visual Roadmap Section */}
                 <div className="w-full bg-slate-950 border border-slate-900 rounded-2xl p-6 relative overflow-hidden min-h-[180px] flex flex-col justify-center items-center shadow-inner">
@@ -1490,7 +2017,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   {aiLessons.length === 0 ? (
                     <div className="relative z-10 flex flex-col items-center gap-4 animate-pulse">
                       <div className="relative">
-                        <div className="w-16 h-16 rounded-full bg-purple-600/20 border-2 border-purple-500 flex items-center justify-center animate-ping absolute inset-0"></div>
+                        <div className="w-16 h-16 rounded-full bg-purple-650/20 border-2 border-purple-500 flex items-center justify-center animate-ping absolute inset-0"></div>
                         <div className="w-16 h-16 rounded-full bg-indigo-600 border border-indigo-500 flex items-center justify-center relative z-10 shadow-lg">
                           <Sparkles className="w-8 h-8 text-white animate-spin duration-[4000ms]" />
                         </div>
@@ -1607,7 +2134,9 @@ const InstructorRoadmapBuilder: React.FC = () => {
                 </div>
                 <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">% {aiProgressPercent} Tamamlandı</span>
               </div>
-            ) : (
+            )}
+
+            {aiStep === "form" && (
               <>
                 {/* Body */}
                 <div className="p-6 flex flex-col gap-4 text-left">
@@ -1628,7 +2157,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       <select
                         value={aiDifficulty}
                         onChange={(e) => setAiDifficulty(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-850 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-855 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
                       >
                         <option value="Beginner">Başlangıç</option>
                         <option value="Intermediate">Orta</option>
@@ -1637,20 +2166,19 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5 flex justify-between">
-                        <span>Tahmini Ders Sayısı</span>
-                        <span className="text-indigo-600 font-black">{aiLessonsCount}</span>
-                      </label>
-                      <div className="flex items-center gap-3 h-[48px]">
-                        <input
-                          type="range"
-                          min="2"
-                          max="20"
-                          value={aiLessonsCount}
-                          onChange={(e) => setAiLessonsCount(parseInt(e.target.value))}
-                          className="flex-1 h-1.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-550"
-                        />
-                      </div>
+                      <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ders Süresi (Dakika)</label>
+                      <select
+                        value={aiLessonDuration}
+                        onChange={(e) => setAiLessonDuration(parseInt(e.target.value))}
+                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl font-medium text-gray-855 focus:outline-none focus:border-indigo-500 focus:bg-white transition-all text-sm"
+                      >
+                        <option value="30">30 Dakika</option>
+                        <option value="40">40 Dakika</option>
+                        <option value="45">45 Dakika</option>
+                        <option value="60">60 Dakika (1 Saat)</option>
+                        <option value="90">90 Dakika</option>
+                        <option value="120">120 Dakika (2 Saat)</option>
+                      </select>
                     </div>
                   </div>
 
@@ -1663,27 +2191,558 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       placeholder="örn: Daha önce programlama yapmamış ilkokul öğrencileri."
                     />
                   </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-1.5">Ders Kaynağı Yükle (PDF) (İsteğe Bağlı)</label>
+                    <div className="flex items-center gap-3">
+                      <label className="cursor-pointer flex items-center justify-center gap-2 px-4 py-3 bg-gray-50 hover:bg-gray-100 border-2 border-dashed border-gray-200 hover:border-indigo-400 rounded-xl transition-all w-full text-xs font-bold text-gray-550 hover:text-indigo-650">
+                        <Upload className="w-4 h-4 shrink-0" />
+                        <span className="truncate">{pdfFile ? pdfFile.name : "PDF Dosyası Seç (Kitap, Ders Notu vb.)"}</span>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) setPdfFile(file);
+                          }}
+                          className="hidden"
+                        />
+                      </label>
+                      {pdfFile && (
+                        <button
+                          type="button"
+                          onClick={() => setPdfFile(null)}
+                          className="p-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-500 rounded-xl transition-all flex items-center justify-center shrink-0"
+                          title="Dosyayı Kaldır"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Footer */}
                 <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-3">
                   <button
-                    onClick={() => setIsAIModalOpen(false)}
-                    className="px-4 py-2 border-2 border-gray-250 text-gray-505 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                    onClick={handleCloseAIModal}
+                    className="px-4 py-2 border-2 border-gray-250 text-gray-550 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
                   >
                     Vazgeç
                   </button>
                   <button
-                    onClick={handleGenerateAI}
-                    disabled={isGeneratingAI}
+                    onClick={handleSuggestRawTopics}
+                    disabled={isSuggestingParameters}
                     className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2 disabled:opacity-50"
                   >
-                    <Sparkles className="w-4 h-4" />
-                    <span>Yol Haritası Oluştur</span>
+                    {isSuggestingParameters ? (
+                      <>
+                        <div className="w-3.5 h-3.5 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                        <span>Konular Öneriliyor...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4" />
+                        <span>Müfredat Konularını Öner</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </>
             )}
+
+            {aiStep === "topics_raw_edit" && (
+              <>
+                {/* Body */}
+                <div className="p-6 flex flex-col gap-5 text-left max-h-[480px] overflow-y-auto custom-scrollbar bg-slate-50/50">
+                  <div className="flex flex-col gap-1 border-b border-gray-100 pb-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-xs font-black text-purple-655 uppercase tracking-widest flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-purple-550 animate-pulse" />
+                        Müfredat Konu Önerileri (Adım 1/2)
+                      </h3>
+                      <span className="text-[10px] font-black bg-purple-50 text-purple-600 border border-purple-100 px-2.5 py-0.5 rounded-full">
+                        {suggestedTopics.length} Konu Başlığı
+                      </span>
+                    </div>
+                    <p className="text-[11px] font-bold text-gray-500 leading-normal">
+                      Kursunuzda işlemek istediğiniz temel konu başlıklarını aşağıdan düzenleyin. Bir sonraki adımda bu konular ders sürelerinize göre otomatik olarak derslere dağıtılacaktır.
+                    </p>
+                  </div>
+
+                  {/* Suggested Topics List */}
+                  <div className="flex flex-col gap-2">
+                    {suggestedTopics.map((topic, tIdx) => (
+                      <div key={tIdx} className="flex items-center gap-2">
+                        <span className="w-6 h-6 rounded-full bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 text-[10px] font-black border border-purple-100">
+                          {tIdx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={topic}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setSuggestedTopics((prev) =>
+                              prev.map((t, idx) => (idx === tIdx ? val : t))
+                            );
+                          }}
+                          className="flex-grow px-3 py-2 bg-white border border-gray-150 rounded-xl font-bold text-gray-800 text-xs focus:outline-none focus:border-purple-400 focus:bg-white transition-all shadow-sm"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSuggestedTopics((prev) => prev.filter((_, idx) => idx !== tIdx));
+                          }}
+                          className="p-2 text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition-all shrink-0"
+                          title="Konuyu Sil"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Add New Topic Row */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+                    <input
+                      type="text"
+                      value={newTopicInput}
+                      onChange={(e) => setNewTopicInput(e.target.value)}
+                      placeholder="Yeni konu başlığı ekleyin..."
+                      className="flex-grow px-3 py-2 bg-white border border-gray-150 rounded-xl font-bold text-gray-855 text-xs focus:outline-none focus:border-purple-400 focus:bg-white transition-all shadow-sm"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && newTopicInput.trim()) {
+                          setSuggestedTopics((prev) => [...prev, newTopicInput.trim()]);
+                          setNewTopicInput("");
+                        }
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newTopicInput.trim()) {
+                          setSuggestedTopics((prev) => [...prev, newTopicInput.trim()]);
+                          setNewTopicInput("");
+                        }
+                      }}
+                      className="px-3.5 py-2 bg-purple-650 text-white rounded-xl text-xs font-black hover:bg-purple-700 active:scale-95 transition-all shrink-0"
+                    >
+                      Ekle
+                    </button>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                  <button
+                    onClick={() => setAiStep("form")}
+                    className="px-4 py-2 border-2 border-gray-250 text-gray-550 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                  >
+                    Geri Dön
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleCloseAIModal}
+                      className="px-4 py-2 border border-transparent text-gray-400 font-bold hover:text-gray-650 transition-colors text-xs uppercase"
+                    >
+                      Kapat
+                    </button>
+                    <button
+                      onClick={() => handleDistributeTopics()}
+                      disabled={isDistributingTopics}
+                      className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isDistributingTopics ? (
+                        <>
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                          <span>Derslere Dağıtılıyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Ders Planına Dönüştür</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {aiStep === "topics_edit" && (
+              <>
+                {/* Two-Column Wizard Body */}
+                <div className="flex-grow flex overflow-hidden min-h-0 bg-slate-50">
+                  {/* LEFT COLUMN: Settings Panel (1/3 width) */}
+                  <div className="w-80 border-r border-gray-150 p-6 flex flex-col gap-4 overflow-y-auto bg-white/70">
+                    <div className="flex flex-col gap-1 pb-2 border-b border-gray-100">
+                      <h4 className="text-[11px] font-black text-indigo-650 uppercase tracking-widest flex items-center gap-1.5">
+                        <Settings className="w-3.5 h-3.5" />
+                        Müfredat Ayarları
+                      </h4>
+                      <p className="text-[10px] text-gray-550 font-bold leading-normal">
+                        Müfredat parametrelerini değiştirebilir ve konuları yeniden hesaplatabilirsiniz.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col gap-3">
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Kurs Konusu</label>
+                        <input
+                          type="text"
+                          value={aiTopic}
+                          onChange={(e) => setAiTopic(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 text-xs focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-3">
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Ders Süresi</label>
+                          <select
+                            value={aiLessonDuration}
+                            onChange={(e) => setAiLessonDuration(parseInt(e.target.value))}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 text-xs focus:outline-none focus:border-indigo-500"
+                          >
+                            <option value="30">30 Dakika</option>
+                            <option value="40">40 Dakika</option>
+                            <option value="45">45 Dakika</option>
+                            <option value="60">60 Dakika (1 Saat)</option>
+                            <option value="90">90 Dakika</option>
+                            <option value="120">120 Dakika (2 Saat)</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Zorluk Seviyesi</label>
+                          <select
+                            value={aiDifficulty}
+                            onChange={(e) => setAiDifficulty(e.target.value)}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 text-xs focus:outline-none focus:border-indigo-500"
+                          >
+                            <option value="Beginner">Başlangıç</option>
+                            <option value="Intermediate">Orta</option>
+                            <option value="Advanced">İleri</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[10px] font-extrabold text-gray-500 uppercase tracking-wider mb-1">Hedef Kitle</label>
+                        <textarea
+                          value={aiAudience}
+                          onChange={(e) => setAiAudience(e.target.value)}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-800 text-xs focus:outline-none focus:border-indigo-500 resize-none h-16"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Redistribute button */}
+                    <button
+                      onClick={() => handleDistributeTopics(suggestedLessons.flatMap(l => l.topics))}
+                      disabled={isDistributingTopics}
+                      className="w-full py-2.5 bg-gradient-to-r from-purple-600 to-indigo-650 hover:from-purple-700 hover:to-indigo-755 text-white font-black rounded-xl text-xs uppercase tracking-wide flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/10 disabled:opacity-50 transition-all active:scale-95"
+                    >
+                      {isDistributingTopics ? (
+                        <>
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-white/20 border-t-white animate-spin"></div>
+                          <span>Yeniden Dağıtılıyor...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-3.5 h-3.5 text-purple-200" />
+                          <span>Dersleri Yeniden Dağıt</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Lesson Count Settings Block */}
+                    <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-2.5">
+                      <label className="block text-[10px] font-black text-gray-500 uppercase tracking-wider flex justify-between items-center select-none">
+                        <span>Ders Sayısı Ayarı</span>
+                        {autoLessonsCount ? (
+                          <span className="text-purple-600 font-black text-[9px] bg-purple-50 px-2 py-0.5 rounded-md border border-purple-100">
+                            OTOMATİK ({suggestedLessons.length} Ders)
+                          </span>
+                        ) : (
+                          <span className="text-indigo-650 font-black bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md text-[9px]">{aiLessonsCount} DERS</span>
+                        )}
+                      </label>
+                      
+                      <div className="flex flex-col gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer select-none">
+                          <input
+                            type="checkbox"
+                            checked={autoLessonsCount}
+                            onChange={(e) => setAutoLessonsCount(e.target.checked)}
+                            className="w-3.5 h-3.5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 cursor-pointer"
+                          />
+                          <span className="text-[10px] font-bold text-gray-550 leading-tight">Otomatik Belirle</span>
+                        </label>
+                        
+                        {!autoLessonsCount && (
+                          <div className="flex items-center gap-3 animate-in slide-in-from-top-1 duration-150 pt-1">
+                            <input
+                              type="range"
+                              min="2"
+                              max="20"
+                              value={aiLessonsCount}
+                              onChange={(e) => setAiLessonsCount(parseInt(e.target.value))}
+                              className="flex-grow h-1.5 bg-gray-250 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                            />
+                            <span className="text-xs font-black text-gray-700 w-8 text-right shrink-0">{aiLessonsCount} Ders</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT COLUMN: Curriculum Timeline Panel (2/3 width) */}
+                  <div className="flex-grow p-6 overflow-y-auto flex flex-col gap-4 custom-scrollbar bg-slate-50">
+                    <div className="flex items-center justify-between border-b border-gray-200 pb-2 shrink-0">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2.5 h-2.5 rounded-full bg-indigo-500 animate-pulse"></div>
+                        <h4 className="font-extrabold text-sm text-gray-800">Ders & Konu Hiyerarşisi</h4>
+                      </div>
+                      <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest bg-gray-100 px-2.5 py-0.5 rounded-full">
+                        {suggestedLessons.reduce((acc, curr) => acc + curr.topics.length, 0)} Konu Planlandı
+                      </span>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      {suggestedLessons.map((lesson, lIdx) => (
+                        <div 
+                          key={lIdx} 
+                          className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 group/lesson relative flex flex-col gap-3"
+                        >
+                          {/* Lesson Header Row */}
+                          <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2">
+                            <div className="flex items-center gap-3 flex-grow">
+                              <div className="flex flex-col items-center justify-center shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black shadow-sm">
+                                <span className="text-[8px] uppercase tracking-wider opacity-75 font-extrabold leading-none">Ders</span>
+                                <span className="text-sm leading-none mt-1">{lIdx + 1}</span>
+                              </div>
+                              <input
+                                type="text"
+                                value={lesson.title}
+                                onChange={(e) => handleEditLessonTitle(lIdx, e.target.value)}
+                                className="bg-transparent font-black text-gray-855 text-xs w-full focus:outline-none placeholder-gray-305"
+                                placeholder={`Ders ${lIdx + 1} Konsept Başlığı`}
+                              />
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteLesson(lIdx)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover/lesson:opacity-100"
+                              title="Tüm Dersi Sil"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+
+                          {/* Lesson Sub-Topics Nested List */}
+                          <div className="flex flex-col gap-2 pl-2">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">BU DERSTE ANLATILACAK KONULAR:</span>
+                            
+                            {lesson.topics.map((topic, tIdx) => (
+                              <div 
+                                key={tIdx} 
+                                className="flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 group/topic hover:border-indigo-150 hover:bg-white transition-all"
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
+                                <input
+                                  type="text"
+                                  value={topic}
+                                  onChange={(e) => handleEditTopicTitle(lIdx, tIdx, e.target.value)}
+                                  className="flex-grow bg-transparent font-bold text-gray-700 text-xs focus:outline-none placeholder-gray-300"
+                                  placeholder="Konu başlığı girin..."
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteTopic(lIdx, tIdx)}
+                                  className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover/topic:opacity-100"
+                                  title="Konuyu Sil"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ))}
+
+                            {/* Add Topic Row */}
+                            <button
+                              type="button"
+                              onClick={() => handleAddTopic(lIdx)}
+                              className="self-start text-[10px] font-black text-indigo-650 hover:text-indigo-755 hover:underline flex items-center gap-1 mt-1 pl-1"
+                            >
+                              + Yeni Konu Ekle
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+
+                      {/* Add New Lesson Button Card */}
+                      <button
+                        type="button"
+                        onClick={handleAddLesson}
+                        className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-250 hover:border-indigo-400 rounded-2xl text-xs font-black text-gray-550 hover:text-indigo-650 bg-white/50 hover:bg-white transition-all"
+                      >
+                        <Plus className="w-4 h-4" />
+                        <span>+ Müfredata Yeni Ders Ekle</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex items-center justify-between gap-3 shrink-0">
+                  <button
+                    onClick={() => setAiStep("form")}
+                    className="px-4 py-2 border-2 border-gray-250 text-gray-550 font-black rounded-xl hover:bg-gray-100 active:scale-95 transition-all text-xs uppercase"
+                  >
+                    Geri Dön
+                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleCloseAIModal}
+                      className="px-4 py-2 border border-transparent text-gray-400 font-bold hover:text-gray-655 transition-colors text-xs uppercase"
+                    >
+                      Kapat
+                    </button>
+                    <button
+                      onClick={handleSuggestRoadmap}
+                      className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(124,58,237,0.3)] hover:shadow-[0_2px_0_rgba(124,58,237,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      <span>Ders Planını Oluştur</span>
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* FLOATING AI DRAFT STATUS BANNER & EDIT BAR */}
+      {hasDraftAIContent && !isGeneratingAI && (() => {
+        const activeSection = activeNodeId ? sections.find(s => s.id === activeNodeId) : null;
+        const isEditingDraft = activeSection && activeSection.isAIDraft;
+
+        if (isEditingDraft) {
+          const index = sections.indexOf(activeSection);
+          const activeMetadata = getNodeMetadata(index, activeSection.theme);
+
+          return (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] w-[95%] max-w-3xl bg-slate-900/95 border-2 border-purple-500 rounded-3xl p-5 shadow-2xl flex flex-col gap-3.5 animate-in slide-in-from-bottom-5 duration-250 backdrop-blur-md text-left">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="px-2 py-0.5 rounded-md text-[9px] font-black tracking-wider uppercase border shrink-0"
+                    style={{ 
+                      backgroundColor: `${activeMetadata.baseColor}33`, 
+                      borderColor: activeMetadata.strokeColor, 
+                      color: activeMetadata.strokeColor 
+                    }}
+                  >
+                    {activeSection.theme === "purple" && "Anla"}
+                    {activeSection.theme === "cyan" && "Uygula"}
+                    {activeSection.theme === "green" && "Birleştir"}
+                    {activeSection.theme === "yellow" && "Üret"}
+                    {activeSection.theme === "quiz" && "Quiz"}
+                    {activeSection.theme === "homework" && "Ödev"}
+                  </span>
+                  <span className="text-xs font-black text-white uppercase tracking-wider">
+                    Ders İçeriği Düzenle: <span className="text-purple-400">{activeSection.title}</span>
+                  </span>
+                </div>
+                <button 
+                  onClick={() => setActiveNodeId(null)}
+                  className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
+                  title="Düzenlemeyi Kapat"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              {/* Editor Input Area */}
+              <div className="flex items-center gap-3">
+                <textarea
+                  rows={2}
+                  value={activeSection.aiModuleTopic || ""}
+                  onChange={(e) => handleUpdateModuleTopicField(activeSection.id, e.target.value)}
+                  placeholder="Yapay zekanın bu seviyede anlatacağı detayları yazın (örn: Değişken nedir, int, float, string türleri)..."
+                  className="flex-1 bg-slate-800 text-slate-100 font-medium text-xs px-3.5 py-2.5 rounded-xl border border-slate-700 focus:outline-none focus:border-purple-500 focus:bg-slate-800 transition-all resize-none leading-relaxed"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleSuggestLevelDetails(activeSection.id, activeSection.theme)}
+                  disabled={isSuggestingLevelId === activeSection.id}
+                  className="px-4 py-3.5 bg-slate-800 hover:bg-slate-750 text-purple-400 hover:text-purple-300 border border-slate-700 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg active:scale-95 transition-all text-center shrink-0 flex items-center justify-center gap-1.5 animate-in zoom-in-95 duration-100"
+                  title="Yapay zeka ile bu seviyenin başlığını ve açıklamasını otomatik doldur"
+                >
+                  {isSuggestingLevelId === activeSection.id ? (
+                    <div className="w-3.5 h-3.5 rounded-full border border-purple-500/20 border-t-purple-500 animate-spin"></div>
+                  ) : (
+                    <Sparkles size={13} />
+                  )}
+                  <span>AI Öner</span>
+                </button>
+                <button
+                  onClick={() => setActiveNodeId(null)}
+                  className="px-5 py-3.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-650 hover:to-indigo-650 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg active:scale-95 transition-all text-center shrink-0 flex items-center justify-center"
+                >
+                  Kaydet
+                </button>
+              </div>
+            </div>
+          );
+        }
+
+        // Default Status Banner
+        return (
+          <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 border-2 border-purple-500 rounded-3xl p-5 shadow-2xl flex flex-col sm:flex-row items-center gap-4 max-w-2xl animate-in slide-in-from-bottom-10 duration-300 backdrop-blur-md">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-purple-650 flex items-center justify-center shrink-0">
+                <Sparkles className="w-5 h-5 text-white animate-pulse" />
+              </div>
+              <div className="flex flex-col text-left">
+                <span className="text-xs font-black text-purple-400 uppercase tracking-widest">AI Ders Taslağı Hazır!</span>
+                <span className="text-xs text-slate-200 font-bold leading-normal">
+                  Ders çizgilerini (başlıkları) ve seviyeleri yukarıdaki haritada dilediğiniz gibi düzenleyin. Hazır olduğunuzda slaytları üretin.
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <button
+                onClick={handleCancelDraft}
+                className="px-4 py-2 border border-slate-700 text-slate-400 hover:text-white font-black rounded-xl hover:bg-slate-800 active:scale-95 transition-all text-xs uppercase"
+              >
+                İptal Et
+              </button>
+              <button
+                onClick={handleStartGeneratingSlidesFromDraft}
+                className="px-5 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white font-black rounded-xl shadow-lg hover:translate-y-[2px] transition-all text-xs uppercase flex items-center gap-2"
+              >
+                <Play className="w-3.5 h-3.5" fill="currentColor" />
+                <span>Slaytları Üret</span>
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* FLOATING AI PLANNING STATUS PANEL */}
+      {isPlanningStructure && (
+        <div className="fixed bottom-6 right-6 z-[100] bg-slate-900 border-2 border-purple-500 rounded-3xl p-5 shadow-2xl flex items-center gap-4 max-w-sm animate-in slide-in-from-bottom-6 duration-300 text-left">
+          <div className="relative flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-full border-2 border-purple-500/20 border-t-purple-500 animate-spin"></div>
+            <Sparkles className="w-4 h-4 text-purple-400 absolute animate-pulse" />
+          </div>
+          <div className="flex flex-col gap-1 text-left min-w-[200px]">
+            <span className="text-xs font-black text-purple-400 uppercase tracking-widest">Ders Akışı Tasarlanıyor</span>
+            <span className="text-[10px] text-slate-350 font-bold leading-normal">Yapay zeka ders konularını ve modülleri planlıyor...</span>
           </div>
         </div>
       )}
