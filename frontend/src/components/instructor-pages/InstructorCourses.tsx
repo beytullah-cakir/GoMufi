@@ -54,9 +54,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
     null,
   );
   const [courses, setCourses] = useState<Course[]>([]);
-  const [loadingContentId, setLoadingContentId] = useState<
-    number | string | null
-  >(null);
   const [liveSessionCourseIds, setLiveSessionCourseIds] = useState<Set<number>>(new Set());
   const [startingSessionId, setStartingSessionId] = useState<number | null>(null);
   const navigate = useNavigate();
@@ -543,26 +540,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
                       {openMenuId === course.id && (
                         <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden animate-fade-in">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setLoadingContentId(course.id);
-                              navigate(
-                                `/instructor/builder?courseId=${course.id}`,
-                              );
-                            }}
-                            disabled={loadingContentId === course.id}
-                            className="w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-sky-50 font-bold transition-colors border-b border-gray-50 flex items-center gap-2 disabled:opacity-50"
-                          >
-                            {loadingContentId === course.id ? (
-                              <Loader2 size={14} className="animate-spin" />
-                            ) : (
-                              <Layout size={14} />
-                            )}
-                            {loadingContentId === course.id
-                              ? "Yükleniyor..."
-                              : "Ders İçeriğini Düzenle"}
-                          </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
