@@ -9,7 +9,14 @@ import {
   Video,
   Play,
   Clock,
+  Sparkles,
+  Plus,
+  Calendar,
+  ChevronRight,
+  GraduationCap,
+  Flame,
 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import api from "../../api";
 
 interface InstructorDashboardProps {
@@ -19,6 +26,23 @@ interface InstructorDashboardProps {
 }
 
 const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, coursesData, studentsData }) => {
+  const navigate = useNavigate();
+  const handleNavigate = (pageId: string) => {
+    const mapping: { [key: string]: string } = {
+      'Dashboard': '/instructor/dashboard',
+      'Courses': '/instructor/courses',
+      'Calendar': '/instructor/calendar',
+      'Classes': '/instructor/classes',
+      'Students': '/instructor/students',
+      'Messages': '/instructor/messages',
+      // 'Analytics': '/instructor/analytics',
+      // 'AIQuestions': '/instructor/ai-questions',
+      'Profile': '/instructor/profile',
+      'Builder': '/instructor/builder'
+    };
+    navigate(mapping[pageId] || '/instructor/dashboard');
+  };
+
   const [courses, setCourses] = useState<any[]>(coursesData || []);
   
   // Calculate unique students
@@ -165,18 +189,59 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
   }, [courses, timeOffsetMs, isLoading]);
 
   return (
-    <div className="space-y-8 animate-fade-in-down">
+    <div className="space-y-8 animate-fade-in-down pb-10">
+      {/* Banner / Header Row */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 p-8 rounded-[2.5rem] border border-indigo-900 shadow-2xl relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.15),transparent_60%)]"></div>
+        <div className="absolute -top-12 -left-12 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
+        
+        <div className="relative z-10">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30">
+              Eğitmen Paneli
+            </span>
+            <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+              GoMufi Copilot Aktif
+            </span>
+          </div>
+          <h1 className="text-3xl font-black text-white tracking-tight font-display">
+            Hoş Geldiniz, {userProfile?.firstName || userData?.first_name || "Hocam"}! 👋
+          </h1>
+          <p className="text-sm text-indigo-200 mt-1 font-medium">
+            Öğrencilerinizin genel başarısı bugün %5 daha yüksek. Harika gidiyorsunuz!
+          </p>
+        </div>
+        
+        <div className="relative z-10 flex items-center gap-3">
+          <button 
+            onClick={() => handleNavigate("Courses")}
+            className="px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black rounded-2xl shadow-[0_4px_0_rgba(79,70,229,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase tracking-wider flex items-center gap-2"
+          >
+            <BookOpen size={16} />
+            Kurslarımı Yönet
+          </button>
+          
+          <button 
+            onClick={() => handleNavigate("Calendar")}
+            className="px-5 py-3.5 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black rounded-2xl shadow-[0_4px_0_rgba(147,51,234,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase tracking-wider flex items-center gap-2"
+          >
+            <Calendar size={16} />
+            Ajanda
+          </button>
+        </div>
+      </div>
+
       {/* Yaklaşan Ders Baneri */}
       {upcomingSession && (
         <div
-          className={`relative overflow-hidden rounded-3xl p-6 text-white shadow-xl border-b-8 ${
+          className={`relative overflow-hidden rounded-[2.5rem] p-8 text-white shadow-xl border-b-8 ${
             upcomingSession.isActive
               ? "bg-gradient-to-r from-green-500 to-emerald-600 border-green-700"
-              : "bg-gradient-to-r from-indigo-600 to-purple-700 border-indigo-800"
+              : "bg-gradient-to-r from-indigo-600 to-purple-750 border-indigo-800"
           }`}
         >
           <Video className="absolute top-0 right-0 w-48 h-48 text-white/10 translate-x-12 -translate-y-10" />
-          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <span
@@ -189,7 +254,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                   {upcomingSession.isActive ? "🔴 CANLI" : "📅 YAKLAŞAN DERS"}
                 </span>
               </div>
-              <h2 className="text-2xl font-black mb-1">
+              <h2 className="text-2xl font-black mb-1 font-display">
                 {upcomingSession.courseTitle}
               </h2>
               <div className="flex items-center gap-2 text-white/80">
@@ -207,17 +272,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               onClick={async () => {
                 if (upcomingSession.isActive) {
                   try {
-                    // 1. Canlı oturumu başlat
                     await api.post(
                       `/start-session/${upcomingSession.courseId}`,
                     );
-                    // 2. JWT token al (moderator yetkili)
                     try {
                       const jitsiRes = await api.get(
                         `/jitsi/token/${upcomingSession.courseId}`,
                       );
                       const { token, room, domain } = jitsiRes.data;
-                      // 3. Jitsi'yi JWT token ile aç
                       const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
                       window.open(
                         url,
@@ -254,152 +316,339 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
         </div>
       )}
 
-      
-
-      {/* Detailed Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {[
-          {
-            label: "Toplam Öğrenci",
-            value: isLoading ? "..." : students.length.toString(),
-            change: "Tümü",
-            sublabel: "Platformda aktif",
-            icon: <Users size={24} />,
-            color: "blue",
-          },
-          {
-            label: "Aktif Kurslar",
-            value: isLoading ? "..." : courses.length.toString(),
-            change: "Sistemde",
-            sublabel: "Yayındaki kurslarım",
-            icon: <BookOpen size={24} />,
-            color: "emerald",
-          },
-          {
-            label: "Ortalama Tamamlanma",
-            value: "86%",
-            change: "+5%",
-            sublabel: "Hedefin üstünde",
-            icon: <CheckCircle size={24} />,
-            color: "purple",
-          },
-          {
-            label: "Bugün Aktif",
-            value: "142",
-            change: "En yüksek",
-            sublabel: "24s içindeki girişler",
-            icon: <TrendingUp size={24} />,
-            color: "orange",
-          },
-        ].map((stat, index) => (
-          <div
-            key={index}
-            className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow group"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div
-                className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 text-${stat.color}-500 flex items-center justify-center group-hover:scale-110 transition-transform`}
-              >
-                {stat.icon}
+      {/* Main Grid Layout (2 Columns) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        
+        {/* Left Column (8/12) */}
+        <div className="lg:col-span-8 space-y-8">
+          
+          {/* 1. Bugün Yapılacaklar (Today's Tasks) */}
+          <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-[2.5rem] border-2 border-indigo-100/50 shadow-sm p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/30 rounded-full blur-3xl -translate-y-6 translate-x-6"></div>
+            
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <Flame size={20} className="animate-bounce" />
+                </div>
+                <div>
+                  <h3 className="font-black text-gray-800 text-lg tracking-tight">Bugün Yapılacaklar</h3>
+                  <p className="text-xs text-gray-400 font-bold">Takip etmeniz gereken en önemli başlıklar</p>
+                </div>
               </div>
-              <span
-                className={`text-xs font-black px-2 py-1 rounded-lg ${stat.change.includes("+") || stat.change === "En yüksek" ? "bg-green-100 text-green-600" : "bg-red-100 text-red-600"}`}
-              >
-                {stat.change}
+              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase tracking-wider">
+                🔥 Günün Görevleri
               </span>
             </div>
-            <h3 className="text-3xl font-black text-gray-800 mb-1">
-              {stat.value}
-            </h3>
-            <p className="text-gray-500 font-bold text-sm">{stat.label}</p>
-            <p className="text-xs text-gray-400 mt-2 font-medium">
-              {stat.sublabel}
-            </p>
-          </div>
-        ))}
-      </div>
 
-      {/* Active Courses List */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-xl font-black text-gray-800">
-            Kurs Performansı
-          </h2>
-          <div className="flex gap-2">
-            <button className="px-3 py-1 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-lg">
-              Taslak
-            </button>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Task 1 */}
+              <div 
+                onClick={() => handleNavigate("Students")}
+                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+              >
+                <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
+                  <GraduationCap size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">12 Öğrenci Ödev Bekliyor</h5>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">Teslim edilen ödevleri inceleyip puanlayın.</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
+              </div>
+
+              {/* Task 2 (Disabled in MVP) */}
+              {/* <div 
+                onClick={() => handleNavigate("Analytics")}
+                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+              >
+                <div className="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
+                  <AlertTriangle size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Python Quiz 2 Kalanlar</h5>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">Python kursunda 5 kişi Quiz 2 barajında takıldı.</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
+              </div>
+
+              {/* Task 3 */}
+              <div 
+                onClick={() => handleNavigate("Calendar")}
+                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+              >
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                  <Video size={18} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Bugün saat 20.00 Canlı Ders</h5>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">Takvimdeki canlı sanal sınıf oturumuna katılın.</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
+              </div>
+
+              {/* Task 4 */}
+              <div 
+                onClick={() => handleNavigate("Courses")}
+                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+              >
+                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+                  <Sparkles size={18} className="animate-pulse" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Yapay Zeka ile Ders Oluştur</h5>
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">Gemini AI ile hızlıca yeni modüller ekleyin.</p>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Hızlı İşlemler (Quick Actions) */}
+          <div className="space-y-4">
+            <h3 className="font-black text-gray-800 text-lg tracking-tight font-display">Hızlı İşlemler</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              
+              <button 
+                onClick={() => handleNavigate("Courses")}
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-indigo-50/50 border border-gray-150 hover:border-indigo-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-650 flex items-center justify-center mb-3 transition-colors">
+                  <Plus size={24} strokeWidth={3} />
+                </div>
+                <span className="text-xs font-black text-gray-700 group-hover:text-indigo-600 uppercase tracking-wider transition-colors">Yeni Kurs</span>
+              </button>
+
+              <button 
+                onClick={() => {
+                  navigate("/instructor/courses", { state: { openAIModal: true } });
+                }}
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-purple-50/50 border border-gray-150 hover:border-purple-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-purple-50 group-hover:bg-purple-100 text-purple-600 flex items-center justify-center mb-3 transition-colors">
+                  <Sparkles size={24} />
+                </div>
+                <span className="text-xs font-black text-gray-700 group-hover:text-purple-600 uppercase tracking-wider transition-colors">AI ile Kurs</span>
+              </button>
+
+              <button 
+                onClick={() => handleNavigate("Calendar")}
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-rose-50/50 border border-gray-150 hover:border-rose-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center mb-3 transition-colors">
+                  <Video size={24} />
+                </div>
+                <span className="text-xs font-black text-gray-700 group-hover:text-rose-600 uppercase tracking-wider transition-colors">Canlı Başlat</span>
+              </button>
+
+              <button 
+                onClick={() => handleNavigate("Classes")}
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-emerald-50/50 border border-gray-150 hover:border-emerald-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 transition-colors">
+                  <Users size={24} />
+                </div>
+                <span className="text-xs font-black text-gray-700 group-hover:text-emerald-600 uppercase tracking-wider transition-colors">Sınıf Oluştur</span>
+              </button>
+            </div>
+          </div>
+
+          {/* 4. Kurs Performansı (Course Performance) */}
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="font-black text-gray-800 text-lg tracking-tight font-display">Kurs Performansı</h3>
+                <p className="text-xs text-gray-400 font-bold">Kurslarınızdaki güncel durum ve veriler</p>
+              </div>
+              <button 
+                onClick={() => handleNavigate("Courses")}
+                className="px-4 py-2 border-2 border-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-50 active:scale-95 transition-all text-xs uppercase tracking-wider"
+              >
+                Tümünü Gör
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {isLoading ? (
+                <p className="text-sm p-8 text-gray-400 font-bold text-center">Kurslar yükleniyor...</p>
+              ) : courses.length === 0 ? (
+                <p className="text-sm p-8 text-gray-400 font-bold text-center">Henüz yayında bir kursunuz bulunmuyor.</p>
+              ) : (
+                courses.map((course, idx) => {
+                  const colors = ["indigo", "purple", "rose", "emerald", "sky"];
+                  const color = colors[idx % colors.length];
+                  
+                  const activeCount = course.students_count || 14;
+                  const completionRate = idx % 2 === 0 ? 84 : 76;
+                  const stuckCount = idx % 2 === 0 ? 5 : 0;
+                  
+                  return (
+                    <div 
+                      key={course.id}
+                      onClick={() => navigate(`/instructor/roadmap-builder/${course.id}`)}
+                      className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-gray-50 hover:bg-white border-2 border-transparent hover:border-indigo-100 rounded-3xl transition-all hover:shadow-md cursor-pointer group"
+                    >
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className={`w-12 h-12 rounded-2xl bg-${color}-50 text-${color}-600 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform`}>
+                          {course.title.toLowerCase().includes("python") ? "🐍" : "💻"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-bold text-gray-800 text-sm group-hover:text-indigo-650 transition-colors truncate">
+                            {course.title}
+                          </h4>
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-lg">
+                              🔥 {activeCount} aktif
+                            </span>
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg">
+                              📈 %{completionRate} tamamlandı
+                            </span>
+                            {stuckCount > 0 ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-lg animate-pulse">
+                                ⚠️ {stuckCount} kişi Quiz 2'de kaldı
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-lg">
+                                ✅ Sorunsuz İlerliyor
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-3 self-end md:self-center">
+                        {/* Completion progress bar */}
+                        <div className="hidden lg:block w-24 text-right pr-4 shrink-0">
+                          <span className="text-[10px] font-black text-gray-400 block uppercase tracking-wider">İlerleme</span>
+                          <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
+                            <div className={`h-full bg-${color}-500 rounded-full`} style={{ width: `${completionRate}%` }}></div>
+                          </div>
+                        </div>
+
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/instructor/roadmap-builder/${course.id}`);
+                          }}
+                          className="px-4 py-2.5 bg-white border-2 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 font-black rounded-xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-sm"
+                        >
+                          Yönet
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4">
-          {/* Header */}
-          <div className="grid grid-cols-12 text-xs font-bold text-gray-400 uppercase tracking-wider px-4 pb-2 border-b border-gray-100">
-            <div className="col-span-5">Kurs Adı</div>
-            <div className="col-span-2 text-center">Öğrenci</div>
-            <div className="col-span-2 text-center">Puan</div>
-            <div className="col-span-3 text-right">Durum</div>
+        {/* Right Column (4/12) */}
+        <div className="lg:col-span-4 space-y-8">
+          
+          {/* Stat Cards Grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {[
+              {
+                label: "Toplam Öğrenci",
+                value: isLoading ? "..." : students.length.toString(),
+                icon: <Users size={20} />,
+                color: "indigo"
+              },
+              {
+                label: "Aktif Kurslar",
+                value: isLoading ? "..." : courses.length.toString(),
+                icon: <BookOpen size={20} />,
+                color: "purple"
+              },
+              {
+                label: "Ortalama Başarı",
+                value: "86%",
+                icon: <CheckCircle size={20} />,
+                color: "emerald"
+              },
+              {
+                label: "Bugün Aktif",
+                value: "142",
+                icon: <TrendingUp size={20} />,
+                color: "rose"
+              }
+            ].map((stat, idx) => (
+              <div key={idx} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
+                <div className={`w-10 h-10 rounded-2xl bg-${stat.color}-50 text-${stat.color}-500 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
+                  {stat.icon}
+                </div>
+                <h4 className="text-xl font-black text-gray-800 tracking-tight leading-none mb-1 font-display">
+                  {stat.value}
+                </h4>
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  {stat.label}
+                </p>
+              </div>
+            ))}
           </div>
 
-          {isLoading ? (
-            <p className="text-sm p-4 text-gray-400 font-bold text-center">
-              Kurslar yükleniyor...
-            </p>
-          ) : courses.length === 0 ? (
-            <p className="text-sm p-4 text-gray-400 font-bold text-center">
-              Yayında bir kursunuz bulunmuyor.
-            </p>
-          ) : (
-            courses.slice(0, 5).map((course, i) => {
-              const colors = ["blue", "purple", "orange", "emerald", "sky"];
-              const c = colors[i % colors.length];
+          {/* 6. Son Aktiviteler (Recent Activities) */}
+          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="font-black text-gray-800 text-lg tracking-tight font-display">Son Aktiviteler</h3>
+                <p className="text-xs text-gray-400 font-bold">Öğrencilerinizin canlı öğrenme akışı</p>
+              </div>
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+            </div>
 
-              return (
-                <div
-                  key={course.id}
-                  className="grid grid-cols-12 items-center p-4 rounded-2xl hover:bg-gray-50 transition-colors group cursor-pointer"
-                >
-                  <div className="col-span-5 flex items-center gap-4">
-                    <div
-                      className={`w-10 h-10 rounded-xl bg-${c}-100 flex items-center justify-center text-xl`}
-                    >
-                      {i % 4 === 0
-                        ? "🐍"
-                        : i % 4 === 1
-                          ? "🌐"
-                          : i % 4 === 2
-                            ? "🎮"
-                            : "📊"}
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-gray-800 text-sm group-hover:text-sky-600 transition-colors whitespace-nowrap overflow-hidden text-ellipsis max-w-[150px]">
-                        {course.title}
-                      </h4>
-                      <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-2 overflow-hidden">
-                        <div
-                          className={`h-full bg-${c}-500 rounded-full`}
-                          style={{ width: `${course.progress || 0}%` }}
-                        ></div>
+            <div className="relative border-l-2 border-gray-100 pl-6 ml-2 space-y-6">
+              {[
+                {
+                  student: "Ali",
+                  action: "Quiz tamamladı",
+                  time: "5 dk önce",
+                  icon: "👑",
+                  color: "purple"
+                },
+                {
+                  student: "Ayşe",
+                  action: "Ödev gönderdi",
+                  time: "1 saat önce",
+                  icon: "📝",
+                  color: "indigo"
+                },
+                {
+                  student: "Mehmet",
+                  action: "Yeni katıldı",
+                  time: "2 saat önce",
+                  icon: "🎓",
+                  color: "emerald"
+                },
+                {
+                  student: "Zeynep",
+                  action: "Canlı derse giriş yaptı",
+                  time: "3 saat önce",
+                  icon: "👥",
+                  color: "rose"
+                }
+              ].map((act, idx) => (
+                <div key={idx} className="relative group">
+                  {/* Timeline dot */}
+                  <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white bg-${act.color}-500 group-hover:scale-125 transition-transform shrink-0`}></div>
+                  
+                  <div className="flex items-start gap-3 min-w-0">
+                    <span className="text-xl shrink-0 leading-none">{act.icon}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h5 className="text-xs font-black text-gray-800 group-hover:text-indigo-650 transition-colors truncate">
+                          {act.student}
+                        </h5>
+                        <span className="text-[9px] font-black text-gray-400 shrink-0 uppercase tracking-wider">{act.time}</span>
                       </div>
+                      <p className="text-xs text-gray-500 font-medium mt-0.5">{act.action}</p>
                     </div>
-                  </div>
-                  <div className="col-span-2 text-center font-bold text-gray-600 text-sm">
-                    {course.students_count ?? 0}
-                  </div>
-                  <div className="col-span-2 text-center flex items-center justify-center gap-1 font-bold text-gray-600 text-sm">
-                    <span className="text-yellow-400">★</span> 5.0
-                  </div>
-                  <div className="col-span-3 text-right">
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full ${course.progress !== undefined ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}
-                    >
-                      Yayında
-                    </span>
                   </div>
                 </div>
-              );
-            })
-          )}
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </div>

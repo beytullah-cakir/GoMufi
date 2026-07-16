@@ -15,6 +15,49 @@ router = APIRouter(prefix="/builder", tags=["lesson-builder"])
 JSON_PATH = "lesson.json"
 
 
+@router.post("/upload-chat-file")
+async def upload_chat_file(request: Request, file: UploadFile = File(...)):
+    try:
+        # Max file size limit: 5MB
+        max_size = 5 * 1024 * 1024  # 5MB
+        
+        contents = await file.read()
+        if len(contents) > max_size:
+            raise HTTPException(
+                status_code=400,
+                detail="Dosya boyutu 5MB sınırını aşamaz."
+            )
+            
+        # Create a unique file name
+        file_ext = file.filename.split(".")[-1] if "." in file.filename else "dat"
+        file_name = f"{uuid.uuid4()}.{file_ext}"
+        
+        # Save to static uploads folder
+        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
+        os.makedirs(static_dir, exist_ok=True)
+        local_file_path = os.path.join(static_dir, file_name)
+        
+        with open(local_file_path, "wb") as f:
+            f.write(contents)
+            
+        base_url = str(request.base_url).rstrip("/")
+        public_url = f"{base_url}/static/uploads/{file_name}"
+        
+        return {
+            "success": True,
+            "filename": file.filename,
+            "url": public_url,
+            "size": len(contents)
+        }
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(
+            status_code=500,
+            detail=f"Dosya yükleme hatası: {str(e)}"
+        )
+
+
 @router.post("/upload-image")
 async def upload_image(request: Request, file: UploadFile = File(...)):
     try:
@@ -133,6 +176,24 @@ async def save_template(request: Request, user=Depends(get_current_user)):
                 except json.JSONDecodeError:
                     templates = []
                     
+        # Dynamically calculate maxChars for text elements
+        for el in elements:
+            el_type = el.get("type")
+            if el_type in ["text", "sticky", "challenge"]:
+                width = el.get("width") or 300
+                height = el.get("height") or 150
+                style = el.get("style") or {}
+                font_size = style.get("fontSize") or 18
+                
+                max_chars = int((width * height) / (0.75 * (font_size ** 2)))
+                
+                if el_type == "text" and font_size >= 32:
+                    max_chars = max(30, min(120, max_chars))
+                else:
+                    max_chars = max(50, min(1000, max_chars))
+                    
+                el["maxChars"] = max_chars
+
         new_template = {
             "id": str(uuid.uuid4()),
             "category": category.upper(),

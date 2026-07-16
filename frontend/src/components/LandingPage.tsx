@@ -420,6 +420,12 @@ const LandingPage: React.FC = () => {
                         >
                             SSS
                         </button>
+                        <button 
+                            onClick={() => navigate('/animation')} 
+                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer text-purple-600 font-bold"
+                        >
+                            Animasyon
+                        </button>
                     </div>
 
                     {/* CTA Actions */}
@@ -460,6 +466,7 @@ const LandingPage: React.FC = () => {
                             <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">Örnek Dersler</button>
                             <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-2 hover:bg-slate-55 hover:text-purple-600 rounded-lg transition-colors">Nasıl Çalışır?</button>
                             <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">SSS</button>
+                            <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors text-purple-600 font-bold">Animasyon</button>
                         </div>
                         <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-3">
                             <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-xl border-2 border-slate-200 font-bold text-center text-slate-700">Giriş Yap</button>
