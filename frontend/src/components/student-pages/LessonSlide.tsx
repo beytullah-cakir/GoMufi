@@ -34,6 +34,24 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const [localSlides, setLocalSlides] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
     const [scale, setScale] = useState(1);
+    const [gameStatuses, setGameStatuses] = useState<Record<string, { 
+        name: string; 
+        stars: number; 
+        score: number; 
+        isCompleted: boolean; 
+        timestamp: number; 
+    }>>({});
+
+    const [allAnswers, setAllAnswers] = useState<Record<string, { 
+        name: string; 
+        scores: number[]; 
+        isCorrects: boolean[]; 
+    }>>({});
+
+    useEffect(() => {
+        setGameStatuses({});
+        setAllAnswers({});
+    }, [currentSlide]);
 
     // Sync States
     const [followMode, setFollowMode] = useState<'follow' | 'previous_only' | 'free'>('follow');
@@ -58,9 +76,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             setTeacherCurrentSlide(initialSlideIndex);
             setFollowMode('follow');
             setIsFollowingTeacher(true);
-            setIsReady(false);
-            setShowCatchUpAlert(false);
             setStudentsList({});
+            setGameStatuses({});
+            setAllAnswers({});
             if (slides && slides.length > 0) {
                 setLocalSlides(JSON.parse(JSON.stringify(slides)));
             } else {
@@ -202,6 +220,45 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     }
                 }));
             }
+        } else if (lastMessage.type === 'game_status') {
+            if (previewRole === 'teacher') {
+                if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
+                    return;
+                }
+                const { sender_id, name, stars, score, isCompleted } = lastMessage;
+                setGameStatuses(prev => ({
+                    ...prev,
+                    [sender_id]: {
+                        name: name || 'Öğrenci',
+                        stars: stars || 0,
+                        score: score || 0,
+                        isCompleted: isCompleted || false,
+                        timestamp: Date.now()
+                    }
+                }));
+            }
+        } else if (lastMessage.type === 'question_answered') {
+            if (previewRole === 'teacher') {
+                if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
+                    return;
+                }
+                const { sender_id, name, questionIndex, isCorrect: correct, score: qScore } = lastMessage;
+                setAllAnswers(prev => {
+                    const existing = prev[sender_id] || { name: name || 'Öğrenci', scores: [], isCorrects: [] };
+                    const updatedScores = [...existing.scores];
+                    const updatedCorrects = [...existing.isCorrects];
+                    updatedScores[questionIndex] = qScore;
+                    updatedCorrects[questionIndex] = correct;
+                    return {
+                        ...prev,
+                        [sender_id]: {
+                            ...existing,
+                            scores: updatedScores,
+                            isCorrects: updatedCorrects
+                        }
+                    };
+                });
+            }
         }
     }, [lastMessage, previewRole, isOpen, isFollowingTeacher, courseId, lessonIndex, currentSlide, followMode]);
 
@@ -323,6 +380,20 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         const slide = localSlides[currentSlide];
 
         if (slide.type === 'game') {
+            if (previewRole === 'teacher') {
+                return (
+                    <TeacherGameDashboard
+                        slide={slide}
+                        studentsList={studentsList}
+                        gameStatuses={gameStatuses}
+                        allAnswers={allAnswers}
+                        sendMessage={sendMessage}
+                        courseId={courseId}
+                        onClose={handleNext}
+                    />
+                );
+            }
+
             return (
                 <div className="w-full h-full flex items-center justify-center relative overflow-hidden bg-gray-50 rounded-2xl border-2 border-gray-100 shadow-md p-6">
                     <GameBuilder
@@ -332,7 +403,24 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         }}
                         isPreview={true}
                         previewRole={previewRole}
-                        onExitPreview={handleNext}
+                        userData={userData}
+                        courseId={courseId}
+                        onExitPreview={(stars) => {
+                            if (previewRole === 'student') {
+                                const calculatedStars = typeof stars === 'number' ? stars : 3;
+                                const calculatedScore = calculatedStars * 33 + (calculatedStars === 3 ? 1 : 0);
+                                const userName = userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Öğrenci';
+                                sendMessage({
+                                    type: 'game_status',
+                                    courseId: courseId,
+                                    name: userName,
+                                    stars: calculatedStars,
+                                    score: calculatedScore,
+                                    isCompleted: true
+                                });
+                            }
+                            handleNext();
+                        }}
                     />
                 </div>
             );
@@ -700,7 +788,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                             </button>
                             <button 
                                 onClick={handleStayAndFinish}
-                                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-650 font-black rounded-xl transition-all active:scale-98 cursor-pointer border-b-[3px] border-gray-300 active:border-b-0"
+                                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-655 font-black rounded-xl transition-all active:scale-98 cursor-pointer border-b-[3px] border-gray-300 active:border-b-0"
                             >
                                 Önceki Etkinliği Bitir
                             </button>
@@ -708,6 +796,240 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     </div>
                 </div>
             )}
+        </div>
+    );
+};
+
+interface TeacherGameDashboardProps {
+    slide: any;
+    studentsList: Record<string, { name: string, isReady: boolean, currentSlide: number, lastSeen: number }>;
+    gameStatuses: Record<string, { name: string, stars: number, score: number, isCompleted: boolean, timestamp: number }>;
+    allAnswers: Record<string, { name: string, scores: number[], isCorrects: boolean[] }>;
+    sendMessage: (msg: any) => void;
+    courseId?: string;
+    onClose: () => void;
+}
+
+const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({ 
+    slide, 
+    studentsList, 
+    gameStatuses, 
+    allAnswers,
+    sendMessage,
+    courseId,
+    onClose 
+}) => {
+    const questions = slide.gameConfig?.questions || [];
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [timer, setTimer] = useState(100);
+    const [phase, setPhase] = useState<'playing' | 'leaderboard'>('playing');
+
+    const currentQuestion = questions[currentQuestionIndex];
+    const questionTime = currentQuestion?.timeLimit || 30;
+
+    // Timer Tick
+    useEffect(() => {
+        if (phase === 'playing' && currentQuestion) {
+            setTimer(100);
+            const interval = setInterval(() => {
+                setTimer(prev => {
+                    if (prev <= 0) {
+                        clearInterval(interval);
+                        setPhase('leaderboard');
+                        return 0;
+                    }
+                    return prev - (10 / questionTime);
+                });
+            }, 100);
+            return () => clearInterval(interval);
+        }
+    }, [currentQuestionIndex, phase, questionTime, currentQuestion]);
+
+    // Determine student statuses for the current question
+    const students = Object.entries(studentsList).map(([id, s]) => {
+        const studentAns = allAnswers[id];
+        const hasAnswered = studentAns && studentAns.scores[currentQuestionIndex] !== undefined;
+        const lastScore = studentAns?.scores[currentQuestionIndex] || 0;
+        const totalScore = (studentAns?.scores || [])
+            .slice(0, currentQuestionIndex + 1)
+            .reduce((sum, val) => sum + (val || 0), 0);
+
+        return {
+            id,
+            name: s.name,
+            hasAnswered,
+            lastScore,
+            totalScore,
+            isCorrect: studentAns?.isCorrects[currentQuestionIndex] || false
+        };
+    });
+
+    const leaderboard = [...students].sort((a, b) => b.totalScore - a.totalScore);
+
+    const handleNextQuestionOrFinish = () => {
+        if (currentQuestionIndex < questions.length - 1) {
+            const nextIdx = currentQuestionIndex + 1;
+            // Broadcast next question index to student clients
+            sendMessage({
+                type: 'next_question',
+                courseId: courseId,
+                questionIndex: nextIdx
+            });
+            setCurrentQuestionIndex(nextIdx);
+            setPhase('playing');
+        } else {
+            onClose();
+        }
+    };
+
+    return (
+        <div className="w-full h-full flex flex-col bg-slate-900 text-white rounded-3xl p-8 shadow-2xl relative overflow-hidden font-sans border-2 border-slate-800">
+            {/* Background elements */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* Header */}
+            <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4 relative z-10">
+                <div className="flex items-center gap-3">
+                    <span className="text-3xl">🎮</span>
+                    <div className="text-left">
+                        <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block font-display">
+                            Canlı Soru Paneli (Soru {currentQuestionIndex + 1}/{questions.length})
+                        </span>
+                        <h2 className="text-lg font-black font-display mt-0.5">{currentQuestion?.text || "Soru Yükleniyor..."}</h2>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    {phase === 'playing' && (
+                        <div className="w-24 bg-slate-950 border border-slate-800 rounded-full h-3 overflow-hidden flex items-center shrink-0">
+                            <div className="bg-indigo-500 h-full transition-all duration-105 ease-linear" style={{ width: `${timer}%` }} />
+                        </div>
+                    )}
+                    <button
+                        onClick={handleNextQuestionOrFinish}
+                        className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-6 py-3.5 rounded-2xl shadow-lg transition-all active:scale-95 cursor-pointer uppercase tracking-wider font-display border-b-[4px] border-emerald-700 active:border-b-0 active:translate-y-[4px] shrink-0"
+                    >
+                        {currentQuestionIndex < questions.length - 1 ? "Sonraki Soru ➔" : "Oyunu Bitir ➔"}
+                    </button>
+                </div>
+            </div>
+
+            {/* Content Split */}
+            <div className="flex-1 flex gap-8 min-h-0 relative z-10 text-left">
+                {/* Left Side: Leaderboard / Winners */}
+                <div className="w-1/3 flex flex-col bg-slate-950/40 rounded-2xl p-6 border border-slate-800/60 min-h-0 overflow-y-auto custom-scrollbar">
+                    <h3 className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2 font-display">
+                        🏆 LİDERLİK TABLOSU
+                    </h3>
+                    
+                    {leaderboard.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                            <span className="text-4xl animate-bounce mb-3">⏳</span>
+                            <p className="text-xs text-slate-400 font-bold">Öğrenci katılımı bekleniyor...</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {leaderboard.map((student, idx) => {
+                                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+                                return (
+                                    <div 
+                                        key={student.id} 
+                                        className={`flex items-center justify-between p-3.5 rounded-xl border border-slate-800 transition-all ${
+                                            idx === 0 
+                                                ? 'bg-amber-500/10 border-amber-500/30' 
+                                                : idx === 1 
+                                                    ? 'bg-slate-300/10 border-slate-400/30' 
+                                                    : idx === 2 
+                                                        ? 'bg-amber-700/10 border-amber-800/30' 
+                                                        : 'bg-slate-900/50 border-slate-850'
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <span className="w-6 text-center text-xs font-black text-indigo-400 font-display">
+                                                {medal || `#${idx + 1}`}
+                                            </span>
+                                            <span className="font-extrabold text-sm text-slate-100 truncate">
+                                                {student.name}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {student.lastScore > 0 && phase === 'leaderboard' && (
+                                                <span className="text-[9px] font-black text-green-400 mr-1 bg-green-500/10 px-1.5 py-0.5 rounded font-display shrink-0">
+                                                    +{student.lastScore}
+                                                </span>
+                                            )}
+                                            <span className="bg-indigo-600/50 text-indigo-200 text-[10px] font-black px-2 py-0.5 rounded-md font-display shrink-0">
+                                                {student.totalScore} Puan
+                                            </span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+
+                {/* Right Side: Active Student Statuses */}
+                <div className="flex-1 flex flex-col bg-slate-950/40 rounded-2xl p-6 border border-slate-800/60 min-h-0 overflow-y-auto custom-scrollbar">
+                    <h3 className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-4 flex justify-between font-display">
+                        <span>👥 SINIF DURUMU (SORU {currentQuestionIndex + 1})</span>
+                        <span className="text-slate-450 text-[10px]">
+                            {students.filter(s => s.hasAnswered).length} / {students.length} Yanıtladı
+                        </span>
+                    </h3>
+
+                    {students.length === 0 ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                            <span className="text-5xl mb-3">👥</span>
+                            <p className="text-sm font-bold">Derse katılan aktif öğrenci bulunmuyor.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {students.map(s => (
+                                <div 
+                                    key={s.id}
+                                    className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                                        s.hasAnswered 
+                                            ? 'bg-emerald-500/5 border-emerald-500/20' 
+                                            : 'bg-slate-900/40 border-slate-800'
+                                    }`}
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-2xl">👤</span>
+                                        <div>
+                                            <h4 className="font-extrabold text-sm text-slate-100">{s.name}</h4>
+                                            <div className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">
+                                                {s.hasAnswered ? (
+                                                    <span className="text-emerald-400 flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                                                        Cevapladı {phase === 'leaderboard' && (s.isCorrect ? "✓ (Doğru)" : "✗ (Yanlış)")}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-sky-400 flex items-center gap-1">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-sky-500 animate-pulse" />
+                                                        Düşünüyor...
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col items-end gap-1.5">
+                                        {s.hasAnswered && phase === 'leaderboard' ? (
+                                            <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-md shrink-0">
+                                                +{s.lastScore} Puan
+                                            </span>
+                                        ) : (
+                                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider shrink-0">
+                                                {s.hasAnswered ? "CEVAPLADI" : "BEKLENİYOR"}
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

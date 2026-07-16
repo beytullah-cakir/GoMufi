@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api";
 import { Check, X, RefreshCw, AlertCircle, PenTool, FileText } from "lucide-react";
+import { useWebSocket } from "../../hooks/useWebSocket";
 
 interface MatchingGameProps {
   level: number;
@@ -14,6 +15,7 @@ interface MatchingGameProps {
   isPreviewMode?: boolean;
   previewQuestions?: any[];
   previewRole?: 'student' | 'teacher';
+  userData?: any;
 }
 
 type GamePhase =
@@ -22,6 +24,7 @@ type GamePhase =
   | "playing"
   | "feedback"
   | "result"
+  | "leaderboard"
   | "score";
 
 interface StandardQuestion {
@@ -73,7 +76,8 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   onStatsUpdate,
   isPreviewMode = false,
   previewQuestions = [],
-  previewRole = 'student'
+  previewRole = 'student',
+  userData
 }) => {
   const [questions, setQuestions] = useState<StandardQuestion[]>(DEFAULT_QUESTIONS);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,6 +91,13 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+
+  const { sendMessage, lastMessage } = useWebSocket();
+  const [allAnswers, setAllAnswers] = useState<Record<string, { 
+      name: string; 
+      scores: number[]; 
+      isCorrects: boolean[]; 
+  }>>({});
 
   const currentQuestion = questions[currentQuestionIndex];
 
@@ -238,6 +249,88 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     }
   }, [currentQuestionIndex, questions.length]);
 
+  // Listen for WebSocket events in MatchingGame
+  useEffect(() => {
+    if (!lastMessage) return;
+
+    if (lastMessage.type === 'question_answered') {
+      if (lastMessage.courseId && courseId && String(lastMessage.courseId) === String(courseId)) {
+        const { sender_id, name, questionIndex, isCorrect: correct, score: qScore } = lastMessage;
+        setAllAnswers(prev => {
+          const existing = prev[sender_id] || { name: name || 'Öğrenci', scores: [], isCorrects: [] };
+          const updatedScores = [...existing.scores];
+          const updatedCorrects = [...existing.isCorrects];
+          updatedScores[questionIndex] = qScore;
+          updatedCorrects[questionIndex] = correct;
+          return {
+            ...prev,
+            [sender_id]: {
+              ...existing,
+              scores: updatedScores,
+              isCorrects: updatedCorrects
+            }
+          };
+        });
+      }
+    } else if (lastMessage.type === 'next_question') {
+      if (lastMessage.courseId && courseId && String(lastMessage.courseId) === String(courseId)) {
+        const { questionIndex: nextIdx } = lastMessage;
+        if (nextIdx === currentQuestionIndex + 1) {
+          nextQuestion();
+        }
+      }
+    }
+  }, [lastMessage, courseId, currentQuestionIndex, nextQuestion]);
+
+  const submitAnswer = useCallback((correct: boolean, timeRemaining: number) => {
+    setIsCorrect(correct);
+    setPhase("result");
+
+    const qScore = correct ? Math.round(50 + timeRemaining / 2) : 0;
+    
+    if (correct) {
+      setScore((prev) => prev + qScore);
+    } else {
+      if (!isPreviewMode) {
+        api.post("/profile/student/stats", { hearts_change: -1 })
+          .then(() => onStatsUpdate?.())
+          .catch(console.error);
+      }
+    }
+
+    const userName = userData?.first_name 
+      ? `${userData.first_name} ${userData.last_name || ''}`.trim() 
+      : 'Öğrenci';
+
+    sendMessage({
+      type: 'question_answered',
+      courseId: courseId,
+      questionIndex: currentQuestionIndex,
+      name: userName,
+      isCorrect: correct,
+      score: qScore,
+      timeRemaining: timeRemaining
+    });
+
+    // Also update locally immediately
+    const myId = userData?.id?.toString() || 'me';
+    setAllAnswers(prev => {
+      const existing = prev[myId] || { name: userName, scores: [], isCorrects: [] };
+      const updatedScores = [...existing.scores];
+      const updatedCorrects = [...existing.isCorrects];
+      updatedScores[currentQuestionIndex] = qScore;
+      updatedCorrects[currentQuestionIndex] = correct;
+      return {
+        ...prev,
+        [myId]: {
+          ...existing,
+          scores: updatedScores,
+          isCorrects: updatedCorrects
+        }
+      };
+    });
+  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate]);
+
   // Phase Management
   useEffect(() => {
     let timeout: ReturnType<typeof setTimeout>;
@@ -278,20 +371,8 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
       correct = true;
     }
 
-    setIsCorrect(correct);
-    setPhase("result");
-
-    if (correct) {
-      const pointsPerQuestion = Math.ceil(100 / questions.length);
-      setScore((prev) => Math.min(100, prev + pointsPerQuestion));
-    } else {
-      if (!isPreviewMode) {
-        api.post("/profile/student/stats", { hearts_change: -1 })
-          .then(() => onStatsUpdate?.())
-          .catch(console.error);
-      }
-    }
-  }, [currentQuestion, selectedAnswerIds, textAnswer, questions.length, isPreviewMode]);
+    submitAnswer(correct, timer);
+  }, [currentQuestion, selectedAnswerIds, textAnswer, timer, submitAnswer]);
 
   // Game Timer
   useEffect(() => {
@@ -301,22 +382,15 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         setTimer((prev) => {
           if (prev <= 0) {
             clearInterval(interval);
-            setIsCorrect(false);
-            setPhase("result");
-            if (!isPreviewMode) {
-              api.post("/profile/student/stats", { hearts_change: -1 })
-                .then(() => onStatsUpdate?.())
-                .catch(console.error);
-            }
+            submitAnswer(false, 0);
             return 0;
           }
-          // decrease by (10 / questionTime) percentage per 100ms
           return prev - (10 / questionTime);
         });
       }, 100);
       return () => clearInterval(interval);
     }
-  }, [phase, isPreviewMode, currentQuestion]);
+  }, [phase, currentQuestion, submitAnswer]);
 
   // Calculate Stars
   const getStars = () => {
@@ -458,12 +532,127 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     );
   }
 
+  if (phase === "leaderboard") {
+    const getCumulativeScore = (studentAnswers: { scores: number[] }) => {
+      return (studentAnswers.scores || [])
+        .slice(0, currentQuestionIndex + 1)
+        .reduce((sum, s) => sum + (s || 0), 0);
+    };
+
+    const studentRankings = Object.entries(allAnswers).map(([id, data]) => {
+      return {
+        id,
+        name: data.name,
+        totalScore: getCumulativeScore(data),
+        lastCorrect: data.isCorrects[currentQuestionIndex],
+        lastScore: data.scores[currentQuestionIndex] || 0
+      };
+    }).sort((a, b) => b.totalScore - a.totalScore);
+
+    const isTeacher = previewRole === 'teacher';
+
+    const handleNextQuestionOrFinish = () => {
+      if (isTeacher) {
+        // Teacher broadcasts to move all students to next question
+        sendMessage({
+          type: 'next_question',
+          courseId: courseId,
+          questionIndex: currentQuestionIndex + 1
+        });
+      }
+      nextQuestion();
+    };
+
+    return (
+      <div className="w-full h-full flex flex-col items-center justify-center p-6 relative overflow-hidden bg-slate-950 text-white rounded-2xl border-2 border-slate-800/80 shadow-2xl min-h-[500px]">
+        {/* Background glow effects */}
+        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-xl w-full flex flex-col items-center relative z-10">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-3xl">🏆</span>
+            <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Soru {currentQuestionIndex + 1} Sonucu</span>
+          </div>
+          <h2 className="text-3xl font-black font-display mb-8 text-slate-100">Sıralama</h2>
+
+          {studentRankings.length === 0 ? (
+            <div className="text-center py-12">
+              <span className="text-4xl animate-pulse block mb-4">⌛</span>
+              <p className="text-slate-400 font-bold text-sm">Katılımcı verileri bekleniyor...</p>
+            </div>
+          ) : (
+            <div className="w-full space-y-3 mb-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-1 text-left">
+              {studentRankings.map((student, idx) => {
+                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
+                const isMe = student.id === (userData?.id?.toString() || 'me');
+                return (
+                  <div 
+                    key={student.id} 
+                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                      isMe
+                        ? 'bg-indigo-600/30 border-indigo-500'
+                        : idx === 0 
+                          ? 'bg-amber-500/10 border-amber-500/30' 
+                          : idx === 1 
+                            ? 'bg-slate-300/10 border-slate-400/30' 
+                            : idx === 2 
+                              ? 'bg-amber-700/10 border-amber-800/30' 
+                              : 'bg-slate-900/50 border-slate-800/80'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="w-6 text-center text-xs font-black text-indigo-400 font-display">
+                        {medal || `#${idx + 1}`}
+                      </span>
+                      <span className={`font-black text-sm truncate ${isMe ? 'text-indigo-200' : 'text-slate-200'}`}>
+                        {student.name} {isMe && "(Sen)"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      {student.lastScore > 0 ? (
+                        <span className="text-[10px] font-black text-green-400 flex items-center gap-0.5 bg-green-500/10 px-2 py-0.5 rounded">
+                          +{student.lastScore} ⚡
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded">
+                          +0 ✗
+                        </span>
+                      )}
+                      <span className="bg-indigo-950 text-indigo-300 text-[10px] font-black px-2.5 py-1 rounded-md font-display">
+                        {student.totalScore} Puan
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <div className="w-full flex justify-center">
+            <button
+              onClick={handleNextQuestionOrFinish}
+              disabled={!isTeacher && previewRole === 'student'}
+              className={`px-12 py-4 font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg border-b-[4px] active:border-b-0 active:translate-y-[4px] transition-all shrink-0 ${
+                !isTeacher && previewRole === 'student'
+                  ? "bg-slate-700 text-slate-500 cursor-not-allowed border-none shadow-none"
+                  : "bg-indigo-600 hover:bg-indigo-700 border-indigo-800 text-white"
+              }`}
+            >
+              {!isTeacher && previewRole === 'student' ? "Hocanın Başlatması Bekleniyor..." : (currentQuestionIndex < questions.length - 1 ? "Sonraki Soru ➔" : "Oyunu Tamamla ➔")}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (phase === "playing" || phase === "result") {
     const isChecked = phase === "result";
     const isTeacher = previewRole === 'teacher';
 
     return (
-      <div className="w-full max-w-5xl flex flex-col h-[94vh] py-4 relative overflow-hidden text-slate-800">
+      <div className="w-full max-w-5xl flex flex-col h-[94vh] py-4 relative overflow-hidden text-slate-800 animate-in fade-in duration-300">
         
         {/* Header Bar */}
         <div className="w-full flex justify-between items-center mb-6 px-4 shrink-0 select-none">
@@ -647,7 +836,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                     if (opt.isCorrect) {
                       stateClass = "ring-8 ring-green-400/50 scale-[1.02] shadow-2xl border-emerald-750 bg-emerald-500 text-white";
                     } else if (isSelected) {
-                      stateClass = "opacity-60 scale-95 border-rose-750 bg-rose-500 grayscale text-white";
+                      stateClass = "opacity-60 scale-95 border-rose-755 bg-rose-500 grayscale text-white";
                     } else {
                       stateClass = "opacity-30 scale-95 grayscale text-white";
                     }
@@ -806,14 +995,14 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
               </button>
             ) : isChecked ? (
               <button
-                onClick={nextQuestion}
+                onClick={() => setPhase("leaderboard")}
                 className={`px-10 py-4 font-black text-sm uppercase tracking-wider rounded-2xl shadow-lg border-b-[4px] border-black/15 text-white active:border-b-0 active:translate-y-[4px] transition-all shrink-0 ${
                   isCorrect 
                     ? "bg-green-500 hover:bg-green-600 active:bg-green-700" 
                     : "bg-red-500 hover:bg-red-600 active:bg-red-700"
                 }`}
               >
-                Devam Et
+                Liderlik Tablosu
               </button>
             ) : (
               <button

@@ -83,12 +83,22 @@ export interface MatchingGameConfig {
     questions: QuizQuestion[];
 }
 
+export interface HomeworkConfig {
+    title: string;
+    instructions: string;
+    submissionType: 'code' | 'image' | 'file' | 'text';
+    points?: number;
+    dueDate?: string;
+    starterCode?: string;
+}
+
 export interface Slide {
     id: number | string;
     // 'normal' is default if undefined
-    type?: 'normal' | 'game' | 'coding';
+    type?: 'normal' | 'game' | 'coding' | 'homework';
     gameType?: 'matching' | 'monster';
     gameConfig?: MatchingGameConfig | any;
+    homeworkConfig?: HomeworkConfig;
     elements: SlideElement[];
     connections?: SlideConnection[];
     background?: 'default' | 'notebook';

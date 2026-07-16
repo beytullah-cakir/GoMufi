@@ -51,11 +51,6 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
     //   id: "Builder",
     // },
     {
-      label: "YZ Soru Oluştur",
-      icon: Sparkles,
-      id: "AIQuestions",
-    },
-    {
       label: "Profilim",
       icon: User,
       id: "Profile",
@@ -70,11 +65,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: MessageCircle,
       id: "Messages",
     },
-    {
-      label: "İstatistikler",
-      icon: BarChart3,
-      id: "Analytics",
-    },
+    // {
+    //   label: "İstatistikler",
+    //   icon: BarChart3,
+    //   id: "Analytics",
+    // },
   ];
 
   return (

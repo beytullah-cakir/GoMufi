@@ -4,8 +4,8 @@ import InstructorLayout from './InstructorLayout';
 import InstructorDashboard from './InstructorDashboard';
 import InstructorCourses from './InstructorCourses';
 import InstructorStudents from './InstructorStudents';
-import InstructorRevenue from './InstructorRevenue';
-import InstructorAIQuestions from './InstructorAIQuestions';
+// import InstructorRevenue from './InstructorRevenue';
+// import InstructorAIQuestions from './InstructorAIQuestions';
 import InstructorMessages from './InstructorMessages';
 import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
@@ -31,8 +31,8 @@ const InstructorApp: React.FC = () => {
             'classes': 'Classes',
             'students': 'Students',
             'messages': 'Messages',
-            'analytics': 'Analytics',
-            'ai-questions': 'AIQuestions',
+            // 'analytics': 'Analytics',
+            // 'ai-questions': 'AIQuestions',
             'profile': 'Profile',
             'builder': 'Builder'
         };
@@ -76,8 +76,8 @@ const InstructorApp: React.FC = () => {
             'Classes': '/instructor/classes',
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
-            'Analytics': '/instructor/analytics',
-            'AIQuestions': '/instructor/ai-questions',
+            // 'Analytics': '/instructor/analytics',
+            // 'AIQuestions': '/instructor/ai-questions',
             'Profile': '/instructor/profile',
             'Builder': '/instructor/builder'
         };
@@ -134,8 +134,8 @@ const InstructorApp: React.FC = () => {
                 <Route path="classes" element={<InstructorClasses />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
-                <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} />
-                <Route path="ai-questions" element={<InstructorAIQuestions coursesData={coursesData} />} />
+                {/* <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} /> */}
+                {/* <Route path="ai-questions" element={<InstructorAIQuestions coursesData={coursesData} />} /> */}
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>

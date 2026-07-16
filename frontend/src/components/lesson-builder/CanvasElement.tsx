@@ -2378,14 +2378,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
         {(el.type === "image" || el.type === "video") && (
           <div
             className="w-full h-full bg-gray-100 flex items-center justify-center overflow-hidden relative cursor-pointer"
-            onClick={() => {
-              if (el.type === "image") {
-                const input = document.getElementById(
-                  `file-input-${el.id}`,
-                ) as HTMLInputElement;
-                input?.click();
-              }
-            }}
             style={{
               borderRadius: el.style?.borderRadius
                 ? `${el.style.borderRadius}px`

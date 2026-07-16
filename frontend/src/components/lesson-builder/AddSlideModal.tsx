@@ -7,7 +7,7 @@ import api from '../../api';
 interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template', config?: { gameType?: string; elements?: any[]; background?: string }) => void;
+    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework', config?: { gameType?: string; elements?: any[]; background?: string }) => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV';
     stageColor: string;
     isAdmin?: boolean;
@@ -34,7 +34,7 @@ const MOCK_GAME_SLIDE: Slide = {
 };
 
 const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor, isAdmin = false }) => {
-    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai'>('slide');
+    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai' | 'homework'>('slide');
     const [customTemplates, setCustomTemplates] = useState<any[]>([]);
 
     // Edit Template State
@@ -113,6 +113,19 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                             </div>
                             {activeTab === 'game' && <ChevronRight className="w-4 h-4 text-purple-500" />}
                         </button>
+
+                        {activeStage === 'ÖDEV' && (
+                            <button
+                                onClick={() => setActiveTab('homework')}
+                                className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-colors ${activeTab === 'homework' ? 'bg-white shadow-sm ring-1 ring-black/5 text-blue-600 font-bold' : 'text-gray-500 hover:bg-white/50 hover:text-gray-700 font-medium'}`}
+                            >
+                                <div className="flex items-center gap-3">
+                                    <PenTool className="w-5 h-5" />
+                                    <span className="text-sm font-bold text-sm">Ödev Şablonları</span>
+                                </div>
+                                {activeTab === 'homework' && <ChevronRight className="w-4 h-4 text-blue-500" />}
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -124,6 +137,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                             {activeTab === 'custom_stage' && `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Seviyesi Şablonları`}
                             {activeTab === 'custom_ai' && `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} AI Şablonları`}
                             {activeTab === 'game' && 'Oyun Şablonları'}
+                            {activeTab === 'homework' && 'Ödev Şablonları'}
                         </h3>
                         <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
                             <X className="w-5 h-5" />
@@ -597,7 +611,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 <button
                                     onClick={() => onAddSlide('game')}
                                     className="text-left group"
-                                >
+                                  >
                                     <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-purple-500 group-hover:shadow-md transition-all relative">
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="scale-[0.25] origin-center transform-gpu">
@@ -628,6 +642,25 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </div>
                                 </button>
                             </>
+                        )}
+
+                        {/* ÖDEV ŞABLONLARI */}
+                        {activeTab === 'homework' && (
+                            <button
+                                onClick={() => onAddSlide('homework')}
+                                className="text-left group animate-in zoom-in-95 duration-200"
+                            >
+                                <div className="w-full aspect-video bg-blue-50 border-2 border-blue-100 rounded-2xl mb-3 overflow-hidden group-hover:border-blue-500 group-hover:shadow-md transition-all relative flex items-center justify-center">
+                                    <div className="flex flex-col items-center gap-2">
+                                        <PenTool className="w-10 h-10 text-blue-500 animate-bounce" />
+                                        <span className="text-[10px] font-black text-blue-400 uppercase tracking-widest">ÖDEV TESLİMİ</span>
+                                    </div>
+                                </div>
+                                <div className="px-1">
+                                    <h4 className="font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Ödev Şablonu</h4>
+                                    <p className="text-xs text-gray-400 mt-1">Öğrencilerin metin, kod veya dosya yükleyebileceği ödev teslim sayfası.</p>
+                                </div>
+                            </button>
                         )}
                     </div>
                 </div>

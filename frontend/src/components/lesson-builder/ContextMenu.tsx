@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight } from 'lucide-react';
+import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
@@ -470,35 +470,29 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
                 {/* URL Input (Single Item Only) */}
                 {isSingle && hasMedia && (
-                    <>
+                    <div className="flex items-center gap-1.5">
+                        {firstEl.type === 'image' && (
+                            <button
+                                onClick={() => {
+                                    const input = document.getElementById(`file-input-${firstEl.id}`) as HTMLInputElement;
+                                    input?.click();
+                                }}
+                                className="p-1.5 rounded hover:bg-gray-700 text-gray-300 transition-colors flex items-center justify-center"
+                                title="Görsel Yükle"
+                            >
+                                <Upload className="w-4 h-4" />
+                            </button>
+                        )}
                         <input
                             type="text"
-                            placeholder="Video/Görsel URL..."
+                            placeholder="https://..."
                             className="bg-gray-800 text-xs rounded border border-gray-600 px-2 h-8 w-40 outline-none text-white focus:border-indigo-500 transition-colors"
-                            value={firstEl.src || ''}
-                            onChange={(e) => updateElement(firstEl.id, { src: e.target.value })}
+                            value={firstEl.src || firstEl.imageUrl || ''}
+                            onChange={(e) => updateElement(firstEl.id, { src: e.target.value, imageUrl: e.target.value })}
                             onMouseDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                         />
-                        <div className="flex items-center gap-1 bg-gray-800 rounded border border-gray-600 px-2 h-8 text-xs text-gray-300">
-                            <span className="text-[10px] text-gray-500 font-bold">G:</span>
-                            <input
-                                type="number"
-                                className="bg-gray-900 text-white w-12 text-center rounded border border-gray-700 h-6 outline-none focus:border-indigo-500"
-                                value={Math.round(firstEl.width || 0)}
-                                onChange={(e) => updateElement(firstEl.id, { width: parseInt(e.target.value) || 100 })}
-                                onMouseDown={(e) => e.stopPropagation()}
-                            />
-                            <span className="text-[10px] text-gray-500 font-bold ml-1">Y:</span>
-                            <input
-                                type="number"
-                                className="bg-gray-900 text-white w-12 text-center rounded border border-gray-700 h-6 outline-none focus:border-indigo-500"
-                                value={Math.round(firstEl.height || 0)}
-                                onChange={(e) => updateElement(firstEl.id, { height: parseInt(e.target.value) || 100 })}
-                                onMouseDown={(e) => e.stopPropagation()}
-                            />
-                        </div>
-                    </>
+                    </div>
                 )}
 
                 {/* Divider & Delete */}
