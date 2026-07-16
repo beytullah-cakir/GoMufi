@@ -169,6 +169,7 @@ class ExpandTopicsRequest(BaseModel):
     course_topic: str
     difficulty: str
     audience: str
+    target_count: Optional[int] = None
 
 
 class ExpandTopicsResponse(BaseModel):
@@ -266,7 +267,7 @@ Requirements:
 - The roadmap consists of lessons.
 - Each lesson contains a list of modules.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- For each lesson, you should follow a strict pedagogical flow: start with exactly one UNDERSTAND module, then exactly one APPLY module, then optionally you can add a CONNECT module, optionally a CREATE module (you can add BOTH CONNECT and CREATE in the same lesson if it benefits the learning path), and end with exactly one QUIZ or HOMEWORK module. Do NOT duplicate UNDERSTAND, APPLY, QUIZ or HOMEWORK module types within a single lesson.
+- For each lesson, you must follow a strict pedagogical flow: start with exactly one UNDERSTAND module, then exactly one APPLY module. After the APPLY module, you MUST include a CONNECT module (Puzzle/Bağlantı) and/or a CREATE module (Trophy/Üret) to encourage synthesis and project creation (these are mandatory, do not omit them). Finally, end each lesson with exactly one QUIZ or HOMEWORK module. Do NOT duplicate UNDERSTAND, APPLY, QUIZ or HOMEWORK module types within a single lesson.
 - Each module in the lessons modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -695,17 +696,25 @@ async def expand_topics_api(
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
         
+        target_count_val = req.target_count if req.target_count and req.target_count > 0 else None
+        count_instruction = ""
+        if target_count_val:
+            count_instruction = f"\nRequirement: You MUST generate exactly {target_count_val} total sub-topic strings in the final 'expanded_topics' array."
+        else:
+            count_instruction = "\nRequirement: Suggest around 3 to 5 sub-topics per high-level topic."
+            
         prompt = f"""
 Role: You are an expert computer science curriculum architect and educational planner. Türkçe cevap ver.
 Your task is to take a list of course topic headings, analyze them in the context of the course '{req.course_topic}', and expand them into a more detailed, high-density sequence of practical sub-topics.
 Specifically:
 1. Identify high-level, short, or broad topic headings (for example, "Flask", "OOP", "Database", "Python Giriş", "CSS").
-2. Subdivide these high-level headings into 3 to 5 separate, detailed, progressive sub-topics. For example:
+2. Subdivide these high-level headings into separate, detailed, progressive sub-topics. For example:
    - "Flask" should be expanded into sub-topics like: "Flask Kurulumu ve İlk Uygulama", "Flask Yönlendirme (Routing) ve Dinamik URL'ler", "Jinja2 Şablon Yapısı (Templates)", "Flask Form Yönetimi ve POST/GET İstekleri", "Flask ile Veritabanı Entegrasyonu (SQLAlchemy)".
    - "Python Giriş" should be expanded into: "Python Kurulumu ve Temel print/yorumlar", "Değişken Tanımlama ve Temel Veri Tipleri", "Tip Dönüşümleri (Casting)".
 3. If a topic is already highly specific and detailed, keep it as is.
 4. Do NOT output generic review, recap, or exam topics.
 5. Preserve the overall logical learning sequence.
+{count_instruction}
 
 Input Parameters:
 Course Topic Context: {req.course_topic}
@@ -869,6 +878,7 @@ Requirements:
     4. `{{"type": "APPLY", "topic": "while Döngüsü ile Sayı Toplama Pratiği"}}`
     5. `{{"type": "QUIZ", "topic": "Ders Değerlendirme Testi"}}`
   - This learn-then-practice sandwich pattern (UNDERSTAND followed by APPLY) can repeat as many times as there are distinct sub-topics in that lesson. This ensures both theory and coding practice are covered for every concept.
+  - After the final APPLY module, you MUST include a CONNECT module (Puzzle/Bağlantı task) and/or a CREATE module (Trophy/Üret task) in the lesson flow (these are mandatory, do not omit them).
   - End the lesson with exactly one QUIZ or HOMEWORK module.
 - Each module in the modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.

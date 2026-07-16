@@ -584,6 +584,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [isDistributingTopics, setIsDistributingTopics] = useState<boolean>(false);
   const [isExpandingTopics, setIsExpandingTopics] = useState<boolean>(false);
   const [expandingTopicIndex, setExpandingTopicIndex] = useState<number | null>(null);
+  const [aiExpandCount, setAiExpandCount] = useState<number>(3);
 
   const handleExpandSingleTopic = async (tIdx: number) => {
     const topicToExpand = suggestedTopics[tIdx];
@@ -597,7 +598,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
         topics: [topicToExpand],
         course_topic: aiTopic,
         difficulty: aiDifficulty,
-        audience: aiAudience
+        audience: aiAudience,
+        target_count: aiExpandCount
       });
 
       if (response.data?.success && response.data.expanded_topics) {
@@ -632,7 +634,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
         topics: suggestedTopics,
         course_topic: aiTopic,
         difficulty: aiDifficulty,
-        audience: aiAudience
+        audience: aiAudience,
+        target_count: aiExpandCount * suggestedTopics.length
       });
 
       if (response.data?.success && response.data.expanded_topics) {
@@ -2335,6 +2338,29 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </p>
                   </div>
 
+                  {/* Detail Level Selector */}
+                  <div className="flex items-center justify-between bg-purple-50/50 border border-purple-100/50 p-3 rounded-2xl">
+                    <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <Settings className="w-4 h-4 text-purple-500" />
+                      Alt Konu Detay Seviyesi (AI):
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-500">Alt Konu Sayısı:</span>
+                      <select
+                        value={aiExpandCount}
+                        onChange={(e) => setAiExpandCount(Number(e.target.value))}
+                        className="px-2 py-1 bg-white border border-gray-250 rounded-xl text-xs font-black text-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+                      >
+                        <option value={2}>2 Adet (Hızlı/Basit)</option>
+                        <option value={3}>3 Adet (Dengeli)</option>
+                        <option value={4}>4 Adet (Detaylı)</option>
+                        <option value={5}>5 Adet (Kapsamlı)</option>
+                        <option value={6}>6 Adet (Derinlemesine)</option>
+                        <option value={8}>8 Adet (Gelişmiş)</option>
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Suggested Topics List */}
                   <div className="flex flex-col gap-2">
                     {suggestedTopics.map((topic, tIdx) => (
@@ -2413,7 +2439,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                             topics: [newTopicInput.trim()],
                             course_topic: aiTopic,
                             difficulty: aiDifficulty,
-                            audience: aiAudience
+                            audience: aiAudience,
+                            target_count: aiExpandCount
                           });
                           if (response.data?.success && response.data.expanded_topics) {
                             setSuggestedTopics((prev) => [...prev, ...response.data.expanded_topics]);
