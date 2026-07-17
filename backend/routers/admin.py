@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import joinedload
@@ -10,6 +11,7 @@ from models.teacher import Teacher
 from models.course import Course
 from models.quiz import Quiz
 from models.enrollment import Enrollment
+from models.live_session import LiveSession
 from core.security import hash_password
 from core.config import settings
 from pydantic import BaseModel
@@ -458,13 +460,24 @@ async def admin_delete_course(
     if not course:
         raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
         
-    # Delete enrollment references
-    enrolls_res = await db.execute(select(Enrollment).where(Enrollment.course_id == course_id))
-    for enroll in enrolls_res.scalars().all():
-        await db.delete(enroll)
+    try:
+        # Delete related quizzes
+        await db.execute(delete(Quiz).where(Quiz.course_id == course_id))
         
-    await db.delete(course)
-    await db.commit()
+        # Delete related live sessions
+        await db.execute(delete(LiveSession).where(LiveSession.course_id == course_id))
+        
+        # Delete related enrollments
+        await db.execute(delete(Enrollment).where(Enrollment.course_id == course_id))
+        
+        # Delete the course
+        await db.delete(course)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in admin_delete_course: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
     return {"message": "Kurs ve kayıtları silindi."}
 
 
