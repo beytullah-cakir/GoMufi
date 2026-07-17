@@ -38,12 +38,16 @@ function readAsBase64(file: File): Promise<string> {
     });
 }
 
+export interface AIWeakness {
+    explanation: string;
+    studentCode?: string;
+    improvedCode?: string;
+}
+
 export interface AIReviewResult {
     overallScore: number;
-    strengths: string[];
-    weaknesses: string[];
-    suggestions: string[];
     summary: string;
+    weaknesses: AIWeakness[];
     rawResponse: string;
 }
 
@@ -54,17 +58,21 @@ Görevin: Bir öğrencinin ödevini eğitmenin sorusuna göre değerlendirmek.
 Değerlendirmeni aşağıdaki JSON formatında döndür (başka hiçbir şey yazma):
 {
   "overallScore": <0-100 arası puan>,
-  "strengths": ["<Doğru yapılan 1>", "<Doğru yapılan 2>", ...],
-  "weaknesses": ["<Eksik/hatalı 1>", "<Eksik/hatalı 2>", ...],
-  "suggestions": ["<Öneri 1>", "<Öneri 2>", ...],
-  "summary": "<2-3 cümlelik genel değerlendirme>"
+  "summary": "<2-3 cümlelik genel değerlendirme özeti>",
+  "weaknesses": [
+    {
+      "explanation": "<Hatalı veya eksik olan yerin açıklaması, neden iyileştirilmesi gerektiği ve nasıl düzeltileceği>",
+      "studentCode": "<Varsa öğrencinin yazdığı kodun hatalı veya eksik olan o spesifik satırı/parçası>",
+      "improvedCode": "<Bu hatayı düzelten/iyileştiren düzgün yazılmış kod bloğu veya önerisi>"
+    }
+  ]
 }
 
 KURALLAR:
 - Türkçe yaz.
-- strengths listesi en az 1, en fazla 5 madde içersin.
+- Sadece hatalı ve eksik kısımları odak noktası al (doğru yapılanları veya strengths listesini yazma).
 - weaknesses listesi 0 ile 5 madde arasında olsun.
-- suggestions listesi weaknesses ile örtüşsün, her eksiklik için pratik öneri ver.
+- Her hata/eksiklik için mutlaka 'explanation' ve kod tabanlı ödevlerde 'improvedCode' sağla. Öğrenci kodu iyileştirilebilecek durumdaysa 'studentCode' alanını da doldur.
 - Puan verirken adil ve yapıcı ol.
 - Eğer içerik soruyla alakasızsa weaknesses'e ekle.`;
 
@@ -76,10 +84,8 @@ function parseAIResponse(rawText: string): AIReviewResult {
     const parsed = JSON.parse(jsonMatch[0]);
     return {
         overallScore: Math.min(100, Math.max(0, Number(parsed.overallScore) || 0)),
-        strengths: Array.isArray(parsed.strengths) ? parsed.strengths : [],
-        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
-        suggestions: Array.isArray(parsed.suggestions) ? parsed.suggestions : [],
         summary: parsed.summary || '',
+        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
         rawResponse: rawText,
     };
 }

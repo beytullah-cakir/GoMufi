@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { CheckCircle2, XCircle, Lightbulb, Star, BarChart3, ArrowLeft, Sparkles } from 'lucide-react';
+import { CheckCircle2, XCircle, Lightbulb, Star, BarChart3, ArrowLeft, Sparkles, Code } from 'lucide-react';
 import type { AIReviewResult } from './homeworkAIService';
 
 interface HomeworkAIReviewProps {
@@ -143,70 +143,57 @@ const HomeworkAIReview: React.FC<HomeworkAIReviewProps> = ({
                         {/* ── RIGHT column: Details (8/12) ── */}
                         <div className="md:col-span-8 flex flex-col gap-5">
 
-                            {/* Strengths */}
-                            {result.strengths.length > 0 && (
-                                <div className="bg-green-50 rounded-3xl border-2 border-green-100 p-5">
-                                    <p className="text-[10px] font-black text-green-600 uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                                        <CheckCircle2 size={12} /> Doğru Yapılanlar
-                                    </p>
-                                    <ul className="space-y-2">
-                                        {result.strengths.map((s, i) => (
-                                            <li key={i} className="flex items-start gap-2.5">
-                                                <span className="mt-0.5 w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center shrink-0 text-[10px] font-black">
-                                                    {i + 1}
-                                                </span>
-                                                <span className="text-sm text-green-900 font-medium leading-relaxed">{s}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                             {/* Weaknesses & Fixes */}
+                             {result.weaknesses.length > 0 ? (
+                                 <div className="bg-red-50 rounded-3xl border-2 border-red-100 p-6 space-y-6">
+                                     <p className="text-[10px] font-black text-red-500 uppercase tracking-widest flex items-center gap-1.5 border-b border-red-100/50 pb-3">
+                                         <XCircle size={14} /> Eksik / Hatalı Noktalar ve Çözümleri
+                                     </p>
+                                     <div className="space-y-6">
+                                         {result.weaknesses.map((w, i) => (
+                                             <div key={i} className="bg-white rounded-2xl border border-red-100/50 p-5 shadow-sm space-y-4">
+                                                 {/* Explanation */}
+                                                 <div className="flex items-start gap-2.5">
+                                                     <span className="mt-0.5 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 text-xs font-black">
+                                                         {i + 1}
+                                                     </span>
+                                                     <span className="text-sm text-red-950 font-bold leading-relaxed">{w.explanation}</span>
+                                                 </div>
 
-                            {/* Weaknesses */}
-                            {result.weaknesses.length > 0 && (
-                                <div className="bg-red-50 rounded-3xl border-2 border-red-100 p-5">
-                                    <p className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                                        <XCircle size={12} /> Eksik / Hatalı Noktalar
-                                    </p>
-                                    <ul className="space-y-2">
-                                        {result.weaknesses.map((w, i) => (
-                                            <li key={i} className="flex items-start gap-2.5">
-                                                <span className="mt-0.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center shrink-0 text-[10px] font-black">
-                                                    {i + 1}
-                                                </span>
-                                                <span className="text-sm text-red-900 font-medium leading-relaxed">{w}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
+                                                 {/* Code comparison stacks */}
+                                                 {(w.studentCode || w.improvedCode) && (
+                                                     <div className="flex flex-col gap-3 pl-8.5">
+                                                         {/* Student Code */}
+                                                         {w.studentCode && (
+                                                             <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 font-mono text-[11.5px] text-red-300 relative">
+                                                                 <div className="text-[9px] font-black text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                     <span>⚠️ Senin Kodun</span>
+                                                                 </div>
+                                                                 <pre className="whitespace-pre-wrap overflow-x-auto">{w.studentCode}</pre>
+                                                             </div>
+                                                         )}
 
-                            {/* Suggestions */}
-                            {result.suggestions.length > 0 && (
-                                <div className="bg-amber-50 rounded-3xl border-2 border-amber-100 p-5">
-                                    <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-4 flex items-center gap-1.5">
-                                        <Lightbulb size={12} /> Nasıl Düzeltirsin?
-                                    </p>
-                                    <ul className="space-y-3">
-                                        {result.suggestions.map((s, i) => (
-                                            <li key={i} className="flex items-start gap-2.5">
-                                                <span className="mt-0.5 w-5 h-5 rounded-full bg-amber-400 text-white flex items-center justify-center shrink-0 text-[10px] font-black">
-                                                    <Lightbulb size={10} />
-                                                </span>
-                                                <span className="text-sm text-amber-900 font-medium leading-relaxed">{s}</span>
-                                            </li>
-                                        ))}
-                                    </ul>
-                                </div>
-                            )}
-
-                            {/* Empty state */}
-                            {result.weaknesses.length === 0 && result.strengths.length === 0 && (
-                                <div className="flex flex-col items-center justify-center py-10 text-gray-300">
-                                    <Star size={40} />
-                                    <p className="text-sm font-bold mt-3">Detay bulunamadı.</p>
-                                </div>
-                            )}
+                                                         {/* Improved Code */}
+                                                         {w.improvedCode && (
+                                                             <div className="bg-emerald-950 border border-emerald-900 rounded-xl p-4 font-mono text-[11.5px] text-emerald-300 relative">
+                                                                 <div className="text-[9px] font-black text-emerald-450 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                                     <span>✨ Önerilen İyileştirme</span>
+                                                                 </div>
+                                                                 <pre className="whitespace-pre-wrap overflow-x-auto">{w.improvedCode}</pre>
+                                                             </div>
+                                                         )}
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         ))}
+                                     </div>
+                                 </div>
+                             ) : (
+                                 <div className="flex flex-col items-center justify-center py-20 text-gray-300 bg-white border-2 border-dashed border-gray-150 rounded-3xl">
+                                     <Star size={48} className="animate-spin duration-1000" />
+                                     <p className="text-sm font-black mt-4">Harika! Hiçbir eksik veya hata bulunamadı.</p>
+                                 </div>
+                             )}
                         </div>
                     </div>
                 </div>
