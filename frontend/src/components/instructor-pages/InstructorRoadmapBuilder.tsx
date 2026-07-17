@@ -582,6 +582,74 @@ const InstructorRoadmapBuilder: React.FC = () => {
   };
 
   const [isDistributingTopics, setIsDistributingTopics] = useState<boolean>(false);
+  const [isExpandingTopics, setIsExpandingTopics] = useState<boolean>(false);
+  const [expandingTopicIndex, setExpandingTopicIndex] = useState<number | null>(null);
+  const [aiExpandCount, setAiExpandCount] = useState<number>(3);
+
+  const handleExpandSingleTopic = async (tIdx: number) => {
+    const topicToExpand = suggestedTopics[tIdx];
+    if (!topicToExpand || !topicToExpand.trim()) return;
+
+    setIsExpandingTopics(true);
+    setExpandingTopicIndex(tIdx);
+
+    try {
+      const response = await api.post("/courses/expand_topics", {
+        topics: [topicToExpand],
+        course_topic: aiTopic,
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        target_count: aiExpandCount
+      });
+
+      if (response.data?.success && response.data.expanded_topics) {
+        const expanded = response.data.expanded_topics;
+        setSuggestedTopics(prev => {
+          const next = [...prev];
+          next.splice(tIdx, 1, ...expanded);
+          return next;
+        });
+      } else {
+        alert("Konu detaylandırılamadı.");
+      }
+    } catch (error: any) {
+      console.error("Error expanding topic:", error);
+      alert(error.response?.data?.detail || "Konu detaylandırılırken bir hata oluştu.");
+    } finally {
+      setIsExpandingTopics(false);
+      setExpandingTopicIndex(null);
+    }
+  };
+
+  const handleExpandAllTopics = async () => {
+    if (suggestedTopics.length === 0) {
+      alert("Detaylandırılacak konu bulunmamaktadır.");
+      return;
+    }
+
+    setIsExpandingTopics(true);
+
+    try {
+      const response = await api.post("/courses/expand_topics", {
+        topics: suggestedTopics,
+        course_topic: aiTopic,
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        target_count: aiExpandCount * suggestedTopics.length
+      });
+
+      if (response.data?.success && response.data.expanded_topics) {
+        setSuggestedTopics(response.data.expanded_topics);
+      } else {
+        alert("Konular genişletilemedi.");
+      }
+    } catch (error: any) {
+      console.error("Error expanding topics:", error);
+      alert(error.response?.data?.detail || "Konular genişletilirken bir hata oluştu.");
+    } finally {
+      setIsExpandingTopics(false);
+    }
+  };
 
   const handleSuggestRawTopics = async () => {
     if (!aiTopic.trim()) {
@@ -2270,6 +2338,29 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </p>
                   </div>
 
+                  {/* Detail Level Selector */}
+                  <div className="flex items-center justify-between bg-purple-50/50 border border-purple-100/50 p-3 rounded-2xl">
+                    <span className="text-xs font-bold text-purple-950 flex items-center gap-1.5">
+                      <Settings className="w-4 h-4 text-purple-500" />
+                      Alt Konu Detay Seviyesi (AI):
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold text-gray-500">Alt Konu Sayısı:</span>
+                      <select
+                        value={aiExpandCount}
+                        onChange={(e) => setAiExpandCount(Number(e.target.value))}
+                        className="px-2 py-1 bg-white border border-gray-250 rounded-xl text-xs font-black text-purple-600 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+                      >
+                        <option value={2}>2 Adet (Hızlı/Basit)</option>
+                        <option value={3}>3 Adet (Dengeli)</option>
+                        <option value={4}>4 Adet (Detaylı)</option>
+                        <option value={5}>5 Adet (Kapsamlı)</option>
+                        <option value={6}>6 Adet (Derinlemesine)</option>
+                        <option value={8}>8 Adet (Gelişmiş)</option>
+                      </select>
+                    </div>
+                  </div>
+
                   {/* Suggested Topics List */}
                   <div className="flex flex-col gap-2">
                     {suggestedTopics.map((topic, tIdx) => (
@@ -2290,6 +2381,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
                         />
                         <button
                           type="button"
+                          onClick={() => handleExpandSingleTopic(tIdx)}
+                          className="p-2 text-purple-550 hover:bg-purple-50 rounded-xl border border-transparent hover:border-purple-100 transition-all shrink-0"
+                          title="AI ile bu konuyu detaylandır"
+                          disabled={isExpandingTopics}
+                        >
+                          <Sparkles size={14} className={isExpandingTopics && expandingTopicIndex === tIdx ? "animate-spin" : ""} />
+                        </button>
+                        <button
+                          type="button"
                           onClick={() => {
                             setSuggestedTopics((prev) => prev.filter((_, idx) => idx !== tIdx));
                           }}
@@ -2301,6 +2401,18 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       </div>
                     ))}
                   </div>
+
+                  {suggestedTopics.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleExpandAllTopics}
+                      disabled={isExpandingTopics}
+                      className="self-start text-[11px] font-black text-purple-600 hover:text-purple-700 flex items-center gap-1.5 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-100 rounded-xl transition-all disabled:opacity-50"
+                    >
+                      <Sparkles size={12} className={isExpandingTopics && expandingTopicIndex === null ? "animate-spin" : ""} />
+                      Tüm Konu Listesini Yapay Zekayla Detaylandır
+                    </button>
+                  )}
 
                   {/* Add New Topic Row */}
                   <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
@@ -2317,6 +2429,39 @@ const InstructorRoadmapBuilder: React.FC = () => {
                         }
                       }}
                     />
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!newTopicInput.trim()) return;
+                        setIsExpandingTopics(true);
+                        try {
+                          const response = await api.post("/courses/expand_topics", {
+                            topics: [newTopicInput.trim()],
+                            course_topic: aiTopic,
+                            difficulty: aiDifficulty,
+                            audience: aiAudience,
+                            target_count: aiExpandCount
+                          });
+                          if (response.data?.success && response.data.expanded_topics) {
+                            setSuggestedTopics((prev) => [...prev, ...response.data.expanded_topics]);
+                            setNewTopicInput("");
+                          } else {
+                            alert("Konu detaylandırılamadı.");
+                          }
+                        } catch (error: any) {
+                          console.error("Error expanding topic:", error);
+                          alert(error.response?.data?.detail || "Konu detaylandırılırken hata oluştu.");
+                        } finally {
+                          setIsExpandingTopics(false);
+                        }
+                      }}
+                      disabled={isExpandingTopics || !newTopicInput.trim()}
+                      className="px-3.5 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-650 hover:to-indigo-650 text-white rounded-xl text-xs font-black active:scale-95 transition-all shrink-0 flex items-center gap-1.5 disabled:opacity-50"
+                      title="Yazılan konuyu AI ile alt konulara parçalayarak ekle"
+                    >
+                      <Sparkles size={12} className={isExpandingTopics ? "animate-spin" : ""} />
+                      <span>AI Detaylandır</span>
+                    </button>
                     <button
                       type="button"
                       onClick={() => {

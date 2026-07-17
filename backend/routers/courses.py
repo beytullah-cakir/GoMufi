@@ -545,8 +545,24 @@ async def delete_course(
     if not course:
         raise HTTPException(status_code=404, detail="Course not found or unauthorized")
         
-    await db.delete(course)
-    await db.commit()
+    try:
+        # Delete related quizzes
+        await db.execute(delete(Quiz).where(Quiz.course_id == course_id))
+        
+        # Delete related live sessions
+        await db.execute(delete(LiveSession).where(LiveSession.course_id == course_id))
+        
+        # Delete related enrollments
+        await db.execute(delete(Enrollment).where(Enrollment.course_id == course_id))
+        
+        # Delete the course
+        await db.delete(course)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        print(f"ERROR in delete_course: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
     return {"message": "Course deleted successfully"}
 
 @router.post("/start-session/{course_id}")
