@@ -7,6 +7,7 @@ import InstructorStudents from './InstructorStudents';
 // import InstructorRevenue from './InstructorRevenue';
 // import InstructorAIQuestions from './InstructorAIQuestions';
 import InstructorMessages from './InstructorMessages';
+import InstructorHomeworkSubmissions from './InstructorHomeworkSubmissions';
 import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
 import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
@@ -34,7 +35,8 @@ const InstructorApp: React.FC = () => {
             // 'analytics': 'Analytics',
             // 'ai-questions': 'AIQuestions',
             'profile': 'Profile',
-            'builder': 'Builder'
+            'builder': 'Builder',
+            'homework-submissions': 'HomeworkSubmissions'
         };
         return mapping[lastPart] || 'Dashboard';
     };
@@ -79,7 +81,8 @@ const InstructorApp: React.FC = () => {
             // 'Analytics': '/instructor/analytics',
             // 'AIQuestions': '/instructor/ai-questions',
             'Profile': '/instructor/profile',
-            'Builder': '/instructor/builder'
+            'Builder': '/instructor/builder',
+            'HomeworkSubmissions': '/instructor/homework-submissions'
         };
         navigate(mapping[pageId] || '/instructor/dashboard');
     };
@@ -137,6 +140,7 @@ const InstructorApp: React.FC = () => {
                 {/* <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} /> */}
                 {/* <Route path="ai-questions" element={<InstructorAIQuestions coursesData={coursesData} />} /> */}
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
+                <Route path="homework-submissions" element={<InstructorHomeworkSubmissions coursesData={coursesData} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
         </InstructorLayout>

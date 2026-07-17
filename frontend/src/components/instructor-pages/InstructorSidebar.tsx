@@ -65,6 +65,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: MessageCircle,
       id: "Messages",
     },
+    {
+      label: "Ödev Gönderileri",
+      icon: BookOpen,
+      id: "HomeworkSubmissions",
+    },
     // {
     //   label: "İstatistikler",
     //   icon: BarChart3,

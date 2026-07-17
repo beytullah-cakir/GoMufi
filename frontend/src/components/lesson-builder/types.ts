@@ -86,7 +86,7 @@ export interface MatchingGameConfig {
 export interface HomeworkConfig {
     title: string;
     instructions: string;
-    submissionType: 'code' | 'image' | 'file' | 'text';
+    submissionType: 'file';
     points?: number;
     dueDate?: string;
     starterCode?: string;

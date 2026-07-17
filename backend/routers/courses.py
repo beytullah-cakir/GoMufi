@@ -1,6 +1,7 @@
 import random
 import string
-from fastapi import APIRouter, Depends, Request, HTTPException, status
+import base64
+from fastapi import APIRouter, Depends, Request, HTTPException, status, UploadFile, File, Form
 from sqlalchemy import func, JSON, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -12,6 +13,7 @@ from models.enrollment import Enrollment
 from models.lesson_content import LessonContent
 from models.quiz import Quiz
 from models.student import Student
+from models.homework_submission import HomeworkSubmission
 from connect_db import get_db
 from sqlalchemy import delete
 from pydantic import BaseModel
@@ -1220,3 +1222,246 @@ async def get_student_class(
         "classmates": classmates_list
     }
 
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HOMEWORK SUBMISSION ENDPOINTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+@router.post("/courses/{course_id}/homework/{node_id}/submit")
+async def submit_homework(
+    course_id: int,
+    node_id: str,
+    file: UploadFile = File(...),
+    student_note: Optional[str] = Form(None),
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğrencinin ödevi dosya olarak göndermesi."""
+    student_id = user["sub"]
+    role = user.get("role", "")
+    if role not in ("student", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece öğrenciler ödev gönderebilir.")
+
+    # Enrollment kontrolü
+    enrollment = await db.execute(
+        select(Enrollment).where(
+            Enrollment.course_id == course_id,
+            Enrollment.student_id == int(student_id)
+        )
+    )
+    if not enrollment.scalar_one_or_none():
+        raise HTTPException(status_code=403, detail="Bu kursa kayıtlı değilsiniz.")
+
+    MAX_SIZE = 5 * 1024 * 1024  # 5 MB limit
+    contents = await file.read()
+    if len(contents) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="Dosya boyutu 5 MB'ı aşamaz.")
+
+    file_data_b64 = base64.b64encode(contents).decode("utf-8")
+
+    # Daha önce gönderilmişse güncelle
+    existing = await db.execute(
+        select(HomeworkSubmission).where(
+            HomeworkSubmission.course_id == course_id,
+            HomeworkSubmission.node_id == node_id,
+            HomeworkSubmission.student_id == int(student_id),
+        )
+    )
+    sub = existing.scalar_one_or_none()
+    if sub:
+        sub.file_name = file.filename or "dosya"
+        sub.file_data = file_data_b64
+        sub.file_mime = file.content_type
+        sub.student_note = student_note
+    else:
+        sub = HomeworkSubmission(
+            course_id=course_id,
+            node_id=node_id,
+            student_id=int(student_id),
+            file_name=file.filename or "dosya",
+            file_data=file_data_b64,
+            file_mime=file.content_type,
+            student_note=student_note,
+        )
+        db.add(sub)
+
+    await db.commit()
+    return {"success": True, "message": "Ödev başarıyla gönderildi."}
+
+
+@router.get("/courses/{course_id}/homework/{node_id}/submissions")
+async def get_homework_submissions(
+    course_id: int,
+    node_id: str,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Eğitmenin belirli bir ödevin tüm gönderilerini görmesi."""
+    teacher_id = user["sub"]
+    role = user.get("role", "")
+    if role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece eğitmenler görebilir.")
+
+    # Ownership kontrolü
+    course_res = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == int(teacher_id))
+    )
+    if not course_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+
+    result = await db.execute(
+        select(HomeworkSubmission, Student.first_name, Student.last_name, Student.email)
+        .join(Student, HomeworkSubmission.student_id == Student.id)
+        .where(
+            HomeworkSubmission.course_id == course_id,
+            HomeworkSubmission.node_id == node_id,
+        )
+        .order_by(HomeworkSubmission.submitted_at.desc())
+    )
+    rows = result.all()
+
+    submissions = []
+    for sub, first, last, email in rows:
+        submissions.append({
+            "id": sub.id,
+            "student_id": sub.student_id,
+            "student_name": f"{first} {last or ''}".strip(),
+            "student_email": email,
+            "file_name": sub.file_name,
+            "file_mime": sub.file_mime,
+            "file_data": sub.file_data,   # base64
+            "student_note": sub.student_note,
+            "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+        })
+
+    return {"submissions": submissions, "count": len(submissions)}
+
+
+@router.get("/courses/{course_id}/homework/all-submissions")
+async def get_all_homework_submissions(
+    course_id: int,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Eğitmenin bir kursa ait TÜM ödev gönderilerini (tüm node'lar) görmesi."""
+    teacher_id = user["sub"]
+    role = user.get("role", "")
+    if role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece eğitmenler görebilir.")
+
+    course_res = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == int(teacher_id))
+    )
+    course = course_res.scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+
+    # Notes alanından ders/node başlıklarını haritalandır
+    node_titles = {}
+    if course.notes:
+        try:
+            notes_list = course.notes
+            if isinstance(notes_list, str):
+                notes_list = json.loads(notes_list)
+            for note in notes_list:
+                n_id = str(note.get("id"))
+                n_title = note.get("lessonTopic") or note.get("title") or f"Ders {n_id}"
+                node_titles[n_id] = n_title
+        except Exception as e:
+            print("Error parsing course notes:", e)
+
+    result = await db.execute(
+        select(HomeworkSubmission, Student.first_name, Student.last_name, Student.email)
+        .join(Student, HomeworkSubmission.student_id == Student.id)
+        .where(HomeworkSubmission.course_id == course_id)
+        .order_by(HomeworkSubmission.submitted_at.desc())
+    )
+    rows = result.all()
+
+    seen = set()
+    submissions = []
+    for sub, first, last, email in rows:
+        # Her öğrencinin her düğüm için sadece EN SON gönderdiği ödevi listele
+        key = (sub.student_id, sub.node_id)
+        if key in seen:
+            continue
+        seen.add(key)
+
+        node_title = node_titles.get(str(sub.node_id)) or f"Ödev (Ders ID: {sub.node_id})"
+
+        submissions.append({
+            "id": sub.id,
+            "node_id": sub.node_id,
+            "node_title": node_title,
+            "student_id": sub.student_id,
+            "student_name": f"{first} {last or ''}".strip(),
+            "student_email": email,
+            "file_name": sub.file_name,
+            "file_mime": sub.file_mime,
+            "file_data": sub.file_data,
+            "student_note": sub.student_note,
+            "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+        })
+
+    return {"submissions": submissions, "count": len(submissions)}
+
+
+@router.get("/courses/{course_id}/homework/{node_id}/submission")
+async def get_my_homework_submission(
+    course_id: int,
+    node_id: str,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğrencinin kendi gönderdiği ödevi görmesi."""
+    student_id = user["sub"]
+    stmt = select(HomeworkSubmission).where(
+        HomeworkSubmission.course_id == course_id,
+        HomeworkSubmission.node_id == node_id,
+        HomeworkSubmission.student_id == int(student_id),
+    )
+    result = await db.execute(stmt)
+    sub = result.scalar_one_or_none()
+    
+    if not sub:
+        return {"submitted": False, "submission": None}
+        
+    return {
+        "submitted": True,
+        "submission": {
+            "id": sub.id,
+            "file_name": sub.file_name,
+            "file_mime": sub.file_mime,
+            "file_data": sub.file_data,  # base64 contents
+            "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+        }
+    }
+
+
+@router.delete("/courses/{course_id}/homework/{node_id}/delete")
+async def delete_homework(
+    course_id: int,
+    node_id: str,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğrencinin gönderdiği ödevi silmesi."""
+    student_id = user["sub"]
+    role = user.get("role", "")
+    if role not in ("student", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece öğrenciler ödev silebilir.")
+
+    stmt = select(HomeworkSubmission).where(
+        HomeworkSubmission.course_id == course_id,
+        HomeworkSubmission.node_id == node_id,
+        HomeworkSubmission.student_id == int(student_id),
+    )
+    result = await db.execute(stmt)
+    sub = result.scalar_one_or_none()
+    
+    if not sub:
+        raise HTTPException(status_code=404, detail="Gönderilmiş ödev bulunamadı.")
+        
+    await db.delete(sub)
+    await db.commit()
+    return {"success": True, "message": "Ödev başarıyla silindi."}

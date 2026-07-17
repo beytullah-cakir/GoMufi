@@ -3,6 +3,7 @@ import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings } from 'lucide-
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import GameBuilder from '../lesson-builder/GameBuilder';
+import StudentHomeworkView from './StudentHomeworkView';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface LessonSlideProps {
@@ -426,6 +427,20 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             );
         }
 
+        if (slide.type === 'homework' || slide.type === 'HOMEWORK') {
+            return (
+                <div className="w-full h-full flex items-center justify-center relative overflow-hidden bg-gray-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                    <StudentHomeworkView
+                        slide={slide}
+                        courseId={courseId}
+                        isPreviewMode={previewRole === 'teacher'}
+                        onClose={onClose}
+                        onComplete={handleNext}
+                    />
+                </div>
+            );
+        }
+
         return (
             <div 
                 ref={containerRef}
@@ -478,6 +493,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const slide = localSlides && localSlides.length > 0 ? localSlides[currentSlide] : null;
     const isDark = slide?.background === 'dark';
     const isGameSlide = slide?.type === 'game';
+    const isHwSlide = slide?.type === 'homework' || slide?.type === 'HOMEWORK';
 
     // Disable logic based on synchronisation status rules
     const isNextDisabled = currentSlide === (localSlides?.length || 1) - 1 || 
@@ -512,7 +528,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 </div>
 
                 {/* mini-roadmap timeline for lesson bubbles */}
-                {bubbles.length > 0 && (
+                {bubbles.length > 0 && !isHwSlide && (
                     <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-3 py-1 shadow-sm select-none">
                         {bubbles.map((b, bIdx) => {
                             const currentSlideBubble = localSlides[currentSlide]?.bubbleTitle || "ANLA";
@@ -559,7 +575,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 )}
 
                 {/* Follow Mode Choice Toggle for Student */}
-                {previewRole === 'student' && (
+                {previewRole === 'student' && !isHwSlide && (
                     <label className={`flex items-center gap-2 px-4 py-2 rounded-full border text-xs font-black select-none transition-all ${
                         followMode === 'follow'
                             ? 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
@@ -578,7 +594,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 )}
 
                 {/* Mode status indicator for student */}
-                {previewRole === 'student' && (
+                {previewRole === 'student' && !isHwSlide && (
                     <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 bg-gray-50 border border-gray-200 text-gray-500 rounded-full flex items-center gap-1.5">
                         <span className={`w-2 h-2 rounded-full ${
                             isFollowingTeacher ? 'bg-sky-500 animate-pulse' : 'bg-amber-500'
@@ -614,7 +630,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             </div>
 
             {/* Small Floating Bottom Navigation Overlay (Floating Island) */}
-            {!isGameSlide && (
+            {!isGameSlide && !isHwSlide && (
                 <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-5 bg-white/70 backdrop-blur-md border border-gray-200/40 rounded-full px-4 py-2 shadow-xl select-none pointer-events-auto">
                     <button
                         onClick={handlePrev}

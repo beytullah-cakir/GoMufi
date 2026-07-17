@@ -282,7 +282,24 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
             <LessonSlide
                 isOpen={showLessonSlide}
                 lessonTitle={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.title}
-                slides={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.slides || []}
+                slides={(() => {
+                    const activeNode = currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel));
+                    if (activeNode?.type === 'homework' || activeNode?.type === 'HOMEWORK') {
+                        const hwSlide = activeNode.slides?.find((s: any) => s.type === 'homework' || s.type === 'HOMEWORK');
+                        if (hwSlide) return [{ ...hwSlide, id: activeNode.id }];
+                        return [{
+                            id: activeNode.id,
+                            type: 'homework',
+                            homeworkConfig: {
+                                title: activeNode.title || 'Yeni Ödev Görevi',
+                                instructions: activeNode.lessonTopic || 'Lütfen ödev talimatlarını buraya yazın.',
+                                submissionType: 'file',
+                                points: 100
+                            }
+                        }];
+                    }
+                    return activeNode?.slides || [];
+                })()}
                 onClose={handleCloseLesson}
                 onComplete={handleLessonComplete}
                 courseId={currentCourse?.id}
