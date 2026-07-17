@@ -34,7 +34,7 @@ const MOCK_GAME_SLIDE: Slide = {
 };
 
 const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor, isAdmin = false }) => {
-    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai' | 'homework'>('slide');
+    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai' | 'homework'>('custom_stage');
     const [customTemplates, setCustomTemplates] = useState<any[]>([]);
 
     // Edit Template State
@@ -45,6 +45,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
 
     useEffect(() => {
         if (isOpen) {
+            setActiveTab('custom_stage');
             api.get('/builder/templates')
                 .then(res => {
                     setCustomTemplates(res.data || []);
@@ -497,8 +498,60 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </>
                                 )}
 
+                                {/* ÖDEV ŞABLONLARI */}
+                                {activeStage === 'ÖDEV' && (
+                                    <>
+                                        <button
+                                            onClick={() => onAddSlide('template', {
+                                                elements: [
+                                                    { type: 'shape', x: 0, y: 0, width: 1280, height: 90, shapeType: 'rectangle', style: { backgroundColor: '#2563eb', borderWidth: 0 } },
+                                                    { type: 'text', x: 40, y: 18, width: 900, height: 55, content: 'Ödev Açıklaması', style: { fontSize: 30, fontFamily: 'Fredoka', bold: true, color: '#ffffff' } },
+                                                    { type: 'text', x: 50, y: 120, width: 1180, height: 400, content: 'Ödev talimatlarını ve soruları buraya yazın.\n\n1. Adım: ...\n2. Adım: ...\n3. Adım: ...', style: { fontSize: 18, fontFamily: 'Fredoka' } },
+                                                ]
+                                            })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-blue-500 group-hover:shadow-md transition-all relative flex flex-col overflow-hidden">
+                                                <div className="h-5 w-full bg-blue-600" />
+                                                <div className="p-2 flex flex-col gap-1">
+                                                    <div className="w-16 h-1.5 bg-gray-300 rounded-full" />
+                                                    <div className="w-24 h-1 bg-gray-200 rounded-full" />
+                                                    <div className="w-20 h-1 bg-gray-200 rounded-full" />
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Ödev Talimat Şablonu</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Adım adım talimat ve soru listesi içeren ödev slaytı.</p>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            onClick={() => onAddSlide('template', {
+                                                elements: [
+                                                    { type: 'text', x: 50, y: 30, width: 800, height: 60, content: 'Araştırma Ödevi', style: { fontSize: 30, fontFamily: 'Fredoka', bold: true } },
+                                                    { type: 'text', x: 50, y: 110, width: 580, height: 200, content: 'Konu:\nAşağıdaki konuyu araştırarak kısa bir rapor hazırlayın.', style: { fontSize: 16, fontFamily: 'Fredoka' } },
+                                                    { type: 'answer_box', x: 50, y: 330, width: 1180, height: 280, content: 'Araştırma bulgularınızı buraya yazın...', src: '' },
+                                                ]
+                                            })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-blue-500 group-hover:shadow-md transition-all relative flex flex-col items-center justify-center p-3">
+                                                <div className="w-full h-full bg-blue-50/30 border border-blue-100 rounded-lg p-2 flex flex-col gap-1.5">
+                                                    <div className="w-16 h-2 bg-blue-200 rounded-full" />
+                                                    <div className="w-24 h-1 bg-gray-200 rounded-full" />
+                                                    <div className="flex-1 border border-dashed border-blue-200 rounded-md mt-1" />
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-blue-600 transition-colors">Araştırma & Cevap Şablonu</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Açık uçlu araştırma ödevi ve metin giriş alanı.</p>
+                                            </div>
+                                        </button>
+                                    </>
+                                )}
+
                                 {/* OTHER STAGES: GENERIC TEMPLATE */}
-                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && activeStage !== 'QUIZ' && (
+                                {activeStage !== 'ANLA' && activeStage !== 'UYGULA' && activeStage !== 'BİRLEŞTİR' && activeStage !== 'ÜRET' && activeStage !== 'QUIZ' && activeStage !== 'ÖDEV' && (
                                     <button
                                         onClick={() => onAddSlide('template', {
                                             elements: [
