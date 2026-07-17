@@ -7,6 +7,8 @@ import CanvasElement from './lesson-builder/CanvasElement';
 import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 import GameBuilder from './lesson-builder/GameBuilder';
 import CodingSlideBuilder from './lesson-builder/CodingSlideBuilder';
+import HomeworkBuilder from './lesson-builder/HomeworkBuilder';
+import StudentHomeworkView from './student-pages/StudentHomeworkView';
 
 import LessonBuilderHeader from './lesson-builder/LessonBuilderHeader';
 import LessonBuilderSlideStrip from './lesson-builder/LessonBuilderSlideStrip';
@@ -30,8 +32,8 @@ const BUILDER_STORAGE_KEY = "gomufi_lesson_builder_draft";
 const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [searchParams] = useSearchParams();
     const location = useLocation();
-    const courseId = searchParams.get("courseId");
-    const noteId = searchParams.get("noteId");
+    const courseId = searchParams.get("courseId") || searchParams.get("courseid");
+    const noteId = searchParams.get("noteId") || searchParams.get("noteid");
 
     const initialCurriculum = location.state?.curriculum;
     const initialNotes = location.state?.notes;
@@ -1856,37 +1858,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
         setSaveStatus('saving');
         try {
-            // 1. Fetch current course notes
-            const courseRes = await api.get(`/courses/${courseId}`);
-            let currentNotes = courseRes.data?.notes || [];
-
-            // Legacy compatibility
-            if (currentNotes.length === 0 && Array.isArray(courseRes.data?.curriculum)) {
-                const legacyNotes = courseRes.data.curriculum.filter((i: any) => i.slides || i.noteTitle);
-                if (legacyNotes.length > 0) currentNotes = legacyNotes;
-            }
-
-            if (!Array.isArray(currentNotes)) currentNotes = [];
-
-            let updatedNotes;
-            const exists = currentNotes.some((n: any) => String(n.id) === String(noteId));
-
-            if (exists) {
-                updatedNotes = currentNotes.map((n: any) =>
-                    String(n.id) === String(noteId)
-                        ? { ...n, noteTitle: projectName, slides: slides }
-                        : n
-                );
-            } else {
-                updatedNotes = [
-                    ...currentNotes,
-                    { id: noteId, noteTitle: projectName, slides: slides }
-                ];
-            }
-
-            // 2. Put updated notes
-            await api.put(`/update_course/${courseId}`, {
-                notes: updatedNotes,
+            // Yeni ilişkisel endpoint'e doğrudan kaydet (LessonContent tablosu güncellenir)
+            await api.put(`/courses/${courseId}/lessons/${noteId}`, {
+                title: projectName,
+                slides: slides,
             });
 
             setSaveStatus('saved');
@@ -2088,6 +2063,24 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             previewRole={previewRole}
                             onExitPreview={() => setIsPreview(false)}
                         />
+                    </div>
+                ) : currentSlide.type === 'homework' ? (
+                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-gray-50 flex items-center justify-center' : 'h-full overflow-y-auto'}`}>
+                        {isPreview ? (
+                            <StudentHomeworkView
+                                slide={currentSlide}
+                                isPreviewMode={true}
+                                onComplete={() => setIsPreview(false)}
+                                onClose={() => setIsPreview(false)}
+                            />
+                        ) : (
+                            <HomeworkBuilder
+                                slide={currentSlide}
+                                updateSlide={(updates) => {
+                                    setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
+                                }}
+                            />
+                        )}
                     </div>
                 ) : currentSlide.type === 'coding' ? (
                     <div className="flex-1 bg-gray-100 flex items-center justify-center overflow-hidden">
