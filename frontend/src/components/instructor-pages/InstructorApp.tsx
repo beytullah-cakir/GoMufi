@@ -13,6 +13,7 @@ import InstructorProfile from './InstructorProfile';
 import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
 import InstructorCalendar from './InstructorCalendar';
 import InstructorClasses from './InstructorClasses';
+import InstructorMetrics from './InstructorMetrics';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -32,8 +33,7 @@ const InstructorApp: React.FC = () => {
             'classes': 'Classes',
             'students': 'Students',
             'messages': 'Messages',
-            // 'analytics': 'Analytics',
-            // 'ai-questions': 'AIQuestions',
+            'metrics': 'Metrics',
             'profile': 'Profile',
             'builder': 'Builder',
             'homework-submissions': 'HomeworkSubmissions'
@@ -51,14 +51,19 @@ const InstructorApp: React.FC = () => {
 
     const fetchUserData = async () => {
         try {
-            const [profileRes, coursesRes, studentsRes] = await Promise.all([
-                api.get("/profile"),
-                api.get("/teacher/content"),
-                api.get("/teacher/students")
-            ]);
+            const profileRes = await api.get("/profile");
             setUserData(profileRes.data);
-            setCoursesData(coursesRes.data);
-            setStudentsData(studentsRes.data);
+            
+            try {
+                const [coursesRes, studentsRes] = await Promise.all([
+                    api.get("/teacher/content"),
+                    api.get("/teacher/students")
+                ]);
+                setCoursesData(coursesRes.data);
+                setStudentsData(studentsRes.data);
+            } catch (innerErr) {
+                console.warn("Failed to fetch secondary instructor data", innerErr);
+            }
         } catch (err) {
             console.error("Failed to fetch instructor data", err);
         } finally {
@@ -78,8 +83,7 @@ const InstructorApp: React.FC = () => {
             'Classes': '/instructor/classes',
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
-            // 'Analytics': '/instructor/analytics',
-            // 'AIQuestions': '/instructor/ai-questions',
+            'Metrics': '/instructor/metrics',
             'Profile': '/instructor/profile',
             'Builder': '/instructor/builder',
             'HomeworkSubmissions': '/instructor/homework-submissions'
@@ -137,8 +141,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="classes" element={<InstructorClasses />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
-                {/* <Route path="analytics" element={<InstructorRevenue coursesData={coursesData} studentsData={studentsData} />} /> */}
-                {/* <Route path="ai-questions" element={<InstructorAIQuestions coursesData={coursesData} />} /> */}
+                <Route path="metrics" element={<InstructorMetrics />} />
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
                 <Route path="homework-submissions" element={<InstructorHomeworkSubmissions coursesData={coursesData} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />

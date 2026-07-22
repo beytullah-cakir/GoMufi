@@ -8,7 +8,7 @@ interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
     onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework', config?: { gameType?: string; elements?: any[]; background?: string }) => void;
-    activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV';
+    activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV' | (string & {});
     stageColor: string;
     isAdmin?: boolean;
 }
@@ -310,20 +310,20 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
                                                     { type: 'text', x: 50, y: 40, width: 900, height: 60, content: 'Challenge: Mini Görev', style: { fontSize: 32, fontFamily: 'Fredoka', bold: true } },
-                                                    { 
-                                                        type: 'challenge', 
-                                                        x: 100, 
-                                                        y: 130, 
-                                                        width: 800, 
-                                                        height: 380, 
-                                                        content: '5 dakikada bu fonksiyonu yaz.', 
-                                                        extra: { 
-                                                            title: '🎯 Challenge (Mini Görev)', 
-                                                            submittedText: '', 
-                                                            submittedCode: '# Çözüm kodunuzu buraya yazın\n', 
-                                                            submittedFile: '', 
-                                                            isSubmitted: false 
-                                                        } 
+                                                    {
+                                                        type: 'challenge',
+                                                        x: 100,
+                                                        y: 130,
+                                                        width: 800,
+                                                        height: 380,
+                                                        content: '5 dakikada bu fonksiyonu yaz.',
+                                                        extra: {
+                                                            title: '🎯 Challenge (Mini Görev)',
+                                                            submittedText: '',
+                                                            submittedCode: '# Çözüm kodunuzu buraya yazın\n',
+                                                            submittedFile: '',
+                                                            isSubmitted: false
+                                                        }
                                                     }
                                                 ]
                                             })}
@@ -372,21 +372,21 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
                                                     { type: 'text', x: 50, y: 40, width: 900, height: 60, content: 'Bağlantı Kurma & Birleştirme', style: { fontSize: 32, fontFamily: 'Fredoka', bold: true } },
-                                                    { 
-                                                        type: 'connection_task', 
-                                                        x: 225, 
-                                                        y: 130, 
-                                                        width: 550, 
-                                                        height: 380, 
+                                                    {
+                                                        type: 'connection_task',
+                                                        x: 225,
+                                                        y: 130,
+                                                        width: 550,
+                                                        height: 380,
                                                         rotation: 0,
-                                                        content: 'Function bilgisini kullanarak bir Student Class oluştur.', 
-                                                        extra: { 
+                                                        content: 'Function bilgisini kullanarak bir Student Class oluştur.',
+                                                        extra: {
                                                             title: 'Bağlantı Görevi (Connection Task)',
                                                             previousTopic: 'Function',
                                                             currentTopic: 'Class',
                                                             submittedAnswer: '',
                                                             isSubmitted: false
-                                                        } 
+                                                        }
                                                     }
                                                 ]
                                             })}
@@ -415,22 +415,22 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
                                                     { type: 'text', x: 50, y: 30, width: 900, height: 60, content: 'Proje Zamanı & Üretim', style: { fontSize: 32, fontFamily: 'Fredoka', bold: true } },
-                                                    { 
-                                                        type: 'production_task', 
-                                                        x: 210, 
-                                                        y: 110, 
-                                                        width: 580, 
-                                                        height: 420, 
+                                                    {
+                                                        type: 'production_task',
+                                                        x: 210,
+                                                        y: 110,
+                                                        width: 580,
+                                                        height: 420,
                                                         rotation: 0,
-                                                        content: 'Student Management System oluştur. İçinde en az 2 Class ve 3 Method bulunmalı.', 
-                                                        extra: { 
+                                                        content: 'Student Management System oluştur. İçinde en az 2 Class ve 3 Method bulunmalı.',
+                                                        extra: {
                                                             title: 'Proje Görevi (Produce Task)',
                                                             projectTitle: 'Student Management System',
                                                             expectedOutput: 'İçinde en az 2 Class ve 3 Method bulunmalı.',
                                                             estimatedTime: '20 dk',
                                                             hints: 'İpucu: Sınıf yapısını kurarken inheritances yapısına dikkat et.',
                                                             isSubmitted: false
-                                                        } 
+                                                        }
                                                     }
                                                 ]
                                             })}
@@ -455,15 +455,15 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
                                                     { type: 'text', x: 50, y: 25, width: 900, height: 50, content: 'Quiz Sorusu & Değerlendirme', style: { fontSize: 24, fontFamily: 'Fredoka', bold: true } },
-                                                    { 
-                                                        type: 'multiple_choice', 
-                                                        x: 180, 
-                                                        y: 85, 
-                                                        width: 640, 
-                                                        height: 440, 
+                                                    {
+                                                        type: 'multiple_choice',
+                                                        x: 180,
+                                                        y: 85,
+                                                        width: 640,
+                                                        height: 440,
                                                         rotation: 0,
-                                                        content: 'Python\'da listeler hangi parantez ile gösterilir?', 
-                                                        extra: { 
+                                                        content: 'Python\'da listeler hangi parantez ile gösterilir?',
+                                                        extra: {
                                                             title: 'Çoktan Seçmeli Soru',
                                                             multipleCorrect: false,
                                                             explanation: 'Listeler köşeli parantez [] kullanılarak tanımlanır.',
@@ -475,7 +475,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                                             ],
                                                             submittedAnswers: [],
                                                             isChecked: false
-                                                        } 
+                                                        }
                                                     }
                                                 ]
                                             })}
@@ -576,7 +576,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     </button>
                                 )}
 
-                                 {/* Custom templates moved to custom_ai tab */}
+                                {/* Custom templates moved to custom_ai tab */}
                             </>
                         )}
 
@@ -616,7 +616,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                                         <p className="text-xs text-gray-400 mt-1 line-clamp-2">{t.description || 'Açıklama girilmedi.'}</p>
                                                     </div>
                                                 </button>
-                                                
+
                                                 {isAdmin && (
                                                     <div className="absolute top-2 right-2 flex items-center gap-1 opacity-0 group-hover/card:opacity-100 transition-opacity z-10">
                                                         <button
@@ -664,7 +664,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 <button
                                     onClick={() => onAddSlide('game')}
                                     className="text-left group"
-                                  >
+                                >
                                     <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-purple-500 group-hover:shadow-md transition-all relative">
                                         <div className="absolute inset-0 flex items-center justify-center">
                                             <div className="scale-[0.25] origin-center transform-gpu">
@@ -778,7 +778,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             description: editDesc,
                                             category: editingTemplate.category
                                         });
-                                        
+
                                         // Update local state
                                         setCustomTemplates(prev => prev.map(t => {
                                             if (t.id === editingTemplate.id) {
@@ -786,7 +786,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             }
                                             return t;
                                         }));
-                                        
+
                                         setEditingTemplate(null);
                                     } catch (err: any) {
                                         console.error(err);

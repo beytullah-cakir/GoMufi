@@ -287,11 +287,11 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
 
                                             {/* Bubble Title */}
                                             <div
-                                                className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                                                className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
                                                 style={{ animationDelay: `${index * 0.5 * -1}s` }}
                                             >
                                                 <span
-                                                    className="text-lg font-black tracking-wider select-none text-center"
+                                                    className="text-lg sm:text-xl font-black tracking-wide select-none text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
                                                     style={{
                                                         fontFamily: "'Fredoka', sans-serif",
                                                         color: 'white',
@@ -300,10 +300,11 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                                                         filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
                                                         textShadow: `2px 2px 0px ${node.strokeColor}`
                                                     }}
+                                                    title={node.title}
                                                 >
                                                     {node.title?.toUpperCase()}
                                                 </span>
-                                                <span className="block text-[8px] text-gray-550 font-extrabold bg-white border border-gray-200/50 rounded-full px-2 py-0.5 mt-1.5 shadow-sm">
+                                                <span className="block text-[8px] text-gray-550 font-extrabold bg-white border border-gray-200/50 rounded-full px-2 py-0.5 mt-1 shadow-sm">
                                                     Hazır: {readyOnThisBubble} / {totalConnected || 0}
                                                 </span>
                                             </div>

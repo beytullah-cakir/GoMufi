@@ -486,27 +486,20 @@ function StudentApp() {
                         />
                     ) : activePage === 'Kurslar' ? (
                         selectedCourseForDetail ? (
-                            <CourseDetailPage
+                            <CourseDetailPage 
                                 courseId={selectedCourseForDetail}
                                 onBack={() => {
                                     setSelectedCourseForDetail(null);
                                 }}
                                 isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
-                                onAddToCart={(course) => {
-                                    addToCart({
-                                        id: course.id,
-                                        title: course.title,
-                                        price: `₺${course.price.toLocaleString('tr-TR')}`,
-                                        icon: '🚀',
-                                        instructor: course.teacher ? `${course.teacher.first_name} ${course.teacher.last_name}` : "Anonim Eğitmen"
-                                    });
+                                onEnrollSuccess={() => {
+                                    refreshUserData();
+                                    setSelectedCourseForDetail(null);
+                                    setActivePage('Kurslarım');
                                 }}
-                                onGoToCart={() => setActivePage('Sepetim')}
                             />
                         ) : (
                             <CoursesPage 
-                                addToCart={addToCart} 
-                                cart={cart} 
                                 onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
                                 purchasedCourseIds={purchasedCourseIds}
                                 onGoToMyCourses={() => setActivePage('Kurslarım')}
@@ -520,7 +513,16 @@ function StudentApp() {
                             currentCourse={currentCourse} 
                         />
                     ) : activePage === 'Kurslarım' ? (
-                        <ContentPage purchasedCourses={purchasedCourses} />
+                        <ContentPage 
+                            purchasedCourses={purchasedCourses} 
+                            onOpenJoinModal={() => setActivePage('Sınıflarım')}
+                            userData={userData}
+                            onJoinLiveClass={(courseId) => {
+                                handleCourseChange(courseId);
+                                setActivePage('Ana Sayfa');
+                                setIsLiveSessionJoined(true);
+                            }}
+                        />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
                     ) : activePage === 'Sınıflarım' ? (
