@@ -12,11 +12,67 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from core.config import settings
-from auth.dependencies import get_current_teacher_id
+from auth.dependencies import get_current_teacher_id, get_current_user_info
+from connect_db import get_db, AsyncSession
+from sqlalchemy.future import select
+from sqlalchemy import delete
+from models.ai_usage_log import AIUsageLog
 
 import urllib.parse
 import urllib.request
 import re
+
+async def record_ai_usage(
+    db: AsyncSession,
+    teacher_id: Optional[int],
+    action: str,
+    model_name: str,
+    response: Any,
+    details: Optional[str] = None,
+    course_id: Optional[int] = None,
+    course_title: Optional[str] = None
+):
+    """Helper function to extract usage metadata from Gemini response and store log in database."""
+    try:
+        usage = getattr(response, "usage_metadata", None)
+        prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
+        candidates_tokens = getattr(usage, "candidates_token_count", 0) or 0
+        total_tokens = getattr(usage, "total_token_count", 0) or (prompt_tokens + candidates_tokens)
+        
+        # Pricing per 1,000,000 tokens (Google AI Studio Official Rates for Gemini 2.5 Flash)
+        rate_input = 0.30 / 1_000_000
+        rate_output = 2.50 / 1_000_000
+        cost_usd = (prompt_tokens * rate_input) + (candidates_tokens * rate_output)
+        
+        log_entry = AIUsageLog(
+            teacher_id=teacher_id,
+            course_id=course_id,
+            course_title=course_title,
+            action=action,
+            model_name=model_name,
+            prompt_tokens=prompt_tokens,
+            candidates_tokens=candidates_tokens,
+            total_tokens=total_tokens,
+            cost_usd=round(cost_usd, 6),
+            details=details
+        )
+        db.add(log_entry)
+        await db.commit()
+    except Exception as err:
+        print(f"Warning: Failed to record AI usage log: {err}")
+
+
+def format_templates_summary(cat_list: List[Dict[str, Any]]) -> str:
+    """Format templates list into compact single-line descriptions to minimize prompt tokens."""
+    lines = []
+    for t in cat_list:
+        els = []
+        for el in t.get("elements", []):
+            m_char = f", maxChars:{el['maxChars']}" if el.get("maxChars") else ""
+            els.append(f"{el['id']} ({el['type']}{m_char})")
+        lines.append(f"- Template ID: \"{t['id']}\" | Title: \"{t['title']}\" | Elements: [{', '.join(els)}]")
+    return "\n".join(lines)
+
 
 def get_web_image(query: str, is_fallback: bool = False) -> str:
     # Basic translation dictionary for common academic/structural fallback terms
@@ -218,7 +274,8 @@ class LessonSlidesResponse(BaseModel):
 @router.post("/courses/generate_roadmap")
 async def generate_roadmap_api(
     req: GenerateRoadmapRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     TEMPLATES_PATH = "slide_templates.json"
     try:
@@ -265,9 +322,18 @@ Goal: Given the course topic, difficulty, desired lesson count, and target audie
 
 Requirements:
 - The roadmap consists of lessons.
-- Each lesson contains a list of modules.
+- Each lesson contains a list of modules representing levels.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- For each lesson, you must follow a strict pedagogical flow: start with exactly one UNDERSTAND module, then exactly one APPLY module. After the APPLY module, you MUST include a CONNECT module (Puzzle/Bağlantı) and/or a CREATE module (Trophy/Üret) to encourage synthesis and project creation (these are mandatory, do not omit them). Finally, end each lesson with exactly one QUIZ or HOMEWORK module. Do NOT duplicate UNDERSTAND, APPLY, QUIZ or HOMEWORK module types within a single lesson.
+- **FLEXIBLE PEDAGOGICAL FLOW & MODULE RULES**:
+  - A lesson can cover 1 or MULTIPLE sub-topics.
+  - For EACH distinct sub-topic taught in the lesson, generate a pair of `UNDERSTAND` (Anla - Konu Teorisi) followed immediately by `APPLY` (Uygula - Kodlama Pratiği).
+  - Therefore, a lesson CAN contain MULTIPLE `UNDERSTAND` and `APPLY` pairs if there are multiple sub-topics in that lesson (e.g., `UNDERSTAND(Konu 1) -> APPLY(Konu 1) -> UNDERSTAND(Konu 2) -> APPLY(Konu 2)...`). Do NOT limit a lesson to only one pair if multiple concepts are taught!
+  - After all sub-topic theory & practice pairs in the lesson, you MUST include:
+    1. At least one `CONNECT` module (Birleştir - Öğrenilen Kavramları Birleştirme Görevi / Bulmaca)
+    2. At least one `CREATE` module (Üret - Mini Proje / Üretim Görevi)
+    3. Exactly one `QUIZ` or `HOMEWORK` module (Değerlendirme Testi veya Ödev)
+  - Summary of lesson module sequence: `[(UNDERSTAND -> APPLY)* (1 or more pairs)] -> CONNECT -> CREATE -> QUIZ (or HOMEWORK)`.
+- **CRITICAL TITLE LENGTH CONSTRAINT (STRICT RULE)**: Every lesson title (`title`) and module topic string (`topic`) MUST be concise and MUST NOT exceed 30 characters in total length (e.g., 'Python Kurulumu', 'Değişken Tanımlama', 'Koşullu İfadeler'). Never generate verbose or long titles exceeding 30 characters.
 - Each module in the lessons modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -280,9 +346,13 @@ Expected JSON Structure:
       "title": "Lesson title (Türkçe)",
       "objective": "Lesson learning objective (Türkçe)",
       "modules": [
-        {{ "type": "UNDERSTAND", "topic": "Brief topic title for this module (Türkçe)" }},
-        {{ "type": "APPLY", "topic": "Brief topic of the coding challenge (Türkçe)" }},
-        {{ "type": "QUIZ", "topic": "Quiz topic (Türkçe)" }}
+        {{ "type": "UNDERSTAND", "topic": "1. Konu Anlatımı Başlığı (Türkçe)" }},
+        {{ "type": "APPLY", "topic": "1. Konu Kodlama Pratiği Görevi (Türkçe)" }},
+        {{ "type": "UNDERSTAND", "topic": "2. Konu Anlatımı Başlığı (Varsa) (Türkçe)" }},
+        {{ "type": "APPLY", "topic": "2. Konu Kodlama Pratiği Görevi (Varsa) (Türkçe)" }},
+        {{ "type": "CONNECT", "topic": "Öğrenilen Tüm Kavramları Birleştirme Görevi (Türkçe)" }},
+        {{ "type": "CREATE", "topic": "Mini Proje Üretim Görevi (Türkçe)" }},
+        {{ "type": "QUIZ", "topic": "Ders Değerlendirme Testi (Türkçe)" }}
       ]
     }}
   ]
@@ -302,6 +372,7 @@ Audience: {req.audience}
                 response_schema=RoadmapStructureResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", "gemini-2.5-flash", response_step1)
         
         roadmap_structure = json.loads(response_step1.text.strip())
         
@@ -320,22 +391,23 @@ Curriculum Structure to populate:
 
 Available Templates for each category:
 - UNDERSTAND (ANLA) templates:
-{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["ANLA"])}
 
 - APPLY (UYGULA) templates:
-{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["UYGULA"])}
 
 - CONNECT (BİRLEŞTİR) templates:
-{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["BİRLEŞTİR"])}
 
 - CREATE (ÜRET) templates:
-{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["ÜRET"])}
 
 Requirements:
 - For each module in the curriculum of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
-- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts.
-- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges.
+- UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
+  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
     {{"previousTopic": "Name of previous topic (e.g. Değişken Tanımlama)", "currentTopic": "Name of current topic (e.g. Koşullu İfadeler)", "taskText": "Detailed connection coding challenge instructions asking the student to combine both topics."}}
@@ -375,6 +447,7 @@ Expected JSON Structure:
                 response_schema=AILevelContentsResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "generate_roadmap_content", "gemini-2.5-flash", response_step2)
         
         slide_contents_data = json.loads(response_step2.text.strip())
         level_contents_list = slide_contents_data.get("levelContents", [])
@@ -411,9 +484,17 @@ Expected JSON Structure:
                 
                 level_id = f"sec_ai_{int(random.random() * 1000000000)}"
                 
+                raw_topic = (mod.get("topic") or "").strip()
+                clean_topic = re.sub(r"^(?:Ders\s+\d+[:\s\-]*|\d+[\.\)\s\-]*)", "", raw_topic, flags=re.IGNORECASE).strip()
+                if not clean_topic:
+                    clean_topic = (les.get("title") or "Ders Konusu").strip()
+                    clean_topic = re.sub(r"^(?:Ders\s+\d+[:\s\-]*|\d+[\.\)\s\-]*)", "", clean_topic, flags=re.IGNORECASE).strip()
+                
+                final_node_title = clean_topic[:30] if mod_type not in ["QUIZ", "HOMEWORK"] else ("Konu Testi" if mod_type == "QUIZ" else "Ödev Görevi")
+                
                 node = {
                   "id": level_id,
-                  "title": mod.get("topic") or f"Ders {overall_idx}" if mod_type not in ["QUIZ", "HOMEWORK"] else ("Konu Testi" if mod_type == "QUIZ" else "Ödev Görevi"),
+                  "title": final_node_title,
                   "theme": mapped_theme,
                   "lectures": []
                 }
@@ -548,7 +629,8 @@ async def suggest_raw_topics_api(
     difficulty: str = Form(...),
     audience: str = Form(...),
     pdf_file: Optional[UploadFile] = File(None),
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         pdf_text = ""
@@ -610,6 +692,7 @@ Expected JSON Structure:
                 response_schema=SuggestRawTopicsResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "suggest_raw_topics", "gemini-2.5-flash", response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -624,7 +707,8 @@ Expected JSON Structure:
 @router.post("/courses/distribute_topics_into_lessons")
 async def distribute_topics_into_lessons_api(
     req: DistributeTopicsRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -677,6 +761,7 @@ Expected JSON Structure:
                 response_schema=SuggestCurriculumParametersResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "distribute_topics", "gemini-2.5-flash", response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -691,7 +776,8 @@ Expected JSON Structure:
 @router.post("/courses/expand_topics")
 async def expand_topics_api(
     req: ExpandTopicsRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -741,6 +827,7 @@ Expected JSON Structure:
                 response_schema=ExpandTopicsResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "expand_topics", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Konu Genişletme")
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -754,7 +841,8 @@ Expected JSON Structure:
 @router.post("/courses/generate_roadmap_structure")
 async def generate_roadmap_structure_api(
     req: GenerateRoadmapRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -786,20 +874,18 @@ Requirements:
 - The roadmap consists of lessons.
 - Each lesson contains a list of modules representing levels.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- **Pedagogical Flow & Duplication Rules**:
-  - To teach multiple distinct sub-topics in a single lesson (e.g., if-else AND while loops, or setup AND variables), you MUST generate a pair of exactly one UNDERSTAND module (theory explanation) followed immediately by exactly one APPLY module (hands-on coding practice) FOR EACH concept.
-  - **Strict Concept Symmetry**: For every APPLY module, the immediately preceding UNDERSTAND module's `"topic"` MUST explicitly contain and list the syntax, keywords, or concepts that will be practiced. For example, if the APPLY module is about "print() ile ekrana çıktı verme", the preceding UNDERSTAND module topic MUST be "Python Kurulumu ve print() Çıktı Fonksiyonu". Do NOT request practice on any function/syntax in APPLY that wasn't explicitly included in the preceding UNDERSTAND module's topic name.
-  - For example, if a lesson has custom sub-topics: "if-else yapısı" and "while döngüleri", the modules sequence MUST be:
-    1. `{{"type": "UNDERSTAND", "topic": "if-else Karar Yapıları ve Karşılaştırma"}}`
-    2. `{{"type": "APPLY", "topic": "if-else ile Kullanıcı Giriş Kontrolü"}}`
-    3. `{{"type": "UNDERSTAND", "topic": "while Döngüleri ve Sayaçlar"}}`
-    4. `{{"type": "APPLY", "topic": "while Döngüsü ile Sayı Toplama Pratiği"}}`
-    5. `{{"type": "QUIZ", "topic": "Ders Değerlendirme Testi"}}`
-  - This learn-then-practice sandwich pattern (UNDERSTAND followed by APPLY) can repeat as many times as there are distinct sub-topics in that lesson. This ensures both theory and coding practice are covered for every concept.
-  - End the lesson with exactly one QUIZ or HOMEWORK module.
+- **FLEXIBLE PEDAGOGICAL FLOW & MODULE RULES**:
+  - A lesson can cover 1 or MULTIPLE sub-topics.
+  - For EACH distinct sub-topic taught in the lesson, generate a pair of `UNDERSTAND` (Anla - Konu Teorisi) followed immediately by `APPLY` (Uygula - Kodlama Pratiği).
+  - Therefore, a lesson CAN contain MULTIPLE `UNDERSTAND` and `APPLY` pairs if there are multiple sub-topics in that lesson (e.g., `UNDERSTAND(Konu 1) -> APPLY(Konu 1) -> UNDERSTAND(Konu 2) -> APPLY(Konu 2)...`). Do NOT limit a lesson to only one pair if multiple concepts are taught!
+  - After all sub-topic theory & practice pairs in the lesson, you MUST include:
+    1. At least one `CONNECT` module (Birleştir - Öğrenilen Kavramları Birleştirme Görevi / Bulmaca)
+    2. At least one `CREATE` module (Üret - Mini Proje / Üretim Görevi)
+    3. Exactly one `QUIZ` or `HOMEWORK` module (Değerlendirme Testi veya Ödev)
+  - Summary of lesson module sequence: `[(UNDERSTAND -> APPLY)* (1 or more pairs)] -> CONNECT -> CREATE -> QUIZ (or HOMEWORK)`.
+- **CRITICAL TITLE LENGTH CONSTRAINT (STRICT RULE)**: Every lesson title (`title`) and module topic string (`topic`) MUST be concise and MUST NOT exceed 30 characters in total length (e.g., 'Python Kurulumu', 'Değişken Tanımlama', 'Koşullu İfadeler'). Never generate verbose or long titles exceeding 30 characters.
 - Each module in the lessons modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
-
 
 Expected JSON Structure:
 {{
@@ -810,9 +896,13 @@ Expected JSON Structure:
       "title": "Lesson title (Türkçe)",
       "objective": "Lesson learning objective (Türkçe)",
       "modules": [
-        {{ "type": "UNDERSTAND", "topic": "Brief topic title for this module (Türkçe)" }},
-        {{ "type": "APPLY", "topic": "Brief topic of the coding challenge (Türkçe)" }},
-        {{ "type": "QUIZ", "topic": "Quiz topic (Türkçe)" }}
+        {{ "type": "UNDERSTAND", "topic": "1. Konu Anlatımı Başlığı (Türkçe)" }},
+        {{ "type": "APPLY", "topic": "1. Konu Kodlama Pratiği Görevi (Türkçe)" }},
+        {{ "type": "UNDERSTAND", "topic": "2. Konu Anlatımı Başlığı (Varsa) (Türkçe)" }},
+        {{ "type": "APPLY", "topic": "2. Konu Kodlama Pratiği Görevi (Varsa) (Türkçe)" }},
+        {{ "type": "CONNECT", "topic": "Öğrenilen Tüm Kavramları Birleştirme Görevi (Türkçe)" }},
+        {{ "type": "CREATE", "topic": "Mini Proje Üretim Görevi (Türkçe)" }},
+        {{ "type": "QUIZ", "topic": "Ders Değerlendirme Testi (Türkçe)" }}
       ]
     }}
   ]
@@ -832,6 +922,7 @@ Audience: {req.audience}
                 response_schema=RoadmapStructureResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", "gemini-2.5-flash", response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
         
         data = json.loads(response.text.strip())
         return {"success": True, "roadmap": data}
@@ -843,7 +934,8 @@ Audience: {req.audience}
 @router.post("/courses/suggest_lesson_modules")
 async def suggest_lesson_modules_api(
     req: SuggestLessonModulesRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -868,18 +960,16 @@ Lesson Title: {req.lesson_title}
 Requirements:
 - Plan the modules sequence for this lesson.
 - Modules are selected from: UNDERSTAND, APPLY, CONNECT, CREATE, QUIZ, HOMEWORK.
-- **Pedagogical Flow & Duplication Rules**:
-  - To teach multiple distinct sub-topics in a single lesson (e.g., if-else AND while loops, or setup AND variables), you MUST generate a pair of exactly one UNDERSTAND module (theory explanation) followed immediately by exactly one APPLY module (hands-on coding practice) FOR EACH concept.
-  - **Strict Concept Symmetry**: For every APPLY module, the immediately preceding UNDERSTAND module's `"topic"` MUST explicitly contain and list the syntax, keywords, or concepts that will be practiced. For example, if the APPLY module is about "print() ile ekrana çıktı verme", the preceding UNDERSTAND module topic MUST be "Python Kurulumu ve print() Çıktı Fonksiyonu". Do NOT request practice on any function/syntax in APPLY that wasn't explicitly included in the preceding UNDERSTAND module's topic name.
-  - For example, if a lesson has custom sub-topics: "if-else yapısı" and "while döngüleri", the modules sequence MUST be:
-    1. `{{"type": "UNDERSTAND", "topic": "if-else Karar Yapıları ve Karşılaştırma"}}`
-    2. `{{"type": "APPLY", "topic": "if-else ile Kullanıcı Giriş Kontrolü"}}`
-    3. `{{"type": "UNDERSTAND", "topic": "while Döngüleri ve Sayaçlar"}}`
-    4. `{{"type": "APPLY", "topic": "while Döngüsü ile Sayı Toplama Pratiği"}}`
-    5. `{{"type": "QUIZ", "topic": "Ders Değerlendirme Testi"}}`
-  - This learn-then-practice sandwich pattern (UNDERSTAND followed by APPLY) can repeat as many times as there are distinct sub-topics in that lesson. This ensures both theory and coding practice are covered for every concept.
-  - After the final APPLY module, you MUST include a CONNECT module (Puzzle/Bağlantı task) and/or a CREATE module (Trophy/Üret task) in the lesson flow (these are mandatory, do not omit them).
-  - End the lesson with exactly one QUIZ or HOMEWORK module.
+- **FLEXIBLE PEDAGOGICAL FLOW & MODULE RULES**:
+  - A lesson can cover 1 or MULTIPLE sub-topics.
+  - For EACH distinct sub-topic taught in the lesson, generate a pair of `UNDERSTAND` (Anla - Konu Teorisi) followed immediately by `APPLY` (Uygula - Kodlama Pratiği).
+  - Therefore, a lesson CAN contain MULTIPLE `UNDERSTAND` and `APPLY` pairs if there are multiple sub-topics in that lesson (e.g., `UNDERSTAND(Konu 1) -> APPLY(Konu 1) -> UNDERSTAND(Konu 2) -> APPLY(Konu 2)...`). Do NOT limit a lesson to only one pair if multiple concepts are taught!
+  - After all sub-topic theory & practice pairs in the lesson, you MUST include:
+    1. At least one `CONNECT` module (Birleştir - Öğrenilen Kavramları Birleştirme Görevi / Bulmaca)
+    2. At least one `CREATE` module (Üret - Mini Proje / Üretim Görevi)
+    3. Exactly one `QUIZ` or `HOMEWORK` module (Değerlendirme Testi veya Ödev)
+  - Summary of lesson module sequence: `[(UNDERSTAND -> APPLY)* (1 or more pairs)] -> CONNECT -> CREATE -> QUIZ (or HOMEWORK)`.
+- YOU MUST NEVER OMIT CONNECT OR CREATE MODULES!
 - Each module in the modules list MUST have a specific, distinct `"topic"` string explaining what specific sub-topic or task this module covers. This is critical for generating unique slide contents later.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -887,9 +977,13 @@ Expected JSON Structure:
 {{
   "objective": "Lesson learning objective (Türkçe)",
   "modules": [
-    {{ "type": "UNDERSTAND", "topic": "Brief topic title for this module (Türkçe)" }},
-    {{ "type": "APPLY", "topic": "Brief topic of the coding challenge (Türkçe)" }},
-    {{ "type": "QUIZ", "topic": "Quiz topic (Türkçe)" }}
+    {{ "type": "UNDERSTAND", "topic": "1. Konu Anlatımı Başlığı (Türkçe)" }},
+    {{ "type": "APPLY", "topic": "1. Konu Kodlama Pratiği Görevi (Türkçe)" }},
+    {{ "type": "UNDERSTAND", "topic": "2. Konu Anlatımı Başlığı (Varsa) (Türkçe)" }},
+    {{ "type": "APPLY", "topic": "2. Konu Kodlama Pratiği Görevi (Varsa) (Türkçe)" }},
+    {{ "type": "CONNECT", "topic": "Öğrenilen Tüm Kavramları Birleştirme Görevi (Türkçe)" }},
+    {{ "type": "CREATE", "topic": "Mini Proje Üretim Görevi (Türkçe)" }},
+    {{ "type": "QUIZ", "topic": "Ders Değerlendirme Testi (Türkçe)" }}
   ]
 }}
 """
@@ -901,6 +995,7 @@ Expected JSON Structure:
                 response_schema=SuggestLessonModulesResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
         
         data = json.loads(response.text.strip())
         return {"success": True, "objective": data.get("objective"), "modules": data.get("modules", [])}
@@ -912,7 +1007,8 @@ Expected JSON Structure:
 @router.post("/courses/suggest_lesson_title")
 async def suggest_lesson_title_api(
     req: SuggestLessonTitleRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -968,6 +1064,7 @@ Expected JSON Structure:
                 response_schema=SuggestLessonTitleResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "suggest_lesson_title", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
         data = json.loads(response.text.strip())
         return {"success": True, "titles": data.get("titles", [])}
     except Exception as e:
@@ -978,7 +1075,8 @@ Expected JSON Structure:
 @router.post("/courses/suggest_level_details")
 async def suggest_level_details_api(
     req: SuggestLevelDetailsRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -1005,7 +1103,7 @@ Type of module: {req.module_type} (UNDERSTAND = theory, APPLY = practice challen
 Other modules already planned in this lesson: {json.dumps(req.sibling_modules, ensure_ascii=False)}
 
 Requirements:
-- Suggest a short display title (max 20 characters) and a detailed description/topic (1-2 sentences) of what should be taught/practiced in this module.
+- Suggest a short display title (CRITICAL: MUST NOT exceed 30 characters) and a detailed description/topic (1-2 sentences) of what should be taught/practiced in this module.
 - It must be relevant to both the lesson title and the pedagogical module type.
 - Avoid repeating topics that are already covered by sibling modules.
 - Return ONLY valid JSON matching the structure below. No markdown formatting.
@@ -1024,6 +1122,7 @@ Expected JSON Structure:
                 response_schema=SuggestLevelDetailsResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "suggest_level_details", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
         data = json.loads(response.text.strip())
         return {"success": True, "title": data.get("title"), "topic": data.get("topic")}
     except Exception as e:
@@ -1034,7 +1133,8 @@ Expected JSON Structure:
 @router.post("/courses/generate_lesson_slides")
 async def generate_lesson_slides_api(
     req: GenerateLessonSlidesRequest,
-    teacher_id: int = Depends(get_current_teacher_id)
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
 ):
     TEMPLATES_PATH = "slide_templates.json"
     
@@ -1095,22 +1195,23 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
 
 Available Templates for each category:
 - UNDERSTAND (ANLA) templates:
-{json.dumps(templates_by_category["ANLA"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["ANLA"])}
 
 - APPLY (UYGULA) templates:
-{json.dumps(templates_by_category["UYGULA"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["UYGULA"])}
 
 - CONNECT (BİRLEŞTİR) templates:
-{json.dumps(templates_by_category["BİRLEŞTİR"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["BİRLEŞTİR"])}
 
 - CREATE (ÜRET) templates:
-{json.dumps(templates_by_category["ÜRET"], ensure_ascii=False, indent=2)}
+{format_templates_summary(templates_by_category["ÜRET"])}
 
 Requirements:
 - For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
-- For UNDERSTAND: generate 2 to 4 slides explaining the lesson topic concepts. Crucially cover all concepts mentioned in the module's topic string. For instance, if the topic contains multiple distinct sub-topics, distribute the slides to cover all of them. Do NOT ignore or skip any part of the topic name. Also, check the topic of the subsequent APPLY module in the lesson and make sure the UNDERSTAND slides explicitly teach all the syntax, keywords, structures, libraries, and functions needed to solve that APPLY module's challenge. The student must never be asked to write code, call functions, or use keywords in APPLY that were not explicitly explained and demonstrated in these UNDERSTAND slides.
-- For APPLY: generate 1 to 2 slides with task instructions, code boilerplate or challenges. Ensure the challenge only requires syntax, keywords, functions, and coding concepts that were explicitly taught and explained in the immediately preceding UNDERSTAND slides.
+- UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
+  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
     {{"previousTopic": "Name of previous topic (e.g. Değişken Tanımlama)", "currentTopic": "Name of current topic (e.g. Koşullu İfadeler)", "taskText": "Detailed connection coding challenge instructions asking the student to combine both topics."}}
@@ -1172,6 +1273,7 @@ Expected JSON Structure:
                 response_schema=LessonSlidesResponse
             )
         )
+        await record_ai_usage(db, teacher_id, "generate_lesson_slides", "gemini-2.5-flash", response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
         
         slide_contents_data = json.loads(response.text.strip())
         modules_content = slide_contents_data.get("modules_content") or []
@@ -1400,3 +1502,161 @@ Expected JSON Structure:
     except Exception as e:
         print(f"Error generating lesson slides: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/ai/metrics")
+@router.get("/courses/metrics")
+async def get_ai_metrics_api(
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_user_info)
+):
+    """
+    Eğitmen veya Admin paneli için Yapay Zeka (AI) kullanım metriklerini ve harcama özetini döndürür.
+    """
+    if user_info.get("role") not in ["admin", "teacher", "instructor"]:
+        raise HTTPException(status_code=403, detail="Erişim yetkiniz bulunmamaktadır.")
+
+    result = await db.execute(select(AIUsageLog).order_by(AIUsageLog.created_at.desc()))
+    logs = result.scalars().all()
+
+    total_requests = len(logs)
+    total_prompt_tokens = sum(l.prompt_tokens or 0 for l in logs)
+    total_candidates_tokens = sum(l.candidates_tokens or 0 for l in logs)
+    total_tokens = total_prompt_tokens + total_candidates_tokens
+    
+    # Calculate official Google AI Studio cost ($0.30 / 1M input, $2.50 / 1M output)
+    rate_input = 0.30 / 1_000_000
+    rate_output = 2.50 / 1_000_000
+    total_cost_usd = (total_prompt_tokens * rate_input) + (total_candidates_tokens * rate_output)
+    usd_to_tl_rate = 38.0
+    total_cost_tl = total_cost_usd * usd_to_tl_rate
+
+    by_action = {}
+    by_model = {}
+    by_course = {}
+
+    for l in logs:
+        p_tok = l.prompt_tokens or 0
+        c_tok = l.candidates_tokens or 0
+        t_tok = p_tok + c_tok if (p_tok or c_tok) else (l.total_tokens or 0)
+        c_usd = (p_tok * rate_input) + (c_tok * rate_output) if (p_tok or c_tok) else (l.cost_usd or 0.0)
+
+        act = l.action or "diğer"
+        if act not in by_action:
+            by_action[act] = {"count": 0, "tokens": 0, "cost_usd": 0.0}
+        by_action[act]["count"] += 1
+        by_action[act]["tokens"] += t_tok
+        by_action[act]["cost_usd"] += c_usd
+
+        mdl = l.model_name or "bilinmiyor"
+        if mdl not in by_model:
+            by_model[mdl] = {"count": 0, "tokens": 0, "cost_usd": 0.0}
+        by_model[mdl]["count"] += 1
+        by_model[mdl]["tokens"] += t_tok
+        by_model[mdl]["cost_usd"] += c_usd
+
+        # Course grouping
+        c_name = getattr(l, "course_title", None)
+        if not c_name and l.details:
+            match = re.search(r"Kurs:\s*'([^']+)'", l.details) or re.search(r"Kurs:\s*([^|]+)", l.details)
+            if match:
+                c_name = match.group(1).strip()
+        
+        if not c_name:
+            c_name = "Genel / Bağımsız İşlemler"
+
+        if c_name not in by_course:
+            by_course[c_name] = {
+                "course_title": c_name,
+                "course_id": getattr(l, "course_id", None),
+                "total_calls": 0,
+                "prompt_tokens": 0,
+                "candidates_tokens": 0,
+                "total_tokens": 0,
+                "cost_usd": 0.0,
+                "cost_tl": 0.0,
+                "steps": []
+            }
+
+        by_course[c_name]["total_calls"] += 1
+        by_course[c_name]["prompt_tokens"] += p_tok
+        by_course[c_name]["candidates_tokens"] += c_tok
+        by_course[c_name]["total_tokens"] += t_tok
+        by_course[c_name]["cost_usd"] += c_usd
+
+        by_course[c_name]["steps"].append({
+            "id": l.id,
+            "action": l.action,
+            "model_name": l.model_name,
+            "prompt_tokens": p_tok,
+            "candidates_tokens": c_tok,
+            "total_tokens": t_tok,
+            "cost_usd": round(c_usd, 6),
+            "details": getattr(l, "details", None),
+            "created_at": l.created_at.isoformat() if l.created_at else None
+        })
+
+    # Format course summaries
+    courses_summary = []
+    for c_info in by_course.values():
+        c_info["cost_tl"] = round(c_info["cost_usd"] * usd_to_tl_rate, 2)
+        c_info["cost_usd"] = round(c_info["cost_usd"], 6)
+        courses_summary.append(c_info)
+
+    courses_summary.sort(key=lambda x: x["cost_usd"], reverse=True)
+
+    recent_logs = [
+        {
+            "id": l.id,
+            "teacher_id": l.teacher_id,
+            "action": l.action,
+            "model_name": l.model_name,
+            "prompt_tokens": l.prompt_tokens or 0,
+            "candidates_tokens": l.candidates_tokens or 0,
+            "total_tokens": (l.prompt_tokens or 0) + (l.candidates_tokens or 0) if (l.prompt_tokens or l.candidates_tokens) else (l.total_tokens or 0),
+            "cost_usd": round(l.cost_usd or 0.0, 6),
+            "details": getattr(l, "details", None),
+            "created_at": l.created_at.isoformat() if l.created_at else None
+        }
+        for l in logs[:100]
+    ]
+
+    return {
+        "success": True,
+        "metrics": {
+            "total_requests": total_requests,
+            "total_prompt_tokens": total_prompt_tokens,
+            "total_candidates_tokens": total_candidates_tokens,
+            "total_tokens": total_tokens,
+            "total_cost_usd": round(total_cost_usd, 4),
+            "total_cost_tl": round(total_cost_tl, 2),
+            "usd_to_tl_rate": usd_to_tl_rate,
+            "by_action": by_action,
+            "by_model": by_model,
+            "by_course": courses_summary,
+            "recent_logs": recent_logs
+        }
+    }
+
+
+@router.delete("/ai/metrics")
+@router.delete("/courses/metrics")
+async def clear_ai_metrics_api(
+    db: AsyncSession = Depends(get_db),
+    user_info: dict = Depends(get_current_user_info)
+):
+    """
+    Tüm Yapay Zeka (AI) metrik ve kullanım loglarını sıfırlar / siler.
+    """
+    if user_info.get("role") not in ["admin", "teacher", "instructor"]:
+        raise HTTPException(status_code=403, detail="Erişim yetkiniz bulunmamaktadır.")
+
+    await db.execute(delete(AIUsageLog))
+    await db.commit()
+
+    return {
+        "success": True,
+        "message": "Tüm yapay zeka metrik verileri sıfırlandı."
+    }
+
+

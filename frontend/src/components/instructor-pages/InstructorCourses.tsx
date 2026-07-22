@@ -375,33 +375,33 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
     <div className="space-y-6 animate-fade-in-down">
       {/* Header / Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div className="flex bg-gray-100 p-1 rounded-xl">
+        <div className="flex bg-white p-1.5 rounded-2xl border-2 border-b-4 border-slate-200 shadow-sm gap-1">
           <button
             onClick={() => setFilter("active")}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:translate-y-[1px] ${
               filter === "active"
-                ? "bg-white text-gray-800 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-slate-900 border-2 border-b-2 border-black text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-700 bg-transparent border-2 border-transparent"
             }`}
           >
             Aktif
           </button>
           <button
             onClick={() => setFilter("draft")}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:translate-y-[1px] ${
               filter === "draft"
-                ? "bg-white text-gray-800 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-slate-900 border-2 border-b-2 border-black text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-700 bg-transparent border-2 border-transparent"
             }`}
           >
             Taslak
           </button>
           <button
             onClick={() => setFilter("archived")}
-            className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:translate-y-[1px] ${
               filter === "archived"
-                ? "bg-white text-gray-800 shadow-sm"
-                : "text-gray-500 hover:text-gray-700"
+                ? "bg-slate-900 border-2 border-b-2 border-black text-white shadow-sm"
+                : "text-slate-500 hover:text-slate-700 bg-transparent border-2 border-transparent"
             }`}
           >
             Arşiv
@@ -410,35 +410,35 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
         <div className="flex items-center gap-3 w-full md:w-auto">
           <div className="relative flex-1 md:w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 h-4 w-4" />
             <input
               type="text"
               placeholder="Kurslarda ara..."
-              className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+              className="w-full pl-10 pr-4 py-3 bg-white border-2 border-b-4 border-slate-200 focus:border-sky-400 focus:border-b-sky-500 rounded-2xl outline-none text-xs font-black placeholder-slate-400 uppercase transition-all tracking-wider"
             />
           </div>
           <button
             onClick={openAddModal}
-            className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl font-bold text-sm shadow-lg shadow-sky-200 transition-all active:scale-95"
+            className="flex items-center gap-2 bg-sky-500 hover:bg-sky-400 text-white px-5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider border-2 border-b-4 border-sky-700 active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer shadow-sm"
           >
-            <Plus size={18} strokeWidth={3} />
-            <span className="hidden sm:inline">Yeni Kurs</span>
+            <Plus size={16} strokeWidth={3} />
+            Yeni Kurs
           </button>
         </div>
       </div>
 
       {/* Courses List */}
-      <div className="grid grid-cols-1 gap-4">
+      <div className="grid grid-cols-1 gap-5">
         {filteredCourses.map((course) => (
               <div
                 key={course.id}
                 onClick={() => setInfoCourseId(course.id)}
-                className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-xl hover:border-sky-100 transition-all group cursor-pointer active:scale-[0.98]"
+                className="bg-white p-6 rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 hover:border-sky-400 hover:border-b-sky-555 transition-all shadow-md hover:shadow-lg group cursor-pointer"
               >
                 <div className="flex flex-col md:flex-row items-center gap-6">
                   {/* Icon / Thumbnail */}
                   <div
-                    className={`w-16 h-16 rounded-2xl bg-${course.color}-100 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-105 transition-transform text-${course.color}-600`}
+                    className={`w-16 h-16 rounded-2xl bg-${course.color}-50 border-2 border-b-4 border-${course.color}-200 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-105 transition-transform`}
                   >
                     {course.title.toLowerCase().includes("python")
                       ? "🐍"
@@ -451,28 +451,28 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
                   {/* Main Info */}
                   <div className="flex-1 text-center md:text-left">
-                    <h3 className="text-lg font-black text-gray-800 group-hover:text-sky-600 transition-colors">
+                    <h3 className="text-lg font-black text-slate-800 group-hover:text-sky-600 transition-colors">
                       {course.title}
                     </h3>
-                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-1">
-                      <p className="text-xs font-bold text-gray-400">
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 mt-2">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl">
                         Son güncelleme: {course.lastUpdated}
-                      </p>
+                      </span>
                       {course.enrollment_code && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             handleCopyCode(course.id, course.enrollment_code!);
                           }}
-                          className="flex items-center gap-1.5 px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-wider border border-indigo-100 hover:bg-indigo-100 transition-colors"
+                          className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-b-2 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
                           title="Katılım kodunu kopyala"
                         >
                           {copiedCodeId === course.id ? (
-                            <Check size={11} />
+                            <Check size={12} strokeWidth={3} />
                           ) : (
-                            <Copy size={11} />
+                            <Copy size={12} strokeWidth={3} />
                           )}
-                          Kod: {course.enrollment_code}
+                          KOD: {course.enrollment_code}
                         </button>
                       )}
                       {course.isLive &&
@@ -482,7 +482,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                             {course.liveSessions.map((session, idx) => (
                               <div
                                 key={idx}
-                                className="flex items-center gap-1.5 px-2 py-0.5 bg-red-50 text-red-600 rounded-lg text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-100"
+                                className="flex items-center gap-1.5 px-3 py-1 bg-red-50 text-red-600 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-b-2 border-red-200 animate-pulse"
                               >
                                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
                                 Canlı: {session.date} @ {session.time}
@@ -494,35 +494,35 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                   </div>
 
                   {/* Metrics */}
-                  <div className="flex items-center gap-8 w-full md:w-auto justify-center md:justify-end">
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-gray-800 font-bold mb-1">
-                        <span className="text-lg">₺{course.price}</span>
+                  <div className="flex items-center gap-4 w-full md:w-auto justify-center md:justify-end">
+                    <div className="text-center bg-slate-50/50 border-2 border-b-4 border-slate-200 px-4 py-2 rounded-2xl min-w-[85px]">
+                      <div className="flex items-center justify-center gap-1 text-slate-800 font-black mb-0.5">
+                        <span className="text-sm">₺{course.price}</span>
                       </div>
-                      <p className="text-[10px] uppercase font-black text-gray-300">
+                      <p className="text-[9px] uppercase font-black text-slate-400 tracking-wider">
                         Ücret
                       </p>
                     </div>
 
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-gray-500 font-bold mb-1">
-                        <Users size={16} />
-                        <span>{course.students}</span>
+                    <div className="text-center bg-slate-50/50 border-2 border-b-4 border-slate-200 px-4 py-2 rounded-2xl min-w-[85px]">
+                      <div className="flex items-center justify-center gap-1 text-slate-700 font-black mb-0.5">
+                        <Users size={14} className="text-slate-500" />
+                        <span className="text-sm">{course.students}</span>
                       </div>
-                      <p className="text-[10px] uppercase font-black text-gray-300">
+                      <p className="text-[9px] uppercase font-black text-slate-400 tracking-wider">
                         Öğrenci
                       </p>
                     </div>
 
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-1 text-gray-500 font-bold mb-1">
+                    <div className="text-center bg-slate-50/50 border-2 border-b-4 border-slate-200 px-4 py-2 rounded-2xl min-w-[85px]">
+                      <div className="flex items-center justify-center gap-1 text-slate-705 font-black mb-0.5">
                         <Star
-                          size={16}
+                          size={14}
                           className="text-yellow-400 fill-current"
                         />
-                        <span>{course.rating > 0 ? course.rating : "-"}</span>
+                        <span className="text-sm">{course.rating > 0 ? course.rating : "-"}</span>
                       </div>
-                      <p className="text-[10px] uppercase font-black text-gray-300">
+                      <p className="text-[9px] uppercase font-black text-slate-400 tracking-wider">
                         Puan
                       </p>
                     </div>
@@ -530,29 +530,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
                   {/* Actions */}
                   <div className="flex items-center gap-3 border-t md:border-t-0 border-gray-100 pt-4 md:pt-0 w-full md:w-auto justify-end relative">
-                    {/* Dersi Başlat Butonu MVP devre dışı - Takvimden başlatılacak */}
-                    {/* <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleStartSession(course.id);
-                      }}
-                      disabled={startingSessionId === course.id}
-                      className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-black text-sm shadow-md transition-all active:scale-95 whitespace-nowrap ${
-                        startingSessionId === course.id
-                          ? 'bg-gray-200 text-gray-400 cursor-wait'
-                          : 'bg-emerald-500 hover:bg-emerald-650 text-white shadow-emerald-200'
-                      }`}
-                    >
-                      {startingSessionId === course.id ? (
-                        <Loader2 size={16} className="animate-spin" />
-                      ) : (
-                        <>
-                          <Play size={16} fill="currentColor" />
-                          Dersi Başlat
-                        </>
-                      )}
-                    </button> */}
-
                     <div className="relative">
                       <button
                         onClick={(e) => {
@@ -561,13 +538,13 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                             openMenuId === course.id ? null : course.id,
                           );
                         }}
-                        className="p-2 text-gray-400 hover:bg-gray-50 rounded-lg transition-colors"
+                        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-50 border-2 border-transparent hover:border-slate-200 rounded-xl transition-all cursor-pointer"
                       >
                         <MoreVertical size={20} />
                       </button>
 
                       {openMenuId === course.id && (
-                        <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-lg border border-gray-100 z-10 overflow-hidden animate-fade-in">
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-2xl shadow-md border-2 border-b-4 border-slate-200 z-10 overflow-hidden animate-fade-in p-1">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -575,17 +552,27 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                                 `/instructor/roadmap-builder/${course.id}`,
                               );
                             }}
-                            className="w-full text-left px-4 py-2 text-sm text-sky-600 hover:bg-sky-50 font-bold transition-colors border-b border-gray-50 flex items-center gap-2"
+                            className="w-full text-left px-3 py-2 text-[10px] text-sky-650 hover:bg-sky-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
                           >
                             <Layout size={14} />
-                            Yol Haritasını Düzenle
+                            Müfredat Düzenle
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEditClick(course);
+                            }}
+                            className="w-full text-left px-3 py-2 text-[10px] text-purple-600 hover:bg-purple-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Info size={14} />
+                            Ayarları Düzenle
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteCourse(course.id);
                             }}
-                            className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 font-bold transition-colors"
+                            className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
                           >
                             Sil
                           </button>

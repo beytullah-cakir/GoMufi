@@ -1,26 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-    Brain, 
-    Layout, 
-    Gamepad2, 
-    Calendar, 
-    TrendingUp, 
-    Sparkles, 
-    Code, 
-    Users, 
-    CheckCircle2, 
-    ArrowRight, 
-    Lock, 
-    Plus, 
-    Play, 
-    Settings, 
-    Layers, 
-    Video, 
-    Check, 
-    ChevronDown, 
-    Menu, 
-    X, 
+import {
+    Brain,
+    Layout,
+    Gamepad2,
+    Calendar,
+    TrendingUp,
+    Sparkles,
+    Code,
+    Users,
+    CheckCircle2,
+    ArrowRight,
+    Lock,
+    Plus,
+    Play,
+    Settings,
+    Layers,
+    Video,
+    Check,
+    ChevronDown,
+    Menu,
+    X,
     Search,
     BookOpen,
     Trophy,
@@ -49,6 +49,12 @@ import EnglishIcon from '../assets/sprites/EnglishIcon.png';
 import JsIcon from '../assets/sprites/JsIcon.png';
 import MufiMascot from '../assets/sprites/MufiMascot.png';
 import GrassIcon from '../assets/sprites/grass.png';
+import ButtonCyan from '../assets/sprites/ButtonCyan.png';
+import ButtonPurple from '../assets/sprites/ButtonPurple.png';
+import ButtonYellow from '../assets/sprites/ButtonYellow.png';
+import ButtonGreen from '../assets/sprites/ButtonGreen.png';
+import Frame1 from '../assets/sprites/Mufi/Frame1.png';
+import Frame2 from '../assets/sprites/Mufi/Frame2.png';
 
 // Inline Vector Cloud Component for clean sharp rendering
 const VectorCloud: React.FC<{ className?: string }> = ({ className }) => (
@@ -68,17 +74,100 @@ const LandingPage: React.FC = () => {
     const [simStep, setSimStep] = useState(0);
     const [typedPrompt, setTypedPrompt] = useState("");
     const [roadNodeCount, setRoadNodeCount] = useState(0);
+    const [slideCount, setSlideCount] = useState(0);
+    const [codeLinesCount, setCodeLinesCount] = useState(0);
+    const [quizCompileCount, setQuizCompileCount] = useState(0);
     const fullPrompt = "Python Değişkenleri";
+
+    // Builder Cat frame animation state
+    const [builderCatFrame, setBuilderCatFrame] = useState(1);
+
+    useEffect(() => {
+        if (simStep === 5) {
+            setBuilderCatFrame(1);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setBuilderCatFrame(prev => prev === 1 ? 2 : 1);
+        }, 350);
+
+        return () => clearInterval(interval);
+    }, [simStep]);
+
+    // Falling icons state & spawn effect + proportional progress
+    const [fallingIcons, setFallingIcons] = useState<{ id: number; img: string; leftOffset: number }[]>([]);
+
+    useEffect(() => {
+        if (builderCatFrame === 2 && simStep !== 5) {
+            const icons = [BrainSprite, PencilSprite, PuzzleSprite, TrophySprite, QuestionSprite];
+            const randomIcon = icons[Math.floor(Math.random() * icons.length)];
+            const newItem = {
+                id: Date.now() + Math.random(),
+                img: randomIcon,
+                leftOffset: Math.floor(Math.random() * 120) - 60
+            };
+            setFallingIcons(prev => [...prev, newItem]);
+            
+            setTimeout(() => {
+                setFallingIcons(prev => prev.filter(item => item.id !== newItem.id));
+            }, 900);
+
+            // Proportional progress for each step driven by strikes!
+            if (simStep === 1) {
+                setRoadNodeCount(prev => {
+                    const next = prev + 1;
+                    return next > 5 ? 5 : next;
+                });
+            } else if (simStep === 2) {
+                setSlideCount(prev => {
+                    const next = prev + 3;
+                    return next > 12 ? 12 : next;
+                });
+            } else if (simStep === 3) {
+                setCodeLinesCount(prev => {
+                    const next = prev + 1;
+                    return next > 3 ? 3 : next;
+                });
+            } else if (simStep === 4) {
+                setQuizCompileCount(prev => {
+                    const next = prev + 1;
+                    return next > 3 ? 3 : next;
+                });
+            }
+        }
+    }, [builderCatFrame, simStep]);
+
+    // Unified simulation stage transition controller based on progress values
+    useEffect(() => {
+        if (simStep === 0) return;
+        let timeout: any;
+
+        if (simStep === 1 && roadNodeCount === 5) {
+            timeout = setTimeout(() => setSimStep(2), 1200);
+        } else if (simStep === 2 && slideCount === 12) {
+            timeout = setTimeout(() => setSimStep(3), 1200);
+        } else if (simStep === 3 && codeLinesCount === 3) {
+            timeout = setTimeout(() => setSimStep(4), 1200);
+        } else if (simStep === 4 && quizCompileCount === 3) {
+            timeout = setTimeout(() => setSimStep(5), 1200);
+        }
+
+        return () => clearTimeout(timeout);
+    }, [simStep, roadNodeCount, slideCount, codeLinesCount, quizCompileCount]);
 
     // Robust typing effect loop
     useEffect(() => {
         if (simStep !== 0) return;
-        
+
         setTypedPrompt("");
         setRoadNodeCount(0);
+        setSlideCount(0);
+        setCodeLinesCount(0);
+        setQuizCompileCount(0);
         let currentString = "";
         let index = 0;
-        
+
         const typingInterval = setInterval(() => {
             if (index < fullPrompt.length) {
                 currentString += fullPrompt.charAt(index);
@@ -89,7 +178,7 @@ const LandingPage: React.FC = () => {
                 setTimeout(() => setSimStep(1), 1000);
             }
         }, 100);
-        
+
         return () => clearInterval(typingInterval);
     }, [simStep]);
 
@@ -99,20 +188,8 @@ const LandingPage: React.FC = () => {
         let timeout: any;
 
         if (simStep === 1) {
-            // Draw nodes one by one
-            let n = 0;
-            const nodeInterval = setInterval(() => {
-                n++;
-                setRoadNodeCount(n);
-                if (n === 5) {
-                    clearInterval(nodeInterval);
-                    timeout = setTimeout(() => setSimStep(2), 1500);
-                }
-            }, 450);
-            return () => {
-                clearInterval(nodeInterval);
-                clearTimeout(timeout);
-            };
+            // Managed by hammer strike trigger in combination with roadNodeCount transition useEffect
+            return;
         } else if (simStep === 2) {
             // Generating slides
             timeout = setTimeout(() => setSimStep(3), 2000);
@@ -239,74 +316,74 @@ const LandingPage: React.FC = () => {
 
     // Core feature list with rich custom styling variables
     const features = [
-        { 
-            title: "AI Lesson Builder", 
+        {
+            title: "AI Lesson Builder",
             highlight: "AI",
             gradient: "from-[#8b5cf6] to-purple-600",
-            desc: "Tek komutla ders planı oluşturun, kazanımlara göre otomatik slaytlar elde edin.", 
-            icon: <Cpu className="w-7 h-7 text-[#8b5cf6]" />, 
-            cardBg: "from-white to-purple-50/20", 
-            cardBorder: "border-purple-200 hover:border-[#8b5cf6] border-b-purple-300", 
+            desc: "Tek komutla ders planı oluşturun, kazanımlara göre otomatik slaytlar elde edin.",
+            icon: <Cpu className="w-7 h-7 text-[#8b5cf6]" />,
+            cardBg: "from-white to-purple-50/20",
+            cardBorder: "border-purple-200 hover:border-[#8b5cf6] border-b-purple-300",
             glowShadow: "hover:shadow-purple-100/80",
             watermarkColor: "text-purple-100/10 group-hover:text-purple-200/20",
             badgeColor: "bg-purple-50 border-purple-100"
         },
-        { 
-            title: "Canva Benzeri Editör", 
+        {
+            title: "Canva Benzeri Editör",
             highlight: "Editör",
             gradient: "from-blue-600 to-indigo-500",
-            desc: "Hazır eğitsel şablonlar, görseller ve sürükle-bırak nesnelerle içerikleri kolayca düzenleyin.", 
-            icon: <Layout className="w-7 h-7 text-blue-600" />, 
-            cardBg: "from-white to-blue-50/20", 
-            cardBorder: "border-blue-200 hover:border-blue-500 border-b-blue-300", 
+            desc: "Hazır eğitsel şablonlar, görseller ve sürükle-bırak nesnelerle içerikleri kolayca düzenleyin.",
+            icon: <Layout className="w-7 h-7 text-blue-600" />,
+            cardBg: "from-white to-blue-50/20",
+            cardBorder: "border-blue-200 hover:border-blue-500 border-b-blue-300",
             glowShadow: "hover:shadow-blue-100/80",
             watermarkColor: "text-blue-100/10 group-hover:text-blue-200/20",
             badgeColor: "bg-blue-50 border-blue-100"
         },
-        { 
-            title: "Oyunlaştırılmış Dersler", 
+        {
+            title: "Oyunlaştırılmış Dersler",
             highlight: "Oyunlaştırılmış",
             gradient: "from-pink-600 to-rose-500",
-            desc: "Ders aralarına serpiştirilmiş quizler, anlık görevler ve mini oyunlarla motivasyonu zirvede tutun.", 
-            icon: <Gamepad2 className="w-7 h-7 text-pink-600" />, 
-            cardBg: "from-white to-pink-50/20", 
-            cardBorder: "border-pink-200 hover:border-pink-500 border-b-pink-300", 
+            desc: "Ders aralarına serpiştirilmiş quizler, anlık görevler ve mini oyunlarla motivasyonu zirvede tutun.",
+            icon: <Gamepad2 className="w-7 h-7 text-pink-600" />,
+            cardBg: "from-white to-pink-50/20",
+            cardBorder: "border-pink-200 hover:border-pink-500 border-b-pink-300",
             glowShadow: "hover:shadow-pink-100/80",
             watermarkColor: "text-pink-100/10 group-hover:text-pink-200/20",
             badgeColor: "bg-pink-50 border-pink-100"
         },
-        { 
-            title: "Hazır Modüller", 
+        {
+            title: "Hazır Modüller",
             highlight: "Modüller",
             gradient: "from-emerald-600 to-teal-500",
-            desc: "Anla, Uygula, Birleştir, Üret, Quiz ve Ödev modülleriyle pedagojik ders akışları kurun.", 
-            icon: <Layers className="w-7 h-7 text-emerald-600" />, 
-            cardBg: "from-white to-emerald-50/20", 
-            cardBorder: "border-emerald-200 hover:border-emerald-500 border-b-emerald-300", 
+            desc: "Anla, Uygula, Birleştir, Üret, Quiz ve Ödev modülleriyle pedagojik ders akışları kurun.",
+            icon: <Layers className="w-7 h-7 text-emerald-600" />,
+            cardBg: "from-white to-emerald-50/20",
+            cardBorder: "border-emerald-200 hover:border-emerald-500 border-b-emerald-300",
             glowShadow: "hover:shadow-emerald-100/80",
             watermarkColor: "text-emerald-100/10 group-hover:text-emerald-200/20",
             badgeColor: "bg-emerald-50 border-emerald-100"
         },
-        { 
-            title: "Canlı Ders Yönetimi", 
+        {
+            title: "Canlı Ders Yönetimi",
             highlight: "Canlı Ders",
             gradient: "from-amber-600 to-orange-500",
-            desc: "Görüntülü bağlantı, öğrenci katılım takip araçları ve entegre takvim sistemi tek panelde.", 
-            icon: <Calendar className="w-7 h-7 text-amber-600" />, 
-            cardBg: "from-white to-amber-50/20", 
-            cardBorder: "border-amber-200 hover:border-amber-500 border-b-amber-300", 
+            desc: "Görüntülü bağlantı, öğrenci katılım takip araçları ve entegre takvim sistemi tek panelde.",
+            icon: <Calendar className="w-7 h-7 text-amber-600" />,
+            cardBg: "from-white to-amber-50/20",
+            cardBorder: "border-amber-200 hover:border-amber-500 border-b-amber-300",
             glowShadow: "hover:shadow-amber-100/80",
             watermarkColor: "text-amber-100/10 group-hover:text-amber-200/20",
             badgeColor: "bg-amber-50 border-amber-100"
         },
-        { 
-            title: "Öğrenci Analitiği", 
+        {
+            title: "Öğrenci Analitiği",
             highlight: "Analitiği",
             gradient: "from-indigo-600 to-violet-500",
-            desc: "Öğrencilerin gelişim raporlarını, katılım sürelerini ve soru başarı grafiklerini anlık izleyin.", 
-            icon: <TrendingUp className="w-7 h-7 text-indigo-600" />, 
-            cardBg: "from-white to-indigo-50/20", 
-            cardBorder: "border-indigo-200 hover:border-indigo-500 border-b-indigo-300", 
+            desc: "Öğrencilerin gelişim raporlarını, katılım sürelerini ve soru başarı grafiklerini anlık izleyin.",
+            icon: <TrendingUp className="w-7 h-7 text-indigo-600" />,
+            cardBg: "from-white to-indigo-50/20",
+            cardBorder: "border-indigo-200 hover:border-indigo-500 border-b-indigo-300",
             glowShadow: "hover:shadow-indigo-100/80",
             watermarkColor: "text-indigo-100/10 group-hover:text-indigo-200/20",
             badgeColor: "bg-indigo-50 border-indigo-100"
@@ -319,7 +396,7 @@ const LandingPage: React.FC = () => {
         const parts = title.split(new RegExp(`(${highlight})`, 'gi'));
         return (
             <span>
-                {parts.map((part, i) => 
+                {parts.map((part, i) =>
                     part.toLowerCase() === highlight.toLowerCase() ? (
                         <span key={i} className={`bg-clip-text text-transparent bg-gradient-to-r ${gradient} font-black`}>
                             {part}
@@ -384,6 +461,109 @@ const LandingPage: React.FC = () => {
                 .animate-bounce-slow {
                     animation: bounce-slow 3s ease-in-out infinite;
                 }
+                
+                @keyframes card-impact {
+                    0%, 100% { transform: translateX(0); }
+                    15% { transform: translateX(-4px); }
+                    30% { transform: translateX(3px); }
+                    45% { transform: translateX(-2px); }
+                    60% { transform: translateX(1px); }
+                }
+                .animate-card-impact {
+                    animation: card-impact 0.2s ease-out;
+                }
+                
+                @keyframes debris-1 {
+                    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+                    20% { transform: translate(-25px, -30px) rotate(45deg); }
+                    100% { opacity: 0; transform: translate(-60px, 90px) rotate(180deg) scale(0.3); }
+                }
+                @keyframes debris-2 {
+                    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+                    25% { transform: translate(-15px, -45px) rotate(-60deg); }
+                    100% { opacity: 0; transform: translate(-40px, 110px) rotate(-240deg) scale(0.2); }
+                }
+                @keyframes debris-3 {
+                    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+                    15% { transform: translate(-35px, -15px) rotate(30deg); }
+                    100% { opacity: 0; transform: translate(-80px, 75px) rotate(120deg) scale(0.3); }
+                }
+                @keyframes debris-4 {
+                    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+                    30% { transform: translate(-10px, -35px) rotate(90deg); }
+                    100% { opacity: 0; transform: translate(-30px, 120px) rotate(360deg) scale(0.2); }
+                }
+                @keyframes debris-5 {
+                    0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+                    22% { transform: translate(-30px, -25px) rotate(-45deg); }
+                    100% { opacity: 0; transform: translate(-70px, 100px) rotate(-180deg) scale(0.4); }
+                }
+                .animate-debris-1 {
+                    animation: debris-1 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+                }
+                .animate-debris-2 {
+                    animation: debris-2 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+                }
+                .animate-debris-3 {
+                    animation: debris-3 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+                }
+                .animate-debris-4 {
+                    animation: debris-4 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+                }
+                .animate-debris-5 {
+                    animation: debris-5 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+                }
+                
+                .construction-tape {
+                    background: repeating-linear-gradient(
+                        -45deg,
+                        #eab308,
+                        #eab308 10px,
+                        #1e293b 10px,
+                        #1e293b 20px
+                    );
+                }
+                
+                .blueprint-grid {
+                    background-size: 20px 20px;
+                    background-image: 
+                        linear-gradient(to right, rgba(139, 92, 246, 0.04) 1px, transparent 1px),
+                        linear-gradient(to bottom, rgba(139, 92, 246, 0.04) 1px, transparent 1px);
+                }
+                
+                @keyframes icon-fall {
+                    0% {
+                        opacity: 0;
+                        transform: translate(-50%, -20px) scale(0.6) rotate(0deg);
+                    }
+                    15% {
+                        opacity: 0.85;
+                        transform: translate(-50%, 0) scale(1.05) rotate(15deg);
+                    }
+                    100% {
+                        opacity: 0;
+                        transform: translate(-50%, 220px) scale(0.4) rotate(360deg);
+                    }
+                }
+                .animate-icon-fall {
+                    animation: icon-fall 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+                }
+                
+                @keyframes float {
+                    0%, 100% { transform: translateY(0px); }
+                    50% { transform: translateY(-6px); }
+                }
+                .animate-float {
+                    animation: float 2.5s ease-in-out infinite;
+                }
+                
+                @keyframes shadow-pulse {
+                    0%, 100% { transform: scale(1); opacity: 0.15; }
+                    50% { transform: scale(0.85); opacity: 0.08; }
+                }
+                .animate-shadow-pulse {
+                    animation: shadow-pulse 2.5s ease-in-out infinite;
+                }
             `}</style>
 
             {/* Header / Navbar */}
@@ -396,32 +576,32 @@ const LandingPage: React.FC = () => {
 
                     {/* Clean navigation links matching main app sidebar hover styles */}
                     <div className="hidden xl:flex items-center gap-2 text-sm font-black tracking-wider whitespace-nowrap">
-                        <button 
-                            onClick={() => scrollToSection('features')} 
+                        <button
+                            onClick={() => scrollToSection('features')}
                             className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
                         >
                             Özellikler
                         </button>
-                        <button 
-                            onClick={() => scrollToSection('sample-courses')} 
+                        <button
+                            onClick={() => scrollToSection('sample-courses')}
                             className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
                         >
                             Örnek Dersler
                         </button>
-                        <button 
-                            onClick={() => scrollToSection('steps')} 
+                        <button
+                            onClick={() => scrollToSection('steps')}
                             className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
                         >
                             Nasıl Çalışır?
                         </button>
-                        <button 
-                            onClick={() => scrollToSection('faq')} 
+                        <button
+                            onClick={() => scrollToSection('faq')}
                             className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
                         >
                             SSS
                         </button>
-                        <button 
-                            onClick={() => navigate('/animation')} 
+                        <button
+                            onClick={() => navigate('/animation')}
                             className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer text-purple-600 font-bold"
                         >
                             Animasyon
@@ -461,16 +641,16 @@ const LandingPage: React.FC = () => {
                                 <X className="w-6 h-6 text-slate-500" />
                             </button>
                         </div>
-                        <div className="flex flex-col gap-4 text-base font-bold text-slate-700">
+                        <div className="flex flex-col gap-4 text-base font-black text-slate-700">
                             <button onClick={() => scrollToSection('features')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">Özellikler</button>
                             <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">Örnek Dersler</button>
                             <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-2 hover:bg-slate-55 hover:text-purple-600 rounded-lg transition-colors">Nasıl Çalışır?</button>
                             <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">SSS</button>
                             <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors text-purple-600 font-bold">Animasyon</button>
                         </div>
-                        <div className="mt-auto pt-6 border-t border-slate-100 flex flex-col gap-3">
-                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-xl border-2 border-slate-200 font-bold text-center text-slate-700">Giriş Yap</button>
-                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 bg-[#23c55e] text-white font-bold text-center shadow-lg">Kayıt Ol</button>
+                        <div className="mt-auto pt-6 border-t-2 border-slate-100 flex flex-col gap-3">
+                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-slate-200 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
+                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-center active:translate-y-[2px] active:border-b-2 transition-all">Kayıt Ol</button>
                         </div>
                     </div>
                 </div>
@@ -521,7 +701,7 @@ const LandingPage: React.FC = () => {
                             </span> <br />
                             Hazırla.
                         </h1>
-                        <p className="text-base md:text-lg text-slate-500 font-semibold leading-relaxed max-w-xl">
+                        <p className="text-base md:text-lg text-slate-500 font-bold leading-relaxed max-w-xl">
                             GoMufi; öğretmenlerin yapay zekâ ile ders planı, oyunlaştırılmış içerik, quiz ve etkileşimli dersler oluşturmasını sağlayan yeni nesil eğitim platformudur.
                         </p>
                         <div className="flex flex-wrap gap-4 pt-1">
@@ -543,144 +723,310 @@ const LandingPage: React.FC = () => {
 
                     {/* Hero Animation (Highly Active AI Production Pipeline Simulation) */}
                     <div className="lg:col-span-6 flex justify-center relative animate-in fade-in slide-in-from-right-6 duration-700">
-                        <img src={MufiMascot} alt="Mufi" className="absolute -top-10 -left-6 w-16 h-16 object-contain z-20 animate-bounce-slow" />
-
-                        <div className="w-full max-w-[440px] bg-white border-2 border-b-[8px] border-slate-200 rounded-[2.5rem] shadow-xl relative overflow-hidden flex flex-col p-6 font-sans">
-                            {/* Window Header */}
-                            <div className="flex items-center justify-between pb-3.5 border-b-2 border-slate-100 shrink-0">
-                                <div className="flex gap-1.5">
-                                    <div className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></div>
-                                    <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
-                                    <div className="w-3 h-3 rounded-full bg-green-400"></div>
-                                </div>
-                                <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">GoMufi AI Üretim Hattı</span>
-                                <div className="w-8"></div>
+                        <div className="relative w-full max-w-[440px]">
+                            {/* Falling Icons from bottom center */}
+                            <div className="absolute left-0 right-0 -bottom-[220px] h-[220px] overflow-hidden pointer-events-none z-0">
+                                {fallingIcons.map(icon => (
+                                    <img
+                                        key={icon.id}
+                                        src={icon.img}
+                                        alt=""
+                                        className="absolute top-0 w-14 h-14 object-contain animate-icon-fall"
+                                        style={{
+                                            left: `calc(50% + ${icon.leftOffset}px)`,
+                                            transform: 'translateX(-50%)'
+                                        }}
+                                    />
+                                ))}
                             </div>
 
-                            {/* Simulation Body */}
-                            <div className="flex-1 flex flex-col justify-between mt-5 min-h-[290px] text-left">
-                                <div className="space-y-4">
-                                    {/* Topic Card */}
-                                    <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4">
-                                        <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase mb-1">
-                                            <span>AI Girdisi (Prompt)</span>
+                            <img src={MufiMascot} alt="Mufi" className="absolute -top-10 -left-6 w-16 h-16 object-contain z-20 animate-bounce-slow" />
+
+                            <div className={`w-full bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl relative overflow-hidden flex flex-col font-sans ${builderCatFrame === 2 && simStep !== 5 ? 'animate-card-impact' : ''}`}>
+                                {/* Window Header */}
+                                <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
+                                    <div className="flex gap-2">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-red-400 border border-red-500/30"></div>
+                                        <div className="w-3.5 h-3.5 rounded-full bg-yellow-400 border border-yellow-500/30"></div>
+                                        <div className="w-3.5 h-3.5 rounded-full bg-green-400 border border-green-500/30"></div>
+                                    </div>
+                                    <span className="text-[10px] text-slate-400 font-black tracking-widest uppercase">GoMufi Builder</span>
+                                    <div className="w-10"></div>
+                                </div>
+
+                                {/* Construction Safety Tape */}
+                                {simStep !== 5 ? (
+                                    <div className="w-full h-2 construction-tape shrink-0 border-y border-slate-200" />
+                                ) : (
+                                    <div className="w-full h-2 bg-emerald-500 shrink-0 border-y border-emerald-600 animate-in fade-in duration-300" />
+                                )}
+
+                                {/* Main Content Area */}
+                                <div className="px-5 pt-4 pb-5 flex-1 flex flex-col gap-3.5 min-h-[380px]">
+
+                                    {/* Prompt Input Card */}
+                                    <div className={`rounded-2xl border-2 border-b-4 p-4 transition-all duration-300 ${
+                                        simStep === 5 
+                                            ? 'bg-emerald-50 border-emerald-200' 
+                                            : 'bg-slate-50 border-slate-200'
+                                    }`}>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Ders Konusu</span>
                                             {simStep === 5 ? (
-                                                <span className="text-emerald-500 font-black animate-bounce flex items-center gap-1">
-                                                    ✓ TAMAMLANDI
+                                                <span className="text-[9px] font-black text-white bg-emerald-500 px-2.5 py-1 rounded-xl border border-b-2 border-emerald-600">
+                                                    ✓ Hazır
                                                 </span>
-                                            ) : (
-                                                <span className="text-[#8b5cf6] font-black animate-pulse flex items-center gap-1">
-                                                    <span className="w-1.5 h-1.5 rounded-full bg-[#8b5cf6] inline-block animate-ping"></span>
-                                                    ÜRETİLİYOR
+                                            ) : simStep > 0 ? (
+                                                <span className="text-[9px] font-black text-white bg-purple-500 px-2.5 py-1 rounded-xl border border-b-2 border-purple-600 animate-pulse">
+                                                    ⚡ İşleniyor
                                                 </span>
-                                            )}
+                                            ) : null}
                                         </div>
-                                        <div className="text-sm font-black text-slate-805 min-h-[20px] font-mono border-r-2 border-purple-500 animate-pulse">
-                                            "{typedPrompt || " "}"
+                                        <div className="text-sm font-black text-slate-700 font-mono">
+                                            {typedPrompt || <span className="text-slate-300">|</span>}
+                                            {simStep === 0 && <span className="inline-block w-0.5 h-4 bg-purple-500 ml-0.5 animate-pulse align-middle"></span>}
                                         </div>
                                     </div>
 
-                                    {/* Dynamic Simulation Screens based on simStep */}
-                                    <div className="h-[155px] bg-slate-50 border-2 border-slate-105 rounded-2xl p-4 flex flex-col justify-center relative overflow-hidden transition-all duration-300">
-                                        
-                                        {/* Step 0: Input/Ready State */}
+                                    {/* Dynamic Step Content Card */}
+                                    <div className={`flex-1 rounded-2xl border-2 border-b-4 p-5 flex flex-col justify-center relative overflow-hidden transition-all duration-300 ${
+                                        simStep === 5 
+                                            ? 'bg-emerald-50 border-emerald-200' 
+                                            : 'bg-white border-slate-200'
+                                    }`}>
+
+                                        {/* Step 0 */}
                                         {simStep === 0 && (
-                                            <div className="space-y-2 text-center animate-in fade-in zoom-in-95 duration-200">
-                                                <div className="text-4xl">🤖</div>
-                                                <p className="text-xs font-black text-slate-655">Yapay zeka konusu analiz ediliyor...</p>
+                                            <div className="flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-300">
+                                                <div className="w-14 h-14 rounded-[1.2rem] bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center shadow-sm">
+                                                    <span className="text-2xl">🎯</span>
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="text-sm font-black text-slate-700">Ders planlanıyor...</p>
+                                                    <p className="text-[11px] text-slate-400 font-bold mt-0.5">AI müfredat analiz ediyor</p>
+                                                </div>
                                             </div>
                                         )}
 
-                                        {/* Step 1: Roadmap Creation */}
+                                        {/* Step 1: Roadmap */}
                                         {simStep === 1 && (
-                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Yol Haritası Node'ları</span>
-                                                    <span>{roadNodeCount}/5 Node</span>
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-xl bg-purple-500 border border-b-[3px] border-purple-700 flex items-center justify-center text-white text-[10px] font-black shadow-sm">1</div>
+                                                        <span className="text-xs font-black text-slate-700">Modül Haritası</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-xl">{roadNodeCount}/5</span>
                                                 </div>
-                                                <div className="flex justify-center items-center gap-2 relative py-2">
+                                                <div className="flex justify-center items-end gap-2 py-1 h-[100px]">
                                                     {[
-                                                        { img: BrainSprite, label: "Anla" },
-                                                        { img: PencilSprite, label: "Uygula" },
-                                                        { img: PuzzleSprite, label: "Birleştir" },
-                                                        { img: TrophySprite, label: "Üret" },
-                                                        { img: QuestionSprite, label: "Quiz" }
-                                                    ].map((node, i) => (
-                                                        <div key={i} className={`w-9 h-9 rounded-xl border-2 bg-white flex items-center justify-center transition-all duration-300 shadow-sm ${
-                                                            roadNodeCount > i ? "border-purple-300 scale-105 opacity-100" : "border-slate-100 opacity-20"
-                                                        }`}>
-                                                            <img src={node.img} alt="" className="w-6 h-6 object-contain" />
+                                                        { name: "Anla", img: BrainSprite, button: ButtonPurple },
+                                                        { name: "Uygula", img: PencilSprite, button: ButtonCyan },
+                                                        { name: "Birleştir", img: PuzzleSprite, button: ButtonGreen },
+                                                        { name: "Üret", img: TrophySprite, button: ButtonYellow },
+                                                        { name: "Quiz", img: QuestionSprite, button: ButtonPurple }
+                                                    ].map((node, i) => {
+                                                        const isUnlocked = roadNodeCount > i;
+                                                        return (
+                                                            <div key={i} className={`relative flex flex-col items-center transition-all duration-500 ${isUnlocked ? "opacity-100 scale-100" : "opacity-25 grayscale scale-90"}`}>
+                                                                <div className="relative">
+                                                                    <img src={node.button} alt="" className="w-[52px] h-auto relative z-10 select-none pointer-events-none" />
+                                                                    <img src={node.img} alt="" className="absolute w-8 h-8 object-contain bottom-3 left-1/2 -translate-x-1/2 z-20 animate-float" style={{ animationDelay: `${i * 0.3}s` }} />
+                                                                </div>
+                                                                <span className="text-[7px] font-black text-slate-500 uppercase tracking-wider mt-0.5">{node.name}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                                <p className="text-[10px] font-black text-purple-500 text-center animate-pulse">🚧 Modüller oluşturuluyor...</p>
+                                            </div>
+                                        )}
+
+                                        {/* Step 2: Slides */}
+                                        {simStep === 2 && (
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-xl bg-blue-500 border border-b-[3px] border-blue-700 flex items-center justify-center text-white text-[10px] font-black shadow-sm">2</div>
+                                                        <span className="text-xs font-black text-slate-700">Slayt Tasarımı</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-xl">{slideCount}/12</span>
+                                                </div>
+                                                <div className="grid grid-cols-6 gap-1.5 py-1">
+                                                    {Array.from({ length: 12 }).map((_, i) => (
+                                                        <div 
+                                                            key={i} 
+                                                            className={`h-8 rounded-lg border-2 border-b-[3px] transition-all duration-300 flex items-center justify-center text-[9px] font-black ${
+                                                                i < slideCount 
+                                                                    ? 'bg-blue-50 border-blue-300 text-blue-500' 
+                                                                    : 'bg-slate-50 border-slate-200 text-slate-300'
+                                                            }`}
+                                                        >
+                                                            {i < slideCount ? '✓' : i + 1}
                                                         </div>
                                                     ))}
                                                 </div>
-                                                <p className="text-[10px] font-black text-[#8b5cf6] text-center uppercase animate-pulse"># Modüller yerleştiriliyor...</p>
+                                                <p className="text-[10px] font-black text-blue-500 text-center animate-pulse">
+                                                    {slideCount === 12 ? "✓ Slaytlar hazır!" : "🎨 Slaytlar tasarlanıyor..."}
+                                                </p>
                                             </div>
                                         )}
 
-                                        {/* Step 2: Slide Generation */}
-                                        {simStep === 2 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Canva Editörü</span>
-                                                    <span>Slayt 2/12</span>
-                                                </div>
-                                                <div className="bg-white border-2 border-slate-100 rounded-xl p-3 flex items-center gap-3 shadow-inner">
-                                                    <div className="w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-xl">🖼️</div>
-                                                    <div className="text-left">
-                                                        <div className="text-xs font-black text-slate-855">1. Slayt: Değişken Tanımı</div>
-                                                        <div className="text-[9px] text-slate-400 font-bold">Görseller ve şablonlar ekleniyor...</div>
-                                                    </div>
-                                                </div>
-                                                <p className="text-[10px] font-black text-blue-500 text-center uppercase animate-pulse"># 34 interaktif slayt üretildi!</p>
-                                            </div>
-                                        )}
-
-                                        {/* Step 3: Code Examples */}
+                                        {/* Step 3: Code */}
                                         {simStep === 3 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300 text-left">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Kod Editörü (Egzersiz)</span>
-                                                    <span className="text-amber-500 font-bold">Python</span>
-                                                </div>
-                                                <div className="bg-slate-900 border border-slate-850 rounded-xl p-3 font-mono text-[10px] text-emerald-400 shadow-lg min-h-[75px] flex flex-col justify-center">
-                                                    <div><span className="text-purple-400"># Değişken tanımlama</span></div>
-                                                    <div>name = <span className="text-yellow-350">"Mufi"</span></div>
-                                                    <div>score = <span className="text-yellow-350">100</span></div>
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Step 4: Quiz Compilation */}
-                                        {simStep === 4 && (
-                                            <div className="space-y-2 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                                                <div className="flex justify-between items-center text-[9px] font-black text-slate-400 uppercase">
-                                                    <span>Etkileşimli Quiz</span>
-                                                    <span>Soru 1/8</span>
-                                                </div>
-                                                <div className="bg-white border-2 border-slate-100 rounded-xl p-2.5 shadow-sm text-left">
-                                                    <div className="text-[10px] font-black text-slate-800 leading-tight">Yazı tipindeki verileri hangi değişken saklar?</div>
-                                                    <div className="grid grid-cols-2 gap-1.5 mt-2">
-                                                        <div className="bg-green-50 border border-green-200 text-green-700 text-[9px] font-black p-1 rounded text-center">A) str ✓</div>
-                                                        <div className="bg-slate-50 border border-slate-100 text-slate-500 text-[9px] font-black p-1 rounded text-center">B) int</div>
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-xl bg-emerald-500 border border-b-[3px] border-emerald-700 flex items-center justify-center text-white text-[10px] font-black shadow-sm">3</div>
+                                                        <span className="text-xs font-black text-slate-700">Kod Üretimi</span>
                                                     </div>
+                                                    <span className="text-[9px] font-black text-amber-600 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-xl">Python</span>
+                                                </div>
+                                                <div className="bg-slate-900 rounded-2xl border-2 border-b-4 border-slate-700 p-4 font-mono text-[11px] leading-relaxed min-h-[85px] flex flex-col justify-center">
+                                                    {codeLinesCount >= 1 && (
+                                                        <div className="animate-in fade-in slide-in-from-left-2 duration-200">
+                                                            <span className="text-slate-500 select-none">1 </span><span className="text-purple-400"># Değişken tanımlama</span>
+                                                        </div>
+                                                    )}
+                                                    {codeLinesCount >= 2 && (
+                                                        <div className="animate-in fade-in slide-in-from-left-2 duration-200">
+                                                            <span className="text-slate-500 select-none">2 </span><span className="text-cyan-300">name</span> <span className="text-slate-400">=</span> <span className="text-green-400">"Mufi"</span>
+                                                        </div>
+                                                    )}
+                                                    {codeLinesCount >= 3 && (
+                                                        <div className="animate-in fade-in slide-in-from-left-2 duration-200">
+                                                            <span className="text-slate-500 select-none">3 </span><span className="text-cyan-300">score</span> <span className="text-slate-400">=</span> <span className="text-orange-300">100</span>
+                                                        </div>
+                                                    )}
+                                                    {codeLinesCount === 0 && (
+                                                        <div className="text-slate-500 animate-pulse flex items-center gap-2">
+                                                            <span className="w-1.5 h-4 bg-green-400 rounded-sm animate-pulse"></span>
+                                                            <span className="italic text-[10px]">Kod yazılıyor...</span>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </div>
                                         )}
 
-                                        {/* Step 5: Completed / Ready */}
+                                        {/* Step 4: Quiz */}
+                                        {simStep === 4 && (
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-bottom-3 duration-300">
+                                                <div className="flex justify-between items-center">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-7 h-7 rounded-xl bg-orange-500 border border-b-[3px] border-orange-700 flex items-center justify-center text-white text-[10px] font-black shadow-sm">4</div>
+                                                        <span className="text-xs font-black text-slate-700">Quiz Oluşturma</span>
+                                                    </div>
+                                                    <span className="text-[10px] font-black text-slate-500 bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded-xl">{quizCompileCount}/3</span>
+                                                </div>
+                                                <div className="bg-slate-50 rounded-2xl border-2 border-b-4 border-slate-200 p-4 min-h-[85px] flex flex-col justify-center">
+                                                    {quizCompileCount === 0 ? (
+                                                        <div className="text-center">
+                                                            <div className="text-2xl mb-1.5 animate-bounce">📝</div>
+                                                            <p className="text-[10px] font-black text-slate-400 animate-pulse">Sorular derleniyor...</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="space-y-2.5">
+                                                            <p className="text-xs font-black text-slate-700">Yazı tipindeki verileri hangi değişken saklar?</p>
+                                                            <div className="grid grid-cols-2 gap-2">
+                                                                {quizCompileCount >= 2 && (
+                                                                    <div className="bg-white border-2 border-b-[3px] border-slate-200 text-slate-600 text-[10px] font-black p-2 rounded-xl text-center animate-in fade-in zoom-in-95 duration-200">
+                                                                        B) int
+                                                                    </div>
+                                                                )}
+                                                                {quizCompileCount >= 3 && (
+                                                                    <div className="bg-green-50 border-2 border-b-[3px] border-green-300 text-green-600 text-[10px] font-black p-2 rounded-xl text-center animate-in fade-in zoom-in-95 duration-200">
+                                                                        A) str ✓
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Step 5: Done */}
                                         {simStep === 5 && (
-                                            <div className="space-y-3 text-center animate-in zoom-in-95 duration-300">
-                                                <div className="w-10 h-10 rounded-full bg-emerald-50 border border-emerald-400 text-emerald-500 flex items-center justify-center text-xl mx-auto animate-bounce shadow-sm">
+                                            <div className="flex flex-col items-center gap-4 animate-in zoom-in-95 fade-in duration-500">
+                                                <div className="w-14 h-14 rounded-[1.2rem] bg-emerald-500 border-2 border-b-4 border-emerald-700 flex items-center justify-center text-white text-2xl shadow-md animate-bounce">
                                                     ✓
                                                 </div>
-                                                <div>
-                                                    <h5 className="text-xs font-black text-slate-800">Ders Hazırlandı!</h5>
-                                                    <p className="text-[10px] text-slate-400 font-bold">Öğrenci Kodu: <span className="text-emerald-600 font-black tracking-widest text-sm bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-lg">45CZWT</span></p>
+                                                <div className="text-center">
+                                                    <h5 className="text-sm font-black text-slate-800">Ders Hazır! 🎉</h5>
+                                                    <p className="text-[10px] text-slate-400 font-black mt-1">Öğrenci Kodu:</p>
+                                                    <div className="mt-1.5 inline-flex bg-white border-2 border-b-4 border-emerald-200 px-4 py-2 rounded-2xl">
+                                                        <span className="text-emerald-600 font-black tracking-[0.2em] text-base font-mono">45CZWT</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         )}
                                     </div>
+
+                                    {/* Progress Bar - Chunky Segmented */}
+                                    {simStep > 0 && simStep < 5 && (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-1.5">
+                                                {[
+                                                    { step: 1, progress: roadNodeCount / 5, color: "bg-purple-500", border: "border-purple-600" },
+                                                    { step: 2, progress: slideCount / 12, color: "bg-blue-500", border: "border-blue-600" },
+                                                    { step: 3, progress: codeLinesCount / 3, color: "bg-emerald-500", border: "border-emerald-600" },
+                                                    { step: 4, progress: quizCompileCount / 3, color: "bg-orange-500", border: "border-orange-600" }
+                                                ].map((item, i) => (
+                                                    <div key={i} className="flex-1">
+                                                        <div className={`h-3 rounded-full border overflow-hidden transition-all duration-300 ${
+                                                            simStep > item.step ? `${item.color} ${item.border}` :
+                                                            simStep === item.step ? 'bg-slate-100 border-slate-200' :
+                                                            'bg-slate-50 border-slate-100'
+                                                        }`}>
+                                                            {simStep === item.step && (
+                                                                <div 
+                                                                    className={`h-full ${item.color} rounded-full transition-all duration-300`}
+                                                                    style={{ width: `${item.progress * 100}%` }}
+                                                                />
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">
+                                                    {simStep === 1 ? "Müfredat" :
+                                                     simStep === 2 ? "Slaytlar" :
+                                                     simStep === 3 ? "Kod" :
+                                                     "Quiz"}
+                                                </span>
+                                                <span className="text-[9px] font-black text-purple-500">
+                                                    Adım {simStep}/4
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
+                            </div>
+
+                            {/* Debris/Sparks flying on strike */}
+                            {builderCatFrame === 2 && simStep !== 5 && (
+                                <div className="absolute -right-2 top-[60%] pointer-events-none z-30">
+                                    <span className="absolute w-3 h-2 bg-amber-500 rounded-sm animate-debris-1 shadow-sm" />
+                                    <span className="absolute w-2 h-3 bg-amber-600 rounded-sm animate-debris-2 shadow-sm" />
+                                    <span className="absolute w-2.5 h-2.5 bg-yellow-500 rounded-full animate-debris-3 shadow-md shadow-yellow-500/50" />
+                                    <span className="absolute w-2 h-2 bg-orange-400 rounded-sm animate-debris-4 shadow-sm" />
+                                    <span className="absolute w-3.5 h-1.5 bg-yellow-400 rounded-sm animate-debris-5 shadow-sm" />
+                                </div>
+                            )}
+
+                            {/* Hitting Builder Cat Animation */}
+                            <div className="hidden md:block absolute -right-[265px] bottom-2 w-72 h-auto z-10 scale-x-[-1]">
+                                <img
+                                    src={Frame1}
+                                    alt="Builder Cat Frame 1"
+                                    className={`w-full h-auto ${builderCatFrame === 1 ? 'block' : 'hidden'}`}
+                                />
+                                <img
+                                    src={Frame2}
+                                    alt="Builder Cat Frame 2"
+                                    className={`w-full h-auto ${builderCatFrame === 2 ? 'block' : 'hidden'}`}
+                                />
                             </div>
                         </div>
                     </div>
@@ -703,8 +1049,8 @@ const LandingPage: React.FC = () => {
                                     <h3 className="text-2xl font-black text-slate-800 mt-1">Öğretmen</h3>
                                 </div>
                             </div>
-                            
-                            <p className="text-slate-500 font-semibold text-sm leading-relaxed text-left">
+
+                            <p className="text-slate-500 font-bold text-sm leading-relaxed text-left">
                                 İlk AI dersini oluşturmaya başla, yol haritaları ve oyunlaştırılmış mini quizlerle öğrencilerinin ilgisini topla.
                             </p>
                         </div>
@@ -730,7 +1076,7 @@ const LandingPage: React.FC = () => {
                                 </div>
                             </div>
 
-                            <p className="text-slate-550 font-semibold text-sm leading-relaxed text-left">
+                            <p className="text-slate-550 font-bold text-sm leading-relaxed text-left">
                                 Öğretmeninin seninle paylaştığı katılım kodunu girerek oyunlaştırılmış canlı derslere ve quizlere anında bağlan.
                             </p>
                         </div>
@@ -794,8 +1140,8 @@ const LandingPage: React.FC = () => {
 
                     <div className="grid md:grid-cols-3 gap-8">
                         {features.map((feature, idx) => (
-                            <div 
-                                key={idx} 
+                            <div
+                                key={idx}
                                 className={`reveal-scale bg-gradient-to-br ${feature.cardBg} p-8 rounded-[2.5rem] border-2 border-b-[8px] ${feature.cardBorder} ${feature.glowShadow} transition-all duration-300 flex flex-col items-start gap-4 hover:-translate-y-2 relative overflow-hidden group`}
                                 style={{ transitionDelay: `${idx * 80}ms` }}
                             >
@@ -815,7 +1161,7 @@ const LandingPage: React.FC = () => {
                                 </h3>
 
                                 {/* Description with subtle Slate colors for premium contrast */}
-                                <p className="text-slate-600 font-semibold text-sm leading-relaxed relative z-10 text-left">
+                                <p className="text-slate-600 font-bold text-sm leading-relaxed relative z-10 text-left">
                                     {feature.desc}
                                 </p>
                             </div>
@@ -828,29 +1174,29 @@ const LandingPage: React.FC = () => {
             <section id="sample-courses" className="py-20 px-6 bg-white">
                 <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans font-sans">AI ile Oluşturulmuş Örnek Dersler</h2>
-                        <p className="text-slate-550 text-lg max-w-2xl mx-auto font-medium font-sans">Yapay zekanın saniyeler içinde kurguladığı örnek ders müfredatlarını inceleyin.</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">AI ile Oluşturulmuş Örnek Dersler</h2>
+                        <p className="text-slate-550 text-lg max-w-2xl mx-auto font-bold">Yapay zekanın saniyeler içinde kurguladığı örnek ders müfredatlarını inceleyin.</p>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                         {sampleCourses.map((course, idx) => (
-                            <div 
-                                key={idx} 
-                                className="reveal-scale bg-white rounded-[2.2rem] p-6 border-2 border-b-[6px] border-slate-200 hover:border-slate-350 transition-all shadow-md flex flex-col justify-between relative group hover:-translate-y-1 duration-350"
+                            <div
+                                key={idx}
+                                className="reveal-scale bg-white rounded-[2.5rem] p-6 border-2 border-b-[8px] border-slate-200 hover:border-slate-300 transition-all shadow-md flex flex-col justify-between relative group hover:-translate-y-1 duration-300"
                                 style={{ transitionDelay: `${idx * 100}ms` }}
                             >
-                                <div className="absolute top-4 right-4 bg-emerald-50 text-emerald-600 border border-emerald-100 px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider animate-pulse">
+                                <div className="absolute top-4 right-4 bg-emerald-50 text-emerald-600 border-2 border-emerald-200 px-2.5 py-0.5 rounded-xl text-[9px] font-black uppercase tracking-wider">
                                     AI Üretimi
                                 </div>
-                                
+
                                 <div className="space-y-4 text-left">
-                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border border-slate-105 shadow-inner">
+                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border-2 border-b-4 border-slate-200">
                                         <img src={course.icon} alt="" className="w-10 h-10 object-contain" />
                                     </div>
                                     <h3 className="text-lg font-black text-slate-800 leading-tight">{course.title}</h3>
                                 </div>
 
-                                <div className="mt-8 pt-4 border-t border-slate-100 flex justify-between text-xs font-black text-slate-400">
+                                <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-between text-xs font-black text-slate-400">
                                     <span>{course.lessons}</span>
                                     <span>{course.modules}</span>
                                 </div>
@@ -864,8 +1210,8 @@ const LandingPage: React.FC = () => {
             <section id="steps" className="py-20 px-6 bg-slate-50">
                 <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-20 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans">AI ile Ders Oluşturmanın 4 Adımı</h2>
-                        <p className="text-slate-555 text-lg max-w-2xl mx-auto font-medium font-sans font-sans font-sans">Yapay zeka sayesinde saatler süren ders hazırlığını dakikalara düşürün.</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">AI ile Ders Oluşturmanın 4 Adımı</h2>
+                        <p className="text-slate-550 text-lg max-w-2xl mx-auto font-bold">Yapay zeka sayesinde saatler süren ders hazırlığını dakikalara düşürün.</p>
                     </div>
 
                     <div className="relative grid md:grid-cols-4 gap-8">
@@ -878,16 +1224,16 @@ const LandingPage: React.FC = () => {
                             { step: "03", title: "Canva Editöründe Düzenle", desc: "İçerikleri dilediğiniz gibi sürükle-bırak yöntemiyle özelleştirin, istersen değiştir.", bg: "bg-pink-50 text-pink-600 border-pink-100" },
                             { step: "04", title: "Canlı Dersi Başlat", desc: "Öğretmen olarak canlı dersinizi başlatın, öğrenciler kod ile katılsın.", bg: "bg-emerald-50 text-emerald-600 border-emerald-100" }
                         ].map((item, idx) => (
-                            <div 
-                                key={idx} 
-                                className="reveal-scale relative z-10 flex flex-col items-center text-center group bg-white p-7 rounded-[2rem] border-2 border-b-[6px] border-slate-200 shadow-md hover:-translate-y-1 transition-all duration-300"
+                            <div
+                                key={idx}
+                                className="reveal-scale relative z-10 flex flex-col items-center text-center group bg-white p-7 rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-md hover:-translate-y-1 transition-all duration-300"
                                 style={{ transitionDelay: `${idx * 150}ms` }}
                             >
-                                <div className={`w-14 h-14 rounded-2xl ${item.bg.split(' ')[0]} ${item.bg.split(' ')[1]} flex items-center justify-center mb-4 border-2 border-white shadow-md group-hover:scale-105 transition-transform duration-300 text-xl font-black`}>
+                                <div className={`w-14 h-14 rounded-2xl ${item.bg.split(' ')[0]} ${item.bg.split(' ')[1]} flex items-center justify-center mb-4 border-2 border-b-4 border-slate-200 shadow-md group-hover:scale-105 transition-transform duration-300 text-xl font-black`}>
                                     {item.step}
                                 </div>
                                 <h3 className="text-lg font-black text-slate-800 mb-2">{item.title}</h3>
-                                <p className="text-slate-500 font-semibold text-xs leading-relaxed">{item.desc}</p>
+                                <p className="text-slate-500 font-bold text-xs leading-relaxed">{item.desc}</p>
                             </div>
                         ))}
                     </div>
@@ -898,12 +1244,12 @@ const LandingPage: React.FC = () => {
             <section id="preview" className="py-20 px-6 bg-white">
                 <div className="max-w-6xl mx-auto space-y-12">
                     <div className="reveal text-center space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans">Platformdan Görseller</h2>
-                        <p className="text-slate-505 text-lg font-medium font-sans font-sans">GoMufi'nin zengin ve dinamik arayüzlerini yakından keşfedin.</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">Platformdan Görseller</h2>
+                        <p className="text-slate-505 text-lg font-bold">GoMufi'nin zengin ve dinamik arayüzlerini yakından keşfedin.</p>
                     </div>
 
                     {/* Tabs Navigation */}
-                    <div className="reveal flex flex-wrap justify-center gap-3 border-b-2 border-slate-100 pb-2">
+                    <div className="reveal flex flex-wrap justify-center gap-3 border-b-2 border-slate-100 pb-4">
                         {[
                             { id: "roadmap", label: "Roadmap Builder", emoji: "🗺️" },
                             { id: "editor", label: "Canva Editörü", emoji: "🎨" },
@@ -913,42 +1259,41 @@ const LandingPage: React.FC = () => {
                             <button
                                 key={tab.id}
                                 onClick={() => setActivePreviewTab(tab.id as any)}
-                                className={`px-6 py-4.5 rounded-t-[1.5rem] font-black text-sm tracking-wide transition-all border-b-4 flex items-center gap-2 ${
-                                    activePreviewTab === tab.id 
-                                        ? "border-[#23c55e] bg-green-50/20 text-green-700" 
-                                        : "border-transparent text-slate-550 hover:text-slate-850"
-                                }`}
+                                className={`px-5 py-3 rounded-2xl font-black text-sm tracking-wide transition-all border-2 border-b-4 flex items-center gap-2 cursor-pointer active:translate-y-[2px] active:border-b-2 ${activePreviewTab === tab.id
+                                    ? "border-green-700 bg-[#23c55e] text-white shadow-sm"
+                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                    }`}
                             >
-                                <span className="text-lg">{tab.emoji}</span>
+                                <span className="text-base">{tab.emoji}</span>
                                 <span>{tab.label}</span>
                             </button>
                         ))}
                     </div>
 
                     {/* Interactive CSS Mockups */}
-                    <div className="reveal-scale bg-white border-2 border-b-[8px] border-slate-200 rounded-[3rem] shadow-xl p-8 min-h-[440px] flex flex-col justify-between overflow-hidden relative">
+                    <div className="reveal-scale bg-white border-2 border-b-[8px] border-slate-200 rounded-[2.5rem] shadow-xl p-8 min-h-[440px] flex flex-col justify-between overflow-hidden relative">
                         {/* Tab Content: Roadmap Builder */}
                         {activePreviewTab === 'roadmap' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                 <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-purple-50 text-purple-605 border border-purple-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Görsel Yol Haritası</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans">Ders Planını Haritaya Çevirin</h4>
+                                    <span className="bg-purple-50 text-purple-605 border border-purple-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Görsel Yol Haritası</span>
+                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight">Ders Planını Haritaya Çevirin</h4>
                                 </div>
-                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-8 flex flex-col items-center relative overflow-hidden">
+                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center relative overflow-hidden">
                                     <div className="absolute inset-x-0 top-1/2 h-[34px] bg-repeat-x opacity-15 pointer-events-none -translate-y-1/2 z-0" style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'contain' }}></div>
                                     <div className="absolute inset-x-8 top-1/2 h-1 bg-slate-200 -translate-y-1/2 z-0"></div>
-                                    
+ 
                                     <div className="flex items-center gap-4 w-full justify-between relative z-10 px-4">
                                         {[
-                                            { label: "Anla", img: BrainSprite, border: "border-purple-300 shadow-purple-100" },
-                                            { label: "Uygula", img: PencilSprite, border: "border-yellow-300 shadow-yellow-100" },
-                                            { label: "Birleştir", img: PuzzleSprite, border: "border-indigo-300 shadow-indigo-100" },
-                                            { label: "Üret", img: TrophySprite, border: "border-pink-300 shadow-pink-100" },
-                                            { label: "Quiz", img: QuestionSprite, border: "border-green-300 shadow-green-100" }
+                                            { label: "Anla", img: BrainSprite, border: "border-purple-200 border-b-purple-400 bg-purple-50" },
+                                            { label: "Uygula", img: PencilSprite, border: "border-cyan-200 border-b-cyan-400 bg-cyan-50" },
+                                            { label: "Birleştir", img: PuzzleSprite, border: "border-green-200 border-b-green-400 bg-green-50" },
+                                            { label: "Üret", img: TrophySprite, border: "border-amber-200 border-b-amber-400 bg-amber-50" },
+                                            { label: "Quiz", img: QuestionSprite, border: "border-purple-205 border-b-purple-405 bg-purple-50" }
                                         ].map((node, i) => (
                                             <div key={i} className="flex flex-col items-center gap-2">
-                                                <div className={`w-14 h-14 rounded-2xl bg-white border-2 ${node.border} text-white flex items-center justify-center font-bold text-sm shadow-md`}>
-                                                    <img src={node.img} alt="" className="w-10 h-10 object-contain" />
+                                                <div className={`w-14 h-14 rounded-2xl border-2 border-b-4 ${node.border} flex items-center justify-center font-black shadow-sm`}>
+                                                    <img src={node.img} alt="" className="w-9 h-9 object-contain" />
                                                 </div>
                                                 <span className="text-[10px] text-slate-800 font-black tracking-wide">{node.label}</span>
                                             </div>
@@ -962,21 +1307,21 @@ const LandingPage: React.FC = () => {
                         {activePreviewTab === 'editor' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                 <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Zengin Editör</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans font-sans">Sürükle & Bırak İçerik Üretimi</h4>
+                                    <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Zengin Editör</span>
+                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight">Sürükle & Bırak İçerik Üretimi</h4>
                                 </div>
-                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-slate-105 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 font-sans text-xs">
+                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 text-xs">
                                     {/* Editor Sidebar */}
-                                    <div className="w-1/4 border-r-2 border-slate-105 pr-4 space-y-3 flex flex-col justify-center font-bold text-slate-700 font-sans">
-                                        <div className="bg-white p-3 rounded-xl text-center border-2 border-slate-200/80 shadow-sm cursor-pointer hover:bg-slate-100 font-sans">🖼️ Slayt Ekle</div>
-                                        <div className="bg-white p-3 rounded-xl text-center border-2 border-slate-200/80 shadow-sm cursor-pointer hover:bg-slate-100 font-sans">🧩 Kod Editörü</div>
-                                        <div className="bg-white p-3 rounded-xl text-center border-2 border-slate-200/80 shadow-sm cursor-pointer hover:bg-slate-100 font-sans">🎮 Mini Oyun</div>
+                                    <div className="w-1/4 border-r-2 border-slate-200 pr-4 space-y-3 flex flex-col justify-center font-black text-slate-700">
+                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🖼️ Slayt Ekle</div>
+                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🧩 Kod Editörü</div>
+                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🎮 Mini Oyun</div>
                                     </div>
                                     {/* Editor Canvas */}
-                                    <div className="flex-1 bg-white border-2 border-slate-105 rounded-3xl p-8 flex flex-col items-center justify-center relative min-h-[180px] shadow-sm font-sans">
-                                        <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-purple-100 flex items-center justify-center text-2xl shadow-lg">🐍</div>
+                                    <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-8 flex flex-col items-center justify-center relative min-h-[180px] shadow-sm">
+                                        <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center text-2xl shadow-inner animate-bounce-slow">🐍</div>
                                         <span className="text-slate-800 font-black mt-4 text-base">Python Veri Tipleri</span>
-                                        <div className="absolute bottom-4 right-4 text-[10px] font-black text-slate-400 font-sans">Slayt 2/12</div>
+                                        <div className="absolute bottom-4 right-4 text-[10px] font-black text-slate-400">Slayt 2/12</div>
                                     </div>
                                 </div>
                             </div>
@@ -989,28 +1334,28 @@ const LandingPage: React.FC = () => {
                                     <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Canlı Ders Paneli</span>
                                     <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans">Gerçek Zamanlı Etkileşim</h4>
                                 </div>
-                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-5 flex gap-4 text-xs text-slate-550 font-sans font-sans">
+                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-xs text-slate-550">
                                     {/* Live Feed Mockup */}
-                                    <div className="flex-1 bg-white border-2 border-slate-100 rounded-3xl p-5 flex flex-col justify-between min-h-[180px] shadow-sm font-sans">
-                                        <div className="flex justify-between items-center text-slate-805 font-black">
+                                    <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-5 flex flex-col justify-between min-h-[180px] shadow-sm">
+                                        <div className="flex justify-between items-center text-slate-800 font-black">
                                             <span className="flex items-center gap-1.5"><Video size={14} className="text-rose-500" /> Canlı Yayın</span>
                                             <span className="text-emerald-600 font-black bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">Kod: 45CZWT</span>
                                         </div>
-                                        <div className="text-center text-slate-550 py-6 font-bold font-sans">
+                                        <div className="text-center text-slate-550 py-6 font-bold">
                                             Öğrenciler quiz sorularını yanıtlıyor... 📊
                                         </div>
                                     </div>
                                     {/* Student Scoreboard Mockup */}
-                                    <div className="w-1/3 border-l-2 border-slate-100 pl-4 space-y-3 flex flex-col justify-center font-sans">
-                                        <h5 className="font-black text-[10px] uppercase text-slate-700 tracking-wider font-sans font-sans">Liderlik Tablosu</h5>
+                                    <div className="w-1/3 border-l-2 border-slate-200 pl-4 space-y-3 flex flex-col justify-center">
+                                        <h5 className="font-black text-[10px] uppercase text-slate-700 tracking-wider">Liderlik Tablosu</h5>
                                         <div className="space-y-2 text-[10px] font-black">
-                                            <div className="flex justify-between bg-white p-2 rounded-xl border border-slate-150 shadow-sm font-sans">
+                                            <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
                                                 <span className="text-slate-800 truncate">🥇 Ayşe K.</span>
-                                                <span className="text-yellow-600 font-sans">1200 XP</span>
+                                                <span className="text-yellow-600">1200 XP</span>
                                             </div>
-                                            <div className="flex justify-between bg-white p-2 rounded-xl border border-slate-150 shadow-sm font-sans">
+                                            <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
                                                 <span className="text-slate-850 truncate">🥈 Mehmet B.</span>
-                                                <span className="text-slate-400 font-sans">950 XP</span>
+                                                <span className="text-slate-400">950 XP</span>
                                             </div>
                                         </div>
                                     </div>
@@ -1025,17 +1370,17 @@ const LandingPage: React.FC = () => {
                                     <span className="bg-pink-50 text-pink-650 border border-pink-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Öğrenci Arayüzü</span>
                                     <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans">Oyunlaştırılmış Öğrenci Deneyimi</h4>
                                 </div>
-                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-slate-100 rounded-[2.5rem] p-6 flex justify-between items-center text-slate-550 font-bold font-sans">
+                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-6 flex justify-between items-center text-slate-550 font-bold">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-2xl bg-white border border-slate-105 text-white flex items-center justify-center shadow-md">
+                                        <div className="w-12 h-12 rounded-2xl bg-white border-2 border-b-4 border-slate-200 text-white flex items-center justify-center shadow-sm">
                                             <img src={TrophySprite} alt="" className="w-9 h-9 object-contain" />
                                         </div>
                                         <div>
                                             <h5 className="font-black text-slate-800 text-sm leading-none mb-1">Bronz Lig</h5>
-                                            <span className="text-[10px] text-slate-400 font-bold font-sans font-sans">Seviye 4 Öğrencisi</span>
+                                            <span className="text-[10px] text-slate-400 font-bold">Seviye 4 Öğrencisi</span>
                                         </div>
                                     </div>
-                                    <div className="w-32 bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner font-sans">
+                                    <div className="w-32 bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
                                         <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[65%]"></div>
                                     </div>
                                     <span className="text-yellow-600 font-black text-sm">850 XP</span>
@@ -1048,10 +1393,10 @@ const LandingPage: React.FC = () => {
 
             {/* 8. Teacher Experience Reviews */}
             <section className="py-20 px-6 bg-slate-50">
-                <div className="max-w-7xl mx-auto font-sans">
+                <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight font-sans">Öğretmen Deneyimleri</h2>
-                        <p className="text-slate-555 text-lg max-w-2xl mx-auto font-medium font-sans">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
+                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">Öğretmen Deneyimleri</h2>
+                        <p className="text-slate-555 text-lg max-w-2xl mx-auto font-bold">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
@@ -1060,17 +1405,17 @@ const LandingPage: React.FC = () => {
                             { name: 'Mehmet H.', role: 'Fen Bilgisi Öğretmeni', comment: 'Ders planı, quizler, oyun sahneleri hepsi tek komutla hazırlanıyor. İnanılmaz pratik.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet' },
                             { name: 'Sibel G.', role: 'Sınıf Öğretmeni', comment: 'Çocuklar derse katılmak için can atıyor. Oyunlaştırma yapısı gerçekten mükemmel çalışıyor.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sibel' }
                         ].map((review, idx) => (
-                            <div 
-                                key={idx} 
-                                className="reveal-scale bg-white p-8 rounded-[2.2rem] border-2 border-b-[6px] border-slate-200 shadow-md flex flex-col justify-between hover:-translate-y-1 transition-all duration-300"
+                            <div
+                                key={idx}
+                                className="reveal-scale bg-white p-8 rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl flex flex-col justify-between hover:-translate-y-1 transition-all duration-300"
                                 style={{ transitionDelay: `${idx * 150}ms` }}
                             >
-                                <p className="text-slate-655 font-semibold leading-relaxed text-sm md:text-base italic mb-6">"{review.comment}"</p>
-                                <div className="flex items-center gap-3 pt-4 border-t border-slate-105">
-                                    <img src={review.avatar} alt={review.name} className="w-10 h-10 rounded-xl bg-slate-55 border border-slate-200" />
-                                    <div className="text-left font-sans">
-                                        <div className="font-black text-slate-800 text-sm font-sans">{review.name}</div>
-                                        <div className="text-slate-405 font-black text-xs font-sans">{review.role}</div>
+                                <p className="text-slate-655 font-bold leading-relaxed text-sm md:text-base italic mb-6">"{review.comment}"</p>
+                                <div className="flex items-center gap-3 pt-4 border-t-2 border-slate-100">
+                                    <img src={review.avatar} alt={review.name} className="w-11 h-11 rounded-2xl bg-slate-50 border-2 border-b-[3px] border-slate-200" />
+                                    <div className="text-left">
+                                        <div className="font-black text-slate-800 text-sm">{review.name}</div>
+                                        <div className="text-slate-400 font-black text-xs">{review.role}</div>
                                     </div>
                                 </div>
                             </div>
@@ -1081,7 +1426,7 @@ const LandingPage: React.FC = () => {
 
             {/* 9. CTA - AI Lesson Creator Start */}
             <section className="reveal py-12 px-6 bg-white">
-                <div className="max-w-7xl mx-auto font-sans font-sans">
+                <div className="max-w-7xl mx-auto">
                     <div className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-12 md:p-20 text-center border-b-8 border-slate-950">
                         {/* Glow shapes */}
                         <div className="absolute top-0 left-0 w-full h-full">
@@ -1093,11 +1438,11 @@ const LandingPage: React.FC = () => {
                         <img src={MufiMascot} alt="" className="absolute -bottom-6 -right-6 w-32 h-32 object-contain opacity-25" />
 
                         <div className="relative z-10 max-w-2xl mx-auto space-y-8">
-                            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight font-sans font-sans font-sans">AI ile Ders Hazırlamaya Başla</h2>
-                            <p className="text-slate-350 text-base md:text-lg font-semibold leading-relaxed font-sans font-sans">GoMufi'yi ücretsiz dene. İlk dersini birkaç dakikada oluştur.</p>
-                            <button 
+                            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">AI ile Ders Hazırlamaya Başla</h2>
+                            <p className="text-slate-350 text-base md:text-lg font-bold leading-relaxed">GoMufi'yi ücretsiz dene. İlk dersini birkaç dakikada oluştur.</p>
+                            <button
                                 onClick={() => navigate('/auth')}
-                                className="px-10 py-5 border-2 border-b-4 border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 text-white rounded-[2rem] font-black text-lg transition-all shadow-lg cursor-pointer flex items-center gap-2 mx-auto font-sans font-sans"
+                                className="px-10 py-5 border-2 border-b-4 border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 text-white rounded-[2rem] font-black text-lg transition-all shadow-lg cursor-pointer flex items-center gap-2 mx-auto"
                             >
                                 <Sparkles size={18} className="animate-pulse" />
                                 ✨ AI ile Ücretsiz Oluştur
@@ -1111,20 +1456,20 @@ const LandingPage: React.FC = () => {
             <section id="faq" className="py-20 px-6 bg-white border-t-2 border-slate-100">
                 <div className="max-w-3xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl font-black text-slate-805 tracking-tight font-sans font-sans font-sans">Sıkça Sorulan Sorular</h2>
-                        <p className="text-slate-405 font-medium font-sans">Platformumuz hakkında en çok merak edilenler</p>
+                        <h2 className="text-3xl font-black text-slate-805 tracking-tight">Sıkça Sorulan Sorular</h2>
+                        <p className="text-slate-405 font-bold">Platformumuz hakkında en çok merak edilenler</p>
                     </div>
 
                     <div className="space-y-4">
                         {faqs.map((faq, idx) => {
                             const isOpen = faqOpen === idx;
                             return (
-                                <div 
-                                    key={idx} 
-                                    className="reveal border-2 border-slate-200 border-b-[5px] rounded-2xl overflow-hidden bg-slate-50/50 hover:bg-slate-50 transition-all font-sans"
+                                <div
+                                    key={idx}
+                                    className="reveal border-2 border-slate-200 border-b-[5px] rounded-2xl overflow-hidden bg-slate-50/50 hover:bg-slate-50 transition-all"
                                     style={{ transitionDelay: `${idx * 50}ms` }}
                                 >
-                                    <button 
+                                    <button
                                         className="w-full flex justify-between items-center p-5 font-black text-left text-sm md:text-base text-slate-800"
                                         onClick={() => setFaqOpen(isOpen ? null : idx)}
                                     >
@@ -1132,7 +1477,7 @@ const LandingPage: React.FC = () => {
                                         <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-205 ${isOpen ? "transform rotate-180 text-green-600" : ""}`} />
                                     </button>
                                     {isOpen && (
-                                        <div className="px-5 pb-5 text-slate-505 font-semibold text-xs md:text-sm leading-relaxed animate-in fade-in duration-200 text-left border-t border-slate-100 pt-3">
+                                        <div className="px-5 pb-5 text-slate-505 font-bold text-xs md:text-sm leading-relaxed animate-in fade-in duration-200 text-left border-t border-slate-100 pt-3">
                                             {faq.a}
                                         </div>
                                     )}
@@ -1176,8 +1521,8 @@ const LandingPage: React.FC = () => {
                         </div>
 
                         {/* Column 4: Yasal */}
-                        <div className="space-y-4 font-sans">
-                            <h3 className="font-black text-white text-base font-sans font-sans">Yasal</h3>
+                        <div className="space-y-4">
+                            <h3 className="font-black text-white text-base">Yasal</h3>
                             <ul className="space-y-2 font-bold text-xs">
                                 <li><a href="#" className="hover:text-white transition-colors">Gizlilik Politikası</a></li>
                                 <li><a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a></li>

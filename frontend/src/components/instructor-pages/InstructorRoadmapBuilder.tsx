@@ -41,6 +41,7 @@ import ButtonDarkBlue from "../../assets/sprites/ButtonDarkBlue.png";
 import ButtonDarkPurple from "../../assets/sprites/ButtonDarkPurple.png";
 import QuestionIcon from "../../assets/sprites/Question.png";
 import BagIcon from "../../assets/sprites/Bag.png";
+import MufiLogo from "../../assets/sprites/MufiLogo.png";
 
 interface SectionNode {
   id: string | number;
@@ -144,7 +145,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
             const isFirstModule = j === 0;
             const theme = getThemeFromModuleType(m.type);
             const levelId = `sec_ai_draft_${Date.now()}_${targetLessonNumber}_${j}_${Math.floor(Math.random() * 1000)}`;
-            const shortTitle = getShortTitle(m.topic) || `Ders ${targetLessonNumber}`;
+            const shortTitle = getShortTitle(m.topic) || getShortTitle(lessonTopic) || `Modül ${j + 1}`;
             
             const node: any = {
               id: levelId,
@@ -387,8 +388,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
           const returnedModules = lessonRes.data.modules || [];
           const returnedNotes = lessonRes.data.notes || [];
 
-          returnedModules.forEach((node: any) => {
-            node.title = `Ders ${overallIdx}`;
+          returnedModules.forEach((node: any, nIdx: number) => {
+            const origLevel = chapter.levels[nIdx];
+            const realTitle = origLevel?.title || origLevel?.aiModuleTopic || node.topic || node.title;
+            node.title = getShortTitle(realTitle) || `Modül ${overallIdx}`;
             overallIdx++;
             delete node.isAIDraft;
             delete node.isAILoading;
@@ -532,12 +535,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   const getShortTitle = (fullText: string) => {
     if (!fullText) return "";
-    const parts = fullText.split(/[?:-]/);
-    const firstPart = parts[0].trim();
-    if (firstPart.length > 25) {
-      return firstPart.substring(0, 22) + "...";
+    let clean = fullText.replace(/^(?:Ders\s+\d+[:\s\-]*|\d+[\.\)\s\-]*)/i, "").trim();
+    if (clean.length > 30) {
+      return clean.substring(0, 30);
     }
-    return firstPart;
+    return clean || fullText;
   };
 
   const handleEditLessonTitle = (lIdx: number, title: string) => {
@@ -877,8 +879,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const recalculateSectionsList = (list: SectionNode[]): SectionNode[] => {
     let lessonNum = 1;
     return list.map((s, idx) => {
-      const isDefaultTitle = !s.title || /^Ders \d+$/.test(s.title);
-      const updatedTitle = isDefaultTitle ? `Ders ${idx + 1}` : s.title;
+      let rawTitle = s.title || "";
+      if (s.aiModuleTopic && (!rawTitle || /^Ders \d+$/i.test(rawTitle))) {
+        rawTitle = getShortTitle(s.aiModuleTopic);
+      } else if (s.lessonTopic && (!rawTitle || /^Ders \d+$/i.test(rawTitle))) {
+        rawTitle = getShortTitle(s.lessonTopic);
+      }
+
+      const updatedTitle = getShortTitle(rawTitle) || s.title || `Modül ${idx + 1}`;
 
       let updatedTopic = s.lessonTopic;
       let updatedNum = s.lessonNumber;
@@ -1289,11 +1297,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col relative select-none overflow-hidden">
-      {/* GLOBAL ROADMAP BUILDER BAR (Themed like LessonBuilderHeader) */}
-      <div className="h-20 bg-gradient-to-r from-indigo-600 to-violet-600 border-b-4 border-indigo-800 flex items-center justify-between px-6 z-50 shrink-0 shadow-2xl relative overflow-hidden">
+      {/* GLOBAL ROADMAP BUILDER BAR (Themed GoMufi Style - Floating Pill) */}
+      <div className="mx-6 mt-4 h-20 bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 border-2 border-indigo-400 border-b-4 border-b-indigo-800 rounded-3xl flex items-center justify-between px-6 z-50 shrink-0 shadow-xl relative overflow-hidden font-sans">
         
         {/* Decorative Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
           <Cloud className="absolute top-[-10px] left-96 text-white/10 transform -rotate-12" size={80} />
           <Cloud className="absolute -bottom-8 right-1/4 text-white/5 transform rotate-12" size={60} />
           <Sparkles className="absolute top-4 right-1/3 text-yellow-300/20 animate-pulse" size={24} />
@@ -1310,71 +1318,64 @@ const InstructorRoadmapBuilder: React.FC = () => {
         <div className="flex items-center gap-4 relative z-10">
           <button
             onClick={() => navigate("/instructor/courses")}
-            className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white hover:scale-105 transition-all shadow-sm"
+            className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 border-b-4 border-b-white/20 rounded-xl text-white hover:scale-105 transition-all shadow-sm"
             title="Kurslara Geri Dön"
           >
             <Home className="w-5 h-5" />
           </button>
           <div className="h-8 w-px bg-indigo-400/50"></div>
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <span className="font-black text-white text-xl leading-none">
               {course?.title || "Yükleniyor..."}
             </span>
-            <span className="text-xs font-bold text-indigo-200 px-0.5 mt-1 tracking-wide uppercase opacity-80">
+            <span className="text-xs font-bold text-indigo-200 px-0.5 mt-1 tracking-wide uppercase opacity-85 select-none">
               Yol Haritası Düzenleyici (Roadmap Builder)
             </span>
           </div>
         </div>
 
-        {/* RIGHT: Save Actions */}
-        <div className="flex items-center gap-4 relative z-10">
+        {/* RIGHT: Save Actions & Premium AI Widget */}
+        <div className="flex items-center gap-3 relative z-10">
           {/* Save Status / Loader */}
           {isSaving && (
-            <div className="flex items-center gap-2 text-indigo-200 pr-2">
+            <div className="flex items-center gap-2 text-indigo-200 pr-1 select-none">
               <Loader2 className="w-4 h-4 animate-spin text-white" />
               <span className="text-xs font-bold text-white">Kaydediliyor...</span>
             </div>
           )}
 
-          <button
-            onClick={handleClearAll}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl shadow-[0_4px_0_#991b1b] hover:shadow-[0_2px_0_#991b1b] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="Tüm Yolu Temizle"
-          >
-            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>Tümünü Temizle</span>
-          </button>
+          {/* Action Group: Clear & File Operations */}
+          <div className="flex items-center gap-2 bg-indigo-900/30 p-1.5 rounded-2xl border border-indigo-500/20">
+            <button
+              onClick={handleClearAll}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 border border-red-400 border-b-4 border-b-red-800 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="Tüm Yolu Temizle"
+            >
+              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>Temizle</span>
+            </button>
 
-          <button
-            onClick={() => setIsAIModalOpen(true)}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-650 hover:to-indigo-750 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="AI ile Yol Haritası Oluştur"
-          >
-            <Sparkles className="w-4 h-4 group-hover:animate-pulse transition-transform text-purple-200" />
-            <span>AI ile Oluştur</span>
-          </button>
+            <button
+              onClick={handleExportRoadmap}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 border border-sky-400 border-b-4 border-b-indigo-800 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="Yol Haritasını JSON Olarak İndir"
+            >
+              <Download className="w-4 h-4 group-hover:scale-110 transition-transform text-indigo-200" />
+              <span>İndir</span>
+            </button>
 
-          <button
-            onClick={handleExportRoadmap}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="Yol Haritasını JSON Olarak İndir"
-          >
-            <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>JSON İndir</span>
-          </button>
-
-          <button
-            onClick={handleImportClick}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-[0_4px_0_#b45309] hover:shadow-[0_2px_0_#b45309] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="JSON Dosyasından Yol Haritası Yükle"
-          >
-            <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>JSON Yükle</span>
-          </button>
+            <button
+              onClick={handleImportClick}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 border border-amber-400 border-b-4 border-b-orange-850 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="JSON Dosyasından Yol Haritası Yükle"
+            >
+              <Upload className="w-4 h-4 group-hover:scale-110 transition-transform text-amber-200" />
+              <span>Yükle</span>
+            </button>
+          </div>
 
           <input
             type="file"
@@ -1384,12 +1385,50 @@ const InstructorRoadmapBuilder: React.FC = () => {
             className="hidden"
           />
 
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-indigo-400/50 mx-1" />
+
+          {/* Premium AI Assistant Widget */}
+          <div className="relative group/ai">
+            {/* Widget Container */}
+            <div className="relative flex items-center gap-3 bg-indigo-950/40 border-2 border-purple-300/40 rounded-2xl pl-3.5 pr-2.5 py-1.5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]">
+              {/* Cute Mascot Avatar */}
+              <div className="w-8 h-8 rounded-xl bg-white border-2 border-purple-300 p-0.5 flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden select-none hover:scale-110 transition-transform duration-300">
+                <img src={MufiLogo} className="w-full h-full object-contain scale-110" alt="Mufi Logo" />
+              </div>
+
+              {/* AI Badge / Label */}
+              <div className="flex flex-col select-none text-left">
+                <span className="text-[7.5px] font-black text-purple-200 tracking-[0.15em] uppercase leading-none mb-0.5">
+                  AI CO-PILOT
+                </span>
+                <span className="text-[10px] font-extrabold text-white leading-none">
+                  Mufi Asistan
+                </span>
+              </div>
+              
+              {/* AI Button */}
+              <button
+                onClick={() => setIsAIModalOpen(true)}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 border border-purple-400 border-b-4 border-b-purple-800 hover:translate-y-[1px] active:translate-y-[3px] text-white font-black rounded-xl transition-all text-xs uppercase tracking-wide border-0 flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse animate-spin duration-[5000ms]" />
+                <span>AI ile Oluştur</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-indigo-400/50 mx-1" />
+
+          {/* Save Button */}
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-indigo-600 font-black rounded-xl shadow-[0_3px_0_#cbd5e1] hover:shadow-[0_1px_0_#cbd5e1] hover:translate-y-[1px] transition-all text-sm uppercase tracking-wide group shadow-md"
           >
-            <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <Save className="w-4 h-4 group-hover:scale-110 transition-transform text-indigo-500" />
             <span>Haritayı Kaydet</span>
           </button>
         </div>
@@ -1420,6 +1459,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
           }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
+            border-radius: 10px;
           }
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -1430,7 +1470,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
           }
         `}</style>
 
-        <div className="flex items-center min-w-max relative pl-20 pr-20">
+        {/* Ambient mesh glow spots in background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+          <div className="absolute top-[10%] left-[5%] w-[550px] h-[550px] bg-purple-300/10 rounded-full blur-[110px] animate-pulse" style={{ animationDuration: '8s' }} />
+          <div className="absolute bottom-[10%] right-[10%] w-[650px] h-[650px] bg-indigo-300/10 rounded-full blur-[130px] animate-pulse" style={{ animationDuration: '10s' }} />
+          <div className="absolute top-[30%] left-[45%] w-[450px] h-[450px] bg-teal-300/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '9s' }} />
+        </div>
+
+        <div className="flex items-center min-w-max relative pl-20 pr-20 z-10">
           {sections.map((section, index) => {
             const metadata = getNodeMetadata(index, section.theme);
             const levelCounter = index + 1;
@@ -1594,13 +1641,22 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                       <path
                         d={curve === "up" ? "M0 45 Q 60 70 120 65" : "M0 45 Q 60 20 120 45"}
-                        stroke="#cbd5e1"
-                        strokeWidth="10"
+                        stroke={metadata.baseColor}
+                        strokeWidth="12"
                         strokeLinecap="round"
-                        strokeDasharray="0 22"
+                        strokeDasharray="0 24"
                         fill="none"
+                        className="opacity-75"
                       />
                     </svg>
+
+                    {/* Decorative Grass Sprites */}
+                    <img src={GrassIcon} alt="" className={`absolute w-5 opacity-75 select-none pointer-events-none ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                        style={{ left: '15%', top: curve === 'up' ? '55%' : '35%', transform: `translate(0, ${index % 2 === 0 ? '4px' : '-4px'})` }} />
+                    <img src={GrassIcon} alt="" className={`absolute w-6 opacity-85 select-none pointer-events-none ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                        style={{ left: '45%', top: curve === 'up' ? '65%' : '25%', transform: `translate(0, ${index % 3 === 0 ? '-6px' : '3px'})` }} />
+                    <img src={GrassIcon} alt="" className={`absolute w-5.5 opacity-80 select-none pointer-events-none ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                        style={{ left: '75%', top: curve === 'up' ? '50%' : '30%', transform: `translate(0, ${index % 4 === 0 ? '8px' : '-2px'})` }} />
 
                     {/* Plus button and interactive insert selection menu for divider-to-node connector */}
                     <div className="absolute z-40 flex items-center justify-center">
@@ -1843,11 +1899,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                     {/* Level label */}
                     <div
-                      className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                      className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
                       style={{ animationDelay: `${index * 0.5 * -1}s` }}
                     >
                       <span
-                        className="text-2xl font-black tracking-wider select-none uppercase font-display text-center truncate max-w-[180px]"
+                        className="text-lg sm:text-xl font-black tracking-wide select-none uppercase font-display text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
                         style={{
                           color: "white",
                           WebkitTextStroke: `1.5px ${metadata.strokeColor}`,
@@ -1859,7 +1915,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                         {section.title}
                       </span>
                       {section.isAIDraft && (
-                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-250 px-1.5 py-0.5 rounded-full mt-1.5 tracking-wider uppercase shrink-0">
+                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-250 px-1.5 py-0.5 rounded-full mt-1 tracking-wider uppercase shrink-0">
                           TASLAK
                         </span>
                       )}
@@ -1913,7 +1969,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       : ""
                   }`}
                 >
-                  <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
+                   <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                     <path
                       d={
                         sections[index + 1]?.lessonTopic !== undefined
@@ -1923,18 +1979,27 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       stroke={
                         dragOverItem?.type === "connector" && dragOverItem.index === index
                           ? "#6366f1"
-                          : "#cbd5e1"
+                          : metadata.baseColor
                       }
                       strokeWidth={
                         dragOverItem?.type === "connector" && dragOverItem.index === index
                           ? "14"
-                          : "10"
+                          : "12"
                       }
                       strokeLinecap="round"
-                      strokeDasharray="0 22"
+                      strokeDasharray="0 24"
                       fill="none"
+                      className="opacity-75"
                     />
                   </svg>
+
+                  {/* Decorative Grass Sprites */}
+                  <img src={GrassIcon} alt="" className={`absolute w-5 opacity-75 select-none pointer-events-none ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                      style={{ left: '15%', top: curve === 'up' ? '30%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '4px' : '-4px'})` }} />
+                  <img src={GrassIcon} alt="" className={`absolute w-6 opacity-85 select-none pointer-events-none ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                      style={{ left: '45%', top: curve === 'up' ? '25%' : '65%', transform: `translate(0, ${index % 3 === 0 ? '-6px' : '3px'})` }} />
+                  <img src={GrassIcon} alt="" className={`absolute w-5.5 opacity-80 select-none pointer-events-none ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                      style={{ left: '75%', top: curve === 'up' ? '30%' : '50%', transform: `translate(0, ${index % 4 === 0 ? '8px' : '-2px'})` }} />
 
                   {/* Plus button and interactive insert selection menu */}
                   {index < sections.length - 1 && (
@@ -2007,13 +2072,6 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Grass Sprites for cute aesthetic */}
-                  <img
-                    src={GrassIcon}
-                    alt="Grass Deco"
-                    className="absolute w-6 opacity-40 select-none pointer-events-none"
-                    style={{ left: "40%", top: curve === "up" ? "30%" : "70%" }}
-                  />
                 </div>
               </React.Fragment>
             );
