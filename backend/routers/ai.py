@@ -7,16 +7,17 @@ import random
 import copy
 import io
 from typing import List, Optional, Any, Dict
-from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, BackgroundTasks
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from core.config import settings
 from auth.dependencies import get_current_teacher_id, get_current_user_info
-from connect_db import get_db, AsyncSession
+from connect_db import get_db, AsyncSession, SessionLocal
 from sqlalchemy.future import select
 from sqlalchemy import delete
 from models.ai_usage_log import AIUsageLog
+from models.course import Course
 
 import urllib.parse
 import urllib.request
@@ -1657,6 +1658,200 @@ async def clear_ai_metrics_api(
     return {
         "success": True,
         "message": "Tüm yapay zeka metrik verileri sıfırlandı."
+    }
+
+
+def get_module_type_from_theme_py(theme: str) -> str:
+    if not theme:
+        return "UNDERSTAND"
+    t = theme.lower()
+    if t == "purple": return "UNDERSTAND"
+    if t == "cyan": return "APPLY"
+    if t == "green": return "CONNECT"
+    if t == "yellow": return "CREATE"
+    if t == "quiz": return "QUIZ"
+    if t == "homework": return "HOMEWORK"
+    return "UNDERSTAND"
+
+
+class StartBackgroundGenerationRequest(BaseModel):
+    topic: str
+    difficulty: str = "Beginner"
+    audience: str = "Hiç kodlama deneyimi olmayan öğrenciler."
+    chapters: List[Dict[str, Any]]
+    pdf_content: Optional[str] = None
+
+
+async def run_background_slide_generation(
+    course_id: int,
+    teacher_id: int,
+    topic: str,
+    difficulty: str,
+    audience: str,
+    chapters: List[Dict[str, Any]],
+    pdf_content: Optional[str] = None
+):
+    """
+    Background worker that runs slide generation lesson-by-lesson asynchronously on FastAPI server.
+    Updates DB after each completed lesson. Survives browser refresh and disconnects.
+    """
+    async with SessionLocal() as db:
+        try:
+            res = await db.execute(select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id))
+            course = res.scalars().first()
+            if not course:
+                return
+
+            curriculum = list(course.curriculum or [])
+            all_notes = list(course.notes or [])
+            total_chapters = len(chapters)
+            overall_idx = 1
+
+            for i, chapter in enumerate(chapters):
+                status_item = {
+                    "type": "ai_generation_status",
+                    "status": "processing",
+                    "current": i + 1,
+                    "total": total_chapters,
+                    "message": f"Ders {i + 1}/{total_chapters}: '{chapter.get('topic')}' slaytları hazırlanıyor..."
+                }
+
+                curriculum = [c for c in curriculum if c.get("type") != "ai_generation_status"]
+                curriculum.append(status_item)
+
+                course.curriculum = list(curriculum)
+                db.add(course)
+                await db.commit()
+
+                modules_input = [
+                    {"type": get_module_type_from_theme_py(lvl.get("theme")), "topic": lvl.get("title")}
+                    for lvl in chapter.get("levels", [])
+                ]
+                objective = chapter.get("levels", [{}])[0].get("aiLessonObjective") or f"Bu derste {chapter.get('topic')} konusu öğrenilecektir."
+
+                req_obj = GenerateLessonSlidesRequest(
+                    topic=topic,
+                    difficulty=difficulty,
+                    audience=audience,
+                    lesson_number=chapter.get("number", i + 1),
+                    lesson_title=chapter.get("topic", f"Ders {i+1}"),
+                    lesson_objective=objective,
+                    modules=modules_input,
+                    pdf_content=pdf_content
+                )
+
+                slide_res = await generate_lesson_slides_api(req_obj, teacher_id=teacher_id, db=db)
+                returned_modules = slide_res.get("modules", [])
+                returned_notes = slide_res.get("notes", [])
+
+                orig_levels = chapter.get("levels", [])
+                for n_idx, node in enumerate(returned_modules):
+                    orig_level = orig_levels[n_idx] if n_idx < len(orig_levels) else {}
+                    real_title = orig_level.get("title") or orig_level.get("aiModuleTopic") or node.get("topic") or node.get("title")
+                    
+                    clean_t = re.sub(r"^(?:Ders\s+\d+[:\s\-]*|\d+[\.\)\s\-]*)", "", str(real_title), flags=re.IGNORECASE).strip()
+                    node["title"] = clean_t[:30] if clean_t else f"Modül {overall_idx}"
+                    overall_idx += 1
+                    node.pop("isAIDraft", None)
+                    node.pop("isAILoading", None)
+
+                for note in returned_notes:
+                    matched_node = next((nm for nm in returned_modules if nm.get("id") == note.get("id")), None)
+                    if matched_node:
+                        note["noteTitle"] = matched_node.get("title")
+
+                all_notes.extend(returned_notes)
+
+                chapter_level_ids = [l.get("id") for l in orig_levels]
+                clean_curr = [c for c in curriculum if c.get("type") != "ai_generation_status"]
+                
+                first_idx = next((idx for idx, s in enumerate(clean_curr) if s.get("id") in chapter_level_ids), -1)
+                if first_idx != -1:
+                    clean_curr[first_idx:first_idx + len(chapter_level_ids)] = returned_modules
+                
+                curriculum = clean_curr
+
+                course.curriculum = list(curriculum)
+                course.notes = list(all_notes)
+                db.add(course)
+                await db.commit()
+
+            status_item = {
+                "type": "ai_generation_status",
+                "status": "completed",
+                "current": total_chapters,
+                "total": total_chapters,
+                "message": "Tüm ders slaytları başarıyla oluşturuldu!"
+            }
+            curriculum = [c for c in curriculum if c.get("type") != "ai_generation_status"]
+            curriculum.append(status_item)
+
+            course.curriculum = list(curriculum)
+            course.notes = list(all_notes)
+            db.add(course)
+            await db.commit()
+
+        except Exception as e:
+            print(f"Error in background slide generation: {e}")
+            try:
+                res = await db.execute(select(Course).where(Course.id == course_id))
+                course = res.scalars().first()
+                if course:
+                    curr = list(course.curriculum or [])
+                    curr = [c for c in curr if c.get("type") != "ai_generation_status"]
+                    curr.append({
+                        "type": "ai_generation_status",
+                        "status": "failed",
+                        "message": f"Slayt üretilirken hata oluştu: {str(e)}"
+                    })
+                    course.curriculum = curr
+                    db.add(course)
+                    await db.commit()
+            except Exception:
+                pass
+
+
+@router.post("/courses/{course_id}/start_background_generation")
+async def start_background_generation_api(
+    course_id: int,
+    req: StartBackgroundGenerationRequest,
+    background_tasks: BackgroundTasks,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    res = await db.execute(select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id))
+    course = res.scalars().first()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+
+    curriculum = list(course.curriculum or [])
+    curriculum = [c for c in curriculum if c.get("type") != "ai_generation_status"]
+    curriculum.append({
+        "type": "ai_generation_status",
+        "status": "processing",
+        "current": 0,
+        "total": len(req.chapters),
+        "message": "Arka planda AI slayt üretimi başlatılıyor..."
+    })
+
+    course.curriculum = curriculum
+    db.add(course)
+    await db.commit()
+
+    background_tasks.add_task(
+        run_background_slide_generation,
+        course_id=course_id,
+        teacher_id=teacher_id,
+        topic=req.topic,
+        difficulty=req.difficulty,
+        audience=req.audience,
+        chapters=req.chapters,
+        pdf_content=req.pdf_content
+    )
+
+    return {
+        "success": True,
+        "message": "Arka planda slayt üretimi başlatıldı."
     }
 
 
