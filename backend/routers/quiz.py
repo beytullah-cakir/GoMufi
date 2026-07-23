@@ -10,6 +10,7 @@ from connect_db import get_db
 from models.quiz import Quiz
 import quiz_service
 
+from core.config import settings
 from routers.ai import record_ai_usage
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
@@ -33,7 +34,7 @@ async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
     if result.get("success"):
         res_obj = result.get("response")
         if res_obj:
-            await record_ai_usage(db, None, "generate_quiz", "gemini-2.5-flash", res_obj, details=f"Quiz Sorusu: '{topic}' ({difficulty})")
+            await record_ai_usage(db, None, "generate_quiz", settings.GEMINI_MODEL, res_obj, details=f"Quiz Sorusu: '{topic}' ({difficulty})")
         return {"success": True, "quiz": result.get("quiz")}
     else:
         error_msg = result.get("error", "Bilinmeyen quiz servis hatası")

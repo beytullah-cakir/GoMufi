@@ -40,9 +40,9 @@ async def record_ai_usage(
         candidates_tokens = getattr(usage, "candidates_token_count", 0) or 0
         total_tokens = getattr(usage, "total_token_count", 0) or (prompt_tokens + candidates_tokens)
         
-        # Pricing per 1,000,000 tokens (Google AI Studio Official Rates for Gemini 2.5 Flash)
-        rate_input = 0.30 / 1_000_000
-        rate_output = 2.50 / 1_000_000
+        # Pricing per 1,000,000 tokens (Google AI Studio Official Rates for Gemini 2.0 Flash)
+        rate_input = 0.10 / 1_000_000
+        rate_output = 0.40 / 1_000_000
         cost_usd = (prompt_tokens * rate_input) + (candidates_tokens * rate_output)
         
         log_entry = AIUsageLog(
@@ -366,14 +366,14 @@ Lessons Count: {req.lessons_count}
 Audience: {req.audience}
 """
         response_step1 = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt_step1,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=RoadmapStructureResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", "gemini-2.5-flash", response_step1)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL, response_step1)
         
         roadmap_structure = json.loads(response_step1.text.strip())
         
@@ -441,14 +441,14 @@ Expected JSON Structure:
 }}
 """
         response_step2 = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt_step2,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=AILevelContentsResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_content", "gemini-2.5-flash", response_step2)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_content", settings.GEMINI_MODEL, response_step2)
         
         slide_contents_data = json.loads(response_step2.text.strip())
         level_contents_list = slide_contents_data.get("levelContents", [])
@@ -686,14 +686,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SuggestRawTopicsResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "suggest_raw_topics", "gemini-2.5-flash", response)
+        await record_ai_usage(db, teacher_id, "suggest_raw_topics", settings.GEMINI_MODEL, response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -755,14 +755,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SuggestCurriculumParametersResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "distribute_topics", "gemini-2.5-flash", response)
+        await record_ai_usage(db, teacher_id, "distribute_topics", settings.GEMINI_MODEL, response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -821,14 +821,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=ExpandTopicsResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "expand_topics", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Konu Genişletme")
+        await record_ai_usage(db, teacher_id, "expand_topics", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Konu Genişletme")
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -916,14 +916,14 @@ Difficulty: {req.difficulty}
 Audience: {req.audience}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=RoadmapStructureResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", "gemini-2.5-flash", response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
         
         data = json.loads(response.text.strip())
         return {"success": True, "roadmap": data}
@@ -989,14 +989,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SuggestLessonModulesResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
         
         data = json.loads(response.text.strip())
         return {"success": True, "objective": data.get("objective"), "modules": data.get("modules", [])}
@@ -1058,14 +1058,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SuggestLessonTitleResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_title", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_title", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
         data = json.loads(response.text.strip())
         return {"success": True, "titles": data.get("titles", [])}
     except Exception as e:
@@ -1116,14 +1116,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=SuggestLevelDetailsResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "suggest_level_details", "gemini-2.5-flash", response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
+        await record_ai_usage(db, teacher_id, "suggest_level_details", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
         data = json.loads(response.text.strip())
         return {"success": True, "title": data.get("title"), "topic": data.get("topic")}
     except Exception as e:
@@ -1267,14 +1267,14 @@ Expected JSON Structure:
 }}
 """
         response = client.models.generate_content(
-            model="gemini-2.5-flash",
+            model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=LessonSlidesResponse
             )
         )
-        await record_ai_usage(db, teacher_id, "generate_lesson_slides", "gemini-2.5-flash", response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
+        await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
         
         slide_contents_data = json.loads(response.text.strip())
         modules_content = slide_contents_data.get("modules_content") or []
