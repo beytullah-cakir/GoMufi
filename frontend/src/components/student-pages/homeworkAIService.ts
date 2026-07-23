@@ -105,7 +105,7 @@ export async function evaluateHomeworkByType(
 ): Promise<AIReviewResult> {   
 
     const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
     const systemPrompt = buildSystemPrompt();
     const questionBlock = `EĞİTMENİN SORUSU:\n${question}`;

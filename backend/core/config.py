@@ -16,6 +16,7 @@ class Settings:
     IYZICO_SECRET_KEY: str = os.getenv("IYZICO_SECRET_KEY", "")
     IYZICO_BASE_URL: str = os.getenv("IYZICO_BASE_URL", "https://sandbox-api.iyzipay.com")
     MY_API_KEY: str = os.getenv("MY_API_KEY", "")  # Gemini AI API key
+    GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
     # Jitsi JWT ayarları
     JITSI_APP_ID: str = os.getenv("JITSI_APP_ID", "gomufi")
