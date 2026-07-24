@@ -12,6 +12,8 @@ class AIUsageLog(Base):
     model_name = Column(String)
     prompt_tokens = Column(Integer, default=0)
     candidates_tokens = Column(Integer, default=0)
+    # Gemini "thinking" token'ları — çıktı tarifesinden faturalanır, maliyete dahildir
+    thoughts_tokens = Column(Integer, default=0)
     total_tokens = Column(Integer, default=0)
     cost_usd = Column(Float, default=0.0)
     details = Column(String, nullable=True)

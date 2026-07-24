@@ -1,42 +1,14 @@
 /**
  * homeworkAIService.ts
- * Gemini API kullanarak öğrenci cevabını (metin, kod, resim veya dosya)
- * eğitmenin sorusuyla karşılaştıran AI değerlendirme servisi.
- * 4 teslim türü: 'text' | 'code' | 'image' | 'file'
+ * Öğrenci cevabını (metin, kod, resim veya dosya) eğitmenin sorusuyla karşılaştıran
+ * AI değerlendirme servisi. 4 teslim türü: 'text' | 'code' | 'image' | 'file'
+ *
+ * NOT: Gemini çağrısı artık BACKEND üzerinden yapılır (POST /ai/evaluate-homework).
+ * Daha önce API anahtarı VITE_GEMINI_API_KEY ile tarayıcı bundle'ına gömülüyordu;
+ * anahtar artık yalnızca sunucuda durur ve her çağrı ai_usage_logs'a kaydedilir.
  */
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
-
-const API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string;
-
-/** Desteklenen metin uzantıları */
-const TEXT_EXTENSIONS = ['.txt', '.md', '.py', '.js', '.ts', '.java', '.c', '.cpp', '.cs', '.json', '.xml', '.csv', '.html', '.css'];
-const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp'];
-
-function getFileExtension(fileName: string): string {
-    return fileName.slice(fileName.lastIndexOf('.')).toLowerCase();
-}
-
-function readAsText(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsText(file, 'utf-8');
-    });
-}
-
-function readAsBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-            const result = reader.result as string;
-            resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-}
+import api from '../../api';
 
 export interface AIWeakness {
     explanation: string;
@@ -51,43 +23,10 @@ export interface AIReviewResult {
     rawResponse: string;
 }
 
-/** Ortak sistem prompt'u */
-const buildSystemPrompt = () => `Sen bir eğitim değerlendirme asistanısın.
-Görevin: Bir öğrencinin ödevini eğitmenin sorusuna göre değerlendirmek.
-
-Değerlendirmeni aşağıdaki JSON formatında döndür (başka hiçbir şey yazma):
-{
-  "overallScore": <0-100 arası puan>,
-  "summary": "<2-3 cümlelik genel değerlendirme özeti>",
-  "weaknesses": [
-    {
-      "explanation": "<Hatalı veya eksik olan yerin açıklaması, neden iyileştirilmesi gerektiği ve nasıl düzeltileceği>",
-      "studentCode": "<Varsa öğrencinin yazdığı kodun hatalı veya eksik olan o spesifik satırı/parçası>",
-      "improvedCode": "<Bu hatayı düzelten/iyileştiren düzgün yazılmış kod bloğu veya önerisi>"
-    }
-  ]
-}
-
-KURALLAR:
-- Türkçe yaz.
-- Sadece hatalı ve eksik kısımları odak noktası al (doğru yapılanları veya strengths listesini yazma).
-- weaknesses listesi 0 ile 5 madde arasında olsun.
-- Her hata/eksiklik için mutlaka 'explanation' ve kod tabanlı ödevlerde 'improvedCode' sağla. Öğrenci kodu iyileştirilebilecek durumdaysa 'studentCode' alanını da doldur.
-- Puan verirken adil ve yapıcı ol.
-- Eğer içerik soruyla alakasızsa weaknesses'e ekle.`;
-
-function parseAIResponse(rawText: string): AIReviewResult {
-    const jsonMatch = rawText.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-        throw new Error('Gemini geçerli bir JSON yanıtı döndürmedi.');
-    }
-    const parsed = JSON.parse(jsonMatch[0]);
-    return {
-        overallScore: Math.min(100, Math.max(0, Number(parsed.overallScore) || 0)),
-        summary: parsed.summary || '',
-        weaknesses: Array.isArray(parsed.weaknesses) ? parsed.weaknesses : [],
-        rawResponse: rawText,
-    };
+/** Değerlendirmenin hangi kurs/derse ait olduğu — backend yetki kontrolü için kullanır. */
+export interface HomeworkContext {
+    courseId?: string | number;
+    nodeId?: string | number;
 }
 
 /**
@@ -96,92 +35,62 @@ function parseAIResponse(rawText: string): AIReviewResult {
  * @param type       'text' | 'code' | 'image' | 'file'
  * @param textAnswer 'text' veya 'code' türü için öğrenci cevabı
  * @param file       'image' veya 'file' türü için yüklenen dosya
+ * @param context    Kurs/ders bilgisi — öğrenciler için zorunlu (yetki kontrolü)
  */
 export async function evaluateHomeworkByType(
     question: string,
     type: 'text' | 'code' | 'image' | 'file',
     textAnswer?: string,
-    file?: File
-): Promise<AIReviewResult> {   
-
-    const genAI = new GoogleGenerativeAI(API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-    const systemPrompt = buildSystemPrompt();
-    const questionBlock = `EĞİTMENİN SORUSU:\n${question}`;
-
-    let parts: any[];
-
-    switch (type) {
-        case 'text': {
-            const answer = textAnswer || '';
-            parts = [{
-                text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN METİN CEVABI:\n${answer}`
-            }];
-            break;
+    file?: File,
+    context?: HomeworkContext
+): Promise<AIReviewResult> {
+    if (type === 'text' || type === 'code') {
+        if (!textAnswer || !textAnswer.trim()) {
+            throw new Error('Cevap metni boş olamaz.');
         }
-
-        case 'code': {
-            const code = textAnswer || '';
-            parts = [{
-                text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN KOD CEVABI (kaynak kod):\n\`\`\`\n${code}\n\`\`\`\n\nKod kalitesi, doğruluğu, okunabilirliği ve soruyla uyumunu değerlendir. Varsa sözdizimi hatalarını belirt.`
-            }];
-            break;
-        }
-
-        case 'image': {
-            if (!file) throw new Error('Resim dosyası gerekli.');
-            const base64 = await readAsBase64(file);
-            const mimeType = file.type as any;
-            parts = [
-                { text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN CEVABI: Aşağıdaki görseli değerlendir. Görselin soruyla ilgisini, içeriğini ve kalitesini değerlendir.` },
-                { inlineData: { mimeType, data: base64 } }
-            ];
-            break;
-        }
-
-        case 'file': {
-            if (!file) throw new Error('Dosya gerekli.');
-            const ext = getFileExtension(file.name);
-
-            if (TEXT_EXTENSIONS.includes(ext)) {
-                const text = await readAsText(file);
-                parts = [{
-                    text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN DOSYA CEVABI (${file.name}):\n${text}`
-                }];
-            } else if (IMAGE_EXTENSIONS.includes(ext)) {
-                const base64 = await readAsBase64(file);
-                parts = [
-                    { text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN DOSYA CEVABI: Aşağıdaki görseli değerlendir.` },
-                    { inlineData: { mimeType: file.type as any, data: base64 } }
-                ];
-            } else if (ext === '.pdf') {
-                const base64 = await readAsBase64(file);
-                parts = [
-                    { text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN DOSYA CEVABI (PDF): Aşağıdaki PDF'i değerlendir.` },
-                    { inlineData: { mimeType: 'application/pdf', data: base64 } }
-                ];
-            } else {
-                parts = [{
-                    text: `${systemPrompt}\n\n${questionBlock}\n\nÖĞRENCİNİN CEVABI: Öğrenci "${file.name}" adlı bir dosya yükledi (içerik okunamıyor). Bu bilgiyle mümkün olan değerlendirmeyi yap.`
-                }];
-            }
-            break;
-        }
-
-        default:
-            throw new Error(`Desteklenmeyen teslim türü: ${type}`);
+    } else if (!file) {
+        throw new Error(type === 'image' ? 'Resim dosyası gerekli.' : 'Dosya gerekli.');
     }
 
-    const result = await model.generateContent({ contents: [{ role: 'user', parts }] });
-    const rawText = result.response.text().trim();
-    return parseAIResponse(rawText);
+    const formData = new FormData();
+    formData.append('question', question);
+    formData.append('submission_type', type);
+    if (textAnswer) formData.append('text_answer', textAnswer);
+    if (file) formData.append('file', file);
+
+    // Boş/'preview' gibi geçersiz değerleri göndermeyelim — backend bunları reddeder.
+    const courseId = context?.courseId;
+    if (courseId !== undefined && courseId !== null && String(courseId) !== 'preview') {
+        formData.append('course_id', String(courseId));
+    }
+    if (context?.nodeId !== undefined && context?.nodeId !== null) {
+        formData.append('node_id', String(context.nodeId));
+    }
+
+    try {
+        const res = await api.post('/ai/evaluate-homework', formData, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        const data = res.data || {};
+        return {
+            overallScore: Math.min(100, Math.max(0, Number(data.overallScore) || 0)),
+            summary: data.summary || '',
+            weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : [],
+            rawResponse: data.rawResponse || '',
+        };
+    } catch (err: any) {
+        throw new Error(err?.response?.data?.detail || err?.message || 'Değerlendirme sırasında hata oluştu.');
+    }
 }
 
 /**
  * Geriye dönük uyumluluk için eski API korunuyor.
  * @deprecated evaluateHomeworkByType kullanın
  */
-export async function evaluateHomework(question: string, file: File): Promise<AIReviewResult> {
-    return evaluateHomeworkByType(question, 'file', undefined, file);
+export async function evaluateHomework(
+    question: string,
+    file: File,
+    context?: HomeworkContext
+): Promise<AIReviewResult> {
+    return evaluateHomeworkByType(question, 'file', undefined, file, context);
 }

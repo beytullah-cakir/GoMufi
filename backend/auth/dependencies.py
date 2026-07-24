@@ -34,6 +34,10 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
         role = payload.get("role")
         sub = payload.get("sub")
 
+        if role == "admin" and not settings.ADMIN_LOGIN_ENABLED:
+            # Admin girişi kapalıyken eski/kalıntı admin token'ları kabul edilmez.
+            raise HTTPException(status_code=401, detail="Admin access is disabled")
+
         if role == "admin":
             # Find or create Student record for admin
             result = await db.execute(select(Student).where(func.lower(Student.email) == settings.ADMIN_EMAIL.lower()))
@@ -89,6 +93,10 @@ async def get_current_user_info(request: Request, db: AsyncSession = Depends(get
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         role = payload.get("role")
+        if role == "admin" and not settings.ADMIN_LOGIN_ENABLED:
+            # Admin girişi kapalıyken eski/kalıntı admin token'ları kabul edilmez.
+            raise HTTPException(status_code=401, detail="Admin access is disabled")
+
         if role == "admin":
             # Get admin student to be safe
             result = await db.execute(select(Student).where(func.lower(Student.email) == settings.ADMIN_EMAIL.lower()))
@@ -141,6 +149,10 @@ async def get_current_teacher_id(request: Request, db: AsyncSession = Depends(ge
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized as teacher"
             )
+        if role == "admin" and not settings.ADMIN_LOGIN_ENABLED:
+            # Admin girişi kapalıyken eski/kalıntı admin token'ları kabul edilmez.
+            raise HTTPException(status_code=401, detail="Admin access is disabled")
+
         if role == "admin":
             # Find or create Teacher record for admin
             result = await db.execute(select(Teacher).where(func.lower(Teacher.email) == settings.ADMIN_EMAIL.lower()))

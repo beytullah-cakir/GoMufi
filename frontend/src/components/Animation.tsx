@@ -16,16 +16,17 @@ export default function Animation() {
   const containerRef = useRef<HTMLDivElement>(null);
   
   // Cat refs for GSAP targeting
+  // catRef bir <div>, geri kalanlar SVG <g> gruplarına bağlanıyor.
   const catRef = useRef<HTMLDivElement>(null);
-  const headRef = useRef<HTMLDivElement>(null);
-  const tailRef = useRef<HTMLDivElement>(null);
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const leftEyeRef = useRef<HTMLDivElement>(null);
-  const rightEyeRef = useRef<HTMLDivElement>(null);
-  const leftEarRef = useRef<HTMLDivElement>(null);
-  const rightEarRef = useRef<HTMLDivElement>(null);
-  const leftLegRef = useRef<HTMLDivElement>(null);
-  const rightLegRef = useRef<HTMLDivElement>(null);
+  const headRef = useRef<SVGGElement>(null);
+  const tailRef = useRef<SVGGElement>(null);
+  const bodyRef = useRef<SVGGElement>(null);
+  const leftEyeRef = useRef<SVGGElement>(null);
+  const rightEyeRef = useRef<SVGGElement>(null);
+  const leftEarRef = useRef<SVGGElement>(null);
+  const rightEarRef = useRef<SVGGElement>(null);
+  const leftLegRef = useRef<SVGGElement>(null);
+  const rightLegRef = useRef<SVGGElement>(null);
 
   const [activeAction, setActiveAction] = useState<null | 'idle' | 'pet' | 'scare' | 'dance' | 'sleep'>('idle');
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -237,9 +238,11 @@ export default function Animation() {
 
     gsap.to(headRef.current, { y: 14, rotation: -3, transformOrigin: '200px 270px', duration: 1.8, ease: 'power1.inOut' });
     gsap.to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 1.2, ease: 'power1.inOut' });
-    gsap.to(leftEarRef.current, { rotation: -25, transformOrigin: '145px 190px', duration: 1.5 }, 0);
-    gsap.to(rightEarRef.current, { rotation: 25, transformOrigin: '255px 190px', duration: 1.5 }, 0);
-    gsap.to(tailRef.current, { rotation: 6, transformOrigin: '240px 430px', duration: 2 }, 0);
+    // NOT: position parametresi (3. argüman) yalnızca timeline'larda geçerlidir,
+    // tekil gsap.to() çağrılarında değil — bu yüzden kaldırıldı.
+    gsap.to(leftEarRef.current, { rotation: -25, transformOrigin: '145px 190px', duration: 1.5 });
+    gsap.to(rightEarRef.current, { rotation: 25, transformOrigin: '255px 190px', duration: 1.5 });
+    gsap.to(tailRef.current, { rotation: 6, transformOrigin: '240px 430px', duration: 2 });
   };
 
   const handleWakeUp = () => {

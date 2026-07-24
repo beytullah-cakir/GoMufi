@@ -6,7 +6,7 @@ import os
 import json
 import uuid
 from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends, status
-from auth.dependencies import get_current_user
+from auth.dependencies import get_current_user, get_current_teacher_id
 from typing import List
 
 router = APIRouter(prefix="/builder", tags=["lesson-builder"])
@@ -14,9 +14,35 @@ router = APIRouter(prefix="/builder", tags=["lesson-builder"])
 # Local JSON path
 JSON_PATH = "lesson.json"
 
+# Yüklenen dosyalar /static altından sunulduğu için çalıştırılabilir/işlenebilir
+# uzantılara (html, svg, php...) izin verilmez — aksi halde saklı XSS riski doğar.
+ALLOWED_UPLOAD_EXTENSIONS = {
+    "png", "jpg", "jpeg", "webp", "gif", "bmp",
+    "pdf", "txt", "md", "csv", "json",
+    "doc", "docx", "xls", "xlsx", "ppt", "pptx", "zip",
+}
+ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "webp", "gif", "bmp"}
+
+
+def safe_extension(filename: str, allowed: set, fallback: str) -> str:
+    """Kullanıcı dosya adından güvenli bir uzantı çıkarır; izinli değilse hata verir."""
+    ext = filename.rsplit(".", 1)[-1].lower() if filename and "." in filename else ""
+    if not ext:
+        return fallback
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"'.{ext}' uzantılı dosyalar desteklenmiyor.",
+        )
+    return ext
+
 
 @router.post("/upload-chat-file")
-async def upload_chat_file(request: Request, file: UploadFile = File(...)):
+async def upload_chat_file(
+    request: Request,
+    file: UploadFile = File(...),
+    user=Depends(get_current_user),
+):
     try:
         # Max file size limit: 5MB
         max_size = 5 * 1024 * 1024  # 5MB
@@ -29,7 +55,7 @@ async def upload_chat_file(request: Request, file: UploadFile = File(...)):
             )
             
         # Create a unique file name
-        file_ext = file.filename.split(".")[-1] if "." in file.filename else "dat"
+        file_ext = safe_extension(file.filename, ALLOWED_UPLOAD_EXTENSIONS, "dat")
         file_name = f"{uuid.uuid4()}.{file_ext}"
         
         # Save to static uploads folder
@@ -59,28 +85,26 @@ async def upload_chat_file(request: Request, file: UploadFile = File(...)):
 
 
 @router.post("/upload-image")
-async def upload_image(request: Request, file: UploadFile = File(...)):
+async def upload_image(
+    request: Request,
+    file: UploadFile = File(...),
+    teacher_id: int = Depends(get_current_teacher_id),
+):
     try:
-        # Dosya formatı kontrolü
-        allowed_types = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/svg+xml", "image/bmp"]
-        if file.content_type not in allowed_types:
-            ext = file.filename.split(".")[-1].lower() if "." in file.filename else ""
-            if ext not in ["jpg", "jpeg", "png", "webp", "gif", "svg", "bmp"]:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Sadece resim formatları (JPEG, PNG, WEBP, GIF, SVG, BMP) desteklenir."
-                )
-
-        # Benzersiz dosya adı oluştur
-        file_ext = file.filename.split(".")[-1] if "." in file.filename else "png"
+        # Dosya formatı kontrolü — uzantı beyaz listeye göre doğrulanır.
+        # SVG kasıtlı olarak dışarıda: içine script gömülebildiği için saklı XSS riski taşır.
+        file_ext = safe_extension(file.filename, ALLOWED_IMAGE_EXTENSIONS, "png")
         file_name = f"{uuid.uuid4()}.{file_ext}"
+
+        contents = await file.read()
+        if len(contents) > 5 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Görsel boyutu 5MB sınırını aşamaz.")
 
         # Yerel sunucuya yükle
         static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
         os.makedirs(static_dir, exist_ok=True)
         local_file_path = os.path.join(static_dir, file_name)
 
-        contents = await file.read()
         with open(local_file_path, "wb") as f:
             f.write(contents)
 

@@ -1,6 +1,11 @@
 import iyzipay
 import uuid
 import json
+import html
+import logging
+import re
+from decimal import Decimal
+from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import HTMLResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +17,10 @@ from connect_db import get_db
 from auth.dependencies import get_current_user_info
 from core.config import settings
 from pydantic import BaseModel
-from typing import List
+from typing import List, Optional
+
+logger = logging.getLogger(__name__)
+
 
 class CheckoutRequest(BaseModel):
     course_ids: List[int]
@@ -133,6 +141,35 @@ async def initialize_checkout(
             detail=checkout_form_initialize.get('errorMessage', 'Payment initialization failed')
         )
 
+def _redirect(url: str) -> HTMLResponse:
+    """Iyzico callback'i tarayıcıyı frontend'e yönlendiren küçük bir HTML döner."""
+    safe_url = html.escape(url, quote=True)
+    return HTMLResponse(content=f'<html><script>window.location.href = "{safe_url}";</script></html>')
+
+
+def parse_basket(checkout_result: dict) -> tuple[Optional[int], List[int]]:
+    """
+    Iyzico'nun doğruladığı ödeme sonucundan öğrenci ve kurs ID'lerini çıkarır.
+
+    Bu değerler initialize-checkout sırasında BİZİM yazdığımız basketId ve itemId
+    alanlarından okunur; URL'den gelen parametrelere güvenilmez.
+    """
+    student_id: Optional[int] = None
+    basket_id = checkout_result.get("basketId") or ""
+    match = re.fullmatch(r"B(\d+)_[0-9a-f]+", basket_id)
+    if match:
+        student_id = int(match.group(1))
+
+    course_ids: List[int] = []
+    for item in checkout_result.get("itemTransactions") or []:
+        item_id = str(item.get("itemId") or "")
+        item_match = re.fullmatch(r"C(\d+)", item_id)
+        if item_match:
+            course_ids.append(int(item_match.group(1)))
+
+    return student_id, course_ids
+
+
 @router.post("/callback/{course_ids_str}/{student_id}")
 async def checkout_callback(
     course_ids_str: str,
@@ -140,9 +177,17 @@ async def checkout_callback(
     request: Request,
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Iyzico ödeme sonucu callback'i.
+
+    GÜVENLİK: URL'deki course_ids/student_id İSTEMCİ TARAFINDAN belirlenebilir.
+    Kayıt işlemi yalnızca Iyzico'dan token ile geri çekilen ödeme sonucundaki
+    basketId/itemTransactions değerlerine göre yapılır; URL parametreleri sadece
+    tutarlılık kontrolü ve yönlendirme için kullanılır.
+    """
     form_data = await request.form()
     token = form_data.get('token')
-    
+
     if not token:
         raise HTTPException(status_code=400, detail="Token not found in callback")
 
@@ -155,50 +200,67 @@ async def checkout_callback(
 
     checkout_form_result = json.loads(checkout_form_result_raw.read().decode('utf-8'))
 
-    frontend_url = settings.FRONTEND_URL
-    course_ids = [int(cid) for cid in course_ids_str.split(",")]
+    frontend_url = settings.FRONTEND_URL.rstrip("/")
 
-    if checkout_form_result.get('status') == 'success' and checkout_form_result.get('paymentStatus') == 'SUCCESS':
-        # Payment successful, enroll the student in all courses
-        try:
-            for course_id in course_ids:
-                # Check again if already enrolled (concurrency)
-                existing = await db.execute(
-                    select(Enrollment).where(
-                        Enrollment.student_id == student_id,
-                        Enrollment.course_id == course_id
-                    )
-                )
-                if not existing.scalars().first():
-                    enrollment = Enrollment(student_id=student_id, course_id=course_id)
-                    db.add(enrollment)
-            
-            await db.commit()
-            
-            # Redirect to success page on frontend
-            return HTMLResponse(content=f"""
-                <html>
-                    <script>
-                        window.location.href = "{frontend_url}/payment-success?course_ids={course_ids_str}";
-                    </script>
-                </html>
-            """)
-        except Exception as e:
-            print(f"Enrollment error after payment: {str(e)}")
-            return HTMLResponse(content=f"""
-                <html>
-                    <script>
-                        window.location.href = "{frontend_url}/payment-error?error=enrollment_failed";
-                    </script>
-                </html>
-            """)
-    else:
-        # Payment failed
+    if not (checkout_form_result.get('status') == 'success'
+            and checkout_form_result.get('paymentStatus') == 'SUCCESS'):
         error_msg = checkout_form_result.get('errorMessage', 'Ödeme başarısız.')
-        return HTMLResponse(content=f"""
-            <html>
-                <script>
-                    window.location.href = "{frontend_url}/payment-error?message={error_msg}";
-                </script>
-            </html>
-        """)
+        return _redirect(f"{frontend_url}/payment-error?message={quote(str(error_msg))}")
+
+    # --- Ödeme başarılı: kayıt bilgilerini SADECE doğrulanmış sonuçtan al ---
+    verified_student_id, verified_course_ids = parse_basket(checkout_form_result)
+
+    if verified_student_id is None or not verified_course_ids:
+        logger.error(
+            "Iyzico sonucu beklenen sepet formatında değil. basketId=%r itemTransactions=%r",
+            checkout_form_result.get("basketId"),
+            checkout_form_result.get("itemTransactions"),
+        )
+        return _redirect(f"{frontend_url}/payment-error?error=invalid_basket")
+
+    # URL'den gelenlerle uyuşmazlık = manipülasyon denemesi; işlemi doğrulanmış veriyle sürdür.
+    if verified_student_id != student_id or set(verified_course_ids) != set(
+        int(cid) for cid in course_ids_str.split(",") if cid.strip().isdigit()
+    ):
+        logger.warning(
+            "Ödeme callback'inde parametre uyuşmazlığı — URL: student=%s courses=%s | "
+            "Iyzico: student=%s courses=%s. Iyzico verisi esas alındı.",
+            student_id, course_ids_str, verified_student_id, verified_course_ids,
+        )
+
+    # Ödenen tutar, kursların gerçek fiyat toplamıyla eşleşmeli
+    result = await db.execute(select(Course).where(Course.id.in_(verified_course_ids)))
+    courses = result.scalars().all()
+    if len(courses) != len(set(verified_course_ids)):
+        logger.error("Ödemedeki kurslardan bazıları bulunamadı: %s", verified_course_ids)
+        return _redirect(f"{frontend_url}/payment-error?error=course_not_found")
+
+    expected_price = Decimal(str(sum(c.price for c in courses)))
+    paid_price = Decimal(str(checkout_form_result.get("paidPrice") or "0"))
+    if paid_price < expected_price:
+        logger.error(
+            "Ödenen tutar kurs fiyat toplamının altında. paid=%s expected=%s courses=%s",
+            paid_price, expected_price, verified_course_ids,
+        )
+        return _redirect(f"{frontend_url}/payment-error?error=price_mismatch")
+
+    try:
+        for course_id in set(verified_course_ids):
+            # Tekrarlı callback'lere karşı (idempotency) mevcut kaydı kontrol et
+            existing = await db.execute(
+                select(Enrollment).where(
+                    Enrollment.student_id == verified_student_id,
+                    Enrollment.course_id == course_id
+                )
+            )
+            if not existing.scalars().first():
+                db.add(Enrollment(student_id=verified_student_id, course_id=course_id))
+
+        await db.commit()
+
+        enrolled_str = ",".join(str(c) for c in sorted(set(verified_course_ids)))
+        return _redirect(f"{frontend_url}/payment-success?course_ids={enrolled_str}")
+    except Exception as e:
+        await db.rollback()
+        logger.exception("Ödeme sonrası kayıt hatası: %s", e)
+        return _redirect(f"{frontend_url}/payment-error?error=enrollment_failed")

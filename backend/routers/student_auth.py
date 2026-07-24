@@ -3,7 +3,7 @@ from auth.auth_request import StudentRegisterRequest, LoginRequest
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from core.security import create_access_token, hash_password, verify_password
+from core.security import create_access_token, hash_password, verify_password, is_admin_credentials
 from connect_db import get_db
 from models.student import Student
 from models.teacher import Teacher
@@ -53,7 +53,7 @@ async def login_user(
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
-    if data.email.lower() == settings.ADMIN_EMAIL.lower() and data.password == settings.ADMIN_PASSWORD:
+    if is_admin_credentials(data.email, data.password):
         access_token = create_access_token("admin", role="admin")
         response.set_cookie(
             key="access_token",
