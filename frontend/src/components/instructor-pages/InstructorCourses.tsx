@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
+import posthog from "posthog-js";
 import api from "../../api";
 import CourseInfoModal from "../shared/CourseInfoModal";
 
@@ -279,6 +280,11 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
         };
         savedCourseId = response.data.id;
         setCourses([newCourse, ...courses]);
+        posthog?.capture("course_created", {
+          course_id: response.data.id,
+          category: courseData.category,
+          price: courseData.price || 0,
+        });
       }
       setIsAddModalOpen(false);
       if (refreshData) {

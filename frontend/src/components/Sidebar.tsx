@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import posthog from "posthog-js";
 import api from "../api";
 
 // Import sprites
@@ -115,6 +116,8 @@ const Sidebar: React.FC<SidebarProps> = ({
     } catch (error) {
       console.error("Logout failed", error);
     } finally {
+      // Paylaşımlı cihazda kimliğin bir sonraki kullanıcıya karışmaması için sıfırla
+      try { posthog?.reset(); } catch { /* posthog init edilmemiş olabilir */ }
       localStorage.removeItem("token");
       localStorage.removeItem("role");
       localStorage.removeItem("gomufi_lesson_builder_draft");

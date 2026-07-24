@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, KeyRound, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import posthog from 'posthog-js';
 import api from '../../api';
 
 interface JoinCourseModalProps {
@@ -31,6 +32,7 @@ const JoinCourseModal: React.FC<JoinCourseModalProps> = ({ isOpen, onClose, onSu
         setError(null);
         try {
             const response = await api.post('/enroll-by-code', { code: code.trim() });
+            posthog?.capture('student_joined_class', { course_id: response.data.course_id });
             setSuccessTitle(response.data.course_title || 'Ders');
             setTimeout(() => {
                 onSuccess();

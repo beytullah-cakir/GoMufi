@@ -51,6 +51,10 @@ class Settings:
     # (ölçüm: lite'a bütçe verilince 829 gereksiz thinking token harcıyor).
     GEMINI_THINKING_BUDGET_CONTENT: int = int(os.getenv("GEMINI_THINKING_BUDGET_CONTENT", "1024"))
 
+    # Metrik projeksiyonu: bir öğretmenin ayda ürettiği varsayılan ders sayısı.
+    # "Öğretmen aylık maliyet" kolonu bu varsayımla hesaplanır (ölçüm değil, projeksiyon).
+    LESSONS_PER_TEACHER_MONTH: int = int(os.getenv("LESSONS_PER_TEACHER_MONTH", "20"))
+
     # Ödev değerlendirmesi (GEMINI_MODEL ile) için düşünme (thinking) token bütçesi.
     # Thinking token'ları ÇIKTI tarifesinden faturalanır ve kapatılmazsa küçük bir
     # cevap için binlerce token harcanabilir (ölçüm: 25 token'lık cevaba 763 thinking).
@@ -62,6 +66,11 @@ class Settings:
     JITSI_APP_SECRET: str = os.getenv("JITSI_APP_SECRET", "")
     JITSI_API_KEY: str = os.getenv("JITSI_API_KEY", "") # JaaS Konsolundaki Key ID
     JITSI_DOMAIN: str = os.getenv("JITSI_DOMAIN", "8x8.vc")  # Jitsi sunucu domain'i
+
+    # PostHog server-side analytics (opsiyonel). Anahtar yoksa no-op çalışır.
+    # KVKK: host varsayılanı EU (veri AB'de tutulur).
+    POSTHOG_API_KEY: str = os.getenv("POSTHOG_API_KEY", "")
+    POSTHOG_HOST: str = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 
     DATABASE_URL: str = os.getenv("DATABASE_URL")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")

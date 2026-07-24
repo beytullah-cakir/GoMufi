@@ -14,7 +14,10 @@ import {
   Trash2,
   BookOpen,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Boxes,
+  GraduationCap,
+  Sigma
 } from "lucide-react";
 import api from "../../api";
 
@@ -57,10 +60,59 @@ interface ModelStat {
   cost_usd: number;
 }
 
+interface Money {
+  usd: number;
+  tl: number;
+}
+
+interface ModuleTypeEstimate {
+  type: string;
+  label: string;
+  weight: number;
+  est_cost_usd: number;
+  est_cost_tl: number;
+}
+
+interface UnitEconomics {
+  lessons_generated: number;
+  courses_measured: number;
+  projection_lessons: number;
+  avg_modules_per_lesson: number;
+  avg_cost_per_lesson: Money;
+  avg_cost_per_module: Money;
+  avg_cost_per_course: Money;
+  projected_course: Money;
+  estimated_cost_by_module_type: ModuleTypeEstimate[];
+}
+
+interface OperationRow {
+  operation: string;
+  model: string;
+  unit: string;
+  unit_cost_usd: number;
+  unit_cost_tl: number;
+  usage_per_lesson: number;
+  cost_per_lesson_usd: number;
+  cost_per_lesson_tl: number;
+  usage_per_month: number;
+  cost_per_month_usd: number;
+  cost_per_month_tl: number;
+  samples: number;
+  source: string;
+  last_date: string | null;
+}
+
+interface OperationBreakdown {
+  lessons_per_teacher_month: number;
+  lessons_generated: number;
+  rows: OperationRow[];
+}
+
 interface MetricsData {
   total_requests: number;
   total_prompt_tokens: number;
   total_candidates_tokens: number;
+  total_thoughts_tokens?: number;
   total_tokens: number;
   total_cost_usd: number;
   total_cost_tl: number;
@@ -68,6 +120,8 @@ interface MetricsData {
   by_action: Record<string, ActionStat>;
   by_model: Record<string, ModelStat>;
   by_course: CourseSummaryItem[];
+  unit_economics?: UnitEconomics;
+  operation_breakdown?: OperationBreakdown;
   recent_logs: AIUsageItem[];
 }
 
@@ -311,8 +365,197 @@ const InstructorMetrics: React.FC = () => {
               {metrics?.total_candidates_tokens?.toLocaleString() || 0}
             </span>
           </div>
+          <div className="flex items-center justify-between text-xs font-bold text-rose-500 mt-1" title="Gemini'nin görünmez düşünme token'ları — çıktı tarifesinden faturalanır">
+            <span>Thinking (Gizli):</span>
+            <span className="font-black font-mono">
+              {metrics?.total_thoughts_tokens?.toLocaleString() || 0}
+            </span>
+          </div>
         </div>
       </div>
+
+      {/* UNIT ECONOMICS — Ortalama birim maliyetler */}
+      {metrics?.unit_economics && (
+        <div className="bg-white p-6 rounded-3xl border-2 border-teal-100 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 font-display flex items-center gap-2">
+                <Sigma className="text-teal-600" size={22} /> Birim Ekonomisi — Ortalama Maliyetler
+              </h2>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                Bir ders, bir modül ve tam bir kursun ortalama kaç para yaktığının canlı hesabı
+              </p>
+            </div>
+          </div>
+
+          {/* Ölçülen ortalamalar */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Ort. ders */}
+            <div className="bg-teal-50/60 p-5 rounded-2xl border-2 border-b-4 border-teal-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-teal-100 text-teal-600 flex items-center justify-center"><BookOpen size={18} /></div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-teal-700">Ort. Bir Ders</span>
+              </div>
+              <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.unit_economics.avg_cost_per_lesson.tl.toFixed(3)}</div>
+              <div className="text-[11px] font-bold text-slate-500 mt-1">
+                ${metrics.unit_economics.avg_cost_per_lesson.usd.toFixed(5)} • {metrics.unit_economics.lessons_generated} ders üzerinden
+              </div>
+            </div>
+
+            {/* Ort. modül */}
+            <div className="bg-purple-50/60 p-5 rounded-2xl border-2 border-b-4 border-purple-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center"><Boxes size={18} /></div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-purple-700">Ort. Bir Modül</span>
+              </div>
+              <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.unit_economics.avg_cost_per_module.tl.toFixed(4)}</div>
+              <div className="text-[11px] font-bold text-slate-500 mt-1">
+                ${metrics.unit_economics.avg_cost_per_module.usd.toFixed(5)} • ort. {metrics.unit_economics.avg_modules_per_lesson} modül/ders
+              </div>
+            </div>
+
+            {/* Ort. kurs */}
+            <div className="bg-indigo-50/60 p-5 rounded-2xl border-2 border-b-4 border-indigo-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center"><GraduationCap size={18} /></div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-indigo-700">Ort. Bir Kurs</span>
+              </div>
+              <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.unit_economics.avg_cost_per_course.tl.toFixed(3)}</div>
+              <div className="text-[11px] font-bold text-slate-500 mt-1">
+                ${metrics.unit_economics.avg_cost_per_course.usd.toFixed(5)} • {metrics.unit_economics.courses_measured} gerçek kurs
+              </div>
+            </div>
+
+            {/* Projeksiyon */}
+            <div className="bg-amber-50/60 p-5 rounded-2xl border-2 border-b-4 border-amber-200">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center"><Calculator size={18} /></div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-700">{metrics.unit_economics.projection_lessons} Derslik Kurs</span>
+              </div>
+              <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.unit_economics.projected_course.tl.toFixed(3)}</div>
+              <div className="text-[11px] font-bold text-slate-500 mt-1">
+                ${metrics.unit_economics.projected_course.usd.toFixed(5)} • tahmini (ort. ders × {metrics.unit_economics.projection_lessons})
+              </div>
+            </div>
+          </div>
+
+          {/* Modül tipine göre tahmini maliyet */}
+          <div className="mt-6">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-black text-slate-700 uppercase tracking-wider">Modül Tipine Göre Tahmini Maliyet</span>
+              <span className="group relative">
+                <Info size={14} className="text-slate-400 cursor-help" />
+                <span className="absolute left-0 bottom-full mb-2 hidden group-hover:block w-64 bg-slate-800 text-white text-[11px] font-semibold p-2.5 rounded-xl shadow-lg z-20 leading-relaxed">
+                  Bir ders tek AI çağrısında tüm modülleri birlikte üretir; tek bir tip ayrı ölçülemez. Bu değerler, ölçülen ders maliyetinin her tipin ürettiği ortalama slayt sayısına (ağırlık) göre dağıtılmış TAHMİNİdir.
+                </span>
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+              {metrics.unit_economics.estimated_cost_by_module_type.map((m) => (
+                <div key={m.type} className="bg-slate-50 border-2 border-b-[3px] border-slate-200 rounded-2xl p-3.5 text-center">
+                  <div className="text-[11px] font-black text-slate-700 uppercase tracking-wider">{m.label}</div>
+                  <div className="text-base font-black text-emerald-600 font-mono mt-1">₺{m.est_cost_tl.toFixed(4)}</div>
+                  <div className="text-[9px] font-bold text-slate-400 mt-0.5">${m.est_cost_usd.toFixed(6)}</div>
+                </div>
+              ))}
+            </div>
+            <p className="text-[10px] font-semibold text-slate-400 mt-2 italic">
+              * Tahmini dağılım — slayt ağırlığına dayalıdır, ölçülmüş kesin değer değildir.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* OPERATION-CATEGORY COST TABLE */}
+      {metrics?.operation_breakdown && (
+        <div className="bg-white p-6 rounded-3xl border-2 border-slate-200 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-lg font-black text-slate-900 font-display flex items-center gap-2">
+                <Layers className="text-slate-600" size={22} /> İşlem Bazında Birim Maliyet Tablosu
+              </h2>
+              <p className="text-xs font-bold text-slate-500 mt-0.5">
+                Her AI işlem türünün birim, ders başı ve öğretmen aylık maliyet dökümü
+              </p>
+            </div>
+            <span className="text-xs font-black px-3.5 py-1 bg-slate-50 text-slate-600 border border-slate-200 rounded-full self-start md:self-auto">
+              Varsayım: {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay · öğretmen
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[900px]">
+              <thead>
+                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black uppercase text-slate-400 tracking-wider">
+                  <th className="py-3 px-4">İşlem / Özellik</th>
+                  <th className="py-3 px-4">Model / Servis</th>
+                  <th className="py-3 px-4 text-center">Birim</th>
+                  <th className="py-3 px-4 text-right">Birim Maliyet (₺)</th>
+                  <th className="py-3 px-4 text-right">1 Ders Kullanım</th>
+                  <th className="py-3 px-4 text-right">1 Ders Maliyeti</th>
+                  <th className="py-3 px-4 text-right">Öğretmen/Ay Kullanım</th>
+                  <th className="py-3 px-4 text-right">Öğretmen Aylık Maliyet</th>
+                  <th className="py-3 px-4">Ölçüm Kaynağı / Tarih</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+                {metrics.operation_breakdown.rows.map((row) => {
+                  const isFree = row.operation === "Görsel üretimi";
+                  return (
+                    <tr key={row.operation} className={`hover:bg-slate-50/80 transition-colors ${isFree ? "opacity-70" : ""}`}>
+                      <td className="py-3.5 px-4 font-black text-slate-900">{row.operation}</td>
+                      <td className="py-3.5 px-4">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">
+                          {row.model}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 text-center text-slate-500">{row.unit}</td>
+                      <td className="py-3.5 px-4 text-right font-black text-slate-900 font-mono">
+                        {isFree ? "—" : `₺${row.unit_cost_tl.toFixed(4)}`}
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-slate-600 font-mono">
+                        {isFree ? "—" : `${row.usage_per_lesson}×`}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-black text-emerald-600 font-mono">
+                        {isFree ? "Ücretsiz" : `₺${row.cost_per_lesson_tl.toFixed(4)}`}
+                      </td>
+                      <td className="py-3.5 px-4 text-right text-slate-600 font-mono">
+                        {isFree ? "—" : `${row.usage_per_month}×`}
+                      </td>
+                      <td className="py-3.5 px-4 text-right font-black text-emerald-700 font-mono">
+                        {isFree ? "₺0,00" : `₺${row.cost_per_month_tl.toFixed(2)}`}
+                      </td>
+                      <td className="py-3.5 px-4 text-[10px] text-slate-500 max-w-[220px]">
+                        <span className="block truncate" title={row.source}>{row.source}</span>
+                        {row.last_date && (
+                          <span className="text-slate-400">{new Date(row.last_date).toLocaleDateString("tr-TR")}</span>
+                        )}
+                        {row.samples > 0 && <span className="text-slate-400"> · {row.samples} örnek</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-200 bg-slate-50 text-xs font-black text-slate-900">
+                  <td className="py-3.5 px-4" colSpan={5}>TOPLAM (bir ders / bir öğretmen-ay)</td>
+                  <td className="py-3.5 px-4 text-right text-emerald-600 font-mono">
+                    ₺{metrics.operation_breakdown.rows.reduce((s, r) => s + r.cost_per_lesson_tl, 0).toFixed(4)}
+                  </td>
+                  <td></td>
+                  <td className="py-3.5 px-4 text-right text-emerald-700 font-mono">
+                    ₺{metrics.operation_breakdown.rows.reduce((s, r) => s + r.cost_per_month_tl, 0).toFixed(2)}
+                  </td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="text-[10px] font-semibold text-slate-400 mt-3 italic">
+            * "Ders başı" değerleri, kategorinin toplam maliyetinin üretilen ders sayısına bölünmesiyle (amortisman) bulunur — müfredat gibi kurs-başı işlemler ders başına düşen paylarıyla görünür. "Öğretmen aylık" kolonu {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımına dayalı projeksiyondur. Görseller loremflickr'dan ücretsiz çekilir (AI maliyeti yok).
+          </p>
+        </div>
+      )}
 
       {/* COURSE-BY-COURSE COST TELEMETRY REPORT */}
       <div className="bg-white p-6 rounded-3xl border-2 border-indigo-100 shadow-sm">
