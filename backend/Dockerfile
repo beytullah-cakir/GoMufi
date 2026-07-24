@@ -8,10 +8,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 8000
+# Render.com $PORT env variable'ını atıyor (varsayılan: 10000)
+# ';' kullanarak migration başarısız olsa bile uvicorn her zaman başlar
+EXPOSE ${PORT:-10000}
 
-# Portu 8000'den Railway'in atadığı $PORT değişkenine çekiyoruz
-# Önce veritabanı göçlerini (migrations) uygula, sonra uygulamayı başlat
-CMD ["sh", "-c", "alembic upgrade head || echo 'Migration failed, continuing...' && uvicorn main_fastapi:app --host 0.0.0.0 --port ${PORT:-8000}"]
+CMD ["sh", "-c", "alembic upgrade head; uvicorn main_fastapi:app --host 0.0.0.0 --port ${PORT:-10000}"]
 
 

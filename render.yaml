@@ -1,0 +1,70 @@
+services:
+  # ─── GoMufi Backend (FastAPI) ──────────────────────────────────────────────
+  - type: web
+    name: gomufi-backend
+    runtime: docker
+    # Render, Dockerfile'ı backend/ klasöründen build eder
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+
+    # Render.com $PORT env variable'ını otomatik inject eder (varsayılan 10000)
+    # Dockerfile CMD içinde ${PORT:-10000} ile kullanılır
+
+    # Sağlık kontrolü — Render bu endpoint'i kontrol eder
+    healthCheckPath: /docs
+
+    envVars:
+      # ── Temel Güvenlik ──────────────────────────────────────────────────────
+      - key: SECRET_KEY
+        generateValue: true          # Render otomatik güçlü bir secret üretir
+
+      # ── Veritabanı ──────────────────────────────────────────────────────────
+      - key: DATABASE_URL
+        sync: false                  # Dashboard'dan elle girilecek (Supabase URL)
+
+      # ── Frontend URL (Vercel) ───────────────────────────────────────────────
+      - key: FRONTEND_URL
+        value: https://go-mufi.vercel.app
+
+      # ── Google OAuth ─────────────────────────────────────────────────────────
+      - key: GOOGLE_CLIENT_ID
+        sync: false                  # Dashboard'dan elle girilecek
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+
+      # ── İyzico Ödeme ─────────────────────────────────────────────────────────
+      - key: IYZICO_API_KEY
+        sync: false
+      - key: IYZICO_SECRET_KEY
+        sync: false
+      - key: IYZICO_BASE_URL
+        value: https://sandbox-api.iyzipay.com   # Production'a geçince değiştir
+
+      # ── Gemini AI ────────────────────────────────────────────────────────────
+      - key: MY_API_KEY
+        sync: false
+
+      # ── Jitsi JaaS ───────────────────────────────────────────────────────────
+      - key: JITSI_APP_ID
+        sync: false
+      - key: JITSI_API_KEY
+        sync: false
+      - key: JITSI_APP_SECRET
+        sync: false
+      - key: JITSI_DOMAIN
+        value: 8x8.vc
+
+      # ── Token Süreleri ────────────────────────────────────────────────────────
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "1440"
+      - key: REFRESH_TOKEN_EXPIRE_DAYS
+        value: "7"
+
+      # ── Admin ─────────────────────────────────────────────────────────────────
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+
+      # ── NOT: REDIS_URL tanımlı değil → WebSocket local mod (single-instance) ──
+      # Eğer Redis eklemek istersen REDIS_URL buraya ekle
