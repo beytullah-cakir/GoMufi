@@ -6,7 +6,7 @@
     "description": "Bu şablonu birbirinden bağımsız fakat ilişkili kavramları tanıtmak için kullan. Her kart tek bir bilgiyi anlatmalıdır. Kartlarda uzun paragraf yerine kısa açıklamalar kullanılmalıdır.",
     "elements": [
       {
-        "id": "1783573301097778",
+        "id": "1784761932266949",
         "type": "shape",
         "x": 76.11110545970776,
         "y": 322.9629595721214,
@@ -23,12 +23,12 @@
         }
       },
       {
-        "id": "1783573301097333",
+        "id": "1784761932266809",
         "type": "text",
         "x": 107.11110545970776,
         "y": 345.9629595721214,
         "width": 259,
-        "height": 279,
+        "height": 292,
         "rotation": 0,
         "content": "Card 1&nbsp; short text",
         "style": {
@@ -40,7 +40,7 @@
         "maxChars": 142
       },
       {
-        "id": "1783573301097428",
+        "id": "1784761932266835",
         "type": "shape",
         "x": 480.11110545970786,
         "y": 317.9629595721214,
@@ -57,12 +57,12 @@
         }
       },
       {
-        "id": "1783573301097533",
+        "id": "1784761932266011",
         "type": "text",
         "x": 511.1111054597075,
         "y": 340.9629595721214,
         "width": 259,
-        "height": 279,
+        "height": 297,
         "rotation": 0,
         "content": "Card 2&nbsp; short text",
         "style": {
@@ -74,7 +74,7 @@
         "maxChars": 142
       },
       {
-        "id": "1783573301097309",
+        "id": "1784761932266176",
         "type": "shape",
         "x": 872.1111054597075,
         "y": 313.9629595721214,
@@ -92,12 +92,12 @@
         }
       },
       {
-        "id": "1783573301097316",
+        "id": "1784761932266799",
         "type": "text",
         "x": 903.1111054597075,
         "y": 336.9629595721214,
         "width": 259,
-        "height": 279,
+        "height": 297,
         "rotation": 0,
         "content": "Card 3&nbsp; short text",
         "style": {
@@ -109,7 +109,7 @@
         "maxChars": 142
       },
       {
-        "id": "1783573301097196",
+        "id": "1784761932266651",
         "type": "text",
         "x": 40.481475830078125,
         "y": 42.888885498046875,
@@ -143,7 +143,7 @@
         "maxChars": 38
       },
       {
-        "id": "1783573301097834",
+        "id": "1784761932266797",
         "type": "text",
         "x": 40.481475830078125,
         "y": 127.88888549804688,
@@ -160,12 +160,12 @@
         "maxChars": 50
       },
       {
-        "id": "1783573301097758",
+        "id": "1784761932266905",
         "type": "text",
         "x": 40.481475830078125,
         "y": 175.88888549804688,
         "width": 1165,
-        "height": 104,
+        "height": 131,
         "rotation": 0,
         "content": "Explanation Long Line",
         "style": {
@@ -187,7 +187,7 @@
     "description": "Kod örneği üzerinden yeni bir programlama kavramını öğretmek. Kod kısa, okunabilir ve tek bir fikri anlatmalıdır. Açıklamalar doğrudan kodu desteklemelidir. Gerekirse tek bir önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783573347660011",
+        "id": "1784763755834319",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -221,12 +221,12 @@
         "maxChars": 38
       },
       {
-        "id": "1783573347660283",
+        "id": "1784763755834443",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
         "width": 1229,
-        "height": 48,
+        "height": 76,
         "rotation": 0,
         "content": "Explanation Short Line 1&nbsp;",
         "style": {
@@ -238,7 +238,7 @@
         "maxChars": 100
       },
       {
-        "id": "1783573347660043",
+        "id": "1784763755834405",
         "type": "code",
         "x": 542.4814758300781,
         "y": 188.88888549804688,
@@ -253,12 +253,12 @@
         }
       },
       {
-        "id": "1783573347660052",
+        "id": "1784763755834124",
         "type": "text",
         "x": 20.481475830078125,
-        "y": 162.88888549804688,
+        "y": 182.88888549804688,
         "width": 482,
-        "height": 232,
+        "height": 260,
         "rotation": 0,
         "content": "Explanation Long Text",
         "style": {
@@ -271,10 +271,10 @@
         "maxChars": 190
       },
       {
-        "id": "1783573347660535",
+        "id": "1784763755834351",
         "type": "sticky",
         "x": 20.481475830078125,
-        "y": 436.8888854980469,
+        "y": 450.8888854980469,
         "width": 200,
         "height": 200,
         "rotation": 0,

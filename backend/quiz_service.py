@@ -33,7 +33,7 @@ Kurallar:
 """
 
         response = client.models.generate_content(
-            model="gemini-3-flash-preview",
+            model="gemini-2.5-flash",
             contents=prompt,
         )
         raw_text = response.text.strip()
@@ -43,7 +43,7 @@ Kurallar:
         clean_json = json_match.group(0) if json_match else raw_text
 
         quiz_data = json.loads(clean_json)
-        return {"success": True, "quiz": quiz_data}
+        return {"success": True, "quiz": quiz_data, "response": response}
 
     except Exception as e:
         print(f"ERROR: Quiz servis hatası → {str(e)}")

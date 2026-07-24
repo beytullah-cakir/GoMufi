@@ -56,6 +56,8 @@ interface Course {
     requirements?: string[];
     curriculum?: any[];
     price?: number;
+    classes?: any[];
+    schedule?: any[];
 }
 
 interface ScheduleSlot {
@@ -69,6 +71,8 @@ interface ScheduleSlot {
     color?: string;
     duration?: string;
     courseId?: string;
+    sectionTitle?: string;
+    lessonIndex?: number;
 }
 
 interface SquadMember {
@@ -132,7 +136,9 @@ const mapContentCourses = (data: any[]): Course[] => {
             requirements: c.requirements,
             curriculum: c.curriculum || [],
             notes: c.notes || [],
-            price: c.price || 0
+            price: c.price || 0,
+            classes: c.classes || [],
+            schedule: c.schedule || []
         };
     });
 };
@@ -140,11 +146,13 @@ const mapContentCourses = (data: any[]): Course[] => {
 interface ContentPageProps {
     purchasedCourses?: any[];
     onOpenJoinModal: () => void;
+    userData?: any;
+    onJoinLiveClass: (courseId: string) => void;
 }
 
-const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinModal }) => {
+const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinModal, userData, onJoinLiveClass }) => {
     // --- State ---
-    const [selectedCourse, setSelectedCourse] = useState<string>('python-101');
+    const [selectedCourse, setSelectedCourse] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
     const [infoCourseId, setInfoCourseId] = useState<string | null>(null);
     const navigate = useNavigate();
@@ -167,7 +175,9 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                 setCourses(cachedContentCourses);
                 setSchedule(cachedSchedule);
                 setIsLoading(false);
-                if (!selectedCourse) setSelectedCourse(cachedContentCourses[0]?.id || '');
+                if (cachedContentCourses.length > 0) {
+                    setSelectedCourse(cachedContentCourses[0].id);
+                }
                 return;
             }
 
@@ -187,12 +197,11 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                     });
                 }
 
-
                 // 1. Handle Courses
                 const mappedCourses: Course[] = mapContentCourses(contentRes.data);
                 
                 setCourses(mappedCourses);
-                if (mappedCourses.length > 0 && !selectedCourse) {
+                if (mappedCourses.length > 0) {
                     setSelectedCourse(mappedCourses[0].id);
                 }
 
@@ -201,7 +210,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                 if (scheduleRes.data && scheduleRes.data.length > 0) {
                     mappedSchedule = scheduleRes.data.map((s: any) => {
                         const timeStr = s.start_time ? s.start_time.substring(0, 5) : '';
-                        let color = 'bg-gray-100 border-gray-300 text-gray-800';
+                        let color = 'bg-gray-100 border-gray-355 text-gray-850';
                         if (s.title.toLowerCase().includes('python')) color = 'bg-yellow-100 border-yellow-300 text-yellow-800';
                         else if (s.title.toLowerCase().includes('react')) color = 'bg-sky-100 border-sky-300 text-sky-800';
                         else if (s.title.toLowerCase().includes('ingilizce')) color = 'bg-purple-100 border-purple-300 text-purple-800';
@@ -273,17 +282,155 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
     
     const activeCourseData = courses.find(c => c.id === selectedCourse) || courses[0];
 
-    // İlk kursu göster
+    const getDaysOfCurrentWeek = () => {
+        const startOfWeek = new Date();
+        const day = startOfWeek.getDay();
+        const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // Monday is start of week
+        startOfWeek.setDate(diff);
+        
+        return Array.from({ length: 7 }, (_, i) => {
+            const d = new Date(startOfWeek);
+            d.setDate(startOfWeek.getDate() + i);
+            return d;
+        });
+    };
+
+    const getStudentClassForCourse = (course: Course) => {
+        if (!course) return null;
+        const classes = course.classes || [];
+        if (!userData || !userData.id) {
+            if (classes.length > 0) {
+                return classes[0];
+            }
+            return null;
+        }
+        const studentIdStr = userData.id.toString();
+        // Sınıfta student_ids içinde öğrencinin id'si var mı diye bak
+        const matched = classes.find((cls: any) => {
+            const studentIds = cls.student_ids || [];
+            return studentIds.some((sid: any) => sid.toString() === studentIdStr);
+        });
+        return matched || classes[0] || null;
+    };
+
+    // Seçilen kurs değiştikçe Sıradaki Ders kartını güncelle
     useEffect(() => {
-        if (courses.length > 0) {
-            const firstCourse = courses[0];
+        const targetCourse = courses.find(c => c.id === selectedCourse) || courses[0];
+        if (targetCourse) {
             setNextLessonData({
-                title: firstCourse.title,
-                subtitle: firstCourse.nextLesson || '',
-                courseId: firstCourse.id
+                title: targetCourse.title,
+                subtitle: targetCourse.nextLesson || 'Hemen Başla!',
+                courseId: targetCourse.id
             });
         }
-    }, [courses]);
+    }, [selectedCourse, courses]);
+
+    // Sınıflara göre haftalık ve aylık takvimi dinamik oluştur
+    useEffect(() => {
+        if (courses.length === 0) return;
+
+        const generateScheduleEvents = () => {
+            const events: ScheduleSlot[] = [];
+            
+            // Eğer selectedCourse seçilmişse sadece o kursu, yoksa tüm kursları işle
+            const coursesToProcess = selectedCourse
+                ? courses.filter(c => c.id === selectedCourse)
+                : courses;
+                
+            coursesToProcess.forEach(course => {
+                const studentClass = getStudentClassForCourse(course);
+                const scheduleList = studentClass ? (studentClass.schedule || []) : (course.schedule || []);
+                
+                const sections = (course.curriculum || []).filter((item: any) => item.type !== 'live_sessions_config');
+                const progressKey = `progress_${course.id}`;
+                const currentProgress = parseInt(localStorage.getItem(progressKey) || '0');
+                
+                if (sections.length === 0) {
+                    // Sınıfın haftalık günlerine göre bu haftaki slotları oluştur
+                    const weekDays = getDaysOfCurrentWeek();
+                    weekDays.forEach(dateObj => {
+                        const dayOfWeek = dateObj.getDay();
+                        const normalizedDayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                        
+                        scheduleList.forEach((slot: any) => {
+                            if (dayMap[slot.day] === normalizedDayIndex) {
+                                events.push({
+                                    id: `sched-${course.id}-${dateObj.getDate()}-${slot.time}`,
+                                    day: slot.day,
+                                    fullDate: `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}`,
+                                    time: slot.time,
+                                    title: course.title,
+                                    type: 'live',
+                                    status: 'upcoming',
+                                    color: course.color.replace('bg-', 'bg-').replace('555', '100').replace('500', '100').replace('600', '100'),
+                                    duration: '60 dk',
+                                    courseId: course.id,
+                                    sectionTitle: "Genel Canlı Ders",
+                                    lessonIndex: 1
+                                });
+                            }
+                        });
+                    });
+                } else {
+                    // Bu ay için takvim günlerini oluşturup sırayla müfredat derslerini dağıtalım
+                    const dateSlots: { dayNum: number; day: string; time: string; fullDateStr: string; normalizedDayIndex: number }[] = [];
+                    
+                    for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+                        const dateObj = new Date(currentYear, currentMonth, dayNum);
+                        const dayOfWeek = dateObj.getDay();
+                        const normalizedDayIndex = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+                        
+                        scheduleList.forEach((slot: any) => {
+                            if (dayMap[slot.day] === normalizedDayIndex) {
+                                dateSlots.push({
+                                    dayNum,
+                                    day: slot.day,
+                                    time: slot.time,
+                                    fullDateStr: `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`,
+                                    normalizedDayIndex
+                                });
+                            }
+                        });
+                    }
+                    
+                    // Kronolojik sıralama
+                    dateSlots.sort((a, b) => {
+                        if (a.dayNum !== b.dayNum) return a.dayNum - b.dayNum;
+                        return a.time.localeCompare(b.time);
+                    });
+                    
+                    // Ders müfredatını günlere dağıtalım (örnek: 4 ders)
+                    const limit = Math.min(dateSlots.length, sections.length);
+                    for (let i = 0; i < limit; i++) {
+                        const slot = dateSlots[i];
+                        const section = sections[i];
+                        const lessonIndex = section.lessonNumber || (i + 1);
+                        const isCompleted = lessonIndex <= currentProgress;
+                        
+                        events.push({
+                            id: `sched-${course.id}-${slot.dayNum}-${slot.time}`,
+                            day: slot.day,
+                            fullDate: slot.fullDateStr,
+                            time: slot.time,
+                            title: course.title,
+                            type: 'live',
+                            status: isCompleted ? 'completed' : 'upcoming',
+                            color: course.color.replace('bg-', 'bg-').replace('555', '100').replace('500', '100').replace('600', '100'),
+                            duration: '60 dk',
+                            courseId: course.id,
+                            sectionTitle: section.title,
+                            lessonIndex: lessonIndex
+                        });
+                    }
+                }
+            });
+            
+            return events;
+        };
+
+        const generated = generateScheduleEvents();
+        setSchedule(generated);
+    }, [courses, selectedCourse, userData]);
 
     // Eğitmenin dersi başlatıp başlatmadığını sunucudan kontrol et (5 saniyede bir)
     useEffect(() => {
@@ -373,22 +520,45 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
         'Perşembe': 3, 'Thursday': 3, 'Cuma': 4, 'Friday': 4, 'Cumartesi': 5, 'Saturday': 5, 'Pazar': 6, 'Sunday': 6
     };
 
-    const getEventsForDay = (dayNum: number) => {
-        const dateObj = new Date(currentYear, currentMonth, dayNum);
-
-        return schedule.filter(s => {
-            // Aylık takvimde tam tarih eşleşmesi yapılması daha mantıklı. 
-            // Fakat 'schedule' içinde 'day' olarak sadece 'Pazartesi' vb string var. 
-            // Bunun için backend'den gelen/hesaplanan slotların 'date' içerecek şekilde düzenlenmesi ya da 
-            // gün eşleştirmesinin gün-isim (Pazartesi vb) üzerinden yapılması.
-            
-            // Eğer session haftalık tekrarlıysa gün eşleşmesi (Pazartesi vb):
-            const dayOfWeekIndex = dateObj.getDay();
-            const normalizedIndex = dayOfWeekIndex === 0 ? 6 : dayOfWeekIndex - 1;
-            
-            if (!s.day) return false;
-            return dayMap[s.day] === normalizedIndex;
+    const getWeeklyEvents = (allEvents: ScheduleSlot[]) => {
+        const weekDays = getDaysOfCurrentWeek();
+        const startOfWeek = weekDays[0];
+        const endOfWeek = weekDays[6];
+        
+        const getFormatDate = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const startStr = getFormatDate(startOfWeek);
+        const endStr = getFormatDate(endOfWeek);
+        
+        return allEvents.filter(e => {
+            if (!e.fullDate) return false;
+            return e.fullDate >= startStr && e.fullDate <= endStr;
         });
+    };
+
+    const handleJoinLiveClick = async (courseId: string) => {
+        try {
+            // Open Jitsi Room in new window
+            try {
+                const jitsiRes = await api.get(`/jitsi/token/${courseId}`);
+                const { token, room, domain } = jitsiRes.data;
+                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                window.open(url, "_blank");
+            } catch (jitsiErr) {
+                console.warn('Jitsi token error, using freeFallback meet.jit.si', jitsiErr);
+                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
+                window.open(fallbackUrl, "_blank");
+            }
+
+            // Student enters live session roadmap dashboard
+            onJoinLiveClass(courseId);
+        } catch (err) {
+            console.error("Join live class helper error:", err);
+        }
+    };
+
+    const getEventsForDay = (dayNum: number) => {
+        const dateStr = `${currentYear}-${String(currentMonth + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+        return schedule.filter(s => s.fullDate === dateStr);
     };
 
     return (
@@ -401,7 +571,16 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
                     <div className="flex items-center justify-between mb-1">
                         <h2 className="font-black text-gray-700 text-lg">Aktif Dersler</h2>
-                        <span className="text-xs font-bold text-indigo-500 bg-indigo-50 px-2 py-1 rounded-lg cursor-pointer hover:bg-indigo-100">Tümü</span>
+                        <span 
+                            onClick={() => setSelectedCourse('')}
+                            className={`text-xs font-black px-3 py-1 rounded-xl cursor-pointer transition-all border-2 border-b-4 ${
+                                !selectedCourse 
+                                    ? 'bg-slate-900 border-black text-white shadow-sm' 
+                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350'
+                            }`}
+                        >
+                            Tümü
+                        </span>
                     </div>
 
                     <div className="space-y-4">
@@ -524,39 +703,34 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                     {activeTab === 'schedule' ? (
                         <div className="flex flex-col gap-4 flex-1">
                             {/* Today's Highlight */}
-                            <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden border-b-8 border-red-600">
+                            <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden border-b-8 border-red-650">
                                 <Zap className="absolute top-0 right-0 text-white/20 w-40 h-40 transform translate-x-10 -translate-y-10" />
                                 <div className="relative z-10 flex items-center justify-between">
                                     <div>
                                         <div className="flex items-center gap-2 mb-2">
                                             <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki Ders</span>
-                                            {timeLeftStr && (
+                                            {isClassActive ? (
+                                                <span className="flex items-center gap-1 text-xs font-black bg-emerald-500 px-2.5 py-1 rounded-lg animate-pulse uppercase tracking-wider">
+                                                    Canlı Yayında!
+                                                </span>
+                                            ) : timeLeftStr ? (
                                                 <span className="flex items-center gap-1 text-xs font-bold bg-black/20 px-2 py-1 rounded-lg">
                                                     <Clock size={12} /> {timeLeftStr}
                                                 </span>
-                                            )}
+                                            ) : null}
                                         </div>
                                         <h2 className="text-3xl font-black font-display mb-1">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
                                     </div>
                                     <button 
                                         disabled={!isClassActive}
-                                        onClick={async () => {
+                                        onClick={() => {
                                             const courseIdToJoin = liveCourseId || nextLessonData?.courseId;
                                             if (!isClassActive || !courseIdToJoin) return;
-                                            try {
-                                                const jitsiRes = await api.get(`/jitsi/token/${courseIdToJoin}`);
-                                                const { token, room, domain } = jitsiRes.data;
-                                                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                                                window.open(url, "_blank");
-                                            } catch (err) {
-                                                console.warn("Jitsi JWT hatası, public odaya bağlanılıyor:", err);
-                                                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseIdToJoin}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                                                window.open(fallbackUrl, "_blank");
-                                            }
+                                            handleJoinLiveClick(courseIdToJoin);
                                         }}
                                         className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
                                             isClassActive
-                                                ? 'bg-white text-orange-600 hover:scale-105 animate-bounce cursor-pointer'
+                                                ? 'bg-white text-orange-655 hover:scale-105 animate-bounce cursor-pointer'
                                                 : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
                                         }`}
                                     >
@@ -569,63 +743,82 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                             {/* Calendar Grid */}
                             <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm flex-1">
                                 <div className="space-y-4">
-                                    {schedule.map((slot) => (
-                                        <div key={slot.id} className="group">
-                                            <div className="flex items-start gap-4">
-                                                {/* Time Column */}
-                                                <div className="w-16 flex flex-col items-center pt-2">
-                                                    <span className="font-black text-gray-800">{slot.time}</span>
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">{slot.day}</span>
-                                                </div>
+                                    {getWeeklyEvents(schedule).map((slot) => {
+                                        const isLiveNow = isClassActive && String(slot.courseId) === String(liveCourseId);
+                                        return (
+                                            <div key={slot.id} className="group">
+                                                <div className="flex items-start gap-4">
+                                                    {/* Time Column */}
+                                                    <div className="w-16 flex flex-col items-center pt-2">
+                                                        <span className="font-black text-gray-800">{slot.time}</span>
+                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{slot.day}</span>
+                                                    </div>
 
-                                                {/* Content Block */}
-                                                <div className="flex-1">
-                                                    {slot.type === 'live' ? (
-                                                        <div className={`p-4 rounded-2xl border-l-[6px] ${slot.color} transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer relative overflow-hidden`}>
-                                                            <div className="flex justify-between items-center relative z-10">
+                                                    {/* Content Block */}
+                                                    <div className="flex-1">
+                                                        {slot.type === 'live' ? (
+                                                            <div className={`p-4 rounded-2xl border-l-[6px] ${isLiveNow ? 'bg-emerald-50 border-emerald-300 text-emerald-800 border-l-emerald-500' : slot.color} transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer relative overflow-hidden`}>
+                                                                <div className="flex justify-between items-center relative z-10">
+                                                                    <div>
+                                                                        <h4 className="font-black text-base mb-1">{slot.title}</h4>
+                                                                        <div className="flex items-center gap-2 text-xs font-bold opacity-80">
+                                                                            <Video size={14} />
+                                                                            <span>Canlı Ders</span>
+                                                                            {slot.sectionTitle && (
+                                                                                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ders {slot.lessonIndex}: {slot.sectionTitle}</span>
+                                                                            )}
+                                                                            {isLiveNow ? (
+                                                                                <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-black animate-pulse">CANLI YAYINDA</span>
+                                                                            ) : slot.status === 'completed' ? (
+                                                                                <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold">TAMAMLANDI</span>
+                                                                            ) : null}
+                                                                        </div>
+                                                                    </div>
+                                                                    {isLiveNow ? (
+                                                                        <button 
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                if (slot.courseId) handleJoinLiveClick(slot.courseId);
+                                                                            }}
+                                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
+                                                                        >
+                                                                            <Play size={12} fill="currentColor" />
+                                                                            Derse Katıl
+                                                                        </button>
+                                                                    ) : slot.status === 'completed' ? (
+                                                                        <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center">
+                                                                            <CheckCircle size={18} />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <button className="bg-white/80 p-2 rounded-lg hover:bg-white transition-colors border border-gray-150">
+                                                                            <ChevronRight size={20} />
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : slot.type === 'reserved' ? (
+                                                            <div className="p-4 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50 flex items-center justify-between">
                                                                 <div>
-                                                                    <h4 className="font-black text-base mb-1">{slot.title}</h4>
-                                                                    <div className="flex items-center gap-2 text-xs font-bold opacity-80">
-                                                                        <Video size={14} />
-                                                                        <span>Canlı Ders</span>
-                                                                        {slot.status === 'upcoming' && slot.duration && (
-                                                                            <span className="bg-white/50 px-2 py-0.5 rounded text-red-600 animate-pulse">{slot.duration}</span>
-                                                                        )}
+                                                                    <h4 className="font-black text-indigo-900 text-sm mb-1">{slot.title}</h4>
+                                                                    <span className="text-xs font-bold text-indigo-400">Onay Bekliyor</span>
+                                                                </div>
+                                                                <div className="bg-indigo-200 px-3 py-1 rounded-lg text-xs font-bold text-indigo-700">1-on-1</div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="h-16 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center group-hover:border-gray-300 transition-colors cursor-pointer group/empty">
+                                                                <div className="flex items-center gap-2 opacity-0 group-hover/empty:opacity-100 transition-opacity">
+                                                                    <span className="text-xs font-bold text-gray-400">Ders Ayarla</span>
+                                                                    <div className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-black">
+                                                                        <Gem size={10} /> 50
                                                                     </div>
                                                                 </div>
-                                                                {slot.status === 'completed' ? (
-                                                                    <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center">
-                                                                        <CheckCircle size={18} />
-                                                                    </div>
-                                                                ) : (
-                                                                    <button className="bg-white/80 p-2 rounded-lg hover:bg-white transition-colors">
-                                                                        <ChevronRight size={20} />
-                                                                    </button>
-                                                                )}
                                                             </div>
-                                                        </div>
-                                                    ) : slot.type === 'reserved' ? (
-                                                        <div className="p-4 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50 flex items-center justify-between">
-                                                            <div>
-                                                                <h4 className="font-black text-indigo-900 text-sm mb-1">{slot.title}</h4>
-                                                                <span className="text-xs font-bold text-indigo-400">Onay Bekliyor</span>
-                                                            </div>
-                                                            <div className="bg-indigo-200 px-3 py-1 rounded-lg text-xs font-bold text-indigo-700">1-on-1</div>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="h-16 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center group-hover:border-gray-300 transition-colors cursor-pointer group/empty">
-                                                            <div className="flex items-center gap-2 opacity-0 group-hover/empty:opacity-100 transition-opacity">
-                                                                <span className="text-xs font-bold text-gray-400">Ders Ayarla</span>
-                                                                <div className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-black">
-                                                                    <Gem size={10} /> 50
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         </div>

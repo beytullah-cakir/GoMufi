@@ -422,7 +422,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         const eventMinutes = evtHour * 60 + evtMin;
         const currentMinutes = currentHour * 60 + currentMin;
 
-        // Allow launching up to 15 minutes before the scheduled time
         return currentMinutes >= eventMinutes - 15;
     };
 
@@ -430,8 +429,8 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
     const renderDayCell = (dayNum: number, isPlaceholder: boolean = false, isPrev: boolean = false) => {
         if (isPlaceholder) {
             return (
-                <div key={`${isPrev ? 'prev' : 'next'}-${dayNum}`} className="h-32 border border-gray-100 rounded-2xl p-2.5 bg-gray-50/50 opacity-40 select-none">
-                    <span className="text-xs font-bold text-gray-400">{dayNum}</span>
+                <div key={`${isPrev ? 'prev' : 'next'}-${dayNum}`} className="h-32 border border-dashed border-slate-200 rounded-2xl p-2.5 bg-slate-50/20 opacity-30 select-none">
+                    <span className="text-xs font-bold text-slate-400">{dayNum}</span>
                 </div>
             );
         }
@@ -439,9 +438,9 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         const dayEvents = monthlyEvents.filter(e => e.dayNum === dayNum);
 
         return (
-            <div key={`day-${dayNum}`} className="h-32 border border-gray-100 rounded-2xl p-2.5 relative hover:border-sky-100 hover:shadow-md transition-all duration-200 group bg-white cursor-pointer flex flex-col justify-between">
+            <div key={`day-${dayNum}`} className="h-32 border-2 border-b-4 border-slate-200 rounded-2xl p-2.5 relative hover:border-sky-300 hover:border-b-sky-400 hover:shadow-sm transition-all duration-200 group bg-white cursor-pointer flex flex-col justify-between">
                 <div>
-                    <span className="text-xs font-black text-gray-750">{dayNum}</span>
+                    <span className="text-xs font-black text-slate-800">{dayNum}</span>
                     <div className="mt-1.5 space-y-1.5 overflow-y-auto max-h-[85px] no-scrollbar">
                         {dayEvents.map((event, idx) => {
                             const startable = isEventStartable(event.day, event.time, dayNum);
@@ -454,7 +453,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                     <span className="block font-extrabold truncate">{event.courseTitle}</span>
                                     <span className="block font-extrabold text-[8px] opacity-75 truncate">{event.className}</span>
                                     {event.sectionTitle && (
-                                        <span className="block text-[8px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100/50 rounded px-1.5 py-0.5 mt-0.5 truncate">
+                                        <span className="block text-[8px] font-black text-indigo-650 bg-indigo-50 border border-indigo-100/50 rounded px-1.5 py-0.5 mt-0.5 truncate">
                                             Ders {event.lessonIndex}: {event.sectionTitle}
                                         </span>
                                     )}
@@ -467,7 +466,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                                 handleStartClassEvent(event);
                                             }}
                                             disabled={startingSessionId !== null}
-                                            className="mt-1.5 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[8px] py-1 rounded flex items-center justify-center gap-0.5 shadow-sm transition-all"
+                                            className="mt-1.5 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8px] py-1 rounded flex items-center justify-center gap-0.5 shadow-sm transition-all cursor-pointer"
                                         >
                                             {startingSessionId === event.courseId ? (
                                                 <Loader2 size={8} className="animate-spin" />
@@ -492,7 +491,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         <div className="space-y-6 animate-fade-in-down">
             {/* Active Session Warning Banner */}
             {activeSession && (
-                <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-5 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-sm animate-pulse select-text">
+                <div className="bg-amber-50 border-2 border-b-[6px] border-amber-300 rounded-[2rem] p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md select-text">
                     <div className="flex items-center gap-3.5">
                         <span className="text-3xl">⏰</span>
                         <div>
@@ -511,7 +510,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                 setActiveLessonIndex(activeSession.lessonIndex);
                                 setShowLessonSlide(true);
                             }}
-                            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs rounded-xl shadow-md transition-all active:scale-98 cursor-pointer border-b-[3px] border-amber-700 active:border-b-0"
+                            className="px-5 py-2.5 bg-amber-550 hover:bg-amber-500 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-sm transition-all active:translate-y-[2px] active:border-b-2 cursor-pointer border-2 border-b-4 border-amber-700"
                         >
                             Derse Devam Et
                         </button>
@@ -526,7 +525,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                     alert("Ders sonlandırılırken hata oluştu.");
                                 }
                             }}
-                            className="px-5 py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-xs rounded-xl transition-all active:scale-98 cursor-pointer border-b-[3px] border-gray-450 active:border-b-0"
+                            className="px-5 py-2.5 bg-white hover:bg-slate-50 text-slate-600 font-black text-xs uppercase tracking-wider rounded-xl transition-all active:translate-y-[2px] active:border-b-2 cursor-pointer border-2 border-b-4 border-slate-200"
                         >
                             Dersi Sonlandır
                         </button>
@@ -537,23 +536,31 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
             {/* Header section */}
             <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
                 <div>
-                    <h2 className="text-2xl font-black text-gray-800 font-display">Takvim & Planlama</h2>
-                    <p className="text-gray-400 font-bold text-xs mt-1">Sınıflarınıza ait yayın saatlerini yönetin.</p>
+                    <h2 className="text-2xl font-black text-slate-800 font-display">Takvim & Planlama</h2>
+                    <p className="text-slate-400 font-bold text-xs mt-1">Sınıflarınıza ait yayın saatlerini yönetin.</p>
                 </div>
 
                 <div className="flex items-center gap-3">
                     {/* View Switcher Tabs */}
-                    <div className="bg-white p-1 rounded-2xl border-2 border-gray-200 flex shadow-sm">
+                    <div className="bg-white p-1.5 rounded-2xl border-2 border-b-4 border-slate-200 flex shadow-sm gap-1">
                         <button
                             onClick={() => setActiveTab('month')}
-                            className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'month' ? 'bg-sky-500 text-white shadow-md animate-in fade-in duration-200' : 'text-gray-400 hover:text-gray-650'}`}
+                            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:translate-y-[1px] flex items-center gap-1.5 whitespace-nowrap ${
+                                activeTab === 'month' 
+                                    ? 'bg-slate-900 border-2 border-b-2 border-black text-white shadow-sm' 
+                                    : 'text-slate-400 hover:text-slate-700 bg-transparent border-2 border-transparent'
+                            }`}
                         >
                             <LayoutGrid size={14} />
                             Aylık Takvim
                         </button>
                         <button
                             onClick={() => setActiveTab('week')}
-                            className={`px-5 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'week' ? 'bg-sky-500 text-white shadow-md animate-in fade-in duration-200' : 'text-gray-400 hover:text-gray-650'}`}
+                            className={`px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition-all active:translate-y-[1px] flex items-center gap-1.5 whitespace-nowrap ${
+                                activeTab === 'week' 
+                                    ? 'bg-slate-900 border-2 border-b-2 border-black text-white shadow-sm' 
+                                    : 'text-slate-400 hover:text-slate-700 bg-transparent border-2 border-transparent'
+                            }`}
                         >
                             <LayoutList size={14} />
                             Haftalık
@@ -562,10 +569,10 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
 
                     {/* Date Navigation */}
                     {activeTab === 'month' && (
-                        <div className="flex items-center bg-white rounded-2xl border-2 border-gray-200 p-1 shadow-sm">
-                            <button onClick={handlePrevMonth} className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-800 transition-colors"><ChevronLeft size={16} /></button>
-                            <span className="px-3 font-black text-gray-700 text-xs tracking-tight">{monthNames[currentMonth]} {currentYear}</span>
-                            <button onClick={handleNextMonth} className="p-2 hover:bg-gray-50 rounded-xl text-gray-400 hover:text-gray-800 transition-colors"><ChevronRight size={16} /></button>
+                        <div className="flex items-center bg-white rounded-2xl border-2 border-b-4 border-slate-200 p-1 shadow-sm">
+                            <button onClick={handlePrevMonth} className="p-2 hover:bg-slate-50 border-2 border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"><ChevronLeft size={16} /></button>
+                            <span className="px-3 font-black text-slate-700 text-xs tracking-tight">{monthNames[currentMonth]} {currentYear}</span>
+                            <button onClick={handleNextMonth} className="p-2 hover:bg-slate-50 border-2 border-transparent hover:border-slate-200 rounded-xl text-slate-400 hover:text-slate-800 transition-colors cursor-pointer"><ChevronRight size={16} /></button>
                         </div>
                     )}
                 </div>
@@ -576,13 +583,13 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                 {/* Left Sidebar: Sınıflar list */}
                 <div className="col-span-12 lg:col-span-3 space-y-4">
                     <div className="flex items-center justify-between">
-                        <h3 className="font-black text-gray-750 text-sm">Sınıflarım</h3>
+                        <h3 className="font-black text-slate-800 text-sm">Sınıflarım</h3>
                         <button 
                             onClick={() => setSelectedClassId(null)}
-                            className={`text-xs font-black px-2.5 py-1 rounded-lg border transition-all ${
+                            className={`text-xs font-black px-3 py-1 rounded-xl border-2 transition-all cursor-pointer ${
                                 !selectedClassId 
-                                    ? 'bg-sky-50 border-sky-200 text-sky-600 font-extrabold' 
-                                    : 'bg-white border-gray-200 text-gray-400 hover:border-gray-300 hover:text-gray-750'
+                                    ? 'bg-sky-50 border-b-2 border-sky-300 text-sky-600' 
+                                    : 'bg-white border-b-2 border-slate-250 text-slate-500 hover:border-slate-350'
                             }`}
                         >
                             Tümü
@@ -600,17 +607,17 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                     onClick={() => setSelectedClassId(cls.id)}
                                     className={`p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 ${
                                         isSelected 
-                                            ? 'bg-white border-sky-500 border-b-4 shadow-md -translate-y-0.5' 
-                                            : 'bg-white border-gray-100 border-b-4 hover:border-sky-300 hover:shadow-sm hover:-translate-y-0.5'
+                                            ? 'bg-white border-sky-400 border-b-[6px] shadow-md hover:scale-[1.01]' 
+                                            : 'bg-white border-slate-200 border-b-4 hover:border-sky-300 hover:scale-[1.01]'
                                     }`}
                                 >
-                                    <h4 className="font-black text-xs text-gray-800 truncate mb-1">{cls.courseTitle}</h4>
+                                    <h4 className="font-black text-xs text-slate-850 truncate mb-1">{cls.courseTitle}</h4>
                                     <span className="text-[10px] font-black text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md w-fit border border-sky-100/50 mb-2 block">
                                         {cls.name}
                                     </span>
                                     
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400">
+                                        <div className="flex items-center gap-1.5 text-[10px] font-black text-slate-400">
                                             <Users size={12} />
                                             <span>{cls.studentsCount} Öğrenci</span>
                                         </div>
@@ -623,7 +630,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                                 </div>
                                             ))}
                                             {scheduleList.length === 0 && (
-                                                <span className="text-[9px] font-bold text-gray-400 italic block mt-1">Planlama yok</span>
+                                                <span className="text-[9px] font-bold text-slate-400 italic block mt-1">Planlama yok</span>
                                             )}
                                         </div>
                                     </div>
@@ -631,7 +638,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                             );
                         })}
                         {calendarClasses.length === 0 && (
-                            <p className="text-xs font-bold text-gray-400 text-center py-8">Henüz aktif bir sınıf bulunmuyor.</p>
+                            <p className="text-xs font-bold text-slate-400 text-center py-8">Henüz aktif bir sınıf bulunmuyor.</p>
                         )}
                     </div>
                 </div>
@@ -640,11 +647,11 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                 <div className="col-span-12 lg:col-span-9 space-y-4">
                     {activeTab === 'month' ? (
                         /* Monthly View Calendar Grid */
-                        <div className="bg-white border-2 border-gray-100 rounded-3xl shadow-sm p-6 overflow-hidden animate-in fade-in zoom-in duration-300">
+                        <div className="bg-white border-2 border-b-[8px] border-slate-200 rounded-[2.5rem] shadow-xl p-6 overflow-hidden animate-in fade-in zoom-in duration-300">
                             {/* Days Header */}
                             <div className="grid grid-cols-7 text-center mb-4">
                                 {dayNames.map(day => (
-                                    <div key={day} className="text-xs font-black text-gray-400 uppercase tracking-wider">{day}</div>
+                                    <div key={day} className="text-xs font-black text-slate-400 uppercase tracking-wider">{day}</div>
                                 ))}
                             </div>
                             
@@ -671,10 +678,10 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                     : [];
                                     
                                 return (
-                                    <div key={dayName} className="col-span-7 md:col-span-1 bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 min-h-[300px] flex flex-col hover:border-sky-150 hover:shadow-sm transition-all duration-300">
-                                        <div className="text-center border-b border-gray-100 pb-2 mb-3">
-                                            <span className="text-xs font-black text-gray-500 uppercase tracking-widest block">{dayName}</span>
-                                            <span className="text-[10px] font-black text-gray-400 block mt-0.5">{dateOfIndex.getDate()} {monthNames[dateOfIndex.getMonth()]}</span>
+                                    <div key={dayName} className="col-span-7 md:col-span-1 bg-white border-2 border-b-[6px] border-slate-200 rounded-2xl p-4 min-h-[300px] flex flex-col hover:border-sky-300 hover:border-b-sky-450 hover:shadow-sm transition-all duration-300">
+                                        <div className="text-center border-b border-slate-100 pb-2 mb-3">
+                                            <span className="text-xs font-black text-slate-800 uppercase tracking-widest block">{dayName}</span>
+                                            <span className="text-[10px] font-black text-slate-400 block mt-0.5">{dateOfIndex.getDate()} {monthNames[dateOfIndex.getMonth()]}</span>
                                         </div>
                                         <div className="flex-1 space-y-2.5 overflow-y-auto custom-scrollbar">
                                             {dayEvents.map((event, idx) => {
@@ -700,7 +707,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                                             <button
                                                                 onClick={() => handleStartClassEvent(event)}
                                                                 disabled={startingSessionId !== null}
-                                                                className="mt-2 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-[9px] py-1 rounded flex items-center justify-center gap-1 shadow-sm transition-all"
+                                                                className="mt-2 w-full bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[9px] py-1 rounded flex items-center justify-center gap-1 shadow-sm transition-all cursor-pointer"
                                                             >
                                                                 {startingSessionId === event.courseId ? (
                                                                     <Loader2 size={10} className="animate-spin" />
@@ -717,7 +724,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                                             })}
                                             {dayEvents.length === 0 && (
                                                 <div className="h-full flex items-center justify-center text-center opacity-40 py-12">
-                                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Boş</span>
+                                                    <span className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Boş</span>
                                                 </div>
                                             )}
                                         </div>
@@ -728,9 +735,9 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     )}
 
                     {/* Debug Mode Switcher */}
-                    <div className="bg-amber-50 border border-amber-200 p-4 rounded-3xl flex items-center justify-between shadow-sm max-w-md animate-in fade-in duration-300">
+                    <div className="bg-amber-50 border-2 border-b-[6px] border-amber-200 p-4 rounded-3xl flex items-center justify-between shadow-sm max-w-md animate-in fade-in duration-300">
                         <div className="flex gap-3 items-center">
-                            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 font-bold">⚙️</div>
+                            <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-b-2 border-amber-200 flex items-center justify-center text-amber-600 font-bold">⚙️</div>
                             <div>
                                 <h4 className="text-xs font-black text-amber-900">Hızlı Ders Başlatma (Debug Modu)</h4>
                                 <p className="text-[10px] text-amber-700 font-bold">Aktifken, saati veya tarihi gelmeyen dersler de anında takvimden başlatılabilir.</p>

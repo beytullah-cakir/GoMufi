@@ -23,6 +23,8 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   onNavigate,
   userData,
 }) => {
+  const isAdmin = userData?.role === "admin" || localStorage.getItem("role") === "admin";
+
   const navItems = [
     {
       label: "Panel",
@@ -44,12 +46,6 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: Users,
       id: "Classes",
     },
-    // MVP'de Ders Oluşturucu devre dışı
-    // {
-    //   label: "Ders Oluşturucu",
-    //   icon: PlusCircle,
-    //   id: "Builder",
-    // },
     {
       label: "Profilim",
       icon: User,
@@ -70,11 +66,15 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       icon: BookOpen,
       id: "HomeworkSubmissions",
     },
-    // {
-    //   label: "İstatistikler",
-    //   icon: BarChart3,
-    //   id: "Analytics",
-    // },
+    ...(isAdmin
+      ? [
+          {
+            label: "Metrikler",
+            icon: BarChart3,
+            id: "Metrics",
+          },
+        ]
+      : []),
   ];
 
   return (

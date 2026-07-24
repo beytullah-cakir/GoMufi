@@ -72,7 +72,7 @@ const generateLessonNodes = (
     lessonNumber?: number
 ): PathNode[] => {
     const metadata = getNodeMetadata(startId - 1, theme);
-    
+
     return [
         {
             id: startId,
@@ -117,7 +117,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
         // Check if curriculum exists and has sections
         const curriculum = course.curriculum || [];
-        
+
         if (curriculum.length > 0) {
             const dynamicNodes: PathNode[] = [];
 
@@ -141,12 +141,12 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                     section.lessonTopic,
                     section.lessonNumber
                 );
-                
+
                 const processedNodes = lessonNodes.map(node => ({
                     ...node,
                     isLocked: node.id > 1 && node.id > (progress + 1)
                 }));
-                
+
                 dynamicNodes.push(...processedNodes);
             });
 
@@ -232,7 +232,7 @@ function StudentApp() {
         }
     };
     const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
-    
+
     // Page to Path mapping
     const pageToPath: Record<string, string> = {
         'Ana Sayfa': '/student/home',
@@ -259,7 +259,7 @@ function StudentApp() {
     // Effect to sync URL -> State (Handle browser back/forward and initial load)
     useEffect(() => {
         const path = location.pathname;
-        
+
         // Handle course detail specifically
         if (path.startsWith('/student/catalog/')) {
             const idMatch = path.match(/\/student\/catalog\/(\d+)/);
@@ -284,7 +284,7 @@ function StudentApp() {
     // Effect to sync State -> URL (Update URL when user clicks menu)
     useEffect(() => {
         let targetPath = pageToPath[activePage] || '/student/home';
-        
+
         // Override if in course detail
         if (activePage === 'Kurslar' && selectedCourseForDetail) {
             targetPath = `/student/catalog/${selectedCourseForDetail}`;
@@ -339,7 +339,7 @@ function StudentApp() {
                         newMap[c.title] = `${c.teacher.first_name} ${c.teacher.last_name}`;
                     }
                 });
-                
+
                 setInstructorsMap(newMap);
 
                 // Update purchased courses (Overwrite with full objects)
@@ -366,7 +366,7 @@ function StudentApp() {
     useEffect(() => {
         const newCourseData = generateCourseData(purchasedCourses, instructorsMap);
         setCourses(newCourseData);
-        
+
         // If current active course doesn't exist anymore or it's empty, pick the first one
         const availableCourseKeys = Object.keys(newCourseData);
         if (activeCourseId === '' && availableCourseKeys.length > 0) {
@@ -399,9 +399,9 @@ function StudentApp() {
             title: item.title,
             curriculum: [{ title: 'Giriş', lectures: [] }] // Default curriculum for new purchase
         }));
-        
+
         const newPurchased = [...purchasedCourses, ...newPurchasedFromCart];
-        
+
         // Save instructors from cart
         const newMap = { ...instructorsMap };
         cart.forEach(item => {
@@ -422,7 +422,7 @@ function StudentApp() {
 
         // Redirect to Home or Courses
         setActivePage('Ana Sayfa');
-        
+
         // Update active course if currently empty
         if (activeCourseId === '' && newPurchased.length > 0) {
             const course = newPurchased[0];
@@ -492,23 +492,37 @@ function StudentApp() {
                                     setSelectedCourseForDetail(null);
                                 }}
                                 isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
+                                onEnrollSuccess={() => {
+                                    refreshUserData();
+                                    setSelectedCourseForDetail(null);
+                                    setActivePage('Kurslarım');
+                                }}
                             />
                         ) : (
-                            <CoursesPage 
-                                onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
+                            <CoursesPage
+                                onSelectCourse={(id) => setSelectedCourseForDetail(id)}
                                 purchasedCourseIds={purchasedCourseIds}
                                 onGoToMyCourses={() => setActivePage('Kurslarım')}
                             />
                         )
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
-                        <ProfilePage 
-                            userData={userData} 
-                            isLoading={isUserDataLoading} 
-                            courses={courses} 
-                            currentCourse={currentCourse} 
+                        <ProfilePage
+                            userData={userData}
+                            isLoading={isUserDataLoading}
+                            courses={courses}
+                            currentCourse={currentCourse}
                         />
                     ) : activePage === 'Kurslarım' ? (
-                        <ContentPage purchasedCourses={purchasedCourses} onOpenJoinModal={() => {}} />
+                        <ContentPage
+                            purchasedCourses={purchasedCourses}
+                            onOpenJoinModal={() => setActivePage('Sınıflarım')}
+                            userData={userData}
+                            onJoinLiveClass={(courseId) => {
+                                handleCourseChange(courseId);
+                                setActivePage('Ana Sayfa');
+                                setIsLiveSessionJoined(true);
+                            }}
+                        />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
                     ) : activePage === 'Sınıflarım' ? (
@@ -519,15 +533,15 @@ function StudentApp() {
                                 window.location.href = '/student/my-classes';
                             }}
                         />
-                    /* MVP'de Sepetim/Ödeme sayfası devre dışı
-                    ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
-                        <StudentPayment
-                            cart={cart}
-                            removeFromCart={removeFromCart}
-                            onBack={() => setActivePage('Kurslar')}
-                            onPurchaseComplete={completePurchase}
-                        />
-                    */
+                        /* MVP'de Sepetim/Ödeme sayfası devre dışı
+                        ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
+                            <StudentPayment
+                                cart={cart}
+                                removeFromCart={removeFromCart}
+                                onBack={() => setActivePage('Kurslar')}
+                                onPurchaseComplete={completePurchase}
+                            />
+                        */
                     ) : (
                         <div className="p-8">
                             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>
