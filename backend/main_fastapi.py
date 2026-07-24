@@ -54,7 +54,10 @@ async def lifespan(app: FastAPI):
             try:
                 await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS classes JSON DEFAULT '[]';"))
                 await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS start_date VARCHAR(50);"))
-                logger.info("Database migration: classes and start_date columns checked/added.")
+                await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS details VARCHAR;"))
+                await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_id INTEGER;"))
+                await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_title VARCHAR;"))
+                logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")
             

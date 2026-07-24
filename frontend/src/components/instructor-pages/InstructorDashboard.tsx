@@ -191,23 +191,23 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
   return (
     <div className="space-y-8 animate-fade-in-down pb-10">
       {/* Banner / Header Row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 p-8 rounded-[2.5rem] border border-indigo-900 shadow-2xl relative overflow-hidden">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 p-8 rounded-[2.5rem] border-2 border-b-[8px] border-indigo-950 shadow-2xl relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(124,58,237,0.15),transparent_60%)]"></div>
         <div className="absolute -top-12 -left-12 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl"></div>
         
         <div className="relative z-10">
           <div className="flex items-center gap-2 mb-2.5">
-            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 px-3 py-1 rounded-full border border-indigo-500/30">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-500/20 text-indigo-300 px-3 py-1.5 rounded-xl border border-indigo-500/30">
               Eğitmen Paneli
             </span>
-            <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 px-3 py-1 rounded-full border border-purple-500/30">
+            <span className="text-[10px] font-black uppercase tracking-wider bg-purple-500/20 text-purple-300 px-3 py-1.5 rounded-xl border border-purple-500/30">
               GoMufi Copilot Aktif
             </span>
           </div>
           <h1 className="text-3xl font-black text-white tracking-tight font-display">
             Hoş Geldiniz, {userProfile?.firstName || userData?.first_name || "Hocam"}! 👋
           </h1>
-          <p className="text-sm text-indigo-200 mt-1 font-medium">
+          <p className="text-sm text-indigo-200 mt-1 font-bold">
             Öğrencilerinizin genel başarısı bugün %5 daha yüksek. Harika gidiyorsunuz!
           </p>
         </div>
@@ -215,7 +215,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
         <div className="relative z-10 flex items-center gap-3">
           <button 
             onClick={() => handleNavigate("Courses")}
-            className="px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 active:scale-95 text-white font-black rounded-2xl shadow-[0_4px_0_rgba(79,70,229,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase tracking-wider flex items-center gap-2"
+            className="px-5 py-3.5 bg-indigo-600 hover:bg-indigo-500 active:translate-y-[2px] active:border-b-2 text-white font-black rounded-2xl border-2 border-b-4 border-indigo-800 shadow-sm transition-all text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
             <BookOpen size={16} />
             Kurslarımı Yönet
@@ -223,7 +223,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
           
           <button 
             onClick={() => handleNavigate("Calendar")}
-            className="px-5 py-3.5 bg-purple-600 hover:bg-purple-500 active:scale-95 text-white font-black rounded-2xl shadow-[0_4px_0_rgba(147,51,234,0.3)] hover:translate-y-[2px] transition-all text-xs uppercase tracking-wider flex items-center gap-2"
+            className="px-5 py-3.5 bg-purple-600 hover:bg-purple-500 active:translate-y-[2px] active:border-b-2 text-white font-black rounded-2xl border-2 border-b-4 border-purple-800 shadow-sm transition-all text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
             <Calendar size={16} />
             Ajanda
@@ -323,20 +323,20 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
         <div className="lg:col-span-8 space-y-8">
           
           {/* 1. Bugün Yapılacaklar (Today's Tasks) */}
-          <div className="bg-gradient-to-br from-indigo-50/50 to-white rounded-[2.5rem] border-2 border-indigo-100/50 shadow-sm p-8 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/30 rounded-full blur-3xl -translate-y-6 translate-x-6"></div>
+          <div className="bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl p-8 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-100/10 rounded-full blur-3xl -translate-y-6 translate-x-6"></div>
             
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 border-2 border-b-4 border-indigo-200 text-indigo-600 flex items-center justify-center">
                   <Flame size={20} className="animate-bounce" />
                 </div>
                 <div>
                   <h3 className="font-black text-gray-800 text-lg tracking-tight">Bugün Yapılacaklar</h3>
-                  <p className="text-xs text-gray-400 font-bold">Takip etmeniz gereken en önemli başlıklar</p>
+                  <p className="text-xs text-slate-400 font-bold">Takip etmeniz gereken en önemli başlıklar</p>
                 </div>
               </div>
-              <span className="text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-3 py-1 rounded-full uppercase tracking-wider">
+              <span className="text-[9px] font-black text-white bg-purple-500 border border-b-2 border-purple-600 px-3 py-1.5 rounded-xl uppercase tracking-widest">
                 🔥 Günün Görevleri
               </span>
             </div>
@@ -345,29 +345,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               {/* Task 1 */}
               <div 
                 onClick={() => handleNavigate("Students")}
-                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+                className="flex items-start gap-4 p-4 bg-slate-50/50 hover:bg-white border-2 border-b-4 border-slate-200 hover:border-indigo-400 hover:border-b-indigo-500 rounded-2xl transition-all cursor-pointer group/item"
               >
-                <div className="w-9 h-9 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 border-2 border-b-4 border-orange-200 flex items-center justify-center shrink-0">
                   <GraduationCap size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">12 Öğrenci Ödev Bekliyor</h5>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">Teslim edilen ödevleri inceleyip puanlayın.</p>
-                </div>
-                <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
-              </div>
-
-              {/* Task 2 (Disabled in MVP) */}
-              {/* <div 
-                onClick={() => handleNavigate("Analytics")}
-                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
-              >
-                <div className="w-9 h-9 rounded-xl bg-red-50 text-red-500 flex items-center justify-center shrink-0">
-                  <AlertTriangle size={18} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Python Quiz 2 Kalanlar</h5>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">Python kursunda 5 kişi Quiz 2 barajında takıldı.</p>
+                  <h5 className="text-sm font-black text-gray-800 group-hover/item:text-indigo-605 transition-colors">12 Öğrenci Ödev Bekliyor</h5>
+                  <p className="text-[11px] text-gray-400 font-bold mt-0.5">Teslim edilen ödevleri inceleyip puanlayın.</p>
                 </div>
                 <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
               </div>
@@ -375,14 +360,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               {/* Task 3 */}
               <div 
                 onClick={() => handleNavigate("Calendar")}
-                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+                className="flex items-start gap-4 p-4 bg-slate-50/50 hover:bg-white border-2 border-b-4 border-slate-200 hover:border-indigo-400 hover:border-b-indigo-500 rounded-2xl transition-all cursor-pointer group/item"
               >
-                <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-500 border-2 border-b-4 border-indigo-200 flex items-center justify-center shrink-0">
                   <Video size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Bugün saat 20.00 Canlı Ders</h5>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">Takvimdeki canlı sanal sınıf oturumuna katılın.</p>
+                  <h5 className="text-sm font-black text-gray-800 group-hover/item:text-indigo-605 transition-colors">Bugün saat 20.00 Canlı Ders</h5>
+                  <p className="text-[11px] text-gray-400 font-bold mt-0.5">Takvimdeki canlı sanal sınıf oturumuna katılın.</p>
                 </div>
                 <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
               </div>
@@ -390,14 +375,14 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               {/* Task 4 */}
               <div 
                 onClick={() => handleNavigate("Courses")}
-                className="flex items-start gap-4 p-4 bg-white hover:bg-indigo-50/30 border border-gray-100 hover:border-indigo-200 rounded-2xl hover:shadow-md transition-all cursor-pointer group/item"
+                className="flex items-start gap-4 p-4 bg-slate-50/50 hover:bg-white border-2 border-b-4 border-slate-200 hover:border-indigo-400 hover:border-b-indigo-500 rounded-2xl transition-all cursor-pointer group/item"
               >
-                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-500 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-500 border-2 border-b-4 border-purple-200 flex items-center justify-center shrink-0">
                   <Sparkles size={18} className="animate-pulse" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h5 className="text-sm font-bold text-gray-800 group-hover/item:text-indigo-600 transition-colors">Yapay Zeka ile Ders Oluştur</h5>
-                  <p className="text-xs text-gray-400 font-medium mt-0.5">Gemini AI ile hızlıca yeni modüller ekleyin.</p>
+                  <h5 className="text-sm font-black text-gray-800 group-hover/item:text-indigo-605 transition-colors">Yapay Zeka ile Ders Oluştur</h5>
+                  <p className="text-[11px] text-gray-400 font-bold mt-0.5">Gemini AI ile hızlıca yeni modüller ekleyin.</p>
                 </div>
                 <ChevronRight size={16} className="text-gray-300 group-hover/item:text-indigo-500 group-hover/item:translate-x-0.5 transition-all self-center" />
               </div>
@@ -411,50 +396,50 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               
               <button 
                 onClick={() => handleNavigate("Courses")}
-                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-indigo-50/50 border border-gray-150 hover:border-indigo-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-indigo-50/10 border-2 border-b-[6px] border-slate-200 hover:border-indigo-400 hover:border-b-indigo-500 rounded-[2rem] hover:shadow-md transition-all group active:translate-y-[2px] active:border-b-2 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 group-hover:bg-indigo-100 text-indigo-650 flex items-center justify-center mb-3 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 border-2 border-b-4 border-indigo-200 text-indigo-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-105">
                   <Plus size={24} strokeWidth={3} />
                 </div>
-                <span className="text-xs font-black text-gray-700 group-hover:text-indigo-600 uppercase tracking-wider transition-colors">Yeni Kurs</span>
+                <span className="text-xs font-black text-slate-700 group-hover:text-indigo-600 uppercase tracking-widest transition-colors">Yeni Kurs</span>
               </button>
 
               <button 
                 onClick={() => {
                   navigate("/instructor/courses", { state: { openAIModal: true } });
                 }}
-                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-purple-50/50 border border-gray-150 hover:border-purple-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-purple-50/10 border-2 border-b-[6px] border-slate-200 hover:border-purple-400 hover:border-b-purple-500 rounded-[2rem] hover:shadow-md transition-all group active:translate-y-[2px] active:border-b-2 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-purple-50 group-hover:bg-purple-100 text-purple-600 flex items-center justify-center mb-3 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-purple-50 border-2 border-b-4 border-purple-200 text-purple-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-105">
                   <Sparkles size={24} />
                 </div>
-                <span className="text-xs font-black text-gray-700 group-hover:text-purple-600 uppercase tracking-wider transition-colors">AI ile Kurs</span>
+                <span className="text-xs font-black text-slate-700 group-hover:text-purple-600 uppercase tracking-widest transition-colors">AI ile Kurs</span>
               </button>
 
               <button 
                 onClick={() => handleNavigate("Calendar")}
-                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-rose-50/50 border border-gray-150 hover:border-rose-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-rose-50/10 border-2 border-b-[6px] border-slate-200 hover:border-rose-400 hover:border-b-rose-500 rounded-[2rem] hover:shadow-md transition-all group active:translate-y-[2px] active:border-b-2 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-rose-50 group-hover:bg-rose-100 text-rose-600 flex items-center justify-center mb-3 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-rose-50 border-2 border-b-4 border-rose-200 text-rose-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-105">
                   <Video size={24} />
                 </div>
-                <span className="text-xs font-black text-gray-700 group-hover:text-rose-600 uppercase tracking-wider transition-colors">Canlı Başlat</span>
+                <span className="text-xs font-black text-slate-700 group-hover:text-rose-600 uppercase tracking-widest transition-colors">Canlı Başlat</span>
               </button>
 
               <button 
                 onClick={() => handleNavigate("Classes")}
-                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-emerald-50/50 border border-gray-150 hover:border-emerald-300 rounded-[2rem] hover:shadow-lg transition-all group active:scale-95"
+                className="flex flex-col items-center justify-center p-6 bg-white hover:bg-emerald-50/10 border-2 border-b-[6px] border-slate-200 hover:border-emerald-400 hover:border-b-emerald-500 rounded-[2rem] hover:shadow-md transition-all group active:translate-y-[2px] active:border-b-2 cursor-pointer"
               >
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 group-hover:bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 transition-colors">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 border-2 border-b-4 border-emerald-200 text-emerald-600 flex items-center justify-center mb-3 transition-transform group-hover:scale-105">
                   <Users size={24} />
                 </div>
-                <span className="text-xs font-black text-gray-700 group-hover:text-emerald-600 uppercase tracking-wider transition-colors">Sınıf Oluştur</span>
+                <span className="text-xs font-black text-slate-700 group-hover:text-emerald-600 uppercase tracking-widest transition-colors">Sınıf Oluştur</span>
               </button>
             </div>
           </div>
 
           {/* 4. Kurs Performansı (Course Performance) */}
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8">
+          <div className="bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl p-8">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-black text-gray-800 text-lg tracking-tight font-display">Kurs Performansı</h3>
@@ -462,7 +447,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               </div>
               <button 
                 onClick={() => handleNavigate("Courses")}
-                className="px-4 py-2 border-2 border-gray-100 text-gray-500 font-black rounded-xl hover:bg-gray-50 active:scale-95 transition-all text-xs uppercase tracking-wider"
+                className="px-4 py-2 bg-white border-2 border-b-4 border-slate-200 text-slate-600 font-black rounded-xl hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 transition-all text-xs uppercase tracking-wider cursor-pointer shadow-sm"
               >
                 Tümünü Gör
               </button>
@@ -486,29 +471,29 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                     <div 
                       key={course.id}
                       onClick={() => navigate(`/instructor/roadmap-builder/${course.id}`)}
-                      className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-gray-50 hover:bg-white border-2 border-transparent hover:border-indigo-100 rounded-3xl transition-all hover:shadow-md cursor-pointer group"
+                      className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-slate-50/50 hover:bg-white border-2 border-b-4 border-slate-200 hover:border-indigo-300 hover:border-b-indigo-400 rounded-3xl transition-all hover:shadow-sm cursor-pointer group"
                     >
                       <div className="flex items-center gap-4 flex-1">
-                        <div className={`w-12 h-12 rounded-2xl bg-${color}-50 text-${color}-600 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform`}>
+                        <div className={`w-12 h-12 rounded-2xl bg-${color}-50 border-2 border-b-4 border-${color}-200 text-${color}-600 flex items-center justify-center text-2xl shrink-0 group-hover:scale-105 transition-transform`}>
                           {course.title.toLowerCase().includes("python") ? "🐍" : "💻"}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h4 className="font-bold text-gray-800 text-sm group-hover:text-indigo-650 transition-colors truncate">
+                          <h4 className="font-black text-gray-800 text-sm group-hover:text-indigo-650 transition-colors truncate">
                             {course.title}
                           </h4>
                           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mt-2">
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50 border border-orange-100 px-2 py-0.5 rounded-lg">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-orange-600 bg-orange-50 border border-orange-200 px-2 py-0.5 rounded-lg">
                               🔥 {activeCount} aktif
                             </span>
-                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-lg">
+                            <span className="inline-flex items-center gap-1 text-[10px] font-black text-indigo-600 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-lg">
                               📈 %{completionRate} tamamlandı
                             </span>
                             {stuckCount > 0 ? (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-lg animate-pulse">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-lg animate-pulse">
                                 ⚠️ {stuckCount} kişi Quiz 2'de kaldı
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-600 bg-green-50 border border-green-100 px-2 py-0.5 rounded-lg">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-black text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-lg">
                                 ✅ Sorunsuz İlerliyor
                               </span>
                             )}
@@ -520,7 +505,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                         {/* Completion progress bar */}
                         <div className="hidden lg:block w-24 text-right pr-4 shrink-0">
                           <span className="text-[10px] font-black text-gray-400 block uppercase tracking-wider">İlerleme</span>
-                          <div className="w-full h-1.5 bg-gray-200 rounded-full mt-1.5 overflow-hidden">
+                          <div className="w-full h-2 bg-slate-100 border border-slate-200 rounded-full mt-1.5 overflow-hidden">
                             <div className={`h-full bg-${color}-500 rounded-full`} style={{ width: `${completionRate}%` }}></div>
                           </div>
                         </div>
@@ -530,7 +515,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                             e.stopPropagation();
                             navigate(`/instructor/roadmap-builder/${course.id}`);
                           }}
-                          className="px-4 py-2.5 bg-white border-2 border-gray-200 text-gray-600 hover:text-indigo-600 hover:border-indigo-300 font-black rounded-xl active:scale-95 transition-all text-xs uppercase tracking-wider shadow-sm"
+                          className="px-4 py-2.5 bg-white border-2 border-b-4 border-slate-200 text-slate-600 hover:text-indigo-600 hover:border-indigo-300 font-black rounded-xl active:translate-y-[2px] active:border-b-2 transition-all text-xs uppercase tracking-wider cursor-pointer shadow-sm"
                         >
                           Yönet
                         </button>
@@ -574,8 +559,8 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                 color: "rose"
               }
             ].map((stat, idx) => (
-              <div key={idx} className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-all group">
-                <div className={`w-10 h-10 rounded-2xl bg-${stat.color}-50 text-${stat.color}-500 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
+              <div key={idx} className="bg-white p-5 rounded-[2rem] border-2 border-b-[6px] border-slate-200 shadow-md hover:border-slate-350 hover:shadow-lg transition-all group">
+                <div className={`w-12 h-12 rounded-2xl bg-${stat.color}-50 border-2 border-b-4 border-${stat.color}-200 text-${stat.color}-600 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform`}>
                   {stat.icon}
                 </div>
                 <h4 className="text-xl font-black text-gray-800 tracking-tight leading-none mb-1 font-display">
@@ -589,16 +574,16 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
           </div>
 
           {/* 6. Son Aktiviteler (Recent Activities) */}
-          <div className="bg-white rounded-[2.5rem] border border-gray-100 shadow-sm p-8 relative overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl p-8 relative overflow-hidden">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h3 className="font-black text-gray-800 text-lg tracking-tight font-display">Son Aktiviteler</h3>
                 <p className="text-xs text-gray-400 font-bold">Öğrencilerinizin canlı öğrenme akışı</p>
               </div>
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-ping"></div>
+              <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-ping"></div>
             </div>
 
-            <div className="relative border-l-2 border-gray-100 pl-6 ml-2 space-y-6">
+            <div className="relative border-l-2 border-slate-200 pl-6 ml-2 space-y-6">
               {[
                 {
                   student: "Ali",
@@ -631,7 +616,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
               ].map((act, idx) => (
                 <div key={idx} className="relative group">
                   {/* Timeline dot */}
-                  <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white bg-${act.color}-500 group-hover:scale-125 transition-transform shrink-0`}></div>
+                  <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white bg-${act.color}-500 border-b-[3px] border-b-black/20 group-hover:scale-125 transition-transform shrink-0`}></div>
                   
                   <div className="flex items-start gap-3 min-w-0">
                     <span className="text-xl shrink-0 leading-none">{act.icon}</span>
@@ -642,7 +627,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                         </h5>
                         <span className="text-[9px] font-black text-gray-400 shrink-0 uppercase tracking-wider">{act.time}</span>
                       </div>
-                      <p className="text-xs text-gray-500 font-medium mt-0.5">{act.action}</p>
+                      <p className="text-xs text-gray-500 font-bold mt-0.5">{act.action}</p>
                     </div>
                   </div>
                 </div>

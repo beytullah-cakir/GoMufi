@@ -24,6 +24,7 @@ import {
   Upload,
   RefreshCw,
   Settings,
+  GripVertical,
 } from "lucide-react";
 import api from "../../api";
 
@@ -41,6 +42,7 @@ import ButtonDarkBlue from "../../assets/sprites/ButtonDarkBlue.png";
 import ButtonDarkPurple from "../../assets/sprites/ButtonDarkPurple.png";
 import QuestionIcon from "../../assets/sprites/Question.png";
 import BagIcon from "../../assets/sprites/Bag.png";
+import MufiLogo from "../../assets/sprites/MufiLogo.png";
 
 interface SectionNode {
   id: string | number;
@@ -116,7 +118,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       alert("Lütfen ders başlığı girin.");
       return;
     }
-    
+
     setIsRegeneratingLessonIndex(targetLessonNumber);
     try {
       const response = await api.post("/courses/suggest_lesson_modules", {
@@ -126,26 +128,26 @@ const InstructorRoadmapBuilder: React.FC = () => {
         audience: aiAudience,
         pdf_content: pdfContent || null
       });
-      
+
       if (response.data?.success && response.data?.modules) {
         const modules = response.data.modules;
         const objective = response.data.objective;
-        
+
         setSections((prevSections) => {
           const startIndex = prevSections.findIndex(s => s.lessonNumber === targetLessonNumber);
           if (startIndex === -1) return prevSections;
-          
+
           let endIndex = startIndex + 1;
           while (endIndex < prevSections.length && !prevSections[endIndex].lessonNumber) {
             endIndex++;
           }
-          
+
           const newNodes = modules.map((m: any, j: number) => {
             const isFirstModule = j === 0;
             const theme = getThemeFromModuleType(m.type);
             const levelId = `sec_ai_draft_${Date.now()}_${targetLessonNumber}_${j}_${Math.floor(Math.random() * 1000)}`;
-            const shortTitle = getShortTitle(m.topic) || `Ders ${targetLessonNumber}`;
-            
+            const shortTitle = getShortTitle(m.topic) || getShortTitle(lessonTopic) || `Modül ${j + 1}`;
+
             const node: any = {
               id: levelId,
               title: shortTitle,
@@ -155,19 +157,19 @@ const InstructorRoadmapBuilder: React.FC = () => {
               aiModuleTopic: m.topic || "",
               aiLessonObjective: objective || `Bu derste ${lessonTopic} konusu öğrenilecektir.`
             };
-            
+
             if (isFirstModule) {
               node.lessonTopic = lessonTopic;
               node.lessonNumber = targetLessonNumber;
             }
             return node;
           });
-          
+
           const updated = [...prevSections];
           updated.splice(startIndex, endIndex - startIndex, ...newNodes);
           return recalculateSectionsList(updated);
         });
-        
+
         // Also close edit panel in case active node was deleted/replaced
         setActiveNodeId(null);
       } else {
@@ -221,7 +223,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
     const sectionIndex = sections.findIndex(s => s.id === id);
     if (sectionIndex === -1) return;
     const section = sections[sectionIndex];
-    
+
     let lessonTitle = "";
     for (let i = sectionIndex; i >= 0; i--) {
       if (sections[i].lessonTopic !== undefined) {
@@ -229,7 +231,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
         break;
       }
     }
-    
+
     const siblingModules: any[] = [];
     let idx = sectionIndex;
     while (idx >= 0) {
@@ -297,7 +299,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
         setCourse(response.data);
         setAiTopic(response.data.title || "");
         setNotes(response.data.notes || []);
-        
+
         const rawCurriculum = response.data?.curriculum || [];
         const pattern = ["purple", "cyan", "green", "yellow"];
         const actualSections = rawCurriculum
@@ -311,12 +313,12 @@ const InstructorRoadmapBuilder: React.FC = () => {
         const configItem = rawCurriculum.find(
           (item: any) => item.type === "live_sessions_config"
         );
-        
+
         if (actualSections.length > 0 && !actualSections[0].lessonTopic) {
           actualSections[0].lessonTopic = response.data.title || "Giriş Konusu";
           actualSections[0].lessonNumber = 1;
         }
-        
+
         setSections(actualSections);
         setLiveSessionsConfig(configItem || null);
       } catch (error) {
@@ -335,107 +337,32 @@ const InstructorRoadmapBuilder: React.FC = () => {
     }
 
     setIsGeneratingAI(true);
-    setAiProgressStatus("Ders slaytları ve içerikleri üretiliyor...");
+    setAiProgressStatus("Arka planda sunucuda AI slayt üretimi başlatılıyor...");
     setAiProgressPercent(5);
-    setCurrentLessonIndex(0);
-
-    const allNotes: any[] = [];
-    let overallIdx = 1;
+    setHasDraftAIContent(false);
 
     try {
-      for (let i = 0; i < chapters.length; i++) {
-        setCurrentLessonIndex(i);
-        const chapter = chapters[i];
+      // First save draft curriculum sections so backend has exact placeholder ids and levels
+      await handleSaveCurriculumOnly(sections);
 
-        const firstNodeId = chapter.levels[0]?.id;
-        const firstNodeIndex = sections.findIndex(s => s.id === firstNodeId);
-        if (firstNodeIndex !== -1) {
-          scrollActiveNodeIntoView(firstNodeIndex);
-        }
+      const response = await api.post(`/courses/${courseId}/start_background_generation`, {
+        topic: aiTopic || course?.title || "Ders",
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        chapters: chapters,
+        pdf_content: pdfContent || null
+      });
 
-        // Show spinner on current chapter nodes
-        setSections((prev) =>
-          prev.map((s) =>
-            chapter.levels.some((cl) => cl.id === s.id)
-              ? { ...s, isAILoading: true }
-              : s
-          )
-        );
-
-        setAiProgressStatus(`Ders ${i + 1}/${chapters.length}: "${chapter.topic}" Slaytları Dolduruluyor...`);
-        setAiProgressPercent(Math.round(15 + (i / chapters.length) * 75));
-
-        const modules = chapter.levels.map((lvl) => ({
-          type: getModuleTypeFromTheme(lvl.theme),
-          topic: lvl.title
-        }));
-
-        const objective = chapter.levels[0]?.aiLessonObjective || `Bu derste ${chapter.topic} konusu öğrenilecektir.`;
-
-        const lessonRes = await api.post("/courses/generate_lesson_slides", {
-          topic: aiTopic || course?.title || "Ders",
-          difficulty: aiDifficulty,
-          audience: aiAudience,
-          lesson_number: chapter.number,
-          lesson_title: chapter.topic,
-          lesson_objective: objective,
-          modules: modules,
-          pdf_content: pdfContent || null
-        });
-
-        if (lessonRes.data?.success) {
-          const returnedModules = lessonRes.data.modules || [];
-          const returnedNotes = lessonRes.data.notes || [];
-
-          returnedModules.forEach((node: any) => {
-            node.title = `Ders ${overallIdx}`;
-            overallIdx++;
-            delete node.isAIDraft;
-            delete node.isAILoading;
-          });
-
-          returnedNotes.forEach((note: any) => {
-            const matchedNode = returnedModules.find((nm: any) => nm.id === note.id);
-            if (matchedNode) {
-              note.noteTitle = matchedNode.title;
-            }
-          });
-
-          allNotes.push(...returnedNotes);
-
-          setSections((prevSections) => {
-            const updated = [...prevSections];
-            const chapterLevelIds = chapter.levels.map((l) => l.id);
-            const firstPlaceholderIdx = updated.findIndex((s) => chapterLevelIds.includes(s.id));
-            if (firstPlaceholderIdx !== -1) {
-              updated.splice(firstPlaceholderIdx, chapter.levels.length, ...returnedModules);
-            }
-            return recalculateSectionsList(updated);
-          });
-        }
+      if (response.data?.success) {
+        setAiProgressStatus("Sunucuda arka planda slaytlar üretiliyor... Sayfayı yenileseniz de işlem devam eder!");
+      } else {
+        alert("Arka plan slayt üretimi başlatılamadı.");
+        setIsGeneratingAI(false);
       }
-
-      setCurrentLessonIndex(chapters.length);
-      setAiProgressStatus("Yol Haritası Görselleştiriliyor...");
-      setAiProgressPercent(95);
-
-      setNotes(allNotes);
-      setHasDraftAIContent(false);
-
-      setAiProgressStatus("Tamamlandı!");
-      setAiProgressPercent(100);
-
-      setTimeout(() => {
-        alert("AI başarıyla yol haritasını ve tüm ders slaytlarını hazırladı! Kaydetmek için 'Haritayı Kaydet' butonuna basabilirsiniz.");
-      }, 300);
-
     } catch (error: any) {
       console.error("AI Generation error:", error);
-      alert(error.response?.data?.detail || "AI ders slaytlarını üretirken hata oluştu.");
-    } finally {
+      alert(error.response?.data?.detail || "AI slayt üretimi başlatılırken hata oluştu.");
       setIsGeneratingAI(false);
-      setSections((prev) => prev.map((s) => ({ ...s, isAILoading: false })));
-      setCurrentLessonIndex(-1);
     }
   };
 
@@ -467,13 +394,13 @@ const InstructorRoadmapBuilder: React.FC = () => {
     try {
       const response = await api.get(`/courses/${courseId}/export_roadmap`);
       const data = response.data;
-      
+
       const jsonString = `data:text/json;charset=utf-8,${encodeURIComponent(
         JSON.stringify(data, null, 2)
       )}`;
       const downloadAnchor = document.createElement("a");
       downloadAnchor.setAttribute("href", jsonString);
-      
+
       const fileName = `${course?.title ? course.title.replace(/\s+/g, "_") : "course"}_roadmap.json`;
       downloadAnchor.setAttribute("download", fileName);
       document.body.appendChild(downloadAnchor);
@@ -507,7 +434,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
     reader.onload = async (event) => {
       try {
         const parsedData = JSON.parse(event.target?.result as string);
-        
+
         // Basic validation
         if (!parsedData.curriculum || !Array.isArray(parsedData.curriculum)) {
           throw new Error("Geçersiz dosya formatı: 'curriculum' alanı eksik veya hatalı.");
@@ -532,12 +459,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   const getShortTitle = (fullText: string) => {
     if (!fullText) return "";
-    const parts = fullText.split(/[?:-]/);
-    const firstPart = parts[0].trim();
-    if (firstPart.length > 25) {
-      return firstPart.substring(0, 22) + "...";
+    let clean = fullText.replace(/^(?:Ders\s+\d+[:\s\-]*|\d+[\.\)\s\-]*)/i, "").trim();
+    if (clean.length > 30) {
+      return clean.substring(0, 30);
     }
-    return firstPart;
+    return clean || fullText;
   };
 
   const handleEditLessonTitle = (lIdx: number, title: string) => {
@@ -579,6 +505,65 @@ const InstructorRoadmapBuilder: React.FC = () => {
       if (idx !== lIdx) return l;
       return { ...l, topics: [...l.topics, "Yeni Konu Başlığı"] };
     }));
+  };
+
+  // Topic Drag & Drop States inside Suggested Lessons Modal
+  const [draggedTopicInfo, setDraggedTopicInfo] = useState<{ lIdx: number; tIdx: number } | null>(null);
+  const [dragOverTopicInfo, setDragOverTopicInfo] = useState<{ lIdx: number; tIdx: number } | null>(null);
+  const [dragOverLessonIdx, setDragOverLessonIdx] = useState<number | null>(null);
+
+  const handleTopicDragStart = (e: React.DragEvent, lIdx: number, tIdx: number) => {
+    setDraggedTopicInfo({ lIdx, tIdx });
+    e.dataTransfer.effectAllowed = "move";
+  };
+
+  const handleTopicDragOver = (e: React.DragEvent, lIdx: number, tIdx: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedTopicInfo) return;
+    if (dragOverTopicInfo?.lIdx !== lIdx || dragOverTopicInfo?.tIdx !== tIdx) {
+      setDragOverTopicInfo({ lIdx, tIdx });
+    }
+    if (dragOverLessonIdx !== lIdx) {
+      setDragOverLessonIdx(lIdx);
+    }
+  };
+
+  const handleLessonContainerDragOver = (e: React.DragEvent, lIdx: number) => {
+    e.preventDefault();
+    if (!draggedTopicInfo) return;
+    if (dragOverLessonIdx !== lIdx) {
+      setDragOverLessonIdx(lIdx);
+    }
+  };
+
+  const handleTopicDrop = (e: React.DragEvent, targetLIdx: number, targetTIdx?: number) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!draggedTopicInfo) return;
+
+    const srcLIdx = draggedTopicInfo.lIdx;
+    const srcTIdx = draggedTopicInfo.tIdx;
+
+    setSuggestedLessons((prevLessons) => {
+      const updated = prevLessons.map((l) => ({ ...l, topics: [...l.topics] }));
+
+      const topicToMove = updated[srcLIdx]?.topics[srcTIdx];
+      if (!topicToMove) return prevLessons;
+
+      // Remove from source
+      updated[srcLIdx].topics.splice(srcTIdx, 1);
+
+      // Insert into target
+      const dropIndex = targetTIdx !== undefined ? targetTIdx : updated[targetLIdx].topics.length;
+      updated[targetLIdx].topics.splice(dropIndex, 0, topicToMove);
+
+      return updated;
+    });
+
+    setDraggedTopicInfo(null);
+    setDragOverTopicInfo(null);
+    setDragOverLessonIdx(null);
   };
 
   const [isDistributingTopics, setIsDistributingTopics] = useState<boolean>(false);
@@ -696,10 +681,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
       alert("Lütfen en az bir konu başlığı ekleyin.");
       return;
     }
-    
+
     setIsDistributingTopics(true);
     const targetCount = customCount !== undefined ? customCount : (autoLessonsCount ? 0 : aiLessonsCount);
-    
+
     try {
       const response = await api.post("/courses/distribute_topics_into_lessons", {
         topics: listToDistribute,
@@ -733,11 +718,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
       alert("Lütfen bir ders konusu girin.");
       return;
     }
-    
+
     setIsAIModalOpen(false);
     setIsPlanningStructure(true);
     setAiLessons([]);
-    
+
     try {
       const payloadLessons = suggestedLessons.map((l) => ({
         title: l.title,
@@ -752,16 +737,16 @@ const InstructorRoadmapBuilder: React.FC = () => {
         pdf_content: pdfContent || null,
         custom_lessons: payloadLessons.length > 0 ? payloadLessons : null
       });
-      
+
       if (response.data?.success && response.data?.roadmap) {
         const roadmap = response.data.roadmap;
         const lessons = roadmap.lessons || [];
-        
+
         if (lessons.length === 0) {
           alert("Ders planı oluşturulamadı.");
           return;
         }
-        
+
         // Build the temporary draft sections list to show visual draft nodes immediately on the canvas!
         const tempSections: any[] = [];
         let tempLessonNum = 1;
@@ -772,7 +757,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
             const theme = getThemeFromModuleType(m.type);
             const levelId = `sec_ai_draft_${Date.now()}_${i}_${j}_${Math.floor(Math.random() * 1000)}`;
             const shortTitle = getShortTitle(m.topic) || `Ders ${tempLessonNum}`;
-            
+
             const node: any = {
               id: levelId,
               title: shortTitle,
@@ -782,7 +767,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
               aiModuleTopic: m.topic || "", // Store full detailed suggestion here
               aiLessonObjective: lesson.objective || `Bu derste ${lesson.title} konusu öğrenilecektir.`
             };
-            
+
             if (isFirstModule) {
               node.lessonTopic = lesson.title;
               node.lessonNumber = tempLessonNum;
@@ -791,7 +776,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
             tempSections.push(node);
           });
         });
-        
+
         setSections(recalculateSectionsList(tempSections));
         setHasDraftAIContent(true);
       } else {
@@ -807,49 +792,79 @@ const InstructorRoadmapBuilder: React.FC = () => {
   };
 
 
-  useEffect(() => {
-    const fetchCourseData = async () => {
-      try {
-        const response = await api.get(`/courses/${courseId}`);
-        setCourse(response.data);
-        setAiTopic(response.data.title || "");
-        setNotes(response.data.notes || []);
-        
-        const rawCurriculum = response.data?.curriculum || [];
-        const pattern = ["purple", "cyan", "green", "yellow"];
-        const actualSections = rawCurriculum
-          .filter((item: any) => item.type !== "live_sessions_config")
-          .map((item: any, idx: number) => {
-            if (!item.theme) {
-              return { ...item, theme: pattern[idx % pattern.length] };
-            }
-            return item;
-          });
-        const configItem = rawCurriculum.find(
-          (item: any) => item.type === "live_sessions_config"
-        );
-        
-        // Ensure Level 1 has a starting lessonTopic if there are levels
-        if (actualSections.length > 0 && !actualSections[0].lessonTopic) {
-          actualSections[0].lessonTopic = response.data.title || "Giriş Konusu";
-          actualSections[0].lessonNumber = 1;
-        }
-        
-        setSections(actualSections);
-        setLiveSessionsConfig(configItem || null);
-      } catch (error) {
+  const fetchCourseData = async (isSilent: boolean = false) => {
+    try {
+      if (!isSilent) setIsLoading(true);
+      const response = await api.get(`/courses/${courseId}`);
+      setCourse(response.data);
+      setAiTopic(response.data.title || "");
+      setNotes(response.data.notes || []);
+
+      const rawCurriculum = response.data?.curriculum || [];
+      const pattern = ["purple", "cyan", "green", "yellow"];
+      const actualSections = rawCurriculum
+        .filter((item: any) => item.type !== "live_sessions_config" && item.type !== "ai_generation_status")
+        .map((item: any, idx: number) => {
+          if (!item.theme) {
+            return { ...item, theme: pattern[idx % pattern.length] };
+          }
+          return item;
+        });
+      const configItem = rawCurriculum.find(
+        (item: any) => item.type === "live_sessions_config"
+      );
+      const aiStatusItem = rawCurriculum.find(
+        (item: any) => item.type === "ai_generation_status"
+      );
+
+      if (aiStatusItem?.status === "processing") {
+        setIsGeneratingAI(true);
+        setAiProgressStatus(aiStatusItem.message || "Arka planda AI slaytları oluşturuluyor...");
+        setAiProgressPercent(Math.round(((aiStatusItem.current || 0) / (aiStatusItem.total || 1)) * 100));
+      } else if (aiStatusItem?.status === "completed") {
+        setIsGeneratingAI(false);
+        setHasDraftAIContent(false);
+        setAiProgressPercent(100);
+      } else if (aiStatusItem?.status === "failed") {
+        setIsGeneratingAI(false);
+      }
+
+      // Ensure Level 1 has a starting lessonTopic if there are levels
+      if (actualSections.length > 0 && !actualSections[0].lessonTopic) {
+        actualSections[0].lessonTopic = response.data.title || "Giriş Konusu";
+        actualSections[0].lessonNumber = 1;
+      }
+
+      setSections(actualSections);
+      setLiveSessionsConfig(configItem || null);
+    } catch (error) {
+      if (!isSilent) {
         console.error("Kurs bilgileri yüklenemedi:", error);
         alert("Kurs verileri yüklenirken bir hata oluştu.");
         navigate("/instructor/courses");
-      } finally {
-        setIsLoading(false);
       }
-    };
+    } finally {
+      if (!isSilent) setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     if (courseId) {
       fetchCourseData();
     }
   }, [courseId, navigate]);
+
+  useEffect(() => {
+    let intervalId: any = null;
+    if (isGeneratingAI && courseId) {
+      intervalId = setInterval(() => {
+        fetchCourseData(true);
+      }, 3000);
+    }
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [isGeneratingAI, courseId]);
 
   const handleSaveCurriculumOnly = async (customSections: SectionNode[] = sections) => {
     try {
@@ -877,8 +892,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const recalculateSectionsList = (list: SectionNode[]): SectionNode[] => {
     let lessonNum = 1;
     return list.map((s, idx) => {
-      const isDefaultTitle = !s.title || /^Ders \d+$/.test(s.title);
-      const updatedTitle = isDefaultTitle ? `Ders ${idx + 1}` : s.title;
+      let rawTitle = s.title || "";
+      if (s.aiModuleTopic && (!rawTitle || /^Ders \d+$/i.test(rawTitle))) {
+        rawTitle = getShortTitle(s.aiModuleTopic);
+      } else if (s.lessonTopic && (!rawTitle || /^Ders \d+$/i.test(rawTitle))) {
+        rawTitle = getShortTitle(s.lessonTopic);
+      }
+
+      const updatedTitle = getShortTitle(rawTitle) || s.title || `Modül ${idx + 1}`;
 
       let updatedTopic = s.lessonTopic;
       let updatedNum = s.lessonNumber;
@@ -993,14 +1014,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
       lectures: [],
       theme: defaultTheme,
     };
-    
+
     let updated = [...sections];
     if (insertAfterDivider) {
       const currentSec = updated[index];
       if (currentSec && currentSec.lessonTopic) {
         newSection.lessonTopic = currentSec.lessonTopic;
         newSection.lessonNumber = currentSec.lessonNumber;
-        
+
         const { lessonTopic, lessonNumber, ...rest } = currentSec;
         updated[index] = rest as SectionNode;
       }
@@ -1008,7 +1029,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
     } else {
       updated.splice(index + 1, 0, newSection);
     }
-    
+
     const final = recalculateSectionsList(updated);
     setSections(final);
     setActivePlusMenuId(null);
@@ -1128,7 +1149,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       if (targetType === "level" && sourceIdx !== targetIdx) {
         // Swap elements at sourceIdx and targetIdx, but preserve the chapter divider positions
         const updated = [...sections];
-        
+
         const sourceTopic = updated[sourceIdx].lessonTopic;
         const sourceNum = updated[sourceIdx].lessonNumber;
         const targetTopic = updated[targetIdx].lessonTopic;
@@ -1289,11 +1310,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f3f4f6] flex flex-col relative select-none overflow-hidden">
-      {/* GLOBAL ROADMAP BUILDER BAR (Themed like LessonBuilderHeader) */}
-      <div className="h-20 bg-gradient-to-r from-indigo-600 to-violet-600 border-b-4 border-indigo-800 flex items-center justify-between px-6 z-50 shrink-0 shadow-2xl relative overflow-hidden">
-        
+      {/* GLOBAL ROADMAP BUILDER BAR (Themed GoMufi Style - Floating Pill) */}
+      <div className="mx-6 mt-4 h-20 bg-gradient-to-r from-indigo-600 via-purple-600 to-violet-600 border-2 border-indigo-400 border-b-4 border-b-indigo-800 rounded-3xl flex items-center justify-between px-6 z-50 shrink-0 shadow-xl relative overflow-hidden font-sans">
+
         {/* Decorative Background Elements */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none">
           <Cloud className="absolute top-[-10px] left-96 text-white/10 transform -rotate-12" size={80} />
           <Cloud className="absolute -bottom-8 right-1/4 text-white/5 transform rotate-12" size={60} />
           <Sparkles className="absolute top-4 right-1/3 text-yellow-300/20 animate-pulse" size={24} />
@@ -1310,71 +1331,64 @@ const InstructorRoadmapBuilder: React.FC = () => {
         <div className="flex items-center gap-4 relative z-10">
           <button
             onClick={() => navigate("/instructor/courses")}
-            className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 rounded-xl text-white hover:scale-105 transition-all shadow-sm"
+            className="w-10 h-10 flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/10 border-b-4 border-b-white/20 rounded-xl text-white hover:scale-105 transition-all shadow-sm"
             title="Kurslara Geri Dön"
           >
             <Home className="w-5 h-5" />
           </button>
           <div className="h-8 w-px bg-indigo-400/50"></div>
-          <div className="flex flex-col">
+          <div className="flex flex-col text-left">
             <span className="font-black text-white text-xl leading-none">
               {course?.title || "Yükleniyor..."}
             </span>
-            <span className="text-xs font-bold text-indigo-200 px-0.5 mt-1 tracking-wide uppercase opacity-80">
+            <span className="text-xs font-bold text-indigo-200 px-0.5 mt-1 tracking-wide uppercase opacity-85 select-none">
               Yol Haritası Düzenleyici (Roadmap Builder)
             </span>
           </div>
         </div>
 
-        {/* RIGHT: Save Actions */}
-        <div className="flex items-center gap-4 relative z-10">
+        {/* RIGHT: Save Actions & Premium AI Widget */}
+        <div className="flex items-center gap-3 relative z-10">
           {/* Save Status / Loader */}
           {isSaving && (
-            <div className="flex items-center gap-2 text-indigo-200 pr-2">
+            <div className="flex items-center gap-2 text-indigo-200 pr-1 select-none">
               <Loader2 className="w-4 h-4 animate-spin text-white" />
               <span className="text-xs font-bold text-white">Kaydediliyor...</span>
             </div>
           )}
 
-          <button
-            onClick={handleClearAll}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-xl shadow-[0_4px_0_#991b1b] hover:shadow-[0_2px_0_#991b1b] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="Tüm Yolu Temizle"
-          >
-            <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>Tümünü Temizle</span>
-          </button>
+          {/* Action Group: Clear & File Operations */}
+          <div className="flex items-center gap-2 bg-indigo-900/30 p-1.5 rounded-2xl border border-indigo-500/20">
+            <button
+              onClick={handleClearAll}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-red-500 to-rose-600 border border-red-400 border-b-4 border-b-red-800 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="Tüm Yolu Temizle"
+            >
+              <Trash2 className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>Temizle</span>
+            </button>
 
-          <button
-            onClick={() => setIsAIModalOpen(true)}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-650 hover:to-indigo-750 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="AI ile Yol Haritası Oluştur"
-          >
-            <Sparkles className="w-4 h-4 group-hover:animate-pulse transition-transform text-purple-200" />
-            <span>AI ile Oluştur</span>
-          </button>
+            <button
+              onClick={handleExportRoadmap}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-sky-500 to-indigo-500 border border-sky-400 border-b-4 border-b-indigo-800 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="Yol Haritasını JSON Olarak İndir"
+            >
+              <Download className="w-4 h-4 group-hover:scale-110 transition-transform text-indigo-200" />
+              <span>İndir</span>
+            </button>
 
-          <button
-            onClick={handleExportRoadmap}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-indigo-500 hover:bg-indigo-600 text-white font-black rounded-xl shadow-[0_4px_0_#4338ca] hover:shadow-[0_2px_0_#4338ca] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="Yol Haritasını JSON Olarak İndir"
-          >
-            <Download className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>JSON İndir</span>
-          </button>
-
-          <button
-            onClick={handleImportClick}
-            disabled={isSaving}
-            className="flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white font-black rounded-xl shadow-[0_4px_0_#b45309] hover:shadow-[0_2px_0_#b45309] hover:translate-y-[2px] transition-all text-xs sm:text-sm uppercase tracking-wide group"
-            title="JSON Dosyasından Yol Haritası Yükle"
-          >
-            <Upload className="w-4 h-4 group-hover:scale-110 transition-transform" />
-            <span>JSON Yükle</span>
-          </button>
+            <button
+              onClick={handleImportClick}
+              disabled={isSaving}
+              className="flex items-center gap-2 px-3.5 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 border border-amber-400 border-b-4 border-b-orange-850 text-white font-black rounded-xl hover:translate-y-[1px] active:translate-y-[3px] transition-all text-xs uppercase tracking-wide group shadow-md"
+              title="JSON Dosyasından Yol Haritası Yükle"
+            >
+              <Upload className="w-4 h-4 group-hover:scale-110 transition-transform text-amber-200" />
+              <span>Yükle</span>
+            </button>
+          </div>
 
           <input
             type="file"
@@ -1384,19 +1398,57 @@ const InstructorRoadmapBuilder: React.FC = () => {
             className="hidden"
           />
 
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-indigo-400/50 mx-1" />
+
+          {/* Premium AI Assistant Widget */}
+          <div className="relative group/ai">
+            {/* Widget Container */}
+            <div className="relative flex items-center gap-3 bg-indigo-950/40 border-2 border-purple-300/40 rounded-2xl pl-3.5 pr-2.5 py-1.5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.2)]">
+              {/* Cute Mascot Avatar */}
+              <div className="w-8 h-8 rounded-xl bg-white border-2 border-purple-300 p-0.5 flex-shrink-0 flex items-center justify-center shadow-md overflow-hidden select-none hover:scale-110 transition-transform duration-300">
+                <img src={MufiLogo} className="w-full h-full object-contain scale-110" alt="Mufi Logo" />
+              </div>
+
+              {/* AI Badge / Label */}
+              <div className="flex flex-col select-none text-left">
+                <span className="text-[7.5px] font-black text-purple-200 tracking-[0.15em] uppercase leading-none mb-0.5">
+                  AI CO-PILOT
+                </span>
+                <span className="text-[10px] font-extrabold text-white leading-none">
+                  Mufi Asistan
+                </span>
+              </div>
+
+              {/* AI Button */}
+              <button
+                onClick={() => setIsAIModalOpen(true)}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 via-pink-500 to-purple-500 border border-purple-400 border-b-4 border-b-purple-800 hover:translate-y-[1px] active:translate-y-[3px] text-white font-black rounded-xl transition-all text-xs uppercase tracking-wide border-0 flex items-center gap-2 cursor-pointer shadow-md"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-yellow-200 animate-pulse animate-spin duration-[5000ms]" />
+                <span>AI ile Oluştur</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Vertical Divider */}
+          <div className="w-px h-8 bg-indigo-400/50 mx-1" />
+
+          {/* Save Button */}
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-600 font-black rounded-xl shadow-[0_4px_0_rgba(0,0,0,0.1)] hover:shadow-[0_2px_0_rgba(0,0,0,0.1)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white hover:bg-slate-50 text-indigo-600 font-black rounded-xl shadow-[0_3px_0_#cbd5e1] hover:shadow-[0_1px_0_#cbd5e1] hover:translate-y-[1px] transition-all text-sm uppercase tracking-wide group shadow-md"
           >
-            <Save className="w-4 h-4 group-hover:scale-110 transition-transform" />
+            <Save className="w-4 h-4 group-hover:scale-110 transition-transform text-indigo-500" />
             <span>Haritayı Kaydet</span>
           </button>
         </div>
       </div>
 
       {/* Main Roadmap Path Container */}
-      <div 
+      <div
         ref={roadmapScrollContainerRef}
         onClick={() => { setActiveNodeId(null); setActivePlusMenuId(null); }}
         className="flex-1 w-full flex items-center justify-start px-12 md:px-24 relative roadmap-canvas overflow-x-auto custom-scrollbar pt-20 pb-20"
@@ -1420,6 +1472,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
           }
           .custom-scrollbar::-webkit-scrollbar-thumb:hover {
             background: #94a3b8;
+            border-radius: 10px;
           }
           @keyframes float {
             0%, 100% { transform: translateY(0px); }
@@ -1430,7 +1483,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
           }
         `}</style>
 
-        <div className="flex items-center min-w-max relative pl-20 pr-20">
+        {/* Ambient mesh glow spots in background */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+          <div className="absolute top-[10%] left-[5%] w-[550px] h-[550px] bg-purple-300/10 rounded-full blur-[110px] animate-pulse" style={{ animationDuration: '8s' }} />
+          <div className="absolute bottom-[10%] right-[10%] w-[650px] h-[650px] bg-indigo-300/10 rounded-full blur-[130px] animate-pulse" style={{ animationDuration: '10s' }} />
+          <div className="absolute top-[30%] left-[45%] w-[450px] h-[450px] bg-teal-300/5 rounded-full blur-[100px] animate-pulse" style={{ animationDuration: '9s' }} />
+        </div>
+
+        <div className="flex items-center min-w-max relative pl-20 pr-20 z-10">
           {sections.map((section, index) => {
             const metadata = getNodeMetadata(index, section.theme);
             const levelCounter = index + 1;
@@ -1459,15 +1519,13 @@ const InstructorRoadmapBuilder: React.FC = () => {
                         }
                       }}
                       onDragEnd={handleDragEnd}
-                      className={`relative w-full flex flex-col items-center group/divider cursor-grab active:cursor-grabbing transition-all duration-200 ${
-                        draggedItem?.type === "divider" && draggedItem.index === index
+                      className={`relative w-full flex flex-col items-center group/divider cursor-grab active:cursor-grabbing transition-all duration-200 ${draggedItem?.type === "divider" && draggedItem.index === index
                           ? "opacity-40 scale-95"
                           : ""
-                      } ${
-                        dragOverItem?.type === "divider" && dragOverItem.index === index
+                        } ${dragOverItem?.type === "divider" && dragOverItem.index === index
                           ? "scale-105 rotate-1"
                           : ""
-                      }`}
+                        }`}
                     >
                       {/* Title Suggestions Popover Menu */}
                       {activeSuggestionsMenuId === section.id && (
@@ -1525,11 +1583,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       )}
 
                       {/* Topic Badge */}
-                      <div className={`bg-white p-4 rounded-2xl shadow-lg border-2 flex flex-col items-center transform hover:scale-105 transition-all z-10 w-40 ${
-                        dragOverItem?.type === "divider" && dragOverItem.index === index
+                      <div className={`bg-white p-4 rounded-2xl shadow-lg border-2 flex flex-col items-center transform hover:scale-105 transition-all z-10 w-40 ${dragOverItem?.type === "divider" && dragOverItem.index === index
                           ? "border-indigo-500 ring-4 ring-indigo-100 shadow-2xl"
                           : "border-indigo-100"
-                      }`}>
+                        }`}>
                         <span className="text-[10px] font-black text-gray-400 tracking-[0.2em] uppercase mb-1 shrink-0">
                           DERS {section.lessonNumber || 1}
                         </span>
@@ -1588,19 +1645,27 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                 {/* Connector line from Divider to Level Node (only when lessonTopic is set) */}
                 {section.lessonTopic !== undefined && (
-                  <div className={`w-40 h-20 -mx-4 relative flex items-center justify-center ${
-                    activePlusMenuId === `div_${section.id}` ? 'z-50' : 'z-0'
-                  }`}>
+                  <div className={`w-40 h-20 -mx-4 relative flex items-center justify-center ${activePlusMenuId === `div_${section.id}` ? 'z-50' : 'z-0'
+                    }`}>
                     <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                       <path
                         d={curve === "up" ? "M0 45 Q 60 70 120 65" : "M0 45 Q 60 20 120 45"}
-                        stroke="#cbd5e1"
-                        strokeWidth="10"
+                        stroke={metadata.baseColor}
+                        strokeWidth="12"
                         strokeLinecap="round"
-                        strokeDasharray="0 22"
+                        strokeDasharray="0 24"
                         fill="none"
+                        className="opacity-75"
                       />
                     </svg>
+
+                    {/* Decorative Grass Sprites */}
+                    <img src={GrassIcon} alt="" className={`absolute w-5 opacity-75 select-none pointer-events-none ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                      style={{ left: '15%', top: curve === 'up' ? '55%' : '35%', transform: `translate(0, ${index % 2 === 0 ? '4px' : '-4px'})` }} />
+                    <img src={GrassIcon} alt="" className={`absolute w-6 opacity-85 select-none pointer-events-none ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                      style={{ left: '45%', top: curve === 'up' ? '65%' : '25%', transform: `translate(0, ${index % 3 === 0 ? '-6px' : '3px'})` }} />
+                    <img src={GrassIcon} alt="" className={`absolute w-5.5 opacity-80 select-none pointer-events-none ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                      style={{ left: '75%', top: curve === 'up' ? '50%' : '30%', transform: `translate(0, ${index % 4 === 0 ? '8px' : '-2px'})` }} />
 
                     {/* Plus button and interactive insert selection menu for divider-to-node connector */}
                     <div className="absolute z-40 flex items-center justify-center">
@@ -1620,13 +1685,12 @@ const InstructorRoadmapBuilder: React.FC = () => {
                             handleDrop(e, "plus_divider", index);
                           }
                         }}
-                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${
-                          activePlusMenuId === `div_${section.id}`
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${activePlusMenuId === `div_${section.id}`
                             ? "bg-indigo-600 border-indigo-600 text-white scale-110"
                             : dragOverItem?.type === "plus_divider" && dragOverItem.index === index
-                            ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
-                            : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
-                        }`}
+                              ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
+                              : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
+                          }`}
                         title="Ekleme Seçenekleri"
                       >
                         <Plus size={16} strokeWidth={3} />
@@ -1641,7 +1705,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-center pb-1 border-b border-gray-100 mb-1">
                             NE EKLEMEK İSTERSİNİZ?
                           </span>
-                          
+
                           <button
                             onClick={() => handleAddLevelAt(index, true)}
                             className="flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 rounded-xl transition-colors w-full"
@@ -1676,17 +1740,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     handleDrop(e, "level", index);
                   }}
                   onDragEnd={handleDragEnd}
-                  className={`relative z-10 group ${section.isAILoading ? 'cursor-wait' : 'cursor-pointer transform hover:scale-105'} transition-all duration-200 ${
-                    curve === "up" ? "mt-32" : "-mt-12"
-                  } ${
-                    draggedItem?.type === "level" && draggedItem.index === index
+                  className={`relative z-10 group ${section.isAILoading ? 'cursor-wait' : 'cursor-pointer transform hover:scale-105'} transition-all duration-200 ${curve === "up" ? "mt-32" : "-mt-12"
+                    } ${draggedItem?.type === "level" && draggedItem.index === index
                       ? "opacity-40 scale-90"
                       : ""
-                  } ${
-                    dragOverItem?.type === "level" && dragOverItem.index === index
+                    } ${dragOverItem?.type === "level" && dragOverItem.index === index
                       ? "scale-110 rotate-2"
                       : ""
-                  }`}
+                    }`}
                   onClick={(e) => {
                     if (section.isAILoading) return;
                     e.stopPropagation();
@@ -1717,15 +1778,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       draggable={false}
                     >
                       <div className="relative min-w-[280px] rounded-3xl border-x-2 border-t-2 border-b-[6px] shadow-2xl p-5 flex flex-col gap-3"
-                           style={{ backgroundColor: metadata.baseColor, borderColor: metadata.strokeColor }}>
-                        
+                        style={{ backgroundColor: metadata.baseColor, borderColor: metadata.strokeColor }}>
+
                         {/* Glow shapes */}
                         <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl pointer-events-none"></div>
                         <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl pointer-events-none"></div>
-                        
+
                         {/* Tail */}
                         <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rotate-45 rounded-sm"
-                             style={{ backgroundColor: metadata.baseColor, borderRight: `2px solid ${metadata.strokeColor}`, borderBottom: `2px solid ${metadata.strokeColor}` }}></div>
+                          style={{ backgroundColor: metadata.baseColor, borderRight: `2px solid ${metadata.strokeColor}`, borderBottom: `2px solid ${metadata.strokeColor}` }}></div>
 
                         {/* Title Editable Input */}
                         <div className="relative z-10 flex flex-col w-full">
@@ -1763,11 +1824,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                   key={th.id}
                                   type="button"
                                   onClick={() => handleUpdateTheme(section.id, th.id)}
-                                  className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1 ${
-                                    isSelected
+                                  className={`flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all gap-1 ${isSelected
                                       ? "border-white bg-white/25 scale-105 shadow-md"
                                       : "border-transparent bg-white/5 opacity-70 hover:opacity-100"
-                                  }`}
+                                    }`}
                                   title={th.name}
                                 >
                                   {th.icon === "brain" && <LucideBrain size={16} className="text-white" />}
@@ -1788,21 +1848,17 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                   {/* Hover circle overlay */}
                   <div
-                    className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${
-                      metadata.ringColor
-                    }`}
+                    className={`absolute top-[75%] left-1/2 -translate-x-1/2 -translate-y-1/2 w-44 h-16 border-8 rounded-[100%] opacity-0 group-hover:opacity-100 group-hover:scale-105 transition-all duration-300 pointer-events-none z-0 ${metadata.ringColor
+                      }`}
                   ></div>
 
                   {/* Button Sprite background */}
-                  <img src={metadata.button} alt="Button Sprite" className={`w-36 relative z-10 transition-all duration-200 ${
-                    section.isAILoading ? "opacity-20 blur-[1px] animate-pulse" : ""
-                  } ${
-                    section.isAIDraft ? "opacity-60 saturate-[0.6]" : ""
-                  } ${
-                    dragOverItem?.type === "level" && dragOverItem.index === index
+                  <img src={metadata.button} alt="Button Sprite" className={`w-36 relative z-10 transition-all duration-200 ${section.isAILoading ? "opacity-20 blur-[1px] animate-pulse" : ""
+                    } ${section.isAIDraft ? "opacity-60 saturate-[0.6]" : ""
+                    } ${dragOverItem?.type === "level" && dragOverItem.index === index
                       ? "filter drop-shadow-[0_0_12px_rgba(99,102,241,0.8)]"
                       : ""
-                  }`} />
+                    }`} />
 
                   {/* Float Shadow */}
                   <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
@@ -1828,7 +1884,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           style={{ animationDelay: `${index * 0.5 * -1}s` }}
                         />
                       ) : (
-                        <div 
+                        <div
                           className="animate-float relative z-10 w-16 h-16 flex items-center justify-center -mt-6 bg-white/20 rounded-full border-4 border-white/40 shadow-2xl backdrop-blur-sm"
                           style={{ animationDelay: `${index * 0.5 * -1}s` }}
                         >
@@ -1843,11 +1899,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
                     {/* Level label */}
                     <div
-                      className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                      className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
                       style={{ animationDelay: `${index * 0.5 * -1}s` }}
                     >
                       <span
-                        className="text-2xl font-black tracking-wider select-none uppercase font-display text-center truncate max-w-[180px]"
+                        className="text-lg sm:text-xl font-black tracking-wide select-none uppercase font-display text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
                         style={{
                           color: "white",
                           WebkitTextStroke: `1.5px ${metadata.strokeColor}`,
@@ -1859,7 +1915,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                         {section.title}
                       </span>
                       {section.isAIDraft && (
-                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-250 px-1.5 py-0.5 rounded-full mt-1.5 tracking-wider uppercase shrink-0">
+                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-250 px-1.5 py-0.5 rounded-full mt-1 tracking-wider uppercase shrink-0">
                           TASLAK
                         </span>
                       )}
@@ -1905,13 +1961,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       handleDrop(e, "connector", index);
                     }
                   }}
-                  className={`w-40 h-20 -mx-4 relative flex items-center justify-center transition-all duration-200 ${
-                    activePlusMenuId === section.id ? 'z-50' : 'z-0'
-                  } ${
-                    dragOverItem?.type === "connector" && dragOverItem.index === index
+                  className={`w-40 h-20 -mx-4 relative flex items-center justify-center transition-all duration-200 ${activePlusMenuId === section.id ? 'z-50' : 'z-0'
+                    } ${dragOverItem?.type === "connector" && dragOverItem.index === index
                       ? "scale-110 z-30"
                       : ""
-                  }`}
+                    }`}
                 >
                   <svg className="w-full h-full overflow-visible animate-pulse" viewBox="0 0 120 100" fill="none">
                     <path
@@ -1923,18 +1977,27 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       stroke={
                         dragOverItem?.type === "connector" && dragOverItem.index === index
                           ? "#6366f1"
-                          : "#cbd5e1"
+                          : metadata.baseColor
                       }
                       strokeWidth={
                         dragOverItem?.type === "connector" && dragOverItem.index === index
                           ? "14"
-                          : "10"
+                          : "12"
                       }
                       strokeLinecap="round"
-                      strokeDasharray="0 22"
+                      strokeDasharray="0 24"
                       fill="none"
+                      className="opacity-75"
                     />
                   </svg>
+
+                  {/* Decorative Grass Sprites */}
+                  <img src={GrassIcon} alt="" className={`absolute w-5 opacity-75 select-none pointer-events-none ${index % 2 === 0 ? '-rotate-6' : 'rotate-3'}`}
+                    style={{ left: '15%', top: curve === 'up' ? '30%' : '55%', transform: `translate(0, ${index % 2 === 0 ? '4px' : '-4px'})` }} />
+                  <img src={GrassIcon} alt="" className={`absolute w-6 opacity-85 select-none pointer-events-none ${index % 3 === 0 ? 'rotate-6' : '-rotate-3'}`}
+                    style={{ left: '45%', top: curve === 'up' ? '25%' : '65%', transform: `translate(0, ${index % 3 === 0 ? '-6px' : '3px'})` }} />
+                  <img src={GrassIcon} alt="" className={`absolute w-5.5 opacity-80 select-none pointer-events-none ${index % 2 !== 0 ? 'rotate-3 scale-110' : '-rotate-3 scale-90'}`}
+                    style={{ left: '75%', top: curve === 'up' ? '30%' : '50%', transform: `translate(0, ${index % 4 === 0 ? '8px' : '-2px'})` }} />
 
                   {/* Plus button and interactive insert selection menu */}
                   {index < sections.length - 1 && (
@@ -1955,13 +2018,12 @@ const InstructorRoadmapBuilder: React.FC = () => {
                             handleDrop(e, "plus_connector", index);
                           }
                         }}
-                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${
-                          activePlusMenuId === section.id
+                        className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all shadow-md ${activePlusMenuId === section.id
                             ? "bg-indigo-600 border-indigo-600 text-white scale-110"
                             : dragOverItem?.type === "plus_connector" && dragOverItem.index === index
-                            ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
-                            : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
-                        }`}
+                              ? "bg-indigo-600 border-indigo-600 text-white scale-125 ring-4 ring-indigo-200"
+                              : "bg-white border-indigo-200 hover:border-indigo-500 text-indigo-500 hover:bg-indigo-50 hover:scale-110"
+                          }`}
                         title="Ekleme Seçenekleri"
                       >
                         <Plus size={16} strokeWidth={3} />
@@ -1976,7 +2038,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           <span className="text-[9px] font-black text-gray-400 uppercase tracking-wider text-center pb-1 border-b border-gray-100 mb-1">
                             NE EKLEMEK İSTERSİNİZ?
                           </span>
-                          
+
                           <button
                             onClick={() => handleAddLevelAt(index)}
                             className="flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 rounded-xl transition-colors w-full"
@@ -1990,9 +2052,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           <button
                             onClick={() => handleAddDividerAt(index)}
                             disabled={!!sections[index + 1]?.lessonTopic}
-                            className={`flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 rounded-xl transition-colors w-full ${
-                              sections[index + 1]?.lessonTopic ? "opacity-40 cursor-not-allowed hover:bg-transparent" : ""
-                            }`}
+                            className={`flex items-center gap-2 px-3 py-2 text-left hover:bg-indigo-50 rounded-xl transition-colors w-full ${sections[index + 1]?.lessonTopic ? "opacity-40 cursor-not-allowed hover:bg-transparent" : ""
+                              }`}
                           >
                             <div className="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
                               <Cloud size={13} />
@@ -2007,13 +2068,6 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Grass Sprites for cute aesthetic */}
-                  <img
-                    src={GrassIcon}
-                    alt="Grass Deco"
-                    className="absolute w-6 opacity-40 select-none pointer-events-none"
-                    style={{ left: "40%", top: curve === "up" ? "30%" : "70%" }}
-                  />
                 </div>
               </React.Fragment>
             );
@@ -2021,9 +2075,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
           {/* Plus sign gray button representing the next uncreated level */}
           <div
-            className={`relative z-10 group transform hover:scale-105 transition-transform duration-200 ${
-              sections.length % 2 === 0 ? "mt-32" : "-mt-12"
-            }`}
+            className={`relative z-10 group transform hover:scale-105 transition-transform duration-200 ${sections.length % 2 === 0 ? "mt-32" : "-mt-12"
+              }`}
           >
             <button
               onClick={(e) => {
@@ -2081,7 +2134,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                 <div className="w-full bg-slate-950 border border-slate-900 rounded-2xl p-6 relative overflow-hidden min-h-[180px] flex flex-col justify-center items-center shadow-inner">
                   {/* Dotted grid background */}
                   <div className="absolute inset-0 bg-[radial-gradient(#334155_1.2px,transparent_1.2px)] [background-size:16px_16px] opacity-40"></div>
-                  
+
                   {aiLessons.length === 0 ? (
                     <div className="relative z-10 flex flex-col items-center gap-4 animate-pulse">
                       <div className="relative">
@@ -2136,7 +2189,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                   ) : (
                                     <span>{idx + 1}</span>
                                   )}
-                                  
+
                                   {/* Pulsing loading ring around active node */}
                                   {isActive && (
                                     <div className="absolute -inset-1 rounded-full border-2 border-purple-500 animate-ping opacity-60"></div>
@@ -2147,7 +2200,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                 <div className="absolute -top-6 flex gap-0.5 justify-center">
                                   {lesson.modules?.map((m: any, mIdx: number) => {
                                     let iconEl = <div key={mIdx} className="w-3.5 h-3.5 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[7px] text-slate-400" title={m.type}>{m.type[0]}</div>;
-                                    
+
                                     if (isCompleted) {
                                       iconEl = <div key={mIdx} className="w-3.5 h-3.5 rounded-full bg-emerald-500 border border-emerald-450 flex items-center justify-center text-[7px] text-white" title={m.type}>✓</div>;
                                     } else if (isActive) {
@@ -2156,9 +2209,9 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                       if (m.type === "QUIZ") moduleBg = "bg-yellow-500";
                                       if (m.type === "HOMEWORK") moduleBg = "bg-red-500";
                                       iconEl = (
-                                        <div 
-                                          key={mIdx} 
-                                          className={`w-3.5 h-3.5 rounded-full ${moduleBg} border border-white/20 flex items-center justify-center text-[7px] text-white animate-bounce`} 
+                                        <div
+                                          key={mIdx}
+                                          className={`w-3.5 h-3.5 rounded-full ${moduleBg} border border-white/20 flex items-center justify-center text-[7px] text-white animate-bounce`}
                                           style={{ animationDelay: `${mIdx * 150}ms` }}
                                           title={m.type}
                                         >
@@ -2192,10 +2245,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
                   </h4>
                   <p className="text-xs text-gray-500 font-bold px-4 transition-all duration-300 min-h-[32px]">{aiProgressStatus}</p>
                 </div>
-                
+
                 {/* Progress bar container */}
                 <div className="w-full bg-gray-150 h-3 rounded-full overflow-hidden shadow-inner relative mt-1 border border-gray-200">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-purple-500 via-indigo-500 to-emerald-500 h-full transition-all duration-500 rounded-full"
                     style={{ width: `${aiProgressPercent}%` }}
                   ></div>
@@ -2613,7 +2666,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           <span className="text-indigo-650 font-black bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-md text-[9px]">{aiLessonsCount} DERS</span>
                         )}
                       </label>
-                      
+
                       <div className="flex flex-col gap-2">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                           <input
@@ -2624,7 +2677,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           />
                           <span className="text-[10px] font-bold text-gray-550 leading-tight">Otomatik Belirle</span>
                         </label>
-                        
+
                         {!autoLessonsCount && (
                           <div className="flex items-center gap-3 animate-in slide-in-from-top-1 duration-150 pt-1">
                             <input
@@ -2655,76 +2708,104 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     </div>
 
                     <div className="flex flex-col gap-4">
-                      {suggestedLessons.map((lesson, lIdx) => (
-                        <div 
-                          key={lIdx} 
-                          className="bg-white border border-gray-200/90 rounded-2xl p-4 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-300 group/lesson relative flex flex-col gap-3"
-                        >
-                          {/* Lesson Header Row */}
-                          <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2">
-                            <div className="flex items-center gap-3 flex-grow">
-                              <div className="flex flex-col items-center justify-center shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black shadow-sm">
-                                <span className="text-[8px] uppercase tracking-wider opacity-75 font-extrabold leading-none">Ders</span>
-                                <span className="text-sm leading-none mt-1">{lIdx + 1}</span>
-                              </div>
-                              <input
-                                type="text"
-                                value={lesson.title}
-                                onChange={(e) => handleEditLessonTitle(lIdx, e.target.value)}
-                                className="bg-transparent font-black text-gray-855 text-xs w-full focus:outline-none placeholder-gray-305"
-                                placeholder={`Ders ${lIdx + 1} Konsept Başlığı`}
-                              />
-                            </div>
+                      {suggestedLessons.map((lesson, lIdx) => {
+                        const isLessonTarget = dragOverLessonIdx === lIdx && draggedTopicInfo?.lIdx !== lIdx;
 
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteLesson(lIdx)}
-                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover/lesson:opacity-100"
-                              title="Tüm Dersi Sil"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-
-                          {/* Lesson Sub-Topics Nested List */}
-                          <div className="flex flex-col gap-2 pl-2">
-                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">BU DERSTE ANLATILACAK KONULAR:</span>
-                            
-                            {lesson.topics.map((topic, tIdx) => (
-                              <div 
-                                key={tIdx} 
-                                className="flex items-center gap-2 bg-slate-50 border border-slate-150 rounded-xl px-3 py-2 group/topic hover:border-indigo-150 hover:bg-white transition-all"
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
+                        return (
+                          <div
+                            key={lIdx}
+                            onDragOver={(e) => handleLessonContainerDragOver(e, lIdx)}
+                            onDrop={(e) => handleTopicDrop(e, lIdx)}
+                            className={`bg-white border rounded-2xl p-4 shadow-sm hover:shadow-md transition-all duration-300 group/lesson relative flex flex-col gap-3 ${isLessonTarget
+                                ? "border-2 border-indigo-400 bg-indigo-50/50 ring-4 ring-indigo-100"
+                                : "border-gray-200/90 hover:border-indigo-300"
+                              }`}
+                          >
+                            {/* Lesson Header Row */}
+                            <div className="flex items-center justify-between gap-4 border-b border-gray-100 pb-2">
+                              <div className="flex items-center gap-3 flex-grow">
+                                <div className="flex flex-col items-center justify-center shrink-0 w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 text-white font-black shadow-sm">
+                                  <span className="text-[8px] uppercase tracking-wider opacity-75 font-extrabold leading-none">Ders</span>
+                                  <span className="text-sm leading-none mt-1">{lIdx + 1}</span>
+                                </div>
                                 <input
                                   type="text"
-                                  value={topic}
-                                  onChange={(e) => handleEditTopicTitle(lIdx, tIdx, e.target.value)}
-                                  className="flex-grow bg-transparent font-bold text-gray-700 text-xs focus:outline-none placeholder-gray-300"
-                                  placeholder="Konu başlığı girin..."
+                                  value={lesson.title}
+                                  onChange={(e) => handleEditLessonTitle(lIdx, e.target.value)}
+                                  className="bg-transparent font-black text-gray-855 text-xs w-full focus:outline-none placeholder-gray-305"
+                                  placeholder={`Ders ${lIdx + 1} Konsept Başlığı`}
                                 />
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteTopic(lIdx, tIdx)}
-                                  className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover/topic:opacity-100"
-                                  title="Konuyu Sil"
-                                >
-                                  <X size={12} />
-                                </button>
                               </div>
-                            ))}
 
-                            {/* Add Topic Row */}
-                            <button
-                              type="button"
-                              onClick={() => handleAddTopic(lIdx)}
-                              className="self-start text-[10px] font-black text-indigo-650 hover:text-indigo-755 hover:underline flex items-center gap-1 mt-1 pl-1"
-                            >
-                              + Yeni Konu Ekle
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteLesson(lIdx)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover/lesson:opacity-100"
+                                title="Tüm Dersi Sil"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+
+                            {/* Lesson Sub-Topics Nested List */}
+                            <div className="flex flex-col gap-2 pl-2">
+                              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">
+                                BU DERSTE ANLATILACAK KONULAR ({lesson.topics.length}):
+                              </span>
+
+                              {lesson.topics.map((topic, tIdx) => {
+                                const isDraggingThis = draggedTopicInfo?.lIdx === lIdx && draggedTopicInfo?.tIdx === tIdx;
+                                const isDragOverThis = dragOverTopicInfo?.lIdx === lIdx && dragOverTopicInfo?.tIdx === tIdx;
+
+                                return (
+                                  <div
+                                    key={tIdx}
+                                    draggable
+                                    onDragStart={(e) => handleTopicDragStart(e, lIdx, tIdx)}
+                                    onDragOver={(e) => handleTopicDragOver(e, lIdx, tIdx)}
+                                    onDrop={(e) => handleTopicDrop(e, lIdx, tIdx)}
+                                    className={`flex items-center gap-2 border rounded-xl px-3 py-2 group/topic transition-all duration-150 cursor-grab active:cursor-grabbing ${isDraggingThis
+                                        ? "opacity-30 bg-purple-100 border-dashed border-purple-400"
+                                        : isDragOverThis
+                                          ? "bg-purple-100 border-2 border-purple-500 scale-[1.01] shadow-md"
+                                          : "bg-slate-50 border-slate-150 hover:border-indigo-300 hover:bg-white"
+                                      }`}
+                                  >
+                                    <span title="Sürükleyip Başka Derse / Sıraya Taşı" className="flex items-center shrink-0 cursor-grab">
+                                      <GripVertical size={14} className="text-gray-400 group-hover/topic:text-purple-600" />
+                                    </span>
+                                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shrink-0"></span>
+                                    <input
+                                      type="text"
+                                      value={topic}
+                                      onChange={(e) => handleEditTopicTitle(lIdx, tIdx, e.target.value)}
+                                      className="flex-grow bg-transparent font-bold text-gray-700 text-xs focus:outline-none placeholder-gray-300"
+                                      placeholder="Konu başlığı girin..."
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteTopic(lIdx, tIdx)}
+                                      className="p-1 text-gray-400 hover:text-red-500 rounded-lg transition-colors opacity-0 group-hover/topic:opacity-100"
+                                      title="Konuyu Sil"
+                                    >
+                                      <X size={12} />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+
+                              {/* Add Topic Row */}
+                              <button
+                                type="button"
+                                onClick={() => handleAddTopic(lIdx)}
+                                className="self-start text-[10px] font-black text-indigo-650 hover:text-indigo-755 hover:underline flex items-center gap-1 mt-1 pl-1"
+                              >
+                                + Yeni Konu Ekle
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
 
                       {/* Add New Lesson Button Card */}
                       <button
@@ -2783,12 +2864,12 @@ const InstructorRoadmapBuilder: React.FC = () => {
               {/* Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span 
+                  <span
                     className="px-2 py-0.5 rounded-md text-[9px] font-black tracking-wider uppercase border shrink-0"
-                    style={{ 
-                      backgroundColor: `${activeMetadata.baseColor}33`, 
-                      borderColor: activeMetadata.strokeColor, 
-                      color: activeMetadata.strokeColor 
+                    style={{
+                      backgroundColor: `${activeMetadata.baseColor}33`,
+                      borderColor: activeMetadata.strokeColor,
+                      color: activeMetadata.strokeColor
                     }}
                   >
                     {activeSection.theme === "purple" && "Anla"}
@@ -2802,7 +2883,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     Ders İçeriği Düzenle: <span className="text-purple-400">{activeSection.title}</span>
                   </span>
                 </div>
-                <button 
+                <button
                   onClick={() => setActiveNodeId(null)}
                   className="p-1 hover:bg-slate-800 rounded-full text-slate-400 hover:text-white transition-colors"
                   title="Düzenlemeyi Kapat"
@@ -2904,7 +2985,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
             <span className="text-[10px] text-slate-300 font-bold leading-normal truncate">{aiProgressStatus}</span>
             {/* Mini progress bar */}
             <div className="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden mt-1">
-              <div 
+              <div
                 className="bg-indigo-500 h-full transition-all duration-300"
                 style={{ width: `${aiProgressPercent}%` }}
               ></div>

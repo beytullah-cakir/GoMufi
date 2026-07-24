@@ -6,4 +6,5 @@ from .parent import Parent
 from .live_session import LiveSession
 from .quiz import Quiz
 from .lesson_content import LessonContent
-from .homework_submission import HomeworkSubmission
+from .homework_submission import HomeworkSubmission
+from .ai_usage_log import AIUsageLog

@@ -973,11 +973,11 @@ const HomePage: React.FC<HomePageProps> = ({
 
                                                         {/* Level Number Underneath */}
                                                         <div
-                                                            className="absolute -bottom-14 flex flex-col items-center justify-center animate-float z-20"
+                                                            className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
                                                             style={{ animationDelay: `${index * 0.5 * -1}s` }}
                                                         >
                                                             <span
-                                                                className="text-2xl font-black tracking-wider select-none"
+                                                                className="text-lg sm:text-xl font-black tracking-wide select-none text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
                                                                 style={{
                                                                     fontFamily: "'Fredoka', sans-serif",
                                                                     color: 'white',
@@ -986,6 +986,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                     filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
                                                                     textShadow: `2px 2px 0px ${node.strokeColor}`
                                                                 }}
+                                                                title={node.title}
                                                             >
                                                                 {node.title?.toUpperCase()}
                                                             </span>
