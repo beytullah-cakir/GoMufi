@@ -492,21 +492,9 @@ function StudentApp() {
                                     setSelectedCourseForDetail(null);
                                 }}
                                 isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
-                                onAddToCart={(course) => {
-                                    addToCart({
-                                        id: course.id,
-                                        title: course.title,
-                                        price: `₺${course.price.toLocaleString('tr-TR')}`,
-                                        icon: '🚀',
-                                        instructor: course.teacher ? `${course.teacher.first_name} ${course.teacher.last_name}` : "Anonim Eğitmen"
-                                    });
-                                }}
-                                onGoToCart={() => setActivePage('Sepetim')}
                             />
                         ) : (
                             <CoursesPage 
-                                addToCart={addToCart} 
-                                cart={cart} 
                                 onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
                                 purchasedCourseIds={purchasedCourseIds}
                                 onGoToMyCourses={() => setActivePage('Kurslarım')}
@@ -520,7 +508,7 @@ function StudentApp() {
                             currentCourse={currentCourse} 
                         />
                     ) : activePage === 'Kurslarım' ? (
-                        <ContentPage purchasedCourses={purchasedCourses} />
+                        <ContentPage purchasedCourses={purchasedCourses} onOpenJoinModal={() => {}} />
                     ) : activePage === 'Soru Sor!' ? (
                         <AskQuestionPage courses={courses} />
                     ) : activePage === 'Sınıflarım' ? (
