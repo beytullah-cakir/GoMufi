@@ -130,16 +130,16 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         print(f"DEBUG: Redirect decision - Role: {role}, IsNew: {is_new_user}, Incomplete: {is_profile_incomplete}")
         
         if (is_new_user or is_profile_incomplete) and role != 'parent':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/complete-profile"
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/complete-profile?token={access_token}"
         elif role == 'teacher':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/instructor"
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/instructor?token={access_token}"
         elif role == 'student':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/student"
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/student?token={access_token}"
         elif role == 'parent':
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/parent"
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/parent?token={access_token}"
         else:
             print(f"DEBUG: Unknown role {role}, defaulting to root")
-            redirect_url = f"{FRONTEND_URL.rstrip('/')}/"
+            redirect_url = f"{FRONTEND_URL.rstrip('/')}/?token={access_token}"
 
         print(f"DEBUG: Redirecting to {redirect_url}")
         response = RedirectResponse(url=redirect_url)
