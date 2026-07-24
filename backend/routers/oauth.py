@@ -20,7 +20,9 @@ BACKEND_URL = settings.BACKEND_URL
 
 @router.get("/auth/google/login")
 async def google_login(request: Request, role: str):
-    redirect_uri = f"{BACKEND_URL}/auth/google/callback"
+    # İsteğin geldiği şema ve host bilgisini dinamik al (Render proxy desteği ile)
+    base_url = str(request.base_url).rstrip('/')
+    redirect_uri = f"{base_url}/auth/google/callback"
     request.session['role'] = role
     return await oauth.google.authorize_redirect(request, redirect_uri)
 

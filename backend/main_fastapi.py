@@ -95,7 +95,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
     session_cookie="gomufi_session",
-    same_site="lax",
+    same_site="none" if settings.IS_PRODUCTION else "lax",
     https_only=settings.IS_PRODUCTION,
     max_age=3600,
 )
