@@ -14,6 +14,8 @@ from google import genai
 from google.genai import types
 from core.config import settings
 from core import ai_pricing
+from core import ai_economics
+from core import analytics
 from core.permissions import ensure_course_access
 from auth.dependencies import get_current_teacher_id, get_current_user_info
 from connect_db import get_db, AsyncSession, SessionLocal
@@ -71,6 +73,22 @@ async def record_ai_usage(
         )
         db.add(log_entry)
         await db.commit()
+
+        # Ürün analitiği: AI maliyet olayını PostHog'a da gönder (no-op eğer kapalıysa).
+        # Böylece "hangi öğretmen ne kadar AI harcadı" PostHog'da izlenebilir.
+        analytics.capture_event(
+            distinct_id=teacher_id,
+            event="ai_usage",
+            properties={
+                "action": action,
+                "model": model_name,
+                "cost_usd": round(entry_cost_usd, 6),
+                "prompt_tokens": prompt_tokens,
+                "candidates_tokens": candidates_tokens,
+                "thoughts_tokens": thoughts_tokens,
+                "course_id": course_id,
+            },
+        )
     except Exception as err:
         logger.warning("AI kullanım logu kaydedilemedi: %s", err)
 
@@ -1585,6 +1603,11 @@ async def get_ai_metrics_api(
 
     total_cost_usd = 0.0
 
+    # Birim ekonomisi için: her ders-üretim çağrısının maliyeti ve modül sayısı
+    lesson_entries = []
+    # İşlem kategorisi kırılımı için hafif log satırları
+    op_rows = []
+
     for l in logs:
         p_tok = l.prompt_tokens or 0
         c_tok = l.candidates_tokens or 0
@@ -1596,6 +1619,19 @@ async def get_ai_metrics_api(
             else (l.cost_usd or 0.0)
         )
         total_cost_usd += c_usd
+
+        if l.action in ai_economics.LESSON_GEN_ACTIONS:
+            lesson_entries.append({
+                "cost_usd": c_usd,
+                "modules": ai_economics.parse_module_count(l.details),
+            })
+
+        op_rows.append({
+            "action": l.action,
+            "model": l.model_name,
+            "cost_usd": c_usd,
+            "created_at": l.created_at,
+        })
 
         act = l.action or "diğer"
         if act not in by_action:
@@ -1686,6 +1722,21 @@ async def get_ai_metrics_api(
 
     total_cost_tl = ai_pricing.to_try(total_cost_usd)
 
+    # Birim ekonomisi: ders / modül / kurs başına ortalamalar + modül tipi tahmini
+    unit_economics = ai_economics.compute_unit_economics(
+        lesson_entries,
+        [c["cost_usd"] for c in courses_summary],
+        usd_to_tl_rate,
+    )
+
+    # İşlem kategorisi bazlı maliyet tablosu (birim / ders başı / öğretmen aylık)
+    operation_breakdown = ai_economics.compute_operation_breakdown(
+        op_rows,
+        unit_economics["lessons_generated"],
+        usd_to_tl_rate,
+        settings.LESSONS_PER_TEACHER_MONTH,
+    )
+
     return {
         "success": True,
         "metrics": {
@@ -1700,6 +1751,8 @@ async def get_ai_metrics_api(
             "by_action": by_action,
             "by_model": by_model,
             "by_course": courses_summary,
+            "unit_economics": unit_economics,
+            "operation_breakdown": operation_breakdown,
             "recent_logs": recent_logs
         }
     }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { User, Lock, Bell, Moon, Languages, HelpCircle, LogOut, Save, Loader2, CheckCircle2 } from 'lucide-react';
+import posthog from 'posthog-js';
 import api from '../../api';
 
 interface ParentSettingsProps {
@@ -49,9 +50,11 @@ const ParentSettings: React.FC<ParentSettingsProps> = ({ userData }) => {
     const handleLogout = async () => {
         try {
             await api.post("/auth/logout");
-            window.location.href = "/";
         } catch (error) {
             console.error("Logout failed", error);
+        } finally {
+            // Paylaşımlı cihazda kimlik karışmasın diye PostHog kimliğini sıfırla
+            try { posthog?.reset(); } catch { /* posthog init edilmemiş olabilir */ }
             window.location.href = "/";
         }
     };

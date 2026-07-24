@@ -26,6 +26,7 @@ import {
   Settings,
   GripVertical,
 } from "lucide-react";
+import posthog from "posthog-js";
 import api from "../../api";
 
 // Sprites matching the student view
@@ -354,6 +355,12 @@ const InstructorRoadmapBuilder: React.FC = () => {
       });
 
       if (response.data?.success) {
+        posthog?.capture("ai_lesson_generated", {
+          course_id: courseId,
+          lessons_count: chapters?.length || 0,
+          difficulty: aiDifficulty,
+          has_pdf: !!pdfContent,
+        });
         setAiProgressStatus("Sunucuda arka planda slaytlar üretiliyor... Sayfayı yenileseniz de işlem devam eder!");
       } else {
         alert("Arka plan slayt üretimi başlatılamadı.");
