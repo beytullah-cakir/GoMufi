@@ -82,6 +82,18 @@ _allowed_origins = [
     "http://0.0.0.0:5173",
 ]
 
+# FRONTEND_URL production'da tanımlıysa ve listede yoksa ekle
+_frontend_url = settings.FRONTEND_URL
+if _frontend_url and _frontend_url not in _allowed_origins:
+    _allowed_origins.append(_frontend_url)
+
+# Render.com backend URL'si de CORS listesine ekle (SSR/proxy senaryoları için)
+_render_url = os.getenv("RENDER_EXTERNAL_URL")
+if _render_url and _render_url not in _allowed_origins:
+    _allowed_origins.append(_render_url)
+
+logger.info(f"CORS allowed origins: {_allowed_origins}")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
