@@ -556,7 +556,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                         onClick={() => onAddSlide('template', {
                                             elements: [
                                                 { type: 'shape', x: 0, y: 0, width: 1000, height: 80, shapeType: 'rectangle', style: { backgroundColor: stageColor, borderWidth: 0 } },
-                                                { type: 'text', x: 40, y: 15, width: 920, height: 50, content: `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Aşaması`, style: { fontSize: 28, fontFamily: 'Fredoka', bold: true, color: '#ffffff' } }
+                                                { type: 'text', x: 40, y: 15, width: 920, height: 50, content: `${(activeStage as string).charAt(0) + (activeStage as string).slice(1).toLowerCase()} Aşaması`, style: { fontSize: 28, fontFamily: 'Fredoka', bold: true, color: '#ffffff' } }
                                             ]
                                         })}
                                         className="text-left group"
@@ -570,7 +570,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                             </div>
                                         </div>
                                         <div className="px-1">
-                                            <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Tema Şablonu</h4>
+                                            <h4 className="font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{(activeStage as string).charAt(0) + (activeStage as string).slice(1).toLowerCase()} Tema Şablonu</h4>
                                             <p className="text-xs text-gray-400 mt-1">Aşama rengiyle uyumlu başlık bantlı şablon.</p>
                                         </div>
                                     </button>
