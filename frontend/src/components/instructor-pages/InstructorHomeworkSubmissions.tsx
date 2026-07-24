@@ -111,7 +111,11 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
             const blob = new Blob([byteArr], { type: sub.file_mime || 'application/octet-stream' });
             const file = new File([blob], sub.file_name, { type: sub.file_mime || 'application/octet-stream' });
 
-            const result = await evaluateHomework('Ödev değerlendirmesi: Dosyayı incele ve genel bir değerlendirme yap.', file);
+            const result = await evaluateHomework(
+                'Ödev değerlendirmesi: Dosyayı incele ve genel bir değerlendirme yap.',
+                file,
+                { courseId: selectedCourseId ?? undefined, nodeId: sub.node_id }
+            );
             setAiResult(result);
             setReviewSub(sub);
             setShowReview(true);

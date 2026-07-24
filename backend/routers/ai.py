@@ -6,12 +6,15 @@ import os
 import random
 import copy
 import io
+import logging
 from typing import List, Optional, Any, Dict
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, BackgroundTasks
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from core.config import settings
+from core import ai_pricing
+from core.permissions import ensure_course_access
 from auth.dependencies import get_current_teacher_id, get_current_user_info
 from connect_db import get_db, AsyncSession, SessionLocal
 from sqlalchemy.future import select
@@ -22,6 +25,9 @@ from models.course import Course
 import urllib.parse
 import urllib.request
 import re
+
+logger = logging.getLogger(__name__)
+
 
 async def record_ai_usage(
     db: AsyncSession,
@@ -38,13 +44,18 @@ async def record_ai_usage(
         usage = getattr(response, "usage_metadata", None)
         prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
         candidates_tokens = getattr(usage, "candidates_token_count", 0) or 0
-        total_tokens = getattr(usage, "total_token_count", 0) or (prompt_tokens + candidates_tokens)
-        
-        # Pricing per 1,000,000 tokens (Google AI Studio Official Rates for Gemini 2.0 Flash)
-        rate_input = 0.10 / 1_000_000
-        rate_output = 0.40 / 1_000_000
-        cost_usd = (prompt_tokens * rate_input) + (candidates_tokens * rate_output)
-        
+        # Thinking token'ları çıktı tarifesinden FATURALANIR — loglanmazsa gerçek
+        # maliyet 20 kata kadar düşük görünür (ölçülmüş değer).
+        thoughts_tokens = getattr(usage, "thoughts_token_count", 0) or 0
+        total_tokens = getattr(usage, "total_token_count", 0) or (
+            prompt_tokens + candidates_tokens + thoughts_tokens
+        )
+
+        # Fiyatlandırma tek kaynaktan: core/ai_pricing.py (bkz. MODEL_RATES_USD_PER_1M)
+        entry_cost_usd = ai_pricing.cost_usd(
+            model_name, prompt_tokens, candidates_tokens, thoughts_tokens
+        )
+
         log_entry = AIUsageLog(
             teacher_id=teacher_id,
             course_id=course_id,
@@ -53,14 +64,55 @@ async def record_ai_usage(
             model_name=model_name,
             prompt_tokens=prompt_tokens,
             candidates_tokens=candidates_tokens,
+            thoughts_tokens=thoughts_tokens,
             total_tokens=total_tokens,
-            cost_usd=round(cost_usd, 6),
+            cost_usd=round(entry_cost_usd, 6),
             details=details
         )
         db.add(log_entry)
         await db.commit()
     except Exception as err:
-        print(f"Warning: Failed to record AI usage log: {err}")
+        logger.warning("AI kullanım logu kaydedilemedi: %s", err)
+
+
+def _uses_thinking_level(model: str) -> bool:
+    """
+    Gemini 3.5/3.6 (ve 3.0) ailesi `thinking_budget` parametresini 400 ile REDDEDER;
+    onun yerine `thinking_level` (minimal/low/...) ister. 3.1 ailesi ve 2.x hâlâ
+    `thinking_budget` kabul eder. (Tümü gerçek çağrılarla doğrulandı — Temmuz 2026.)
+    """
+    name = (model or "").lower().rsplit("/", 1)[-1]
+    return name.startswith("gemini-3") and not name.startswith("gemini-3.1")
+
+
+def gen_config(
+    schema: Any,
+    thinking_budget: Optional[int] = None,
+    model: Optional[str] = None,
+) -> types.GenerateContentConfig:
+    """
+    Yapılandırılmış (JSON) üretim için GenerateContentConfig kurar.
+
+    thinking_budget:
+      None veya -1 -> dinamik (model istediği kadar düşünür — EN PAHALI seçenek)
+      0            -> düşünme kapalı (basit/mekanik görevler için; ~25x ucuz, ölçülmüş)
+      >0           -> üst sınır (kalite gereken içerik üretiminde maliyeti sınırlar)
+
+    model: hedef model adı — thinking parametresinin doğru biçime (budget/level)
+    çevrilmesi için verilmelidir; verilmezse budget biçimi kullanılır.
+    """
+    kwargs: Dict[str, Any] = {
+        "response_mime_type": "application/json",
+        "response_schema": schema,
+    }
+    if thinking_budget is not None and thinking_budget >= 0:
+        if _uses_thinking_level(model or ""):
+            # 0 -> minimal (kapalıya en yakın), >0 -> low (sınırlı)
+            level = "minimal" if thinking_budget == 0 else "low"
+            kwargs["thinking_config"] = types.ThinkingConfig(thinking_level=level)
+        else:
+            kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+    return types.GenerateContentConfig(**kwargs)
 
 
 def format_templates_summary(cat_list: List[Dict[str, Any]]) -> str:
@@ -366,14 +418,11 @@ Lessons Count: {req.lessons_count}
 Audience: {req.audience}
 """
         response_step1 = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_CONTENT,
             contents=prompt_step1,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RoadmapStructureResponse
-            )
+            config=gen_config(RoadmapStructureResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL, response_step1)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response_step1)
         
         roadmap_structure = json.loads(response_step1.text.strip())
         
@@ -407,7 +456,7 @@ Requirements:
 - For each module in the curriculum of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
 - UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
-  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. A single slide is NEVER sufficient for an UNDERSTAND module — one-slide UNDERSTAND modules are INVALID output. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
@@ -441,14 +490,11 @@ Expected JSON Structure:
 }}
 """
         response_step2 = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_CONTENT,
             contents=prompt_step2,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=AILevelContentsResponse
-            )
+            config=gen_config(AILevelContentsResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_content", settings.GEMINI_MODEL, response_step2)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_content", settings.GEMINI_MODEL_CONTENT, response_step2)
         
         slide_contents_data = json.loads(response_step2.text.strip())
         level_contents_list = slide_contents_data.get("levelContents", [])
@@ -685,15 +731,14 @@ Expected JSON Structure:
   ]
 }}
 """
+        # Basit liste üretimi: ucuz model + thinking kapalı (kalite gerektiren
+        # slayt içeriği DEĞİL, sadece konu başlığı listesi)
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SuggestRawTopicsResponse
-            )
+            config=gen_config(SuggestRawTopicsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_raw_topics", settings.GEMINI_MODEL, response)
+        await record_ai_usage(db, teacher_id, "suggest_raw_topics", settings.GEMINI_MODEL_LITE, response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -754,15 +799,13 @@ Expected JSON Structure:
   "suggested_lessons_count": 1
 }}
 """
+        # Mekanik dağıtım görevi: ucuz model + thinking kapalı
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SuggestCurriculumParametersResponse
-            )
+            config=gen_config(SuggestCurriculumParametersResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "distribute_topics", settings.GEMINI_MODEL, response)
+        await record_ai_usage(db, teacher_id, "distribute_topics", settings.GEMINI_MODEL_LITE, response)
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -820,15 +863,13 @@ Expected JSON Structure:
   ]
 }}
 """
+        # Konu listesi genişletme: ucuz model + thinking kapalı
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=ExpandTopicsResponse
-            )
+            config=gen_config(ExpandTopicsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "expand_topics", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Konu Genişletme")
+        await record_ai_usage(db, teacher_id, "expand_topics", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Konu Genişletme")
         data = json.loads(response.text.strip())
         return {
             "success": True, 
@@ -915,15 +956,14 @@ Difficulty: {req.difficulty}
 {lessons_count_instruction}
 Audience: {req.audience}
 """
+        # Kurs iskeleti kaliteyi belirler: ana model + SINIRLI thinking bütçesi.
+        # Sınırsız bütçe, çıktı tarifesinden faturalanan binlerce görünmez token demek.
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_CONTENT,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=RoadmapStructureResponse
-            )
+            config=gen_config(RoadmapStructureResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
         
         data = json.loads(response.text.strip())
         return {"success": True, "roadmap": data}
@@ -988,15 +1028,13 @@ Expected JSON Structure:
   ]
 }}
 """
+        # Modül listesi önerisi (kısa yapısal çıktı): ucuz model + thinking kapalı
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SuggestLessonModulesResponse
-            )
+            config=gen_config(SuggestLessonModulesResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
         
         data = json.loads(response.text.strip())
         return {"success": True, "objective": data.get("objective"), "modules": data.get("modules", [])}
@@ -1057,15 +1095,14 @@ Expected JSON Structure:
   ]
 }}
 """
+        # 3 başlık önerisi (önemsiz görev): ucuz model + thinking kapalı
+        # Ölçüm: thinking açıkken 25 token'lık cevap için 763 thinking token harcanıyordu.
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SuggestLessonTitleResponse
-            )
+            config=gen_config(SuggestLessonTitleResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_title", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_title", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
         data = json.loads(response.text.strip())
         return {"success": True, "titles": data.get("titles", [])}
     except Exception as e:
@@ -1115,15 +1152,13 @@ Expected JSON Structure:
   "topic": "Detailed description / coding task prompt (Türkçe)"
 }}
 """
+        # Tek modül başlık+konu önerisi: ucuz model + thinking kapalı
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_LITE,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=SuggestLevelDetailsResponse
-            )
+            config=gen_config(SuggestLevelDetailsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_level_details", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
+        await record_ai_usage(db, teacher_id, "suggest_level_details", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
         data = json.loads(response.text.strip())
         return {"success": True, "title": data.get("title"), "topic": data.get("topic")}
     except Exception as e:
@@ -1178,21 +1213,15 @@ async def generate_lesson_slides_api(
         if req.pdf_content:
             pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the slide contents, descriptions, explanations, code snippets, quizzes, and homework topics strictly on the provided Source Material PDF above."
 
+        # PROMPT SIRALAMASI BİLİNÇLİDİR — DEĞİŞTİRMEDEN ÖNCE OKUYUN:
+        # Bir kursun dersleri arka arkaya üretilirken bu prompt'un başındaki her şey
+        # (rol, kurallar, şablonlar, JSON şeması, kurs bağlamı, PDF) çağrılar arasında
+        # AYNI kalır; yalnızca en sondaki "Lesson to populate" bloğu değişir.
+        # Gemini implicit caching ortak ÖNEKİ otomatik olarak ~%75 indirimli faturalar —
+        # değişken kısım araya girerse önek bozulur ve indirim tamamen kaybolur.
         prompt = f"""
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
-Your task is to write detailed educational slide, quiz, and homework contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided single lesson.
-{pdf_context}
-
-Course context:
-Topic: {req.topic}
-Difficulty: {req.difficulty}
-Audience: {req.audience}
-
-Lesson to populate:
-Lesson Number: {req.lesson_number}
-Lesson Title: {req.lesson_title}
-Lesson Objective: {req.lesson_objective}
-Modules list: {json.dumps(req.modules, ensure_ascii=False)}
+Your task is to write detailed educational slide, quiz, and homework contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided single lesson (given at the END of this prompt).
 
 Available Templates for each category:
 - UNDERSTAND (ANLA) templates:
@@ -1211,7 +1240,7 @@ Requirements:
 - For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
 - UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
-  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. A single slide is NEVER sufficient for an UNDERSTAND module — one-slide UNDERSTAND modules are INVALID output. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
@@ -1233,7 +1262,7 @@ Expected JSON Structure:
 {{
   "modules_content": [
     {{
-      "lessonNumber": {req.lesson_number},
+      "lessonNumber": 0, // MUST be the Lesson Number given at the end of this prompt
       "moduleIndex": 0, // 0-based index of the module in the lesson's modules list
       "slides": [
         {{
@@ -1265,16 +1294,26 @@ Expected JSON Structure:
     "starterCode": "# Write starter code or comment template here in Turkish"
   }}
 }}
+
+Course context:
+Topic: {req.topic}
+Difficulty: {req.difficulty}
+Audience: {req.audience}
+{pdf_context}
+
+Lesson to populate:
+Lesson Number: {req.lesson_number}
+Lesson Title: {req.lesson_title}
+Lesson Objective: {req.lesson_objective}
+Modules list: {json.dumps(req.modules, ensure_ascii=False)}
 """
+        # İçerik üretimi kalite yoludur: ana model + SINIRLI thinking bütçesi
         response = client.models.generate_content(
-            model=settings.GEMINI_MODEL,
+            model=settings.GEMINI_MODEL_CONTENT,
             contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                response_schema=LessonSlidesResponse
-            )
+            config=gen_config(LessonSlidesResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
+        await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
         
         slide_contents_data = json.loads(response.text.strip())
         modules_content = slide_contents_data.get("modules_content") or []
@@ -1445,10 +1484,10 @@ Expected JSON Structure:
                         "id": "mock-q-1",
                         "text": f"{req.lesson_title} Konu Değerlendirme Sorusu",
                         "options": [
-                            { "id": "1", "text": "Doğru Seçenek", "isCorrect": true },
-                            { "id": "2", "text": "Yanlış Seçenek 1", "isCorrect": false },
-                            { "id": "3", "text": "Yanlış Seçenek 2", "isCorrect": false },
-                            { "id": "4", "text": "Yanlış Seçenek 3", "isCorrect": false }
+                            { "id": "1", "text": "Doğru Seçenek", "isCorrect": True },
+                            { "id": "2", "text": "Yanlış Seçenek 1", "isCorrect": False },
+                            { "id": "3", "text": "Yanlış Seçenek 2", "isCorrect": False },
+                            { "id": "4", "text": "Yanlış Seçenek 3", "isCorrect": False }
                         ]
                     }]
                 
@@ -1513,34 +1552,50 @@ async def get_ai_metrics_api(
 ):
     """
     Eğitmen veya Admin paneli için Yapay Zeka (AI) kullanım metriklerini ve harcama özetini döndürür.
+
+    Eğitmenler YALNIZCA kendi kullanımlarını görür; platform geneli sadece admin'e açıktır.
     """
-    if user_info.get("role") not in ["admin", "teacher", "instructor"]:
+    role = user_info.get("role")
+    if role not in ["admin", "teacher", "instructor"]:
         raise HTTPException(status_code=403, detail="Erişim yetkiniz bulunmamaktadır.")
 
-    result = await db.execute(select(AIUsageLog).order_by(AIUsageLog.created_at.desc()))
+    stmt = select(AIUsageLog).order_by(AIUsageLog.created_at.desc())
+    if role != "admin":
+        stmt = stmt.where(AIUsageLog.teacher_id == int(user_info["sub"]))
+
+    result = await db.execute(stmt)
     logs = result.scalars().all()
 
     total_requests = len(logs)
     total_prompt_tokens = sum(l.prompt_tokens or 0 for l in logs)
     total_candidates_tokens = sum(l.candidates_tokens or 0 for l in logs)
-    total_tokens = total_prompt_tokens + total_candidates_tokens
-    
-    # Calculate official Google AI Studio cost ($0.30 / 1M input, $2.50 / 1M output)
-    rate_input = 0.30 / 1_000_000
-    rate_output = 2.50 / 1_000_000
-    total_cost_usd = (total_prompt_tokens * rate_input) + (total_candidates_tokens * rate_output)
-    usd_to_tl_rate = 38.0
-    total_cost_tl = total_cost_usd * usd_to_tl_rate
+    # Thinking token'ları Google tarafından çıktı tarifesinden faturalanır —
+    # panelde gösterilmezse gerçek fatura ile metrik arasında 20 kata varan fark oluşur.
+    total_thoughts_tokens = sum(getattr(l, "thoughts_tokens", 0) or 0 for l in logs)
+    total_tokens = total_prompt_tokens + total_candidates_tokens + total_thoughts_tokens
+
+    # Maliyet, her kaydın KENDİ model adına göre core/ai_pricing.py üzerinden hesaplanır.
+    # Böylece farklı modellerle yapılmış çağrılar karışmaz ve kaydedilen değerle
+    # panelde gösterilen değer aynı tabloyu kullanır.
+    usd_to_tl_rate = ai_pricing.USD_TO_TRY
 
     by_action = {}
     by_model = {}
     by_course = {}
 
+    total_cost_usd = 0.0
+
     for l in logs:
         p_tok = l.prompt_tokens or 0
         c_tok = l.candidates_tokens or 0
-        t_tok = p_tok + c_tok if (p_tok or c_tok) else (l.total_tokens or 0)
-        c_usd = (p_tok * rate_input) + (c_tok * rate_output) if (p_tok or c_tok) else (l.cost_usd or 0.0)
+        th_tok = getattr(l, "thoughts_tokens", 0) or 0
+        t_tok = p_tok + c_tok + th_tok if (p_tok or c_tok) else (l.total_tokens or 0)
+        c_usd = (
+            ai_pricing.cost_usd(l.model_name, p_tok, c_tok, th_tok)
+            if (p_tok or c_tok)
+            else (l.cost_usd or 0.0)
+        )
+        total_cost_usd += c_usd
 
         act = l.action or "diğer"
         if act not in by_action:
@@ -1614,13 +1669,22 @@ async def get_ai_metrics_api(
             "model_name": l.model_name,
             "prompt_tokens": l.prompt_tokens or 0,
             "candidates_tokens": l.candidates_tokens or 0,
-            "total_tokens": (l.prompt_tokens or 0) + (l.candidates_tokens or 0) if (l.prompt_tokens or l.candidates_tokens) else (l.total_tokens or 0),
-            "cost_usd": round(l.cost_usd or 0.0, 6),
+            "thoughts_tokens": getattr(l, "thoughts_tokens", 0) or 0,
+            "total_tokens": (l.prompt_tokens or 0) + (l.candidates_tokens or 0) + (getattr(l, "thoughts_tokens", 0) or 0) if (l.prompt_tokens or l.candidates_tokens) else (l.total_tokens or 0),
+            # Özet ile aynı tarife tablosu kullanılır ki satır toplamı üstteki toplamla tutsun
+            "cost_usd": round(
+                ai_pricing.cost_usd(l.model_name, l.prompt_tokens or 0, l.candidates_tokens or 0, getattr(l, "thoughts_tokens", 0) or 0)
+                if (l.prompt_tokens or l.candidates_tokens)
+                else (l.cost_usd or 0.0),
+                6,
+            ),
             "details": getattr(l, "details", None),
             "created_at": l.created_at.isoformat() if l.created_at else None
         }
         for l in logs[:100]
     ]
+
+    total_cost_tl = ai_pricing.to_try(total_cost_usd)
 
     return {
         "success": True,
@@ -1628,6 +1692,7 @@ async def get_ai_metrics_api(
             "total_requests": total_requests,
             "total_prompt_tokens": total_prompt_tokens,
             "total_candidates_tokens": total_candidates_tokens,
+            "total_thoughts_tokens": total_thoughts_tokens,
             "total_tokens": total_tokens,
             "total_cost_usd": round(total_cost_usd, 4),
             "total_cost_tl": round(total_cost_tl, 2),
@@ -1647,17 +1712,29 @@ async def clear_ai_metrics_api(
     user_info: dict = Depends(get_current_user_info)
 ):
     """
-    Tüm Yapay Zeka (AI) metrik ve kullanım loglarını sıfırlar / siler.
+    Yapay Zeka (AI) metrik ve kullanım loglarını sıfırlar / siler.
+
+    Admin tüm kayıtları, eğitmen ise yalnızca kendi kayıtlarını silebilir —
+    bir eğitmenin tüm platformun log geçmişini silmesi engellenir.
     """
-    if user_info.get("role") not in ["admin", "teacher", "instructor"]:
+    role = user_info.get("role")
+    if role not in ["admin", "teacher", "instructor"]:
         raise HTTPException(status_code=403, detail="Erişim yetkiniz bulunmamaktadır.")
 
-    await db.execute(delete(AIUsageLog))
+    stmt = delete(AIUsageLog)
+    if role != "admin":
+        stmt = stmt.where(AIUsageLog.teacher_id == int(user_info["sub"]))
+
+    await db.execute(stmt)
     await db.commit()
 
     return {
         "success": True,
-        "message": "Tüm yapay zeka metrik verileri sıfırlandı."
+        "message": (
+            "Tüm yapay zeka metrik verileri sıfırlandı."
+            if role == "admin"
+            else "Size ait yapay zeka metrik verileri sıfırlandı."
+        ),
     }
 
 
@@ -1852,6 +1929,197 @@ async def start_background_generation_api(
     return {
         "success": True,
         "message": "Arka planda slayt üretimi başlatıldı."
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ÖDEV DEĞERLENDİRME
+#
+# Bu uç, daha önce tarayıcıda çalışan ve VITE_GEMINI_API_KEY'i istemci bundle'ına
+# gömen homeworkAIService.ts mantığının backend karşılığıdır. Gemini anahtarı artık
+# yalnızca sunucuda durur ve her çağrı ai_usage_logs'a kaydedilir.
+# ─────────────────────────────────────────────────────────────────────────────
+
+HOMEWORK_SYSTEM_PROMPT = """Sen bir eğitim değerlendirme asistanısın.
+Görevin: Bir öğrencinin ödevini eğitmenin sorusuna göre değerlendirmek.
+
+KURALLAR:
+- Türkçe yaz.
+- Sadece hatalı ve eksik kısımları odak noktası al (doğru yapılanları veya strengths listesini yazma).
+- weaknesses listesi 0 ile 5 madde arasında olsun.
+- Her hata/eksiklik için mutlaka 'explanation' ve kod tabanlı ödevlerde 'improvedCode' sağla. Öğrenci kodu iyileştirilebilecek durumdaysa 'studentCode' alanını da doldur.
+- overallScore 0-100 arasında olmalı. Puan verirken adil ve yapıcı ol.
+- summary 2-3 cümlelik genel değerlendirme özeti olsun.
+- Eğer içerik soruyla alakasızsa weaknesses'e ekle."""
+
+# Frontend'deki homeworkAIService.ts ile aynı uzantı listeleri
+HOMEWORK_TEXT_EXTENSIONS = {
+    ".txt", ".md", ".py", ".js", ".ts", ".java", ".c", ".cpp", ".cs",
+    ".json", ".xml", ".csv", ".html", ".css",
+}
+HOMEWORK_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
+HOMEWORK_MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+
+class AIWeaknessResponse(BaseModel):
+    explanation: str
+    studentCode: Optional[str] = None
+    improvedCode: Optional[str] = None
+
+
+class HomeworkEvaluationResponse(BaseModel):
+    overallScore: int
+    summary: str
+    weaknesses: List[AIWeaknessResponse]
+
+
+def _homework_parts(
+    question: str,
+    submission_type: str,
+    text_answer: Optional[str],
+    file_bytes: Optional[bytes],
+    file_name: Optional[str],
+    file_mime: Optional[str],
+) -> List[Any]:
+    """Teslim türüne göre Gemini'ye gönderilecek parçaları hazırlar."""
+    question_block = f"EĞİTMENİN SORUSU:\n{question}"
+    header = f"{HOMEWORK_SYSTEM_PROMPT}\n\n{question_block}"
+
+    if submission_type == "text":
+        return [types.Part.from_text(
+            text=f"{header}\n\nÖĞRENCİNİN METİN CEVABI:\n{text_answer or ''}"
+        )]
+
+    if submission_type == "code":
+        return [types.Part.from_text(
+            text=(
+                f"{header}\n\nÖĞRENCİNİN KOD CEVABI (kaynak kod):\n```\n{text_answer or ''}\n```\n\n"
+                "Kod kalitesi, doğruluğu, okunabilirliği ve soruyla uyumunu değerlendir. "
+                "Varsa sözdizimi hatalarını belirt."
+            )
+        )]
+
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="Bu teslim türü için dosya gereklidir.")
+
+    ext = ("." + file_name.rsplit(".", 1)[-1].lower()) if file_name and "." in file_name else ""
+    mime = file_mime or "application/octet-stream"
+
+    if submission_type == "image":
+        return [
+            types.Part.from_text(text=(
+                f"{header}\n\nÖĞRENCİNİN CEVABI: Aşağıdaki görseli değerlendir. "
+                "Görselin soruyla ilgisini, içeriğini ve kalitesini değerlendir."
+            )),
+            types.Part.from_bytes(data=file_bytes, mime_type=mime),
+        ]
+
+    # submission_type == "file"
+    if ext in HOMEWORK_TEXT_EXTENSIONS:
+        try:
+            content = file_bytes.decode("utf-8", errors="replace")
+        except Exception:
+            content = ""
+        return [types.Part.from_text(
+            text=f"{header}\n\nÖĞRENCİNİN DOSYA CEVABI ({file_name}):\n{content}"
+        )]
+
+    if ext in HOMEWORK_IMAGE_EXTENSIONS:
+        return [
+            types.Part.from_text(text=f"{header}\n\nÖĞRENCİNİN DOSYA CEVABI: Aşağıdaki görseli değerlendir."),
+            types.Part.from_bytes(data=file_bytes, mime_type=mime),
+        ]
+
+    if ext == ".pdf":
+        return [
+            types.Part.from_text(text=f"{header}\n\nÖĞRENCİNİN DOSYA CEVABI (PDF): Aşağıdaki PDF'i değerlendir."),
+            types.Part.from_bytes(data=file_bytes, mime_type="application/pdf"),
+        ]
+
+    return [types.Part.from_text(text=(
+        f"{header}\n\nÖĞRENCİNİN CEVABI: Öğrenci \"{file_name}\" adlı bir dosya yükledi "
+        "(içerik okunamıyor). Bu bilgiyle mümkün olan değerlendirmeyi yap."
+    ))]
+
+
+@router.post("/ai/evaluate-homework")
+async def evaluate_homework_api(
+    question: str = Form(...),
+    submission_type: str = Form(...),
+    text_answer: Optional[str] = Form(None),
+    course_id: Optional[int] = Form(None),
+    node_id: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğrenci ödevini Gemini ile değerlendirir ve kullanımı loglar."""
+    if submission_type not in ("text", "code", "image", "file"):
+        raise HTTPException(status_code=400, detail=f"Desteklenmeyen teslim türü: {submission_type}")
+
+    role = user_info.get("role")
+    course_title = None
+
+    if course_id is not None:
+        # Kursa erişimi olmayan kimse başkasının ödevini değerlendiremez
+        course = await ensure_course_access(db, course_id, user_info)
+        course_title = course.title
+    elif role not in ("teacher", "instructor", "admin"):
+        # course_id yalnızca eğitmen önizlemesinde boş bırakılabilir
+        raise HTTPException(status_code=400, detail="course_id zorunludur.")
+
+    if (submission_type in ("text", "code")) and not (text_answer or "").strip():
+        raise HTTPException(status_code=400, detail="Cevap metni boş olamaz.")
+
+    file_bytes = None
+    if file is not None:
+        file_bytes = await file.read()
+        if len(file_bytes) > HOMEWORK_MAX_FILE_BYTES:
+            raise HTTPException(status_code=413, detail="Dosya boyutu 10 MB'ı aşamaz.")
+
+    parts = _homework_parts(
+        question=question,
+        submission_type=submission_type,
+        text_answer=text_answer,
+        file_bytes=file_bytes,
+        file_name=file.filename if file else None,
+        file_mime=file.content_type if file else None,
+    )
+
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        # Değerlendirme kalitesi önemli (kod hatalarını yakalamalı) ama öğrenciler bu
+        # ucu sık tetikler — sınırlı thinking bütçesi kalite/maliyet dengesini kurar.
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[types.Content(role="user", parts=parts)],
+            config=gen_config(HomeworkEvaluationResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET, model=settings.GEMINI_MODEL),
+        )
+    except Exception as e:
+        logger.exception("Ödev değerlendirme çağrısı başarısız: %s", e)
+        raise HTTPException(status_code=502, detail="Değerlendirme servisi şu anda yanıt vermiyor.")
+
+    teacher_id = int(user_info["sub"]) if role in ("teacher", "instructor", "admin") else None
+    await record_ai_usage(
+        db, teacher_id, "evaluate_homework", settings.GEMINI_MODEL, response,
+        details=f"Ödev Değerlendirme ({submission_type})" + (f" | Ders: {node_id}" if node_id else ""),
+        course_id=course_id,
+        course_title=course_title,
+    )
+
+    raw_text = (response.text or "").strip()
+    try:
+        parsed = json.loads(raw_text)
+    except json.JSONDecodeError:
+        logger.error("Ödev değerlendirmesi JSON olarak çözülemedi: %r", raw_text[:500])
+        raise HTTPException(status_code=502, detail="Değerlendirme yanıtı çözümlenemedi.")
+
+    weaknesses = parsed.get("weaknesses")
+    return {
+        "overallScore": max(0, min(100, int(parsed.get("overallScore") or 0))),
+        "summary": parsed.get("summary") or "",
+        "weaknesses": weaknesses if isinstance(weaknesses, list) else [],
+        "rawResponse": raw_text,
     }
 
 

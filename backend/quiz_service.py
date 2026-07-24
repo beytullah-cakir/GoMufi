@@ -32,9 +32,14 @@ Kurallar:
 4. Eğer soru veya seçenekler kod içeriyorsa, kodu mutlaka markdown kod bloğu (```dil ... ```) içine al.
 """
 
+        # Tek quiz sorusu üretimi basit bir görev: thinking kapalı (çıktı
+        # tarifesinden faturalanan görünmez token harcamasını engeller).
         response = client.models.generate_content(
             model=settings.GEMINI_MODEL,
             contents=prompt,
+            config=types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            ),
         )
         raw_text = response.text.strip()
 

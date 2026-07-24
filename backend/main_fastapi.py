@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
@@ -35,6 +36,7 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS details VARCHAR;"))
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_id INTEGER;"))
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_title VARCHAR;"))
+                await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS thoughts_tokens INTEGER DEFAULT 0;"))
                 logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")
@@ -94,6 +96,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Yüklenen dosyalar (builder/upload-image ve upload-chat-file bu yolu döndürür).
+# NOT: Bu dizin container içinde kalıcı DEĞİLDİR — kalıcılık için object storage gerekir.
+_static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+os.makedirs(os.path.join(_static_dir, "uploads"), exist_ok=True)
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
 # Router'ları kaydet
 app.include_router(student_auth.router)
 app.include_router(teacher_auth.router)
@@ -117,32 +125,46 @@ app.include_router(ai.router)
 from fastapi import Request, HTTPException, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from connect_db import get_db
+from auth.dependencies import get_current_user_info, get_current_teacher_id
+from routers import quiz as quiz_router
+
+# NOT: Bu shim'ler router'daki fonksiyonları düz Python fonksiyonu gibi çağırır;
+# bu yüzden hedef fonksiyonun dependency'lerini burada da bildirip elden geçirmek
+# ZORUNLUDUR. Aksi halde yetki kontrolleri sessizce atlanır.
 
 @app.post("/generate_quiz", include_in_schema=False)
-async def generate_quiz_legacy(request: Request, db: AsyncSession = Depends(get_db)):
+async def generate_quiz_legacy(
+    request: Request,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Eski endpoint — geriye dönük uyumluluk için korunuyor."""
-    from routers.quiz import generate_quiz
-    return await generate_quiz(request, db)
+    return await quiz_router.generate_quiz(request, teacher_id, db)
 
 @app.get("/quizzes", include_in_schema=False)
-async def get_quizzes_legacy(db: AsyncSession = Depends(get_db)):
-    from routers.quiz import get_quizzes
-    return await get_quizzes(db)
+async def get_quizzes_legacy(
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    return await quiz_router.get_quizzes(user_info, db)
 
 @app.post("/assign_quiz", include_in_schema=False)
-async def assign_quiz_legacy(request: Request, db: AsyncSession = Depends(get_db)):
-    from routers.quiz import assign_quiz
-    return await assign_quiz(request, db)
+async def assign_quiz_legacy(
+    request: Request,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    return await quiz_router.assign_quiz(request, user_info, db)
 
 @app.get("/quiz_by_node", include_in_schema=False)
 async def get_quiz_by_node_legacy(
     course_id: int,
     section_id: str,
     node_id: int,
+    user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
 ):
-    from routers.quiz import get_quiz_by_node
-    return await get_quiz_by_node(course_id, section_id, node_id, db)
+    return await quiz_router.get_quiz_by_node(course_id, section_id, node_id, user_info, db)
 
 
 if __name__ == "__main__":

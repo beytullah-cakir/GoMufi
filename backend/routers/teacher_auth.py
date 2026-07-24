@@ -4,7 +4,7 @@ from auth.auth_request import LoginRequest, TeacherRegisterRequest
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from core.security import create_access_token, hash_password, verify_password
+from core.security import create_access_token, hash_password, verify_password, is_admin_credentials
 from core.config import settings
 from connect_db import get_db
 from models.teacher import Teacher
@@ -50,15 +50,14 @@ async def login_user(
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
-    if data.email.lower() == settings.ADMIN_EMAIL.lower() and data.password == settings.ADMIN_PASSWORD:
+    if is_admin_credentials(data.email, data.password):
         access_token = create_access_token("admin", role="admin")
-        is_production = "localhost" not in settings.FRONTEND_URL
         response.set_cookie(
             key="access_token",
             value=access_token,
             httponly=True,
-            samesite="None" if is_production else "lax",
-            secure=is_production,
+            samesite="None" if settings.IS_PRODUCTION else "lax",
+            secure=settings.IS_PRODUCTION,
             max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
             path="/"
         )
@@ -77,14 +76,12 @@ async def login_user(
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 
-    is_production = "localhost" not in settings.FRONTEND_URL
-
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
-        samesite="None" if is_production else "lax",   
-        secure=is_production,   
+        samesite="None" if settings.IS_PRODUCTION else "lax",
+        secure=settings.IS_PRODUCTION,
         max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/"
     )

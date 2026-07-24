@@ -3,7 +3,7 @@ Quiz router — AI tabanlı soru üretimi ve kurs atama endpoint'leri.
 main_fastapi.py'den buraya taşındı.
 """
 import asyncio
-from fastapi import APIRouter, Request, HTTPException, Depends
+from fastapi import APIRouter, Request, HTTPException, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
@@ -11,13 +11,19 @@ from models.quiz import Quiz
 import quiz_service
 
 from core.config import settings
+from core.permissions import ensure_course_access, ensure_course_owner
+from auth.dependencies import get_current_user_info, get_current_teacher_id
 from routers.ai import record_ai_usage
 
 router = APIRouter(prefix="/quiz", tags=["quiz"])
 
 
 @router.post("/generate")
-async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
+async def generate_quiz(
+    request: Request,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
     data = await request.json()
     topic = data.get("topic")
     difficulty = data.get("difficulty", "Orta")
@@ -34,7 +40,7 @@ async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
     if result.get("success"):
         res_obj = result.get("response")
         if res_obj:
-            await record_ai_usage(db, None, "generate_quiz", settings.GEMINI_MODEL, res_obj, details=f"Quiz Sorusu: '{topic}' ({difficulty})")
+            await record_ai_usage(db, teacher_id, "generate_quiz", settings.GEMINI_MODEL, res_obj, details=f"Quiz Sorusu: '{topic}' ({difficulty})")
         return {"success": True, "quiz": result.get("quiz")}
     else:
         error_msg = result.get("error", "Bilinmeyen quiz servis hatası")
@@ -42,7 +48,17 @@ async def generate_quiz(request: Request, db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/list")
-async def get_quizzes(db: AsyncSession = Depends(get_db)):
+async def get_quizzes(
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tüm quiz'leri doğru cevaplarıyla listeler — yalnızca admin."""
+    if user_info.get("role") != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Bu işlem için yönetici yetkisi gerekiyor.",
+        )
+
     result = await db.execute(select(Quiz).order_by(Quiz.id.desc()))
     quizzes = result.scalars().all()
     return {
@@ -53,7 +69,11 @@ async def get_quizzes(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/assign")
-async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
+async def assign_quiz(
+    request: Request,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
     data = await request.json()
     quiz_data = data.get("quiz_data")
     course_id = data.get("course_id")
@@ -65,6 +85,9 @@ async def assign_quiz(request: Request, db: AsyncSession = Depends(get_db)):
             status_code=400,
             detail="Eksik parametre: quiz_data, course_id, section_id veya node_id gerekli.",
         )
+
+    # Soru yalnızca kendi kursuna atanabilir
+    await ensure_course_owner(db, int(course_id), user_info)
 
     try:
         new_quiz = Quiz(
@@ -93,8 +116,12 @@ async def get_quiz_by_node(
     course_id: int,
     section_id: str,
     node_id: int,
+    user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
 ):
+    # Yalnızca kursun eğitmeni, kayıtlı öğrencisi veya admin görebilir
+    await ensure_course_access(db, course_id, user_info)
+
     result = await db.execute(
         select(Quiz)
         .where(

@@ -28,28 +28,20 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   const reconnectTimeoutRef = useRef<any>(null);
 
   const connect = useCallback(() => {
-    // Burada geçici olarak rastgele bir user_id kullanıyoruz.
-    // İdeal senaryoda bu ID'yi kullanıcının auth session'ından (localStorage veya AuthContext) almalısınız.
-    const userId = localStorage.getItem('user_id') || `user_${Math.random().toString(36).substring(7)}`;
-    if (!localStorage.getItem('user_id')) {
-        localStorage.setItem('user_id', userId);
-    }
-    
+    // Kimlik sunucu tarafında httpOnly access_token cookie'sinden çözülür —
+    // istemci artık kendi user_id'sini üretmez ve göndermez.
     // VITE_WS_URL ortam değişkeni kullanılabilir veya VITE_API_URL den türetilebilir.
     // http://localhost:8000 -> ws://localhost:8000
     const baseUrl = import.meta.env.VITE_API_URL || `${window.location.protocol}//${window.location.hostname}:8000`;
-    const wsUrl = baseUrl.replace(/^http/, 'ws') + `/ws/${userId}`;
-    
-    console.log("WebSocket bağlantısı başlatılıyor...", wsUrl);
-    
+    const wsUrl = baseUrl.replace(/^http/, 'ws') + '/ws';
+
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket bağlantısı kuruldu.');
       setIsConnected(true);
       setSocket(ws);
-      
+
       // Ping atarak bağlantıyı test edebiliriz
       ws.send(JSON.stringify({ type: "ping" }));
     };
@@ -57,28 +49,29 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     ws.onmessage = (event) => {
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
-        console.log('WebSocket mesajı alındı:', message);
         setLastMessage(message);
       } catch (error) {
         console.error('WebSocket mesajı parse edilemedi:', error);
       }
     };
 
-    ws.onclose = () => {
-      console.log('WebSocket bağlantısı kapandı. Tekrar bağlanılacak...');
+    ws.onclose = (event) => {
       setIsConnected(false);
       setSocket(null);
       wsRef.current = null;
-      
-      // 3 saniye sonra tekrar bağlanmayı dene
+
+      // 1008 = sunucu kimliği doğrulayamadı (henüz giriş yapılmamış).
+      // Bu durumda saniyede bir denemek yerine seyrek dene — giriş yapıldığında
+      // cookie hazır olacağı için bir sonraki deneme başarılı olur.
+      const retryDelay = event.code === 1008 ? 30000 : 3000;
+
       if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = setTimeout(() => {
         connect();
-      }, 3000);
+      }, retryDelay);
     };
 
-    ws.onerror = (error) => {
-      console.error('WebSocket hatası:', error);
+    ws.onerror = () => {
       ws.close();
     };
   }, []);

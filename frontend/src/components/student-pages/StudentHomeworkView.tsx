@@ -68,11 +68,13 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
         setAiError(null);
 
         try {
+            // Backend, kursa erişim yetkisini bu bağlamla doğrular
+            const context = { courseId, nodeId: slide?.id };
             let result: AIReviewResult;
             if (submissionType === 'text' || submissionType === 'code') {
-                result = await evaluateHomeworkByType(question, submissionType, answerText);
+                result = await evaluateHomeworkByType(question, submissionType, answerText, undefined, context);
             } else {
-                result = await evaluateHomeworkByType(question, submissionType, undefined, uploadedFile || undefined);
+                result = await evaluateHomeworkByType(question, submissionType, undefined, uploadedFile || undefined, context);
             }
             setAiResult(result);
             setShowReview(true);
