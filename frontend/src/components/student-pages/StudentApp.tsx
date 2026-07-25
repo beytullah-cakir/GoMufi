@@ -232,7 +232,7 @@ function StudentApp() {
         }
     };
     const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
-    
+
     // Page to Path mapping
     const pageToPath: Record<string, string> = {
         'Ana Sayfa': '/student/home',

@@ -281,6 +281,7 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
             {/* LESSON SLIDE OVERLAY */}
             <LessonSlide
                 isOpen={showLessonSlide}
+                isLive={true}
                 lessonTitle={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.title}
                 slides={(() => {
                     const activeNode = currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel));

@@ -14,6 +14,8 @@ import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
 import InstructorCalendar from './InstructorCalendar';
 import InstructorClasses from './InstructorClasses';
 import InstructorMetrics from './InstructorMetrics';
+import DebugPage from './DebugPage';
+import type { DebugCourse } from './DebugPage';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -36,7 +38,8 @@ const InstructorApp: React.FC = () => {
             'metrics': 'Metrics',
             'profile': 'Profile',
             'builder': 'Builder',
-            'homework-submissions': 'HomeworkSubmissions'
+            'homework-submissions': 'HomeworkSubmissions',
+            'debug': 'Debug'
         };
         return mapping[lastPart] || 'Dashboard';
     };
@@ -75,6 +78,14 @@ const InstructorApp: React.FC = () => {
         fetchUserData();
     }, []);
 
+    // Debug sayfası için kurs listesi: id, başlık ve modül (ders) sayısı.
+    // Modül sayısı öğrenci roadmap'iyle aynı: live_sessions_config dışı curriculum bölümleri.
+    const debugCourses: DebugCourse[] = (coursesData || []).map((c: any) => ({
+        id: String(c.id),
+        title: c.title,
+        total: (c.curriculum || []).filter((s: any) => s?.type !== 'live_sessions_config').length,
+    }));
+
     const handleNavigate = (pageId: string) => {
         const mapping: { [key: string]: string } = {
             'Dashboard': '/instructor/dashboard',
@@ -86,7 +97,8 @@ const InstructorApp: React.FC = () => {
             'Metrics': '/instructor/metrics',
             'Profile': '/instructor/profile',
             'Builder': '/instructor/builder',
-            'HomeworkSubmissions': '/instructor/homework-submissions'
+            'HomeworkSubmissions': '/instructor/homework-submissions',
+            'Debug': '/instructor/debug'
         };
         navigate(mapping[pageId] || '/instructor/dashboard');
     };
@@ -144,6 +156,7 @@ const InstructorApp: React.FC = () => {
                 <Route path="metrics" element={<InstructorMetrics />} />
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
                 <Route path="homework-submissions" element={<InstructorHomeworkSubmissions coursesData={coursesData} />} />
+                <Route path="debug" element={<DebugPage courses={debugCourses} />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
         </InstructorLayout>

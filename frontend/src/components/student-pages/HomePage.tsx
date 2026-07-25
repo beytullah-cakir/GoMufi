@@ -622,17 +622,24 @@ const HomePage: React.FC<HomePageProps> = ({
                                         <Trophy size={20} />
                                     </div>
                                     <div className="flex flex-col min-w-0">
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Bronz Lig</span>
+                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">
+                                            {userData?.progression?.league?.emoji ?? '🥉'} {userData?.progression?.league?.name ?? 'Bronz'} Lig · Lv {userData?.progression?.level ?? 1}
+                                        </span>
                                         <span className="text-sm font-black text-gray-800 font-display leading-none">{(userData?.xp ?? 0)} XP</span>
                                     </div>
                                 </div>
 
-                                {/* Beautiful Continuous Progress Bar */}
-                                <div className="w-24 bg-gray-100 border border-gray-200/50 rounded-full h-3 overflow-hidden shadow-inner shrink-0">
-                                    <div 
-                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
-                                        style={{ width: `${Math.max(10, Math.min(100, ((userData?.xp ?? 0) % 100) || 30))}%` }}
-                                    ></div>
+                                {/* Gerçek level ilerlemesi (backend progression) */}
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                    <div className="w-24 bg-gray-100 border border-gray-200/50 rounded-full h-3 overflow-hidden shadow-inner">
+                                        <div
+                                            className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
+                                            style={{ width: `${Math.max(4, Math.min(100, userData?.progression?.progress_pct ?? 0))}%` }}
+                                        ></div>
+                                    </div>
+                                    <span className="text-[8px] font-bold text-gray-400 leading-none">
+                                        Lv {(userData?.progression?.level ?? 1) + 1}'e {userData?.progression?.xp_to_next_level ?? 0} XP
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -1037,9 +1044,10 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
 
-            {/* LESSON SLIDE OVERLAY */}
+            {/* LESSON SLIDE OVERLAY — ana roadmap her zaman tek-başına tekrar (canlı değil) */}
             <LessonSlide
                 isOpen={showLessonSlide}
+                isLive={false}
                 lessonTitle={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.title}
                 slides={(currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.slides || []).filter((s: any) => s.type !== 'homework')}
                 onClose={handleCloseLesson}

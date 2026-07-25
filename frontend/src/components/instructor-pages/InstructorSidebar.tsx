@@ -9,6 +9,7 @@ import {
   Users,
   MessageCircle,
   BarChart3,
+  Bug,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 
@@ -72,6 +73,11 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
             label: "Metrikler",
             icon: BarChart3,
             id: "Metrics",
+          },
+          {
+            label: "Debug",
+            icon: Bug,
+            id: "Debug",
           },
         ]
       : []),

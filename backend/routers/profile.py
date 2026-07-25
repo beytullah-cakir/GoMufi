@@ -10,6 +10,7 @@ from models.parent import Parent
 from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
+from core import gamification
 from pydantic import BaseModel
 from typing import Optional
 
@@ -104,6 +105,8 @@ async def get_profile(
             "hearts": student.hearts,
             "streak": student.streak,
             "xp": student.xp,
+            # Level ve lig, XP'den TÜRETİLİR (core/gamification.py) — tek kaynak
+            "progression": gamification.level_progress(student.xp),
         }
     
     elif role == "parent":
@@ -366,9 +369,104 @@ async def update_student_stats(
     
     await db.commit()
     await db.refresh(student)
-    
+
     return {
         "xp": student.xp,
         "gems": student.gems,
-        "hearts": student.hearts
+        "hearts": student.hearts,
+        "progression": gamification.level_progress(student.xp),
+    }
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# LİDERLİK TABLOSU (leaderboard) — global ve sınıf/kurs bazlı
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _display_name(student: Student) -> str:
+    """
+    Gizlilik dostu görünen ad. Reşit olmayan kullanıcılar için tam soyad
+    gösterilmez: takma ad varsa o, yoksa 'Ad S.' biçimi. E-posta asla dönmez.
+    """
+    if student.nickname:
+        return student.nickname
+    first = (student.first_name or "").strip() or "Öğrenci"
+    last_initial = (student.last_name or "").strip()[:1]
+    return f"{first} {last_initial}." if last_initial else first
+
+
+def _entry(student: Student, rank: int, me_id: int) -> dict:
+    prog = gamification.level_progress(student.xp)
+    return {
+        "rank": rank,
+        "student_id": student.id,
+        "display_name": _display_name(student),
+        "xp": student.xp or 0,
+        "level": prog["level"],
+        "league": prog["league"],
+        "is_me": student.id == me_id,
+    }
+
+
+@router.get("/leaderboard")
+async def get_leaderboard(
+    scope: str = "global",
+    course_id: Optional[int] = None,
+    limit: int = 20,
+    user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    XP'ye göre öğrenci sıralaması.
+
+    - scope=global: tüm öğrenciler.
+    - scope=class : yalnızca course_id'ye kayıtlı öğrenciler (öğrenci bu kursa
+      kayıtlı olmalı; admin her kursu görebilir).
+    Yanıt: top N liste + (listede olmasa bile) çağıran öğrencinin kendi sırası.
+    """
+    if user["role"] not in ("student", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece öğrenciler liderlik tablosunu görüntüleyebilir.")
+
+    me_id = int(user["user_id"]) if str(user["user_id"]).isdigit() else -1
+    limit = max(1, min(100, limit))
+
+    base = select(Student)
+
+    if scope == "class":
+        if not course_id:
+            raise HTTPException(status_code=400, detail="Sınıf sıralaması için course_id gerekli.")
+        # Öğrenci ise bu kursa kayıtlı olmalı
+        if user["role"] == "student":
+            enrolled = await db.execute(
+                select(Enrollment).where(
+                    Enrollment.course_id == course_id,
+                    Enrollment.student_id == me_id,
+                )
+            )
+            if not enrolled.scalar_one_or_none():
+                raise HTTPException(status_code=403, detail="Bu kursa kayıtlı değilsiniz.")
+        base = base.join(Enrollment, Enrollment.student_id == Student.id).where(
+            Enrollment.course_id == course_id
+        )
+    elif scope != "global":
+        raise HTTPException(status_code=400, detail="Geçersiz scope (global veya class).")
+
+    # Sıralama: XP azalan, eşitlikte id artan (kararlı)
+    ordered = base.order_by(Student.xp.desc().nullslast(), Student.id.asc())
+    all_students = (await db.execute(ordered)).scalars().all()
+
+    entries = [_entry(s, i + 1, me_id) for i, s in enumerate(all_students[:limit])]
+
+    # Çağıran öğrencinin kendi sırası (listenin dışında olsa bile)
+    me_entry = None
+    for i, s in enumerate(all_students):
+        if s.id == me_id:
+            me_entry = _entry(s, i + 1, me_id)
+            break
+
+    return {
+        "scope": scope,
+        "course_id": course_id if scope == "class" else None,
+        "total_players": len(all_students),
+        "entries": entries,
+        "me": me_entry,
     }

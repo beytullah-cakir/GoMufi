@@ -318,21 +318,27 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       <div className="flex gap-4">
                         <div className="group flex-1">
                           <input
+                            id="firstName"
+                            name="given-name"
                             type="text"
                             value={firstName}
                             onChange={(e) => setFirstName(e.target.value)}
                             className={getInputClass()}
                             placeholder="İsim"
+                            autoComplete="given-name"
                             required
                           />
                         </div>
                         <div className="group flex-1">
                           <input
+                            id="lastName"
+                            name="family-name"
                             type="text"
                             value={lastName}
                             onChange={(e) => setLastName(e.target.value)}
                             className={getInputClass()}
                             placeholder="Soyisim"
+                            autoComplete="family-name"
                             required
                           />
                         </div>
@@ -342,11 +348,14 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                         <>
                           <div className="group">
                             <input
+                              id="nickname"
+                              name="nickname"
                               type="text"
                               value={nickname}
                               onChange={(e) => setNickname(e.target.value)}
                               className={getInputClass()}
                               placeholder="Kullanıcı Adı"
+                              autoComplete="nickname"
                               required
                             />
                           </div>
@@ -354,6 +363,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                             <div className="group flex-1">
                               <div className="relative">
                                 <select
+                                  id="educationLevel"
+                                  name="educationLevel"
                                   value={educationLevel}
                                   onChange={(e) => {
                                     setEducationLevel(e.target.value);
@@ -377,6 +388,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                               <div className="group flex-1">
                                 <div className="relative">
                                   <select
+                                    id="gradeLevel"
+                                    name="gradeLevel"
                                     value={gradeLevel}
                                     onChange={(e) =>
                                       setGradeLevel(e.target.value)
@@ -404,6 +417,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       {role === "teacher" && (
                         <div className="group relative">
                           <select
+                            id="department"
+                            name="department"
                             value={department}
                             onChange={(e) => setDepartment(e.target.value)}
                             className={`${getInputClass()} appearance-none cursor-pointer`}
@@ -426,17 +441,22 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
 
                   <div className="group">
                     <input
+                      id="email"
+                      name="email"
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       className={getInputClass()}
                       placeholder="E-Posta"
+                      autoComplete="username"
                       required
                     />
                   </div>
 
                   <div className="group">
                     <input
+                      id="password"
+                      name="password"
                       type="password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
@@ -444,6 +464,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                       onBlur={() => setIsPasswordFocused(false)}
                       className={getInputClass()}
                       placeholder="Şifre"
+                      autoComplete={isLogin ? "current-password" : "new-password"}
                       required
                     />
                   </div>
