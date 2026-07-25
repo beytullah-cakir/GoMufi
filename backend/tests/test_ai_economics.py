@@ -87,6 +87,7 @@ def _op_rows():
         {"action": "generate_roadmap_structure", "model": "gemini-2.5-flash", "cost_usd": 0.008, "created_at": None},
         {"action": "suggest_lesson_title", "model": "gemini-3.1-flash-lite", "cost_usd": 0.0002, "created_at": None},
         {"action": "generate_quiz", "model": "gemini-2.5-flash", "cost_usd": 0.001, "created_at": None},
+        {"action": "regenerate_lesson_module", "model": "gemini-2.5-flash", "cost_usd": 0.010, "created_at": None},
         {"action": "bilinmeyen_islem", "model": "x", "cost_usd": 0.003, "created_at": None},
     ]
 
@@ -95,7 +96,7 @@ def test_operation_breakdown_kategoriler_ve_sira():
     r = econ.compute_operation_breakdown(_op_rows(), lessons_generated=2, usd_to_try=40.0, lessons_per_month=20)
     ops = [row["operation"] for row in r["rows"]]
     assert ops == [
-        "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi",
+        "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi", "Modül Tekrar Oluşturma",
         "Quiz/soru üretimi", "Görsel üretimi", "Diğer AI işlemi",
     ]
 
@@ -113,6 +114,21 @@ def test_operation_breakdown_slayt_maliyeti():
     # aylık: ders başı × 20
     assert slayt["cost_per_month_tl"] == pytest.approx(16.0)
     assert slayt["model"] == "gemini-2.5-flash"
+
+
+def test_operation_breakdown_modul_tekrar_uretme_ayri_kalem():
+    """AI ile Tekrar Oluştur (Canvas Builder) ilk üretimden AYRI bir satırda görünmeli."""
+    r = econ.compute_operation_breakdown(_op_rows(), lessons_generated=2, usd_to_try=40.0, lessons_per_month=20)
+    by = {row["operation"]: row for row in r["rows"]}
+
+    regen = by["Modül Tekrar Oluşturma"]
+    assert regen["samples"] == 1
+    assert regen["unit_cost_usd"] == pytest.approx(0.010)
+    assert regen["source"] == "regenerate_lesson_module"
+
+    # İlk üretim (Slayt/içerik üretimi) bu kalemden etkilenmemeli — hâlâ yalnızca 2 çağrı.
+    slayt = by["Slayt/içerik üretimi"]
+    assert slayt["samples"] == 2
 
 
 def test_operation_breakdown_gorsel_ucretsiz():

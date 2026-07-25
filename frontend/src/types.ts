@@ -24,6 +24,10 @@ export interface PathNode {
     localNodeIndex?: number;
     lastInLesson?: boolean;
     slides?: any[];
+    /** Bu düğümün roadmap modül aşaması: ANLA / UYGULA / BİRLEŞTİR / ÜRET / QUIZ / ÖDEV */
+    stage?: string;
+    /** Bu modül tamamlanınca verilecek XP (roadmap builder'da öğretmen ayarlar, varsayılan 500) */
+    xp?: number;
 }
 
 export interface Instructor {

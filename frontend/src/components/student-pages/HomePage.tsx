@@ -9,6 +9,21 @@ import LiveLessonStudent from './LiveLessonStudent';
 import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
 
+/**
+ * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
+ * bulur. Bir "Ders", `lessonTopic` alanı dolu olan düğümle başlar (bkz. roadmap builder) ve
+ * bir sonraki `lessonTopic` dolu düğüme kadar sürer.
+ */
+const getDersModules = (nodes: PathNode[], nodeId: number | null) => {
+    const idx = nodes.findIndex(n => n.id === nodeId);
+    if (idx === -1) return { siblings: [] as PathNode[], posInDers: -1 };
+    let start = idx;
+    while (start > 0 && nodes[start].lessonTopic === undefined) start--;
+    let end = start + 1;
+    while (end < nodes.length && nodes[end].lessonTopic === undefined) end++;
+    return { siblings: nodes.slice(start, end), posInDers: idx - start };
+};
+
 interface HomePageProps {
     currentCourse: CourseData;
     activeCourseId: string;
@@ -299,10 +314,12 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowLessonSlide(false);
         if (lessonLevel !== null) {
             const gameLevel = lessonLevel;
-            
-            // 1. Award XP and Gems in the backend
+            const completedNode = currentCourse.nodes.find(n => n.id === gameLevel);
+            const xpGain = completedNode?.xp ?? 500;
+
+            // 1. Award XP and Gems in the backend (modül için roadmap builder'da ayarlanan XP)
             try {
-                await api.post("/profile/student/stats", { xp_gain: 10, gems_gain: 2 });
+                await api.post("/profile/student/stats", { xp_gain: xpGain, gems_gain: 2 });
             } catch (err) {
                 console.error("Failed to update student stats:", err);
             }
@@ -340,6 +357,40 @@ const HomePage: React.FC<HomePageProps> = ({
             });
             setLessonLevel(null);
         }
+    };
+
+    // Bir modül (ör. ANLA) bitti ama aynı Ders'te sıradaki modül (ör. UYGULA) var —
+    // pencereyi kapatmadan sıradaki düğümün slaytlarını açar ve biten modülün roadmap
+    // builder'da ayarlanan XP'sini verir (her modül kendi XP'sini kazandırır).
+    const handleAdvanceModule = async (nextNodeId: number) => {
+        if (lessonLevel === null) return;
+        const finishedNodeId = lessonLevel;
+        const finishedNode = currentCourse.nodes.find(n => n.id === finishedNodeId);
+        const xpGain = finishedNode?.xp ?? 500;
+
+        try {
+            await api.post("/profile/student/stats", { xp_gain: xpGain });
+        } catch (err) {
+            console.error("Failed to update student stats:", err);
+        }
+        if (refreshUserData) {
+            await refreshUserData();
+        }
+
+        setCourses(prev => {
+            const currentCourseData = prev[activeCourseId];
+            if (!currentCourseData) return prev;
+            const updatedNodes = currentCourseData.nodes.map(node => {
+                if (node.id === finishedNodeId) return { ...node, stars: 3 };
+                if (node.id === nextNodeId) return { ...node, isLocked: false };
+                return node;
+            });
+            return {
+                ...prev,
+                [activeCourseId]: { ...currentCourseData, nodes: updatedNodes }
+            };
+        });
+        setLessonLevel(nextNodeId);
     };
 
     const handleCloseGame = () => {
@@ -382,6 +433,16 @@ const HomePage: React.FC<HomePageProps> = ({
         });
         handleCloseGame();
     };
+
+    // LessonSlide üst barı + modüller-arası geçiş için: açık düğümün Ders içindeki
+    // kardeşleri, aşama listesi ve varsa sıradaki modül.
+    const { siblings: dersSiblings, posInDers } = getDersModules(currentCourse?.nodes || [], lessonLevel);
+    const activeLessonNode = posInDers >= 0 ? dersSiblings[posInDers] : undefined;
+    const dersStages = dersSiblings.map((n, i) => ({
+        stage: n.stage || 'ANLA',
+        status: (i < posInDers ? 'done' : i === posInDers ? 'current' : 'upcoming') as 'done' | 'current' | 'upcoming'
+    }));
+    const nextDersModule = posInDers >= 0 && posInDers + 1 < dersSiblings.length ? dersSiblings[posInDers + 1] : null;
 
     if (isUserDataLoading) {
         return (
@@ -761,7 +822,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <div className="w-full overflow-x-auto flex items-center px-12 md:px-24 no-scrollbar pt-48 pb-32 select-none" ref={nodesContainerRef}>
                     <div
                         key={activeCourseId}
-                        className="flex items-center min-w-max relative pl-10 pr-10 animate-course-change"
+                        className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
                     >
                         {(() => {
                             const currentNodes = courses[activeCourseId].nodes;
@@ -1006,7 +1067,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                         {/* Connector */}
                                         {index < currentNodes.length - 1 && (
                                             // STANDARD CONNECTOR
-                                            <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
+                                            <div className="w-40 h-20 -mx-4 relative z-0 flex items-center justify-center">
                                                 <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                     <path
                                                         d={
@@ -1055,6 +1116,12 @@ const HomePage: React.FC<HomePageProps> = ({
                 courseId={currentCourse.id}
                 lessonIndex={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.lessonNumber}
                 userData={userData}
+                moduleStage={activeLessonNode?.stage}
+                dersStages={dersStages}
+                nextModuleNodeId={nextDersModule?.id ?? null}
+                nextModuleStage={nextDersModule?.stage ?? null}
+                onAdvanceModule={handleAdvanceModule}
+                moduleXp={activeLessonNode?.xp ?? 500}
             />
 
             {/* GAME PAGE OVERLAY */}

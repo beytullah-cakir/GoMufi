@@ -486,73 +486,85 @@ const InstructorMetrics: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-black uppercase text-slate-400 tracking-wider">
-                  <th className="py-3 px-4">İşlem / Özellik</th>
-                  <th className="py-3 px-4">Model / Servis</th>
-                  <th className="py-3 px-4 text-center">Birim</th>
-                  <th className="py-3 px-4 text-right">Birim Maliyet (₺)</th>
-                  <th className="py-3 px-4 text-right">1 Ders Kullanım</th>
-                  <th className="py-3 px-4 text-right">1 Ders Maliyeti</th>
-                  <th className="py-3 px-4 text-right">Öğretmen/Ay Kullanım</th>
-                  <th className="py-3 px-4 text-right">Öğretmen Aylık Maliyet</th>
-                  <th className="py-3 px-4">Ölçüm Kaynağı / Tarih</th>
+                <tr className="bg-slate-50 border-b-2 border-slate-200 text-xs font-black uppercase text-slate-500 tracking-wider">
+                  <th className="py-3.5 px-4">İşlem / Özellik</th>
+                  <th className="py-3.5 px-4">Model / Servis</th>
+                  <th className="py-3.5 px-4 text-center">Birim</th>
+                  <th className="py-3.5 px-4 text-right">Birim Maliyet (₺)</th>
+                  <th className="py-3.5 px-4 text-right">1 Ders Kullanım</th>
+                  <th className="py-3.5 px-4 text-right">1 Ders Maliyeti</th>
+                  <th className="py-3.5 px-4 text-right">Öğretmen/Ay Kullanım</th>
+                  <th className="py-3.5 px-4 text-right">Öğretmen Aylık Maliyet</th>
+                  <th className="py-3.5 px-4">Ölçüm Kaynağı / Tarih</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 text-xs font-bold text-slate-700">
+              <tbody className="divide-y divide-slate-100 text-sm font-bold text-slate-700">
                 {metrics.operation_breakdown.rows.map((row) => {
                   const isFree = row.operation === "Görsel üretimi";
                   return (
                     <tr key={row.operation} className={`hover:bg-slate-50/80 transition-colors ${isFree ? "opacity-70" : ""}`}>
-                      <td className="py-3.5 px-4 font-black text-slate-900">{row.operation}</td>
-                      <td className="py-3.5 px-4">
-                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-black">
+                      <td className="py-4 px-4 font-black text-slate-900 text-sm">{row.operation}</td>
+                      <td className="py-4 px-4">
+                        <span className="inline-block px-3 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-black">
                           {row.model}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-center text-slate-500">{row.unit}</td>
-                      <td className="py-3.5 px-4 text-right font-black text-slate-900 font-mono">
+                      <td className="py-4 px-4 text-center text-slate-600 font-bold text-sm">{row.unit}</td>
+                      <td className="py-4 px-4 text-right font-black text-slate-900 font-mono text-sm">
                         {isFree ? "—" : `₺${row.unit_cost_tl.toFixed(4)}`}
                       </td>
-                      <td className="py-3.5 px-4 text-right text-slate-600 font-mono">
+                      <td className="py-4 px-4 text-right text-slate-600 font-mono text-sm font-bold">
                         {isFree ? "—" : `${row.usage_per_lesson}×`}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-black text-emerald-600 font-mono">
+                      <td className="py-4 px-4 text-right font-black text-emerald-600 font-mono text-sm">
                         {isFree ? "Ücretsiz" : `₺${row.cost_per_lesson_tl.toFixed(4)}`}
                       </td>
-                      <td className="py-3.5 px-4 text-right text-slate-600 font-mono">
+                      <td className="py-4 px-4 text-right text-slate-600 font-mono text-sm font-bold">
                         {isFree ? "—" : `${row.usage_per_month}×`}
                       </td>
-                      <td className="py-3.5 px-4 text-right font-black text-emerald-700 font-mono">
+                      <td className="py-4 px-4 text-right font-black text-emerald-700 font-mono text-sm">
                         {isFree ? "₺0,00" : `₺${row.cost_per_month_tl.toFixed(2)}`}
                       </td>
-                      <td className="py-3.5 px-4 text-[10px] text-slate-500 max-w-[220px]">
-                        <span className="block truncate" title={row.source}>{row.source}</span>
+                      <td className="py-4 px-4 text-xs text-slate-600 max-w-[260px]">
+                        <span className="block truncate font-semibold text-slate-800" title={row.source}>{row.source}</span>
                         {row.last_date && (
-                          <span className="text-slate-400">{new Date(row.last_date).toLocaleDateString("tr-TR")}</span>
+                          <span className="text-slate-500 font-medium">{new Date(row.last_date).toLocaleDateString("tr-TR")}</span>
                         )}
-                        {row.samples > 0 && <span className="text-slate-400"> · {row.samples} örnek</span>}
+                        {row.samples > 0 && <span className="text-slate-500 font-medium"> · {row.samples} örnek</span>}
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-slate-200 bg-slate-50 text-xs font-black text-slate-900">
-                  <td className="py-3.5 px-4" colSpan={5}>TOPLAM (bir ders / bir öğretmen-ay)</td>
-                  <td className="py-3.5 px-4 text-right text-emerald-600 font-mono">
+                <tr className="border-t-2 border-slate-200 bg-slate-50 text-sm font-black text-slate-900">
+                  <td className="py-4 px-4" colSpan={5}>TOPLAM — 1 ders başına</td>
+                  <td className="py-4 px-4 text-right text-emerald-600 font-mono text-base font-black" colSpan={4}>
                     ₺{metrics.operation_breakdown.rows.reduce((s, r) => s + r.cost_per_lesson_tl, 0).toFixed(4)}
                   </td>
-                  <td></td>
-                  <td className="py-3.5 px-4 text-right text-emerald-700 font-mono">
+                </tr>
+                <tr className="bg-indigo-50/60 text-sm font-black text-slate-900">
+                  <td className="py-3.5 px-4" colSpan={5}>
+                    ≈ 8 Derslik 1 Kurs <span className="font-bold text-slate-500 normal-case">(bir kursun tipik ders sayısı)</span>
+                  </td>
+                  <td className="py-3.5 px-4 text-right text-indigo-700 font-mono text-base font-black" colSpan={4}>
+                    ₺{(metrics.operation_breakdown.rows.reduce((s, r) => s + r.cost_per_lesson_tl, 0) * 8).toFixed(2)}
+                  </td>
+                </tr>
+                <tr className="bg-slate-50 text-sm font-black text-slate-900">
+                  <td className="py-4 px-4" colSpan={5}>
+                    Öğretmen Aylık Toplam <span className="font-bold text-slate-500 normal-case">({metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımı — bir kurs değil, bir AYIN tüm üretimi)</span>
+                  </td>
+                  <td className="py-4 px-4 text-right text-emerald-700 font-mono text-base font-black" colSpan={4}>
                     ₺{metrics.operation_breakdown.rows.reduce((s, r) => s + r.cost_per_month_tl, 0).toFixed(2)}
                   </td>
-                  <td></td>
                 </tr>
               </tfoot>
             </table>
           </div>
-          <p className="text-[10px] font-semibold text-slate-400 mt-3 italic">
-            * "Ders başı" değerleri, kategorinin toplam maliyetinin üretilen ders sayısına bölünmesiyle (amortisman) bulunur — müfredat gibi kurs-başı işlemler ders başına düşen paylarıyla görünür. "Öğretmen aylık" kolonu {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımına dayalı projeksiyondur. Görseller loremflickr'dan ücretsiz çekilir (AI maliyeti yok).
+          <p className="text-xs font-semibold text-slate-500 mt-3.5 italic leading-relaxed">
+            * "Ders başı" değerleri, kategorinin toplam maliyetinin üretilen ders sayısına bölünmesiyle (amortisman) bulunur — müfredat gibi kurs-başı işlemler ders başına düşen paylarıyla görünür.
+            "8 derslik kurs" = ders başı toplam × 8 (tipik kurs varsayımı). "Öğretmen aylık" ise {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımına dayalı AYRI bir projeksiyondur — bir kursun değil, bir öğretmenin bir ayda ürettiği TÜM derslerin toplam maliyetidir, bu yüzden kurs maliyetinden yüksek görünür. Görseller loremflickr'dan ücretsiz çekilir (AI maliyeti yok).
           </p>
         </div>
       )}

@@ -104,7 +104,7 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
                 <div className="w-full overflow-x-auto flex items-center px-12 md:px-24 no-scrollbar pt-48 pb-32 select-none">
                     <div
                         key={activeCourseId}
-                        className="flex items-center min-w-max relative pl-10 pr-10 animate-course-change"
+                        className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
                     >
                         {currentNodes.map((node: any, index: number) => {
                             const levelCounter = index + 1;
@@ -243,7 +243,7 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
                                     {/* Connector */}
                                     {index < currentNodes.length - 1 && (
                                         // STANDARD CONNECTOR
-                                        <div className="w-28 h-20 -mx-4 relative z-0 flex items-center justify-center">
+                                        <div className="w-40 h-20 -mx-4 relative z-0 flex items-center justify-center">
                                             <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                 <path
                                                     d={

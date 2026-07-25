@@ -25,6 +25,7 @@ import {
   RefreshCw,
   Settings,
   GripVertical,
+  Star,
 } from "lucide-react";
 import posthog from "posthog-js";
 import api from "../../api";
@@ -156,7 +157,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
               lectures: [],
               isAIDraft: true,
               aiModuleTopic: m.topic || "",
-              aiLessonObjective: objective || `Bu derste ${lessonTopic} konusu öğrenilecektir.`
+              aiLessonObjective: objective || `Bu derste ${lessonTopic} konusu öğrenilecektir.`,
+              xp: 500
             };
 
             if (isFirstModule) {
@@ -772,7 +774,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
               lectures: [],
               isAIDraft: true, // Mark as draft
               aiModuleTopic: m.topic || "", // Store full detailed suggestion here
-              aiLessonObjective: lesson.objective || `Bu derste ${lesson.title} konusu öğrenilecektir.`
+              aiLessonObjective: lesson.objective || `Bu derste ${lesson.title} konusu öğrenilecektir.`,
+              xp: 500
             };
 
             if (isFirstModule) {
@@ -812,10 +815,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
       const actualSections = rawCurriculum
         .filter((item: any) => item.type !== "live_sessions_config" && item.type !== "ai_generation_status")
         .map((item: any, idx: number) => {
-          if (!item.theme) {
-            return { ...item, theme: pattern[idx % pattern.length] };
-          }
-          return item;
+          const withTheme = item.theme ? item : { ...item, theme: pattern[idx % pattern.length] };
+          return withTheme.xp === undefined ? { ...withTheme, xp: 500 } : withTheme;
         });
       const configItem = rawCurriculum.find(
         (item: any) => item.type === "live_sessions_config"
@@ -947,6 +948,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       title: `Ders ${sections.length + 1}`,
       lectures: [],
       theme: defaultTheme,
+      xp: 500,
     };
     if (sections.length === 0) {
       newSection.lessonTopic = course?.title || "Giriş Konusu";
@@ -1020,6 +1022,7 @@ const InstructorRoadmapBuilder: React.FC = () => {
       title: `Ders ${sections.length + 1}`,
       lectures: [],
       theme: defaultTheme,
+      xp: 500,
     };
 
     let updated = [...sections];
@@ -1104,6 +1107,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const handleUpdateTheme = (id: string | number, themeId: string) => {
     setSections(
       sections.map((s) => (s.id === id ? { ...s, theme: themeId } : s))
+    );
+  };
+
+  // Modül tamamlanınca öğrenciye verilecek XP (varsayılan 500)
+  const handleUpdateXP = (id: string | number, rawValue: string) => {
+    const parsed = parseInt(rawValue, 10);
+    const xp = isNaN(parsed) ? 0 : Math.max(0, parsed);
+    setSections(
+      sections.map((s) => (s.id === id ? { ...s, xp } : s))
     );
   };
 
@@ -1847,6 +1859,29 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                 </button>
                               );
                             })}
+                          </div>
+                        </div>
+
+                        {/* Modül XP Ayarı */}
+                        <div className="relative z-10 flex flex-col w-full">
+                          <label className="text-white/85 text-[10px] font-black tracking-widest uppercase mb-1.5 flex items-center gap-1.5">
+                            <Star size={11} className="fill-white text-white" /> Tamamlama XP'si
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              min={0}
+                              step={10}
+                              value={section.xp ?? 500}
+                              onChange={(e) => handleUpdateXP(section.id, e.target.value)}
+                              onDragStart={(e) => e.stopPropagation()}
+                              draggable={false}
+                              placeholder="500"
+                              className="bg-white/20 text-white font-black text-sm pl-3 pr-10 py-2 rounded-xl focus:outline-none focus:bg-white/30 border border-white/10 placeholder-white/50 w-full [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-white/70 text-[10px] font-black uppercase tracking-wider pointer-events-none">
+                              XP
+                            </span>
                           </div>
                         </div>
                       </div>

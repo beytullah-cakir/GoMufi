@@ -59,6 +59,16 @@ const getNodeMetadata = (idx: number, customTheme?: string) => {
     return themes[defaultTheme];
 };
 
+// Tema → roadmap modül aşaması (öğretmen roadmap builder'ındaki aynı eşleme: purple=ANLA, cyan=UYGULA, green=BİRLEŞTİR, yellow=ÜRET)
+const THEME_STAGE: Record<string, string> = {
+    purple: 'ANLA', cyan: 'UYGULA', green: 'BİRLEŞTİR', yellow: 'ÜRET', quiz: 'QUIZ', homework: 'ÖDEV'
+};
+const resolveThemeKey = (idx: number, customTheme?: string) => {
+    if (customTheme && THEME_STAGE[customTheme]) return customTheme;
+    const pattern = ["purple", "cyan", "green", "yellow"];
+    return pattern[idx % pattern.length];
+};
+
 // --- Helper to Generate Lesson Nodes ---
 const generateLessonNodes = (
     startId: number,
@@ -69,10 +79,12 @@ const generateLessonNodes = (
     theme?: string,
     slides: any[] = [],
     lessonTopic?: string,
-    lessonNumber?: number
+    lessonNumber?: number,
+    xp?: number
 ): PathNode[] => {
     const metadata = getNodeMetadata(startId - 1, theme);
-    
+    const stage = THEME_STAGE[resolveThemeKey(startId - 1, theme)];
+
     return [
         {
             id: startId,
@@ -95,7 +107,9 @@ const generateLessonNodes = (
             lessonTopic: lessonTopic,
             sectionId: sectionId,
             localNodeIndex: startId,
-            slides: slides
+            slides: slides,
+            stage: stage,
+            xp: xp ?? 500
         }
     ];
 };
@@ -139,7 +153,8 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                     section.theme,
                     slides,
                     section.lessonTopic,
-                    section.lessonNumber
+                    section.lessonNumber,
+                    section.xp
                 );
                 
                 const processedNodes = lessonNodes.map(node => ({
