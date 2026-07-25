@@ -1,41 +1,31 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Brain,
     Layout,
     Gamepad2,
     Calendar,
     TrendingUp,
     Sparkles,
-    Code,
     Users,
-    CheckCircle2,
-    ArrowRight,
-    Lock,
-    Plus,
-    Play,
-    Settings,
-    Layers,
-    Video,
-    Check,
     ChevronDown,
     Menu,
     X,
-    Search,
-    BookOpen,
-    Trophy,
-    MessageSquare,
     ChevronRight,
-    HelpCircle,
-    UserCheck,
     Cpu,
-    MousePointerClick,
-    Volume2,
-    Swords,
-    ShieldAlert,
+    Layers,
+    Video,
     KeyRound,
     Zap,
-    Bot
+    Bot,
+    Star,
+    Quote,
+    ArrowRight,
+    BarChart3,
+    Wand2,
+    MousePointerClick,
+    Timer,
+    ShieldCheck,
+    GraduationCap
 } from 'lucide-react';
 
 import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
@@ -47,6 +37,10 @@ import QuestionSprite from '../assets/sprites/Question.png';
 import PythonIcon from '../assets/sprites/PythonIcon.png';
 import EnglishIcon from '../assets/sprites/EnglishIcon.png';
 import JsIcon from '../assets/sprites/JsIcon.png';
+import ReactIcon from '../assets/sprites/ReactIcon.png';
+import DataIcon from '../assets/sprites/DataIcon.png';
+import BooksIcon from '../assets/sprites/BooksIcon.png';
+import ChestSprite from '../assets/sprites/Chest.png';
 import MufiMascot from '../assets/sprites/MufiMascot.png';
 import GrassIcon from '../assets/sprites/grass.png';
 import ButtonCyan from '../assets/sprites/ButtonCyan.png';
@@ -60,6 +54,19 @@ import Frame2 from '../assets/sprites/Mufi/Frame2.png';
 const VectorCloud: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} viewBox="0 0 120 80" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <path d="M 25,60 A 20,20 0 0,1 45,30 A 25,25 0 0,1 85,25 A 20,20 0 0,1 105,45 A 15,15 0 0,1 100,75 L 25,75 Z" />
+    </svg>
+);
+
+// Scalloped section divider (bubbly cloud edge) for playful transitions
+const ScallopDivider: React.FC<{ className?: string; flip?: boolean }> = ({ className, flip }) => (
+    <svg
+        className={`w-full h-10 md:h-14 block ${flip ? 'rotate-180' : ''} ${className || ''}`}
+        viewBox="0 0 1440 64"
+        preserveAspectRatio="none"
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+    >
+        <path d="M0 64 L0 32 Q 60 0 120 32 Q 180 64 240 32 Q 300 0 360 32 Q 420 64 480 32 Q 540 0 600 32 Q 660 64 720 32 Q 780 0 840 32 Q 900 64 960 32 Q 1020 0 1080 32 Q 1140 64 1200 32 Q 1260 0 1320 32 Q 1380 64 1440 32 L 1440 64 Z" />
     </svg>
 );
 
@@ -108,7 +115,7 @@ const LandingPage: React.FC = () => {
                 leftOffset: Math.floor(Math.random() * 120) - 60
             };
             setFallingIcons(prev => [...prev, newItem]);
-            
+
             setTimeout(() => {
                 setFallingIcons(prev => prev.filter(item => item.id !== newItem.id));
             }, 900);
@@ -188,19 +195,14 @@ const LandingPage: React.FC = () => {
         let timeout: any;
 
         if (simStep === 1) {
-            // Managed by hammer strike trigger in combination with roadNodeCount transition useEffect
             return;
         } else if (simStep === 2) {
-            // Generating slides
             timeout = setTimeout(() => setSimStep(3), 2000);
         } else if (simStep === 3) {
-            // Building code samples
             timeout = setTimeout(() => setSimStep(4), 2200);
         } else if (simStep === 4) {
-            // Building quizzes
             timeout = setTimeout(() => setSimStep(5), 2000);
         } else if (simStep === 5) {
-            // Completed! Wait and reset
             timeout = setTimeout(() => setSimStep(0), 4500);
         }
 
@@ -282,136 +284,83 @@ const LandingPage: React.FC = () => {
             icon: PythonIcon,
             lessons: "8 Canlı Ders",
             modules: "48 Modül",
-            color: "bg-blue-50 border-blue-200"
+            level: "Anla (Başlangıç)",
+            topBg: "bg-fuchsia-50/80",
+            cardBorder: "border-fuchsia-300 border-b-[6px] border-b-fuchsia-400 hover:border-fuchsia-400 hover:border-b-fuchsia-500",
+            plate: "bg-fuchsia-50 border-fuchsia-200",
+            badge: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+            bar: "bg-fuchsia-500"
         },
         {
             title: "Eğlenceli Robotik",
             icon: BrainSprite,
             lessons: "6 Canlı Ders",
             modules: "32 Modül",
-            color: "bg-purple-50 border-purple-200"
+            level: "Uygula (Orta)",
+            topBg: "bg-cyan-50/80",
+            cardBorder: "border-cyan-300 border-b-[6px] border-b-cyan-400 hover:border-cyan-400 hover:border-b-cyan-500",
+            plate: "bg-cyan-50 border-cyan-200",
+            badge: "bg-cyan-100 text-cyan-700 border-cyan-200",
+            bar: "bg-cyan-500"
         },
         {
             title: "Scratch ile Programlama",
             icon: PuzzleSprite,
             lessons: "10 Canlı Ders",
             modules: "60 Modül",
-            color: "bg-pink-50 border-pink-200"
+            level: "Birleştir (Başlangıç)",
+            topBg: "bg-emerald-50/80",
+            cardBorder: "border-emerald-300 border-b-[6px] border-b-emerald-400 hover:border-emerald-400 hover:border-b-emerald-500",
+            plate: "bg-emerald-50 border-emerald-200",
+            badge: "bg-emerald-100 text-emerald-700 border-emerald-200",
+            bar: "bg-emerald-500"
         },
         {
             title: "Görsel Matematik",
             icon: TrophySprite,
             lessons: "12 Canlı Ders",
             modules: "54 Modül",
-            color: "bg-emerald-50 border-emerald-200"
+            level: "Üret (Orta)",
+            topBg: "bg-amber-50/80",
+            cardBorder: "border-amber-300 border-b-[6px] border-b-amber-400 hover:border-amber-400 hover:border-b-amber-500",
+            plate: "bg-amber-50 border-amber-200",
+            badge: "bg-amber-100 text-amber-700 border-amber-200",
+            bar: "bg-amber-500"
         },
         {
             title: "İnteraktif İngilizce",
             icon: EnglishIcon,
             lessons: "8 Canlı Ders",
             modules: "40 Modül",
-            color: "bg-amber-50 border-amber-200"
+            level: "Quiz & Ödev",
+            topBg: "bg-purple-50/80",
+            cardBorder: "border-purple-300 border-b-[6px] border-b-purple-400 hover:border-purple-400 hover:border-b-purple-500",
+            plate: "bg-purple-50 border-purple-200",
+            badge: "bg-purple-100 text-purple-700 border-purple-200",
+            bar: "bg-purple-500"
         }
     ];
 
-    // Core feature list with rich custom styling variables
-    const features = [
-        {
-            title: "AI Lesson Builder",
-            highlight: "AI",
-            gradient: "from-[#8b5cf6] to-purple-600",
-            desc: "Tek komutla ders planı oluşturun, kazanımlara göre otomatik slaytlar elde edin.",
-            icon: <Cpu className="w-7 h-7 text-[#8b5cf6]" />,
-            cardBg: "from-white to-purple-50/20",
-            cardBorder: "border-purple-200 hover:border-[#8b5cf6] border-b-purple-300",
-            glowShadow: "hover:shadow-purple-100/80",
-            watermarkColor: "text-purple-100/10 group-hover:text-purple-200/20",
-            badgeColor: "bg-purple-50 border-purple-100"
-        },
-        {
-            title: "Canva Benzeri Editör",
-            highlight: "Editör",
-            gradient: "from-blue-600 to-indigo-500",
-            desc: "Hazır eğitsel şablonlar, görseller ve sürükle-bırak nesnelerle içerikleri kolayca düzenleyin.",
-            icon: <Layout className="w-7 h-7 text-blue-600" />,
-            cardBg: "from-white to-blue-50/20",
-            cardBorder: "border-blue-200 hover:border-blue-500 border-b-blue-300",
-            glowShadow: "hover:shadow-blue-100/80",
-            watermarkColor: "text-blue-100/10 group-hover:text-blue-200/20",
-            badgeColor: "bg-blue-50 border-blue-100"
-        },
-        {
-            title: "Oyunlaştırılmış Dersler",
-            highlight: "Oyunlaştırılmış",
-            gradient: "from-pink-600 to-rose-500",
-            desc: "Ders aralarına serpiştirilmiş quizler, anlık görevler ve mini oyunlarla motivasyonu zirvede tutun.",
-            icon: <Gamepad2 className="w-7 h-7 text-pink-600" />,
-            cardBg: "from-white to-pink-50/20",
-            cardBorder: "border-pink-200 hover:border-pink-500 border-b-pink-300",
-            glowShadow: "hover:shadow-pink-100/80",
-            watermarkColor: "text-pink-100/10 group-hover:text-pink-200/20",
-            badgeColor: "bg-pink-50 border-pink-100"
-        },
-        {
-            title: "Hazır Modüller",
-            highlight: "Modüller",
-            gradient: "from-emerald-600 to-teal-500",
-            desc: "Anla, Uygula, Birleştir, Üret, Quiz ve Ödev modülleriyle pedagojik ders akışları kurun.",
-            icon: <Layers className="w-7 h-7 text-emerald-600" />,
-            cardBg: "from-white to-emerald-50/20",
-            cardBorder: "border-emerald-200 hover:border-emerald-500 border-b-emerald-300",
-            glowShadow: "hover:shadow-emerald-100/80",
-            watermarkColor: "text-emerald-100/10 group-hover:text-emerald-200/20",
-            badgeColor: "bg-emerald-50 border-emerald-100"
-        },
-        {
-            title: "Canlı Ders Yönetimi",
-            highlight: "Canlı Ders",
-            gradient: "from-amber-600 to-orange-500",
-            desc: "Görüntülü bağlantı, öğrenci katılım takip araçları ve entegre takvim sistemi tek panelde.",
-            icon: <Calendar className="w-7 h-7 text-amber-600" />,
-            cardBg: "from-white to-amber-50/20",
-            cardBorder: "border-amber-200 hover:border-amber-500 border-b-amber-300",
-            glowShadow: "hover:shadow-amber-100/80",
-            watermarkColor: "text-amber-100/10 group-hover:text-amber-200/20",
-            badgeColor: "bg-amber-50 border-amber-100"
-        },
-        {
-            title: "Öğrenci Analitiği",
-            highlight: "Analitiği",
-            gradient: "from-indigo-600 to-violet-500",
-            desc: "Öğrencilerin gelişim raporlarını, katılım sürelerini ve soru başarı grafiklerini anlık izleyin.",
-            icon: <TrendingUp className="w-7 h-7 text-indigo-600" />,
-            cardBg: "from-white to-indigo-50/20",
-            cardBorder: "border-indigo-200 hover:border-indigo-500 border-b-indigo-300",
-            glowShadow: "hover:shadow-indigo-100/80",
-            watermarkColor: "text-indigo-100/10 group-hover:text-indigo-200/20",
-            badgeColor: "bg-indigo-50 border-indigo-100"
-        }
+    // Marquee subject chips (Single row rich cards)
+    // Marquee subject chips (Single row rich cards using Roadmap Level Themes: Purple, Cyan, Emerald, Amber)
+    const marqueeItems = [
+        { label: "Python ile Kodlama", sub: "8 Canlı Ders • 120 XP", badge: "Popüler", img: PythonIcon, border: "hover:border-purple-300 hover:border-b-purple-400", badgeBg: "bg-purple-100 text-purple-700 border-purple-200", iconBg: "bg-purple-50 border-purple-200 text-purple-600" },
+        { label: "JavaScript ES6+", sub: "10 Modül • 150 XP", badge: "İnteraktif", img: JsIcon, border: "hover:border-cyan-300 hover:border-b-cyan-400", badgeBg: "bg-cyan-100 text-cyan-700 border-cyan-200", iconBg: "bg-cyan-50 border-cyan-200 text-cyan-600" },
+        { label: "Görsel Matematik", sub: "14 Sunum • Quizli", badge: "K-12 Uyumlu", img: TrophySprite, border: "hover:border-emerald-300 hover:border-b-emerald-400", badgeBg: "bg-emerald-100 text-emerald-700 border-emerald-200", iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+        { label: "İnteraktif İngilizce", sub: "Speaking & Games", badge: "Oyunlu", img: EnglishIcon, border: "hover:border-amber-300 hover:border-b-amber-400", badgeBg: "bg-amber-100 text-amber-700 border-amber-200", iconBg: "bg-amber-50 border-amber-200 text-amber-600" },
+        { label: "Robotik & Yapay Zeka", sub: "6 Proje • Canlı Kod", badge: "Yeni", img: BrainSprite, border: "hover:border-purple-300 hover:border-b-purple-400", badgeBg: "bg-purple-100 text-purple-700 border-purple-200", iconBg: "bg-purple-50 border-purple-200 text-purple-600" },
+        { label: "Modern React 19", sub: "Komponent Yapısı", badge: "Gelişmiş", img: ReactIcon, border: "hover:border-cyan-300 hover:border-b-cyan-400", badgeBg: "bg-cyan-100 text-cyan-700 border-cyan-200", iconBg: "bg-cyan-50 border-cyan-200 text-cyan-600" },
+        { label: "Veri Bilimi & Grafik", sub: "Analiz & Görseller", badge: "AI Destekli", img: DataIcon, border: "hover:border-emerald-300 hover:border-b-emerald-400", badgeBg: "bg-emerald-100 text-emerald-700 border-emerald-200", iconBg: "bg-emerald-50 border-emerald-200 text-emerald-600" },
+        { label: "Scratch ile Blok Kod", sub: "Sürükle & Bırak", badge: "Başlangıç", img: PuzzleSprite, border: "hover:border-amber-300 hover:border-b-amber-400", badgeBg: "bg-amber-100 text-amber-700 border-amber-200", iconBg: "bg-amber-50 border-amber-200 text-amber-600" },
+        { label: "Deneylerle Fen Bilgisi", sub: "Simülasyon Modülü", badge: "İnteraktif", img: BooksIcon, border: "hover:border-purple-300 hover:border-b-purple-400", badgeBg: "bg-purple-100 text-purple-700 border-purple-200", iconBg: "bg-purple-50 border-purple-200 text-purple-600" },
+        { label: "Canlı Quiz Turnuvası", sub: "Anlık Liderlik", badge: "Turnuva", img: QuestionSprite, border: "hover:border-cyan-300 hover:border-b-cyan-400", badgeBg: "bg-cyan-100 text-cyan-700 border-cyan-200", iconBg: "bg-cyan-50 border-cyan-200 text-cyan-600" },
     ];
-
-    // Helper to render title with specific highlighted gradient word
-    const renderTitle = (title: string, highlight: string, gradient: string) => {
-        if (!highlight) return <span>{title}</span>;
-        const parts = title.split(new RegExp(`(${highlight})`, 'gi'));
-        return (
-            <span>
-                {parts.map((part, i) =>
-                    part.toLowerCase() === highlight.toLowerCase() ? (
-                        <span key={i} className={`bg-clip-text text-transparent bg-gradient-to-r ${gradient} font-black`}>
-                            {part}
-                        </span>
-                    ) : (
-                        <span key={i} className="text-slate-800">{part}</span>
-                    )
-                )}
-            </span>
-        );
-    };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-850 selection:bg-purple-200 overflow-x-hidden">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-800 selection:bg-purple-200 overflow-x-hidden">
             <style>{`
+                .font-display { font-family: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif; }
+
                 .reveal {
                     opacity: 0;
                     transform: translateY(40px);
@@ -436,7 +385,7 @@ const LandingPage: React.FC = () => {
                     opacity: 1;
                     transform: translate(0) scale(1) !important;
                 }
-                
+
                 @keyframes float-cloud-1 {
                     0% { transform: translateX(0); }
                     50% { transform: translateX(25px) translateY(-5px); }
@@ -447,21 +396,15 @@ const LandingPage: React.FC = () => {
                     50% { transform: translateX(-35px) translateY(5px); }
                     100% { transform: translateX(0); }
                 }
-                .animate-cloud-1 {
-                    animation: float-cloud-1 14s ease-in-out infinite;
-                }
-                .animate-cloud-2 {
-                    animation: float-cloud-2 18s ease-in-out infinite;
-                }
-                
+                .animate-cloud-1 { animation: float-cloud-1 14s ease-in-out infinite; }
+                .animate-cloud-2 { animation: float-cloud-2 18s ease-in-out infinite; }
+
                 @keyframes bounce-slow {
                     0%, 100% { transform: translateY(0); }
                     50% { transform: translateY(-6px); }
                 }
-                .animate-bounce-slow {
-                    animation: bounce-slow 3s ease-in-out infinite;
-                }
-                
+                .animate-bounce-slow { animation: bounce-slow 3s ease-in-out infinite; }
+
                 @keyframes card-impact {
                     0%, 100% { transform: translateX(0); }
                     15% { transform: translateX(-4px); }
@@ -469,10 +412,8 @@ const LandingPage: React.FC = () => {
                     45% { transform: translateX(-2px); }
                     60% { transform: translateX(1px); }
                 }
-                .animate-card-impact {
-                    animation: card-impact 0.2s ease-out;
-                }
-                
+                .animate-card-impact { animation: card-impact 0.2s ease-out; }
+
                 @keyframes debris-1 {
                     0% { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
                     20% { transform: translate(-25px, -30px) rotate(45deg); }
@@ -498,22 +439,12 @@ const LandingPage: React.FC = () => {
                     22% { transform: translate(-30px, -25px) rotate(-45deg); }
                     100% { opacity: 0; transform: translate(-70px, 100px) rotate(-180deg) scale(0.4); }
                 }
-                .animate-debris-1 {
-                    animation: debris-1 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-                }
-                .animate-debris-2 {
-                    animation: debris-2 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-                }
-                .animate-debris-3 {
-                    animation: debris-3 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-                }
-                .animate-debris-4 {
-                    animation: debris-4 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-                }
-                .animate-debris-5 {
-                    animation: debris-5 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
-                }
-                
+                .animate-debris-1 { animation: debris-1 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+                .animate-debris-2 { animation: debris-2 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+                .animate-debris-3 { animation: debris-3 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+                .animate-debris-4 { animation: debris-4 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+                .animate-debris-5 { animation: debris-5 0.45s cubic-bezier(0.1, 0.8, 0.3, 1) forwards; }
+
                 .construction-tape {
                     background: repeating-linear-gradient(
                         -45deg,
@@ -523,14 +454,16 @@ const LandingPage: React.FC = () => {
                         #1e293b 20px
                     );
                 }
-                
-                .blueprint-grid {
-                    background-size: 20px 20px;
-                    background-image: 
-                        linear-gradient(to right, rgba(139, 92, 246, 0.04) 1px, transparent 1px),
-                        linear-gradient(to bottom, rgba(139, 92, 246, 0.04) 1px, transparent 1px);
+
+                .dot-grid {
+                    background-image: radial-gradient(circle, rgba(100, 116, 139, 0.14) 1.5px, transparent 1.5px);
+                    background-size: 26px 26px;
                 }
-                
+                .dot-grid-dark {
+                    background-image: radial-gradient(circle, rgba(255, 255, 255, 0.07) 1.5px, transparent 1.5px);
+                    background-size: 26px 26px;
+                }
+
                 @keyframes icon-fall {
                     0% {
                         opacity: 0;
@@ -545,88 +478,111 @@ const LandingPage: React.FC = () => {
                         transform: translate(-50%, 220px) scale(0.4) rotate(360deg);
                     }
                 }
-                .animate-icon-fall {
-                    animation: icon-fall 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
-                }
-                
+                .animate-icon-fall { animation: icon-fall 0.85s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards; }
+
                 @keyframes float {
                     0%, 100% { transform: translateY(0px); }
                     50% { transform: translateY(-6px); }
                 }
-                .animate-float {
-                    animation: float 2.5s ease-in-out infinite;
+                .animate-float { animation: float 2.5s ease-in-out infinite; }
+
+                @keyframes wiggle {
+                    0%, 100% { transform: rotate(-2deg); }
+                    50% { transform: rotate(2deg); }
                 }
-                
-                @keyframes shadow-pulse {
-                    0%, 100% { transform: scale(1); opacity: 0.15; }
-                    50% { transform: scale(0.85); opacity: 0.08; }
+                .animate-wiggle { animation: wiggle 4s ease-in-out infinite; }
+
+                @keyframes marquee-scroll {
+                    0% { transform: translateX(0); }
+                    100% { transform: translateX(-50%); }
                 }
-                .animate-shadow-pulse {
-                    animation: shadow-pulse 2.5s ease-in-out infinite;
+                @keyframes marquee-scroll-reverse {
+                    0% { transform: translateX(-50%); }
+                    100% { transform: translateX(0); }
                 }
+                .animate-marquee {
+                    animation: marquee-scroll 38s linear infinite;
+                }
+                .animate-marquee-reverse {
+                    animation: marquee-scroll-reverse 38s linear infinite;
+                }
+                .group-marquee:hover .animate-marquee,
+                .group-marquee:hover .animate-marquee-reverse {
+                    animation-play-state: paused;
+                }
+                .marquee-mask {
+                    mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+                    -webkit-mask-image: linear-gradient(to right, transparent, black 6%, black 94%, transparent);
+                }
+
+                @keyframes bar-grow {
+                    0% { transform: scaleY(0.2); }
+                    100% { transform: scaleY(1); }
+                }
+                .animate-bar-grow {
+                    transform-origin: bottom;
+                    animation: bar-grow 1s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+                }
+
+                @keyframes ping-soft {
+                    0% { transform: scale(1); opacity: 0.6; }
+                    100% { transform: scale(1.8); opacity: 0; }
+                }
+                .animate-ping-soft { animation: ping-soft 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
             `}</style>
 
-            {/* Header / Navbar */}
-            <nav className="sticky top-0 z-50 bg-white/95 backdrop-blur-md shadow-sm h-[90px] px-6 lg:px-12 flex items-center justify-between border-b-2 border-slate-100">
-                <div className="flex items-center gap-6 xl:gap-8 w-full justify-between">
+            {/* ============ NAVBAR ============ */}
+            <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg h-[84px] px-6 lg:px-12 flex items-center justify-between border-b-2 border-slate-100">
+                <div className="flex items-center gap-6 xl:gap-8 w-full justify-between max-w-[1400px] mx-auto">
                     {/* Logo */}
                     <div className="flex-shrink-0 cursor-pointer group" onClick={() => navigate('/')}>
-                        <img src={LogoText} alt="GoMufi" className="h-[48px] md:h-[58px] object-contain group-hover:scale-105 transition-transform duration-300" />
+                        <img src={LogoText} alt="GoMufi" className="h-[46px] md:h-[54px] object-contain group-hover:scale-105 transition-transform duration-300" />
                     </div>
 
-                    {/* Clean navigation links matching main app sidebar hover styles */}
-                    <div className="hidden xl:flex items-center gap-2 text-sm font-black tracking-wider whitespace-nowrap">
-                        <button
-                            onClick={() => scrollToSection('features')}
-                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
-                        >
-                            Özellikler
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('sample-courses')}
-                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
-                        >
-                            Örnek Dersler
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('steps')}
-                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
-                        >
-                            Nasıl Çalışır?
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('faq')}
-                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer"
-                        >
-                            SSS
-                        </button>
+                    {/* Nav pills */}
+                    <div className="hidden xl:flex items-center gap-1 text-[13px] font-black tracking-wide whitespace-nowrap bg-slate-100/70 border-2 border-slate-200/60 rounded-2xl p-1.5">
+                        {[
+                            { id: 'features', label: 'Özellikler' },
+                            { id: 'sample-courses', label: 'Örnek Dersler' },
+                            { id: 'steps', label: 'Nasıl Çalışır?' },
+                            { id: 'preview', label: 'Platform' },
+                            { id: 'faq', label: 'SSS' }
+                        ].map(link => (
+                            <button
+                                key={link.id}
+                                onClick={() => scrollToSection(link.id)}
+                                className="px-4 py-2 rounded-xl text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm transition-all cursor-pointer"
+                            >
+                                {link.label}
+                            </button>
+                        ))}
                         <button
                             onClick={() => navigate('/animation')}
-                            className="px-4 py-2.5 rounded-2xl text-slate-550 hover:bg-slate-100 hover:text-slate-800 transition-all uppercase cursor-pointer text-purple-600 font-bold"
+                            className="px-4 py-2 rounded-xl text-purple-600 hover:bg-white hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
                         >
-                            Animasyon
+                            <Sparkles size={13} /> Animasyon
                         </button>
                     </div>
 
                     {/* CTA Actions */}
-                    <div className="hidden sm:flex items-center gap-4">
+                    <div className="hidden sm:flex items-center gap-3">
                         <button
                             onClick={() => navigate('/auth')}
-                            className="px-6 py-3.5 rounded-2xl border-2 border-b-4 border-slate-200 bg-white text-slate-700 font-black text-sm hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer"
+                            className="px-6 py-3 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white text-slate-700 font-black text-sm hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer"
                         >
                             Giriş Yap
                         </button>
                         <button
                             onClick={() => navigate('/auth')}
-                            className="px-6 py-3.5 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-sm hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer shadow-sm"
+                            className="px-6 py-3 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-sm hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer shadow-sm"
                         >
                             Ücretsiz Başla
                         </button>
                     </div>
 
                     {/* Mobile Menu Button */}
-                    <button className="xl:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-lg" onClick={() => setIsMobileMenuOpen(true)}>
-                        <Menu className="w-6 h-6" />
+                    <button className="xl:hidden p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl border-2 border-slate-200" onClick={() => setIsMobileMenuOpen(true)}>
+                        <Menu className="w-5 h-5" />
                     </button>
                 </div>
             </nav>
@@ -641,87 +597,116 @@ const LandingPage: React.FC = () => {
                                 <X className="w-6 h-6 text-slate-500" />
                             </button>
                         </div>
-                        <div className="flex flex-col gap-4 text-base font-black text-slate-700">
-                            <button onClick={() => scrollToSection('features')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">Özellikler</button>
-                            <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">Örnek Dersler</button>
-                            <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-2 hover:bg-slate-55 hover:text-purple-600 rounded-lg transition-colors">Nasıl Çalışır?</button>
-                            <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors">SSS</button>
-                            <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-2 hover:bg-slate-50 hover:text-purple-600 rounded-lg transition-colors text-purple-600 font-bold">Animasyon</button>
+                        <div className="flex flex-col gap-2 text-base font-black text-slate-700">
+                            <button onClick={() => scrollToSection('features')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Özellikler</button>
+                            <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Örnek Dersler</button>
+                            <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Nasıl Çalışır?</button>
+                            <button onClick={() => scrollToSection('preview')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Platform</button>
+                            <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">SSS</button>
+                            <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-3 hover:bg-slate-50 rounded-xl transition-colors text-purple-600">✨ Animasyon</button>
                         </div>
                         <div className="mt-auto pt-6 border-t-2 border-slate-100 flex flex-col gap-3">
-                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-slate-200 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
+                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
                             <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-center active:translate-y-[2px] active:border-b-2 transition-all">Kayıt Ol</button>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* 1. Hero Section */}
-            <section className="relative pt-16 pb-24 px-6 md:px-12 overflow-hidden bg-white">
-                <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-green-50/50 via-white to-white"></div>
-                <div className="absolute top-[-10%] left-[-10%] w-[45rem] h-[45rem] bg-green-200/20 rounded-full mix-blend-multiply filter blur-[120px] animate-blob"></div>
-                <div className="absolute top-[10%] right-[-10%] w-[45rem] h-[45rem] bg-purple-200/20 rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-2000"></div>
-                <div className="absolute bottom-[-10%] left-[25%] w-[40rem] h-[40rem] bg-indigo-200/15 rounded-full mix-blend-multiply filter blur-[120px] animate-blob animation-delay-4000"></div>
+            {/* ============ 1. HERO ============ */}
+            <section className="relative pt-14 lg:pt-20 pb-28 px-6 md:px-12 overflow-hidden bg-white">
+                {/* Layered background: dot grid */}
+                <div className="absolute inset-0 z-0 dot-grid opacity-60"></div>
 
-                {/* Floating Figma-like AI Particles, Coding Snippets and Vector Clouds */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none opacity-50">
-                    <img src={BrainSprite} alt="" className="absolute top-[12%] left-[8%] w-10 h-10 opacity-20 blur-[1.5px] animate-float" />
-                    <img src={PuzzleSprite} alt="" className="absolute bottom-[25%] left-[6%] w-12 h-12 opacity-15 blur-[1px] animate-float animation-delay-2000" />
-                    <img src={TrophySprite} alt="" className="absolute top-[22%] right-[5%] w-14 h-14 opacity-20 blur-[2px] animate-float animation-delay-4000" />
-                    <img src={PencilSprite} alt="" className="absolute bottom-[20%] right-[10%] w-9 h-9 opacity-15 blur-[1px] animate-float animation-delay-1000" />
+                {/* Floating decorations */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none">
+                    <img src={BrainSprite} alt="" className="absolute top-[14%] left-[7%] w-11 h-11 opacity-25 blur-[1px] animate-float" />
+                    <img src={PuzzleSprite} alt="" className="absolute bottom-[28%] left-[4%] w-12 h-12 opacity-20 blur-[1px] animate-float" style={{ animationDelay: '1.2s' }} />
+                    <img src={TrophySprite} alt="" className="absolute top-[20%] right-[4%] w-14 h-14 opacity-25 blur-[1.5px] animate-float" style={{ animationDelay: '2s' }} />
+                    <img src={PencilSprite} alt="" className="absolute bottom-[22%] right-[8%] w-9 h-9 opacity-20 blur-[1px] animate-float" style={{ animationDelay: '0.6s' }} />
 
-                    <div className="absolute top-[16%] left-[24%] text-[9px] font-mono text-purple-400/40 rotate-6 bg-slate-50 border border-slate-200/60 px-2.5 py-1.5 rounded-xl shadow-sm">
+                    <div className="absolute top-[15%] left-[26%] text-[9px] font-mono text-purple-400/50 rotate-6 bg-white/80 border border-purple-100 px-2.5 py-1.5 rounded-xl shadow-sm">
                         def mufi_ai():
                     </div>
-                    <div className="absolute bottom-[38%] left-[8%] text-[9px] font-mono text-emerald-500/40 -rotate-12 bg-slate-50 border border-slate-200/60 px-2.5 py-1.5 rounded-xl shadow-sm">
+                    <div className="absolute bottom-[36%] left-[9%] text-[9px] font-mono text-emerald-500/50 -rotate-12 bg-white/80 border border-emerald-100 px-2.5 py-1.5 rounded-xl shadow-sm">
                         import gomufi
                     </div>
-                    <div className="absolute top-[38%] right-[24%] text-[8px] font-mono text-indigo-500/40 rotate-12 bg-slate-50 border border-slate-200/60 px-2.5 py-1.5 rounded-xl shadow-sm">
-                        {"{ active: true }"}
-                    </div>
-                    <div className="absolute bottom-[25%] right-[22%] text-[9px] font-mono text-pink-500/40 -rotate-6 bg-slate-50 border border-slate-200/60 px-2.5 py-1.5 rounded-xl shadow-sm">
+                    <div className="absolute bottom-[26%] right-[24%] text-[9px] font-mono text-pink-500/50 -rotate-6 bg-white/80 border border-pink-100 px-2.5 py-1.5 rounded-xl shadow-sm hidden lg:block">
                         await lesson.generate()
                     </div>
 
-                    <VectorCloud className="absolute top-[8%] left-[4%] w-24 opacity-30 text-emerald-100/50 animate-cloud-1" />
-                    <VectorCloud className="absolute top-[30%] right-[12%] w-32 opacity-25 text-indigo-100/50 animate-cloud-2" />
+                    <VectorCloud className="absolute top-[7%] left-[3%] w-24 opacity-40 text-emerald-100 animate-cloud-1" />
+                    <VectorCloud className="absolute top-[32%] right-[13%] w-32 opacity-35 text-indigo-100 animate-cloud-2" />
 
-                    <Sparkles className="absolute top-[15%] left-[45%] w-5 h-5 text-yellow-400/40 animate-pulse" />
-                    <Sparkles className="absolute bottom-[40%] left-[28%] w-6 h-6 text-[#8b5cf6]/35 animate-pulse animate-delay-2000" />
-                    <Sparkles className="absolute top-[32%] right-[40%] w-4 h-4 text-emerald-500/40 animate-pulse animate-delay-4000" />
+                    <Sparkles className="absolute top-[13%] left-[46%] w-5 h-5 text-yellow-400/50 animate-pulse" />
+                    <Sparkles className="absolute bottom-[42%] left-[30%] w-6 h-6 text-[#8b5cf6]/40 animate-pulse" style={{ animationDelay: '1s' }} />
                 </div>
 
-                <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-8 items-center relative z-10">
+                <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-10 items-center relative z-10">
                     {/* Hero Text */}
-                    <div className="lg:col-span-6 text-left space-y-6 animate-in fade-in slide-in-from-left-6 duration-700">
-                        <h1 className="text-4xl sm:text-5xl md:text-[52px] font-black text-slate-900 tracking-tight leading-[1.2]">
-                            Canlı Derslerini Yapay Zeka ile <br />
-                            <span className="relative inline-block text-white bg-gradient-to-r from-[#23c55e] to-[#10b981] px-5 py-2 my-1 rounded-2xl border-2 border-b-4 border-[#16a34a] font-black shadow-md shadow-green-100/30 transform rotate-[-1deg] hover:scale-[1.02] transition-transform duration-250">
+                    <div className="lg:col-span-6 text-left space-y-7 animate-in fade-in slide-in-from-left-6 duration-700">
+                        {/* Eyebrow badge */}
+                        <div className="inline-flex items-center gap-2.5 bg-white border-2 border-b-4 border-purple-200 rounded-2xl pl-2 pr-4 py-1.5 shadow-sm shadow-purple-100/60">
+                            <span className="relative flex items-center justify-center w-7 h-7 bg-purple-50 border border-purple-200 rounded-xl">
+                                <Bot size={15} className="text-purple-600" />
+                                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-500 rounded-full">
+                                    <span className="absolute inset-0 bg-emerald-400 rounded-full animate-ping-soft"></span>
+                                </span>
+                            </span>
+                            <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Yapay Zeka Destekli Eğitim Platformu</span>
+                        </div>
+
+                        <h1 className="font-display text-[42px] sm:text-5xl md:text-[58px] font-black text-slate-900 tracking-tight leading-[1.12]">
+                            Canlı Derslerini
+                            <br />
+                            Yapay Zeka ile{' '}
+                            <span className="relative inline-block align-middle text-white bg-[#23c55e] px-5 py-1.5 my-2 rounded-2xl border-2 border-b-[6px] border-[#16a34a] font-black shadow-lg shadow-green-200/50 transform rotate-[-1.5deg] hover:rotate-0 hover:scale-[1.03] transition-transform duration-300">
                                 15 Dakikada
-                            </span> <br />
+                                <Sparkles size={20} className="absolute -top-3 -right-3 text-yellow-300 fill-yellow-300 animate-pulse" />
+                            </span>
+                            <br />
                             Hazırla.
                         </h1>
+
                         <p className="text-base md:text-lg text-slate-500 font-bold leading-relaxed max-w-xl">
-                            GoMufi; öğretmenlerin yapay zekâ ile ders planı, oyunlaştırılmış içerik, quiz ve etkileşimli dersler oluşturmasını sağlayan yeni nesil eğitim platformudur.
+                            Konuyu yaz, gerisini <span className="text-purple-600">Mufi</span>'ye bırak. Ders planı, oyunlaştırılmış içerik,
+                            quiz ve etkileşimli slaytlar — hepsi tek komutla, sunuma hazır.
                         </p>
+
                         <div className="flex flex-wrap gap-4 pt-1">
                             <button
                                 onClick={() => navigate('/auth')}
-                                className="px-8 py-4 rounded-[2rem] border-2 border-b-4 border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 text-white font-black text-base shadow-md shadow-green-150 transition-all flex items-center gap-2 cursor-pointer"
+                                className="group px-8 py-4 rounded-[1.6rem] border-2 border-b-[6px] border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[3px] active:border-b-2 text-white font-black text-base shadow-lg shadow-green-200/60 transition-all flex items-center gap-2.5 cursor-pointer"
                             >
-                                <Sparkles size={18} className="animate-pulse" />
-                                ✨ AI ile Ücretsiz Oluştur
+                                <Wand2 size={19} className="group-hover:rotate-12 transition-transform" />
+                                AI ile Ücretsiz Oluştur
+                                <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
                             </button>
                             <button
                                 onClick={() => scrollToSection('preview')}
-                                className="px-8 py-4 rounded-[2rem] border-2 border-b-4 border-slate-200 bg-white hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 text-slate-700 font-black text-base transition-all cursor-pointer"
+                                className="px-8 py-4 rounded-[1.6rem] border-2 border-slate-200 border-b-[6px] border-b-slate-300 bg-white hover:bg-slate-50 active:translate-y-[3px] active:border-b-2 text-slate-700 font-black text-base transition-all cursor-pointer flex items-center gap-2"
                             >
+                                <MousePointerClick size={18} className="text-purple-500" />
                                 Demo İzle
                             </button>
                         </div>
+
+                        {/* Trust strip */}
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-3">
+                            {[
+                                { icon: <Timer size={15} className="text-orange-500" />, label: "Dakikalar içinde hazır" },
+                                { icon: <ShieldCheck size={15} className="text-emerald-500" />, label: "K-12 müfredat uyumlu" },
+                                { icon: <GraduationCap size={15} className="text-purple-500" />, label: "Öğretmenler için ücretsiz" }
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-2 text-[12px] font-black text-slate-500">
+                                    <span className="w-7 h-7 rounded-xl bg-white border-2 border-slate-200 flex items-center justify-center shadow-sm">{item.icon}</span>
+                                    {item.label}
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Hero Animation (Highly Active AI Production Pipeline Simulation) */}
+                    {/* Hero Animation (AI Production Pipeline Simulation) */}
                     <div className="lg:col-span-6 flex justify-center relative animate-in fade-in slide-in-from-right-6 duration-700">
                         <div className="relative w-full max-w-[440px]">
                             {/* Falling Icons from bottom center */}
@@ -742,7 +727,7 @@ const LandingPage: React.FC = () => {
 
                             <img src={MufiMascot} alt="Mufi" className="absolute -top-10 -left-6 w-16 h-16 object-contain z-20 animate-bounce-slow" />
 
-                            <div className={`w-full bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl relative overflow-hidden flex flex-col font-sans ${builderCatFrame === 2 && simStep !== 5 ? 'animate-card-impact' : ''}`}>
+                            <div className={`w-full bg-white rounded-[2.5rem] border-2 border-slate-200 border-b-[8px] border-b-slate-300 shadow-lg relative overflow-hidden flex flex-col font-sans ${builderCatFrame === 2 && simStep !== 5 ? 'animate-card-impact' : ''}`}>
                                 {/* Window Header */}
                                 <div className="flex items-center justify-between px-6 pt-5 pb-4 shrink-0">
                                     <div className="flex gap-2">
@@ -766,8 +751,8 @@ const LandingPage: React.FC = () => {
 
                                     {/* Prompt Input Card */}
                                     <div className={`rounded-2xl border-2 border-b-4 p-4 transition-all duration-300 ${
-                                        simStep === 5 
-                                            ? 'bg-emerald-50 border-emerald-200' 
+                                        simStep === 5
+                                            ? 'bg-emerald-50 border-emerald-200'
                                             : 'bg-slate-50 border-slate-200'
                                     }`}>
                                         <div className="flex justify-between items-center mb-2">
@@ -790,8 +775,8 @@ const LandingPage: React.FC = () => {
 
                                     {/* Dynamic Step Content Card */}
                                     <div className={`flex-1 rounded-2xl border-2 border-b-4 p-5 flex flex-col justify-center relative overflow-hidden transition-all duration-300 ${
-                                        simStep === 5 
-                                            ? 'bg-emerald-50 border-emerald-200' 
+                                        simStep === 5
+                                            ? 'bg-emerald-50 border-emerald-200'
                                             : 'bg-white border-slate-200'
                                     }`}>
 
@@ -854,11 +839,11 @@ const LandingPage: React.FC = () => {
                                                 </div>
                                                 <div className="grid grid-cols-6 gap-1.5 py-1">
                                                     {Array.from({ length: 12 }).map((_, i) => (
-                                                        <div 
-                                                            key={i} 
+                                                        <div
+                                                            key={i}
                                                             className={`h-8 rounded-lg border-2 border-b-[3px] transition-all duration-300 flex items-center justify-center text-[9px] font-black ${
-                                                                i < slideCount 
-                                                                    ? 'bg-blue-50 border-blue-300 text-blue-500' 
+                                                                i < slideCount
+                                                                    ? 'bg-blue-50 border-blue-300 text-blue-500'
                                                                     : 'bg-slate-50 border-slate-200 text-slate-300'
                                                             }`}
                                                         >
@@ -979,7 +964,7 @@ const LandingPage: React.FC = () => {
                                                             'bg-slate-50 border-slate-100'
                                                         }`}>
                                                             {simStep === item.step && (
-                                                                <div 
+                                                                <div
                                                                     className={`h-full ${item.color} rounded-full transition-all duration-300`}
                                                                     style={{ width: `${item.progress * 100}%` }}
                                                                 />
@@ -1031,174 +1016,430 @@ const LandingPage: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Grass strip footer of hero */}
+                <div
+                    className="absolute bottom-0 inset-x-0 h-[26px] bg-repeat-x opacity-40 pointer-events-none"
+                    style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'auto 100%' }}
+                ></div>
             </section>
 
-            {/* 2. Login & Join Code Cards */}
-            <section className="py-16 px-6 md:px-12 bg-slate-50 overflow-hidden">
-                <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8">
-                    {/* Instructor Login Card */}
-                    <div className="reveal-left bg-white rounded-[2.5rem] p-8 md:p-10 border-2 border-b-[6px] border-slate-200 hover:border-purple-300 hover:shadow-purple-100/50 hover:scale-[1.01] transition-all duration-300 shadow-md shadow-slate-100/50 flex flex-col justify-between group">
-                        <div className="space-y-6">
-                            {/* Card Header with GoMufi Sprite & Brand Badge */}
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-purple-50 border-2 border-b-4 border-purple-200 rounded-2xl flex items-center justify-center shadow-inner shrink-0 group-hover:scale-105 transition-transform duration-300">
+            {/* ============ 2. SUBJECT MARQUEE ============ */}
+            <section className="py-8 bg-slate-50/90 border-y-2 border-slate-200/80 overflow-hidden relative">
+                <div className="group-marquee marquee-mask overflow-hidden py-1">
+                    <div className="flex gap-4 w-max animate-marquee">
+                        {[...marqueeItems, ...marqueeItems].map((item, i) => (
+                            <div
+                                key={i}
+                                className={`flex items-center gap-3.5 bg-white border-2 border-slate-200 border-b-4 border-b-slate-300 rounded-2xl px-4 py-3 shrink-0 shadow-sm ${item.border} hover:-translate-y-1 hover:shadow-md transition-all duration-300 cursor-pointer group/card`}
+                            >
+                                <div className={`w-11 h-11 rounded-xl ${item.iconBg} border flex items-center justify-center shrink-0 group-hover/card:scale-110 transition-transform duration-300`}>
+                                    <img src={item.img} alt="" className="w-6 h-6 object-contain" />
+                                </div>
+                                <div className="flex flex-col text-left">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-black text-slate-800 tracking-tight whitespace-nowrap">{item.label}</span>
+                                        <span className={`text-[9px] font-black border px-2 py-0.5 rounded-lg whitespace-nowrap ${item.badgeBg}`}>
+                                            {item.badge}
+                                        </span>
+                                    </div>
+                                    <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap mt-0.5">{item.sub}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </section>
+
+            {/* ============ 3. LOGIN & JOIN CODE CARDS ============ */}
+            <section className="py-20 px-6 md:px-12 bg-slate-50 overflow-hidden relative">
+                <div className="absolute inset-0 dot-grid opacity-40 pointer-events-none"></div>
+                <div className="max-w-5xl mx-auto grid md:grid-cols-2 gap-8 relative z-10">
+                    {/* Instructor Login Card (Anla - #d946ef) */}
+                    <div className="reveal-left bg-white rounded-[2.5rem] border-2 border-[#d946ef] border-b-[8px] border-b-[#c026d3] hover:border-[#c026d3] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
+                        {/* Card top band */}
+                        <div className="relative bg-[#d946ef]/5 px-8 pt-8 pb-6 border-b-2 border-[#d946ef]/20">
+                            <div className="absolute top-4 right-6 text-[#d946ef]/20 rotate-12 group-hover:rotate-6 transition-transform">
+                                <Cpu size={56} />
+                            </div>
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="w-16 h-16 bg-white border-2 border-b-4 border-[#d946ef]/30 rounded-2xl flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 group-hover:-rotate-3 transition-transform duration-300">
                                     <img src={BrainSprite} alt="Brain" className="w-10 h-10 object-contain" />
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-black text-purple-600 uppercase tracking-widest bg-purple-50 border border-purple-100 px-2.5 py-1 rounded-xl">Eğitmen</span>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-1">Öğretmen</h3>
+                                    <span className="text-[10px] font-black text-[#d946ef] uppercase tracking-widest bg-[#d946ef]/10 border border-[#d946ef]/30 px-2.5 py-1 rounded-xl">Eğitmen</span>
+                                    <h3 className="font-display text-2xl font-black text-slate-800 mt-1.5">Öğretmenim</h3>
                                 </div>
                             </div>
-
-                            <p className="text-slate-500 font-bold text-sm leading-relaxed text-left">
-                                İlk AI dersini oluşturmaya başla, yol haritaları ve oyunlaştırılmış mini quizlerle öğrencilerinin ilgisini topla.
-                            </p>
                         </div>
-                        <button
-                            onClick={() => navigate('/auth')}
-                            className="mt-8 w-full py-4 rounded-2xl border-2 border-b-4 border-[#6d28d9] bg-[#8b5cf6] hover:bg-[#7c3aed] active:translate-y-[2px] active:border-b-2 text-white font-black text-sm transition-all tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-sm"
-                        >
-                            Giriş Yap <ChevronRight size={18} />
-                        </button>
+
+                        <div className="px-8 py-6 flex-1 flex flex-col justify-between gap-6">
+                            <p className="text-slate-500 font-bold text-sm leading-relaxed text-left">
+                                İlk AI dersini oluşturmaya başla; yol haritaları, oyunlaştırılmış mini quizler ve canlı ders araçlarıyla öğrencilerinin ilgisini topla.
+                            </p>
+                            <button
+                                onClick={() => navigate('/auth')}
+                                className="w-full py-4 rounded-2xl border-2 border-b-[6px] border-[#c026d3] bg-[#d946ef] hover:bg-[#c026d3] active:translate-y-[2px] active:border-b-2 text-white font-black text-sm transition-all tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-fuchsia-200/50"
+                            >
+                                Eğitmen Girişi <ChevronRight size={18} />
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Student Join Code Card */}
-                    <div className="reveal-right bg-white rounded-[2.5rem] p-8 md:p-10 border-2 border-b-[6px] border-slate-200 hover:border-green-300 hover:shadow-green-100/50 hover:scale-[1.01] transition-all duration-300 shadow-md shadow-slate-100/50 flex flex-col justify-between group">
-                        <div className="space-y-6">
-                            {/* Card Header with GoMufi Sprite & Brand Badge */}
-                            <div className="flex items-center gap-4">
-                                <div className="w-16 h-16 bg-green-50 border-2 border-b-4 border-green-200 rounded-2xl flex items-center justify-center shadow-inner shrink-0 group-hover:scale-105 transition-transform duration-300">
+                    {/* Student Join Code Card (Birleştir - #22c55e) */}
+                    <div className="reveal-right bg-white rounded-[2.5rem] border-2 border-[#22c55e] border-b-[8px] border-b-[#16a34a] hover:border-[#16a34a] hover:-translate-y-1 transition-all duration-300 overflow-hidden flex flex-col group">
+                        {/* Card top band */}
+                        <div className="relative bg-green-50/60 px-8 pt-8 pb-6 border-b-2 border-green-100/60">
+                            <div className="absolute top-4 right-6 text-green-200/60 -rotate-12 group-hover:-rotate-6 transition-transform">
+                                <Gamepad2 size={56} />
+                            </div>
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className="w-16 h-16 bg-white border-2 border-b-4 border-green-200 rounded-2xl flex items-center justify-center shadow-sm shrink-0 group-hover:scale-105 group-hover:rotate-3 transition-transform duration-300">
                                     <img src={PuzzleSprite} alt="Puzzle" className="w-10 h-10 object-contain" />
                                 </div>
                                 <div>
-                                    <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-50 border border-green-100 px-2.5 py-1 rounded-xl">Katılım</span>
-                                    <h3 className="text-2xl font-black text-slate-800 mt-1">Öğrenci</h3>
+                                    <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-100/70 border border-green-200 px-2.5 py-1 rounded-xl">Katılım</span>
+                                    <h3 className="font-display text-2xl font-black text-slate-800 mt-1.5">Öğrenciyim</h3>
                                 </div>
                             </div>
-
-                            <p className="text-slate-550 font-bold text-sm leading-relaxed text-left">
-                                Öğretmeninin seninle paylaştığı katılım kodunu girerek oyunlaştırılmış canlı derslere ve quizlere anında bağlan.
-                            </p>
                         </div>
-                        <form onSubmit={handleStudentJoin} className="mt-8 space-y-3">
-                            <div className="flex gap-2 items-end">
-                                <div className="flex-1 relative flex items-center">
-                                    <KeyRound size={16} className="absolute left-4 text-slate-400" />
-                                    <input
-                                        type="text"
-                                        placeholder="DERS KODU (örn: 45CZWT)"
-                                        value={joinCode}
-                                        onChange={(e) => setJoinCode(e.target.value)}
-                                        maxLength={8}
-                                        className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border-2 border-b-4 border-slate-200 focus:border-green-400 focus:border-b-green-500 focus:bg-white rounded-2xl outline-none text-sm font-black text-center tracking-widest placeholder-slate-400 uppercase transition-all"
-                                    />
+
+                        <div className="px-8 py-6 flex-1 flex flex-col justify-between gap-6">
+                            <p className="text-slate-500 font-bold text-sm leading-relaxed text-left">
+                                Öğretmeninin seninle paylaştığı katılım kodunu gir; oyunlaştırılmış canlı derslere ve quizlere anında bağlan.
+                            </p>
+                            <form onSubmit={handleStudentJoin} className="space-y-3">
+                                <div className="flex gap-2 items-stretch">
+                                    <div className="flex-1 relative flex items-center">
+                                        <KeyRound size={16} className="absolute left-4 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="DERS KODU"
+                                            value={joinCode}
+                                            onChange={(e) => setJoinCode(e.target.value)}
+                                            maxLength={8}
+                                            className="w-full pl-10 pr-4 py-3.5 bg-slate-50 border-2 border-b-4 border-slate-200 focus:border-green-400 focus:border-b-green-500 focus:bg-white rounded-2xl outline-none text-sm font-black text-center tracking-[0.25em] placeholder-slate-300 uppercase transition-all"
+                                        />
+                                    </div>
+                                    <button
+                                        type="submit"
+                                        className="px-6 rounded-2xl border-2 border-b-[6px] border-[#15803d] bg-[#23c55e] hover:bg-[#1ea54c] text-white font-black text-sm active:translate-y-[2px] active:border-b-2 transition-all shrink-0 cursor-pointer shadow-md shadow-green-200/50"
+                                    >
+                                        Kod Gir
+                                    </button>
                                 </div>
-                                <button
-                                    type="submit"
-                                    className="px-6 py-4 rounded-2xl border-2 border-b-4 border-[#15803d] bg-[#23c55e] hover:bg-[#1ea54c] text-white font-black text-sm active:translate-y-[2px] active:border-b-2 transition-all shrink-0 cursor-pointer shadow-sm"
-                                >
-                                    Kod Gir
-                                </button>
-                            </div>
-                        </form>
+                                <p className="text-[10px] font-black text-slate-400 text-center tracking-wide">örn: 45CZWT — öğretmenin ekranında yazar 👀</p>
+                            </form>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* 3. Product Focused Core Benefits */}
-            <section className="reveal-scale py-14 bg-white">
+            {/* ============ 4. QUICK BENEFITS STRIP ============ */}
+            <section className="reveal-scale py-14 bg-white border-t-2 border-slate-100">
                 <div className="max-w-7xl mx-auto px-6">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
                         {[
-                            { title: "15 Dakikada Ders Hazırlama", icon: <Zap className="w-6 h-6 text-orange-500" />, bg: "bg-orange-50 border-orange-200 shadow-orange-100/50" },
-                            { title: "AI Destekli İçerik Üretimi", icon: <Bot className="w-6 h-6 text-purple-600" />, bg: "bg-purple-50 border-purple-200 shadow-purple-100/50" },
-                            { title: "Oyunlaştırılmış Öğrenme", icon: <Gamepad2 className="w-6 h-6 text-pink-500" />, bg: "bg-pink-50 border-pink-200 shadow-pink-100/50" },
-                            { title: "Canlı Ders Yönetimi", icon: <Users className="w-6 h-6 text-emerald-500" />, bg: "bg-emerald-50 border-emerald-200 shadow-emerald-100/50" }
+                            { title: "15 Dakikada", sub: "Ders Hazırlama", icon: <Zap className="w-6 h-6 text-orange-500" />, plate: "bg-orange-50 border-orange-200" },
+                            { title: "AI Destekli", sub: "İçerik Üretimi", icon: <Bot className="w-6 h-6 text-purple-600" />, plate: "bg-purple-50 border-purple-200" },
+                            { title: "Oyunlaştırılmış", sub: "Öğrenme Deneyimi", icon: <Gamepad2 className="w-6 h-6 text-pink-500" />, plate: "bg-pink-50 border-pink-200" },
+                            { title: "Canlı Ders", sub: "Tek Panelden Yönetim", icon: <Users className="w-6 h-6 text-emerald-500" />, plate: "bg-emerald-50 border-emerald-200" }
                         ].map((stat, idx) => (
-                            <div key={idx} className="flex items-center gap-4 p-5 rounded-[2rem] border-2 border-b-[5px] border-slate-200 bg-white shadow-md hover:scale-105 transition-transform duration-300">
-                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${stat.bg.split(' ')[0]} border-2 border-b-4 ${stat.bg.split(' ')[1]} ${stat.bg.split(' ')[2]} shadow-inner`}>
+                            <div key={idx} className="flex items-center gap-4 p-5 rounded-[1.8rem] border-2 border-slate-200 border-b-[6px] border-b-slate-300 bg-white hover:-translate-y-1 hover:border-slate-300 hover:border-b-slate-400 transition-all duration-300">
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 border-2 border-b-4 ${stat.plate} shadow-inner`}>
                                     {stat.icon}
                                 </div>
-                                <div className="font-black text-slate-800 text-sm leading-tight text-left">{stat.title}</div>
+                                <div className="text-left leading-tight">
+                                    <div className="font-display font-black text-slate-800 text-sm">{stat.title}</div>
+                                    <div className="font-bold text-slate-400 text-xs mt-0.5">{stat.sub}</div>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* 4. Why GoMufi? */}
+            {/* ============ 5. FEATURES (BENTO GRID) ============ */}
             <section id="features" className="py-24 px-6 bg-slate-50 relative overflow-hidden">
+                <div className="absolute inset-0 dot-grid opacity-50 pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl md:text-[44px] font-black tracking-tight leading-tight">
-                            Neden <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-600 via-indigo-600 to-emerald-505">GoMufi?</span>
+                        <span className="inline-block text-[11px] font-black text-purple-600 uppercase tracking-widest bg-purple-50 border-2 border-purple-100 px-4 py-1.5 rounded-2xl">Neler Yapabilirsin?</span>
+                        <h2 className="font-display text-3xl md:text-[44px] font-black tracking-tight leading-tight text-slate-900">
+                            Neden <span className="text-purple-600">GoMufi?</span>
                         </h2>
-                        <p className="text-slate-500 text-base md:text-lg max-w-2xl mx-auto font-bold font-sans">
-                            Sert, jenerik sınıfları canlandıran ve öğretmenlerin yükünü hafifleten yeni nesil eğitim teknolojileri.
+                        <p className="text-slate-500 text-base md:text-lg max-w-2xl mx-auto font-bold">
+                            Sıkıcı, jenerik sınıfları canlandıran ve öğretmenlerin yükünü hafifleten yeni nesil eğitim teknolojileri.
                         </p>
                     </div>
 
-                    <div className="grid md:grid-cols-3 gap-8">
-                        {features.map((feature, idx) => (
-                            <div
-                                key={idx}
-                                className={`reveal-scale bg-gradient-to-br ${feature.cardBg} p-8 rounded-[2.5rem] border-2 border-b-[8px] ${feature.cardBorder} ${feature.glowShadow} transition-all duration-300 flex flex-col items-start gap-4 hover:-translate-y-2 relative overflow-hidden group`}
-                                style={{ transitionDelay: `${idx * 80}ms` }}
-                            >
-                                {/* Subtle Back Watermark */}
-                                <div className={`absolute right-4 bottom-4 ${feature.watermarkColor} transition-colors pointer-events-none duration-300 transform rotate-12 group-hover:scale-110 z-0`}>
-                                    <Swords size={68} />
+                    <div className="grid grid-cols-1 md:grid-cols-6 gap-6">
+                        {/* 1. BIG: AI Lesson Builder (Anla Level - Fuchsia #d946ef) */}
+                        <div className="reveal-scale md:col-span-4 bg-white rounded-[2.5rem] border-2 border-[#d946ef] border-b-[8px] border-b-[#c026d3] hover:border-[#c026d3] hover:-translate-y-1 transition-all duration-300 overflow-hidden group relative">
+                            <div className="grid sm:grid-cols-2 h-full">
+                                <div className="p-8 md:p-10 flex flex-col justify-between gap-6">
+                                    <div className="space-y-3">
+                                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#d946ef] bg-[#d946ef]/10 border border-[#d946ef]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                            <Sparkles size={12} /> AI Destekli Üretim
+                                        </span>
+                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                                            <span className="text-[#d946ef]">AI</span> Lesson Builder
+                                        </h3>
+                                        <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                                            Tek komutla ders planı oluşturun; kazanımlara göre otomatik slaytlar, kodlar ve quizler saniyeler içinde elinizde.
+                                        </p>
+                                    </div>
+                                    {/* Feature Pills */}
+                                    <div className="flex flex-wrap gap-2 pt-2">
+                                        {["⚡ 4 Saniyede Ders", "🧠 Pedagojik Akış", "🎯 Kazanım Odaklı"].map((pill, i) => (
+                                            <span key={i} className="text-[11px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
+                                                {pill}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
 
-                                {/* Icon container with 3D bottom border */}
-                                <div className={`p-4 rounded-[1.5rem] bg-white border-2 border-b-4 ${feature.cardBorder.split(' ')[0]} shadow-inner shrink-0 relative z-10 group-hover:scale-105 transition-transform duration-300`}>
-                                    {feature.icon}
-                                </div>
+                                {/* Mini visual: prompt → roadmap node flow */}
+                                <div className="relative bg-slate-50/80 p-8 flex flex-col justify-center gap-3 border-t-2 sm:border-t-0 sm:border-l-2 border-slate-100">
+                                    {/* Simulated AI Prompt Box */}
+                                    <div className="bg-white border-2 border-b-4 border-slate-200 rounded-2xl p-3.5 flex items-center justify-between shadow-sm">
+                                        <div className="flex items-center gap-2 overflow-hidden">
+                                            <Wand2 size={15} className="text-[#d946ef] shrink-0" />
+                                            <span className="text-[11px] font-black text-slate-700 font-mono truncate">"Kesirler konusu, 5. sınıf"</span>
+                                        </div>
+                                        <span className="text-[9px] font-black text-white bg-[#d946ef] px-2.5 py-1 rounded-lg shrink-0">AI OLUŞTUR</span>
+                                    </div>
 
-                                {/* Title with custom highlight gradient matching user requests */}
-                                <h3 className="text-xl font-black tracking-tight relative z-10 text-left">
-                                    {renderTitle(feature.title, feature.highlight, feature.gradient)}
+                                    <div className="flex justify-center">
+                                        <ChevronDown size={18} className="text-[#d946ef] animate-bounce" />
+                                    </div>
+
+                                    {/* Generated Roadmap Nodes flow */}
+                                    <div className="grid grid-cols-5 gap-1.5 bg-white border-2 border-b-4 border-slate-200 rounded-2xl p-3 shadow-sm">
+                                        {[
+                                            { label: "Anla", img: BrainSprite, bg: "bg-[#d946ef]/10 border-[#d946ef]" },
+                                            { label: "Uygula", img: PencilSprite, bg: "bg-[#06b6d4]/10 border-[#06b6d4]" },
+                                            { label: "Birleştir", img: PuzzleSprite, bg: "bg-[#22c55e]/10 border-[#22c55e]" },
+                                            { label: "Üret", img: TrophySprite, bg: "bg-[#eab308]/10 border-[#eab308]" },
+                                            { label: "Quiz", img: QuestionSprite, bg: "bg-[#7c3aed]/10 border-[#7c3aed]" }
+                                        ].map((m, i) => (
+                                            <div key={i} className={`border-2 rounded-xl p-1.5 flex flex-col items-center gap-0.5 ${m.bg} group-hover:-translate-y-0.5 transition-transform`}>
+                                                <img src={m.img} alt="" className="w-5 h-5 object-contain" />
+                                                <span className="text-[7px] font-black text-slate-700 uppercase tracking-tighter truncate w-full text-center">{m.label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* 2. Canva-like Editor (Uygula Level - Cyan #06b6d4) */}
+                        <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#06b6d4] border-b-[8px] border-b-[#0891b2] hover:border-[#0891b2] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '80ms' }}>
+                            <div className="space-y-3">
+                                <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    🎨 Sürükle & Bırak
+                                </span>
+                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                    Canva Benzeri <span className="text-[#06b6d4]">Editör</span>
                                 </h3>
-
-                                {/* Description with subtle Slate colors for premium contrast */}
-                                <p className="text-slate-600 font-bold text-sm leading-relaxed relative z-10 text-left">
-                                    {feature.desc}
+                                <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                                    Hazır eğitsel şablonlar, görseller ve interaktif nesnelerle sunumları kolayca düzenleyin.
                                 </p>
                             </div>
-                        ))}
+
+                            {/* Mini Editor Toolbar Mockup */}
+                            <div className="bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1">📐 Şekil</span>
+                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1">✍️ Metin</span>
+                                </div>
+                                <span className="text-[10px] font-black text-white bg-[#06b6d4] px-2.5 py-1 rounded-lg shadow-sm">DÜZENLE</span>
+                            </div>
+                        </div>
+
+                        {/* 3. Gamified (Birleştir Level - Green #22c55e) */}
+                        <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#22c55e] border-b-[8px] border-b-[#16a34a] hover:border-[#16a34a] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '120ms' }}>
+                            <div className="space-y-3">
+                                <span className="inline-block text-[10px] font-black text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    🎮 Oyunlaştırma
+                                </span>
+                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                    <span className="text-[#22c55e]">Oyunlaştırılmış</span> Dersler
+                                </h3>
+                                <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                                    Quizler, görevler ve mini oyunlarla motivasyonu zirvede tutun. XP ve ligler dahil.
+                                </p>
+                            </div>
+
+                            {/* Gamification Stats Widget */}
+                            <div className="bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-2">
+                                    <img src={TrophySprite} alt="" className="w-7 h-7 object-contain" />
+                                    <div className="flex flex-col">
+                                        <span className="text-[11px] font-black text-slate-800 leading-none">Bronz Lig #1</span>
+                                        <span className="text-[9px] font-bold text-amber-600">850 XP Kazanıldı</span>
+                                    </div>
+                                </div>
+                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg">🔥 5 Gün</span>
+                            </div>
+                        </div>
+
+                        {/* 4. Ready Modules (Üret Level - Gold #eab308 / #ca8a04) */}
+                        <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#eab308] border-b-[8px] border-b-[#ca8a04] hover:border-[#ca8a04] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '160ms' }}>
+                            <div className="space-y-3">
+                                <span className="inline-block text-[10px] font-black text-[#ca8a04] bg-[#eab308]/10 border border-[#eab308]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    📦 Modül Kütüphanesi
+                                </span>
+                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                    Hazır <span className="text-[#ca8a04]">Modüller</span>
+                                </h3>
+                                <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                                    Anla, Uygula, Birleştir, Üret, Quiz ve Ödev modülleriyle eksiksiz ders akışları kurun.
+                                </p>
+                            </div>
+
+                            {/* 5 Module Pills Grid */}
+                            <div className="flex flex-wrap gap-1.5">
+                                {[
+                                    { name: "Anla", color: "bg-[#d946ef]/10 text-[#d946ef] border-[#d946ef]/30" },
+                                    { name: "Uygula", color: "bg-[#06b6d4]/10 text-[#06b6d4] border-[#06b6d4]/30" },
+                                    { name: "Birleştir", color: "bg-[#22c55e]/10 text-[#22c55e] border-[#22c55e]/30" },
+                                    { name: "Üret", color: "bg-[#eab308]/10 text-[#ca8a04] border-[#eab308]/30" },
+                                    { name: "Quiz", color: "bg-[#7c3aed]/10 text-[#7c3aed] border-[#7c3aed]/30" }
+                                ].map((mod, idx) => (
+                                    <span key={idx} className={`text-[10px] font-black border px-2.5 py-1 rounded-lg ${mod.color}`}>
+                                        {mod.name}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* 5. Live Lesson (Quiz Level - Violet #7c3aed) */}
+                        <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#7c3aed] border-b-[8px] border-b-[#6d28d9] hover:border-[#6d28d9] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '200ms' }}>
+                            <div className="space-y-3">
+                                <span className="inline-block text-[10px] font-black text-[#7c3aed] bg-[#7c3aed]/10 border border-[#7c3aed]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    📹 Canlı Sınıf
+                                </span>
+                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                    <span className="text-[#7c3aed]">Canlı Ders</span> Yönetimi
+                                </h3>
+                                <p className="text-slate-500 font-bold text-sm leading-relaxed">
+                                    Görüntülü bağlantı, katılım takibi ve entegre takvim sistemi tek panelde.
+                                </p>
+                            </div>
+
+                            {/* Live Video Meeting Mockup */}
+                            <div className="bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-sm">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                                    <span className="text-[10px] font-black text-slate-800 uppercase tracking-wide">● CANLI</span>
+                                </div>
+                                <div className="flex -space-x-2 overflow-hidden">
+                                    <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Selin" alt="" />
+                                    <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet" alt="" />
+                                    <img className="inline-block h-6 w-6 rounded-full ring-2 ring-white" src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sibel" alt="" />
+                                </div>
+                                <span className="text-[9px] font-black text-purple-700 bg-purple-100 border border-purple-200 px-2 py-1 rounded-lg">24 Öğrenci</span>
+                            </div>
+                        </div>
+
+                        {/* 6. WIDE: Analytics & Growth (Cyan #06b6d4) */}
+                        <div className="reveal-scale md:col-span-6 bg-white rounded-[2.5rem] border-2 border-[#06b6d4] border-b-[8px] border-b-[#0891b2] hover:border-[#0891b2] hover:-translate-y-1 transition-all duration-300 overflow-hidden group" style={{ transitionDelay: '240ms' }}>
+                            <div className="grid sm:grid-cols-2">
+                                <div className="p-8 md:p-10 flex flex-col justify-between gap-6">
+                                    <div className="space-y-3">
+                                        <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                            📊 Detaylı Analiz
+                                        </span>
+                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                                            Öğrenci <span className="text-[#06b6d4]">Analitiği</span> & Gelişim Raporları
+                                        </h3>
+                                        <p className="text-slate-500 font-bold text-sm leading-relaxed max-w-md">
+                                            Öğrencilerin gelişim raporlarını, katılım sürelerini ve soru başarı grafiklerini anlık izleyin. Kim nerede zorlanıyor, tek bakışta görün.
+                                        </p>
+                                    </div>
+                                    {/* Stat counters */}
+                                    <div className="grid grid-cols-3 gap-3 pt-2">
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                                            <div className="text-lg font-black text-slate-800">%94</div>
+                                            <div className="text-[9px] font-bold text-slate-400">Katılım Oranı</div>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                                            <div className="text-lg font-black text-[#06b6d4]">14.2 dk</div>
+                                            <div className="text-[9px] font-bold text-slate-400">Ort. Ders Süresi</div>
+                                        </div>
+                                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-center">
+                                            <div className="text-lg font-black text-emerald-600">+28%</div>
+                                            <div className="text-[9px] font-bold text-slate-400">Başarı Artışı</div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Mini bar chart mock */}
+                                <div className="relative bg-slate-50/80 p-8 md:p-10 flex flex-col justify-end border-t-2 sm:border-t-0 sm:border-l-2 border-slate-100 min-h-[240px]">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
+                                            <BarChart3 size={14} className="text-[#06b6d4]" /> Sınıf Haftalık Başarısı
+                                        </span>
+                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-xl">↑ %24 bu ay</span>
+                                    </div>
+                                    <div className="flex items-end gap-2.5 h-[120px]">
+                                        {[45, 65, 50, 78, 60, 88, 95].map((h, i) => (
+                                            <div key={i} className="flex-1 flex flex-col justify-end h-full">
+                                                <div
+                                                    className={`rounded-t-lg border-2 border-b-0 animate-bar-grow ${i === 6 ? 'bg-[#06b6d4] border-[#0891b2]' : 'bg-[#06b6d4]/25 border-[#06b6d4]/40'}`}
+                                                    style={{ height: `${h}%`, animationDelay: `${i * 100}ms` }}
+                                                ></div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div className="flex justify-between mt-3 text-[9px] font-black text-slate-400 uppercase tracking-wider">
+                                        <span>Pzt</span><span>Sal</span><span>Çar</span><span>Per</span><span>Cum</span><span>Cmt</span><span>Paz</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* 5. AI Sample Courses */}
-            <section id="sample-courses" className="py-20 px-6 bg-white">
+            {/* ============ 6. AI SAMPLE COURSES ============ */}
+            <section id="sample-courses" className="py-24 px-6 bg-white relative">
                 <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">AI ile Oluşturulmuş Örnek Dersler</h2>
-                        <p className="text-slate-550 text-lg max-w-2xl mx-auto font-bold">Yapay zekanın saniyeler içinde kurguladığı örnek ders müfredatlarını inceleyin.</p>
+                        <span className="inline-block text-[11px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 border-2 border-emerald-100 px-4 py-1.5 rounded-2xl">✨ AI Üretimi</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Örnek Ders Müfredatları</h2>
+                        <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">Yapay zekanın saniyeler içinde kurguladığı ders akışlarını inceleyin.</p>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6">
                         {sampleCourses.map((course, idx) => (
                             <div
                                 key={idx}
-                                className="reveal-scale bg-white rounded-[2.5rem] p-6 border-2 border-b-[8px] border-slate-200 hover:border-slate-300 transition-all shadow-md flex flex-col justify-between relative group hover:-translate-y-1 duration-300"
-                                style={{ transitionDelay: `${idx * 100}ms` }}
+                                className={`reveal-scale bg-white rounded-[2.2rem] border-2 border-b-[8px] ${course.cardBorder} hover:-translate-y-1.5 transition-all flex flex-col overflow-hidden group duration-300`}
+                                style={{ transitionDelay: `${idx * 80}ms` }}
                             >
-                                <div className="absolute top-4 right-4 bg-emerald-50 text-emerald-600 border-2 border-emerald-200 px-2.5 py-0.5 rounded-xl text-[9px] font-black uppercase tracking-wider">
-                                    AI Üretimi
-                                </div>
-
-                                <div className="space-y-4 text-left">
-                                    <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center border-2 border-b-4 border-slate-200">
-                                        <img src={course.icon} alt="" className="w-10 h-10 object-contain" />
+                                {/* Colored header band */}
+                                <div className={`relative bg-gradient-to-b ${course.topBg} px-6 pt-6 pb-5`}>
+                                    <span className={`absolute top-4 right-4 text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border ${course.badge}`}>
+                                        {course.level}
+                                    </span>
+                                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border-2 border-b-4 ${course.plate} bg-white group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300 shadow-sm`}>
+                                        <img src={course.icon} alt="" className="w-9 h-9 object-contain" />
                                     </div>
-                                    <h3 className="text-lg font-black text-slate-800 leading-tight">{course.title}</h3>
                                 </div>
 
-                                <div className="mt-8 pt-4 border-t-2 border-slate-100 flex justify-between text-xs font-black text-slate-400">
-                                    <span>{course.lessons}</span>
-                                    <span>{course.modules}</span>
+                                <div className="px-6 py-5 flex-1 flex flex-col justify-between gap-4">
+                                    <h3 className="font-display text-lg font-black text-slate-800 leading-tight text-left">{course.title}</h3>
+                                    <div>
+                                        <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
+                                            <div className={`h-full ${course.bar} rounded-full w-0 group-hover:w-full transition-all duration-700 ease-out`}></div>
+                                        </div>
+                                        <div className="flex justify-between text-[11px] font-black text-slate-400">
+                                            <span className="flex items-center gap-1"><Video size={11} /> {course.lessons}</span>
+                                            <span className="flex items-center gap-1"><Layers size={11} /> {course.modules}</span>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         ))}
@@ -1206,50 +1447,61 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 6. AI 4 Steps */}
-            <section id="steps" className="py-20 px-6 bg-slate-50">
-                <div className="max-w-7xl mx-auto">
+            {/* ============ 7. HOW IT WORKS (4 STEPS) ============ */}
+            <section id="steps" className="py-24 px-6 bg-slate-50 relative overflow-hidden">
+                <div className="absolute inset-0 dot-grid opacity-50 pointer-events-none"></div>
+                <VectorCloud className="absolute top-10 left-[5%] w-28 opacity-40 text-white animate-cloud-1 pointer-events-none" />
+                <VectorCloud className="absolute top-24 right-[8%] w-36 opacity-50 text-white animate-cloud-2 pointer-events-none" />
+
+                <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-20 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">AI ile Ders Oluşturmanın 4 Adımı</h2>
-                        <p className="text-slate-550 text-lg max-w-2xl mx-auto font-bold">Yapay zeka sayesinde saatler süren ders hazırlığını dakikalara düşürün.</p>
+                        <span className="inline-block text-[11px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 border-2 border-blue-100 px-4 py-1.5 rounded-2xl">Nasıl Çalışır?</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">4 Adımda Dersin Hazır</h2>
+                        <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">Saatler süren ders hazırlığını dakikalara düşürün.</p>
                     </div>
 
-                    <div className="relative grid md:grid-cols-4 gap-8">
-                        {/* Connecting Line */}
-                        <div className="hidden md:block absolute top-[48px] left-[12.5%] right-[12.5%] h-0.5 border-t-2 border-dashed border-slate-300 z-0"></div>
+                    <div className="relative grid md:grid-cols-4 gap-8 md:gap-6">
+                        {/* Connecting dashed path */}
+                        <div className="hidden md:block absolute top-[44px] left-[12.5%] right-[12.5%] border-t-[3px] border-dashed border-slate-300 z-0"></div>
 
                         {[
-                            { step: "01", title: "Konunu Yaz", desc: '"Python Değişkenler" gibi hedefliliğinizi sisteme girin.', bg: "bg-purple-50 text-purple-600 border-purple-100" },
-                            { step: "02", title: "AI Yol Haritasını Oluştursun", desc: "6 ders, 40 modül ve Quizler anında otomatik oluşturulsun.", bg: "bg-blue-50 text-blue-600 border-blue-100" },
-                            { step: "03", title: "Canva Editöründe Düzenle", desc: "İçerikleri dilediğiniz gibi sürükle-bırak yöntemiyle özelleştirin, istersen değiştir.", bg: "bg-pink-50 text-pink-600 border-pink-100" },
-                            { step: "04", title: "Canlı Dersi Başlat", desc: "Öğretmen olarak canlı dersinizi başlatın, öğrenciler kod ile katılsın.", bg: "bg-emerald-50 text-emerald-600 border-emerald-100" }
+                            { step: "1", title: "Konunu Yaz", desc: '"Python Değişkenler" gibi hedefini sisteme gir.', color: "bg-purple-500 border-purple-700", ring: "ring-purple-100", img: PencilSprite },
+                            { step: "2", title: "AI Haritayı Kursun", desc: "Dersler, modüller ve quizler anında otomatik oluşsun.", color: "bg-blue-500 border-blue-700", ring: "ring-blue-100", img: BrainSprite },
+                            { step: "3", title: "Editörde Düzenle", desc: "İçerikleri sürükle-bırak ile dilediğin gibi özelleştir.", color: "bg-pink-500 border-pink-700", ring: "ring-pink-100", img: PuzzleSprite },
+                            { step: "4", title: "Canlı Dersi Başlat", desc: "Kodu paylaş, öğrenciler saniyeler içinde katılsın.", color: "bg-emerald-500 border-emerald-700", ring: "ring-emerald-100", img: TrophySprite }
                         ].map((item, idx) => (
                             <div
                                 key={idx}
-                                className="reveal-scale relative z-10 flex flex-col items-center text-center group bg-white p-7 rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-md hover:-translate-y-1 transition-all duration-300"
-                                style={{ transitionDelay: `${idx * 150}ms` }}
+                                className="reveal-scale relative z-10 flex flex-col items-center text-center group"
+                                style={{ transitionDelay: `${idx * 120}ms` }}
                             >
-                                <div className={`w-14 h-14 rounded-2xl ${item.bg.split(' ')[0]} ${item.bg.split(' ')[1]} flex items-center justify-center mb-4 border-2 border-b-4 border-slate-200 shadow-md group-hover:scale-105 transition-transform duration-300 text-xl font-black`}>
-                                    {item.step}
+                                {/* Number puck on the path */}
+                                <div className={`w-[88px] h-[88px] rounded-[1.8rem] ${item.color} border-2 border-b-[6px] flex items-center justify-center mb-[-28px] relative z-20 shadow-lg ring-8 ${item.ring} group-hover:scale-110 group-hover:-rotate-3 transition-transform duration-300`}>
+                                    <span className="font-display text-white text-3xl font-black">{item.step}</span>
+                                    <img src={item.img} alt="" className="absolute -top-3 -right-3 w-9 h-9 object-contain drop-shadow-md animate-float" style={{ animationDelay: `${idx * 0.4}s` }} />
                                 </div>
-                                <h3 className="text-lg font-black text-slate-800 mb-2">{item.title}</h3>
-                                <p className="text-slate-500 font-bold text-xs leading-relaxed">{item.desc}</p>
+                                {/* Card */}
+                                <div className="bg-white pt-12 pb-7 px-6 rounded-[2.2rem] border-2 border-slate-200 border-b-[8px] border-b-slate-300 group-hover:-translate-y-1 group-hover:border-slate-300 group-hover:border-b-slate-400 transition-all duration-300 w-full">
+                                    <h3 className="font-display text-lg font-black text-slate-800 mb-2">{item.title}</h3>
+                                    <p className="text-slate-500 font-bold text-xs leading-relaxed">{item.desc}</p>
+                                </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* 7. Platform Visuals (Screenshots Tab) */}
-            <section id="preview" className="py-20 px-6 bg-white">
+            {/* ============ 8. PLATFORM PREVIEW TABS ============ */}
+            <section id="preview" className="py-24 px-6 bg-white">
                 <div className="max-w-6xl mx-auto space-y-12">
                     <div className="reveal text-center space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">Platformdan Görseller</h2>
-                        <p className="text-slate-505 text-lg font-bold">GoMufi'nin zengin ve dinamik arayüzlerini yakından keşfedin.</p>
+                        <span className="inline-block text-[11px] font-black text-pink-600 uppercase tracking-widest bg-pink-50 border-2 border-pink-100 px-4 py-1.5 rounded-2xl">Platform Turu</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Platformdan Görseller</h2>
+                        <p className="text-slate-500 text-lg font-bold">GoMufi'nin zengin ve dinamik arayüzlerini yakından keşfedin.</p>
                     </div>
 
                     {/* Tabs Navigation */}
-                    <div className="reveal flex flex-wrap justify-center gap-3 border-b-2 border-slate-100 pb-4">
+                    <div className="reveal flex flex-wrap justify-center gap-3">
                         {[
                             { id: "roadmap", label: "Roadmap Builder", emoji: "🗺️" },
                             { id: "editor", label: "Canva Editörü", emoji: "🎨" },
@@ -1260,8 +1512,8 @@ const LandingPage: React.FC = () => {
                                 key={tab.id}
                                 onClick={() => setActivePreviewTab(tab.id as any)}
                                 className={`px-5 py-3 rounded-2xl font-black text-sm tracking-wide transition-all border-2 border-b-4 flex items-center gap-2 cursor-pointer active:translate-y-[2px] active:border-b-2 ${activePreviewTab === tab.id
-                                    ? "border-green-700 bg-[#23c55e] text-white shadow-sm"
-                                    : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                                    ? "border-green-700 bg-[#23c55e] text-white shadow-md shadow-green-200/50"
+                                    : "border-slate-200 border-b-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:border-b-slate-400"
                                     }`}
                             >
                                 <span className="text-base">{tab.emoji}</span>
@@ -1270,147 +1522,172 @@ const LandingPage: React.FC = () => {
                         ))}
                     </div>
 
-                    {/* Interactive CSS Mockups */}
-                    <div className="reveal-scale bg-white border-2 border-b-[8px] border-slate-200 rounded-[2.5rem] shadow-xl p-8 min-h-[440px] flex flex-col justify-between overflow-hidden relative">
-                        {/* Tab Content: Roadmap Builder */}
-                        {activePreviewTab === 'roadmap' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
-                                <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-purple-50 text-purple-605 border border-purple-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Görsel Yol Haritası</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight">Ders Planını Haritaya Çevirin</h4>
-                                </div>
-                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center relative overflow-hidden">
-                                    <div className="absolute inset-x-0 top-1/2 h-[34px] bg-repeat-x opacity-15 pointer-events-none -translate-y-1/2 z-0" style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'contain' }}></div>
-                                    <div className="absolute inset-x-8 top-1/2 h-1 bg-slate-200 -translate-y-1/2 z-0"></div>
- 
-                                    <div className="flex items-center gap-4 w-full justify-between relative z-10 px-4">
-                                        {[
-                                            { label: "Anla", img: BrainSprite, border: "border-purple-200 border-b-purple-400 bg-purple-50" },
-                                            { label: "Uygula", img: PencilSprite, border: "border-cyan-200 border-b-cyan-400 bg-cyan-50" },
-                                            { label: "Birleştir", img: PuzzleSprite, border: "border-green-200 border-b-green-400 bg-green-50" },
-                                            { label: "Üret", img: TrophySprite, border: "border-amber-200 border-b-amber-400 bg-amber-50" },
-                                            { label: "Quiz", img: QuestionSprite, border: "border-purple-205 border-b-purple-405 bg-purple-50" }
-                                        ].map((node, i) => (
-                                            <div key={i} className="flex flex-col items-center gap-2">
-                                                <div className={`w-14 h-14 rounded-2xl border-2 border-b-4 ${node.border} flex items-center justify-center font-black shadow-sm`}>
-                                                    <img src={node.img} alt="" className="w-9 h-9 object-contain" />
+                    {/* Browser-framed mockup */}
+                    <div className="reveal-scale bg-white border-2 border-slate-200 border-b-[8px] border-b-slate-300 rounded-[2.5rem] shadow-lg overflow-hidden relative">
+                        {/* Browser chrome */}
+                        <div className="flex items-center gap-3 px-6 py-4 bg-slate-50 border-b-2 border-slate-100">
+                            <div className="flex gap-2">
+                                <div className="w-3 h-3 rounded-full bg-red-400"></div>
+                                <div className="w-3 h-3 rounded-full bg-yellow-400"></div>
+                                <div className="w-3 h-3 rounded-full bg-green-400"></div>
+                            </div>
+                            <div className="flex-1 max-w-xs mx-auto bg-white border-2 border-slate-200 rounded-xl px-4 py-1.5 text-[10px] font-black text-slate-400 text-center tracking-wide">
+                                app.gomufi.com
+                            </div>
+                            <div className="w-14"></div>
+                        </div>
+
+                        <div className="p-8 min-h-[420px] flex flex-col justify-center">
+                            {/* Tab Content: Roadmap Builder */}
+                            {activePreviewTab === 'roadmap' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
+                                    <div className="text-center space-y-2 mb-4">
+                                        <span className="bg-purple-50 text-purple-600 border border-purple-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Görsel Yol Haritası</span>
+                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Ders Planını Haritaya Çevirin</h4>
+                                    </div>
+                                    <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center relative overflow-hidden">
+                                        <div className="absolute inset-x-0 top-1/2 h-[34px] bg-repeat-x opacity-15 pointer-events-none -translate-y-1/2 z-0" style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'contain' }}></div>
+                                        <div className="absolute inset-x-8 top-1/2 h-1 bg-slate-200 -translate-y-1/2 z-0"></div>
+
+                                        <div className="flex items-center gap-4 w-full justify-between relative z-10 px-4">
+                                            {[
+                                                { label: "Anla", img: BrainSprite, border: "border-purple-200 border-b-purple-400 bg-purple-50" },
+                                                { label: "Uygula", img: PencilSprite, border: "border-cyan-200 border-b-cyan-400 bg-cyan-50" },
+                                                { label: "Birleştir", img: PuzzleSprite, border: "border-green-200 border-b-green-400 bg-green-50" },
+                                                { label: "Üret", img: TrophySprite, border: "border-amber-200 border-b-amber-400 bg-amber-50" },
+                                                { label: "Quiz", img: QuestionSprite, border: "border-purple-200 border-b-purple-400 bg-purple-50" }
+                                            ].map((node, i) => (
+                                                <div key={i} className="flex flex-col items-center gap-2">
+                                                    <div className={`w-14 h-14 rounded-2xl border-2 border-b-4 ${node.border} flex items-center justify-center font-black shadow-sm hover:scale-110 transition-transform`}>
+                                                        <img src={node.img} alt="" className="w-9 h-9 object-contain" />
+                                                    </div>
+                                                    <span className="text-[10px] text-slate-800 font-black tracking-wide">{node.label}</span>
                                                 </div>
-                                                <span className="text-[10px] text-slate-800 font-black tracking-wide">{node.label}</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Tab Content: Canva Editor */}
-                        {activePreviewTab === 'editor' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
-                                <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Zengin Editör</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight">Sürükle & Bırak İçerik Üretimi</h4>
-                                </div>
-                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 text-xs">
-                                    {/* Editor Sidebar */}
-                                    <div className="w-1/4 border-r-2 border-slate-200 pr-4 space-y-3 flex flex-col justify-center font-black text-slate-700">
-                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🖼️ Slayt Ekle</div>
-                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🧩 Kod Editörü</div>
-                                        <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-250 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🎮 Mini Oyun</div>
-                                    </div>
-                                    {/* Editor Canvas */}
-                                    <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-8 flex flex-col items-center justify-center relative min-h-[180px] shadow-sm">
-                                        <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center text-2xl shadow-inner animate-bounce-slow">🐍</div>
-                                        <span className="text-slate-800 font-black mt-4 text-base">Python Veri Tipleri</span>
-                                        <div className="absolute bottom-4 right-4 text-[10px] font-black text-slate-400">Slayt 2/12</div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Tab Content: Live Lesson */}
-                        {activePreviewTab === 'live' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
-                                <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Canlı Ders Paneli</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans">Gerçek Zamanlı Etkileşim</h4>
-                                </div>
-                                <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-xs text-slate-550">
-                                    {/* Live Feed Mockup */}
-                                    <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-5 flex flex-col justify-between min-h-[180px] shadow-sm">
-                                        <div className="flex justify-between items-center text-slate-800 font-black">
-                                            <span className="flex items-center gap-1.5"><Video size={14} className="text-rose-500" /> Canlı Yayın</span>
-                                            <span className="text-emerald-600 font-black bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">Kod: 45CZWT</span>
-                                        </div>
-                                        <div className="text-center text-slate-550 py-6 font-bold">
-                                            Öğrenciler quiz sorularını yanıtlıyor... 📊
+                                            ))}
                                         </div>
                                     </div>
-                                    {/* Student Scoreboard Mockup */}
-                                    <div className="w-1/3 border-l-2 border-slate-200 pl-4 space-y-3 flex flex-col justify-center">
-                                        <h5 className="font-black text-[10px] uppercase text-slate-700 tracking-wider">Liderlik Tablosu</h5>
-                                        <div className="space-y-2 text-[10px] font-black">
-                                            <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
-                                                <span className="text-slate-800 truncate">🥇 Ayşe K.</span>
-                                                <span className="text-yellow-600">1200 XP</span>
+                                </div>
+                            )}
+
+                            {/* Tab Content: Canva Editor */}
+                            {activePreviewTab === 'editor' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
+                                    <div className="text-center space-y-2 mb-4">
+                                        <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Zengin Editör</span>
+                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Sürükle & Bırak İçerik Üretimi</h4>
+                                    </div>
+                                    <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 text-xs">
+                                        {/* Editor Sidebar */}
+                                        <div className="w-1/4 border-r-2 border-slate-200 pr-4 space-y-3 flex flex-col justify-center font-black text-slate-700">
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🖼️ Slayt Ekle</div>
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🧩 Kod Editörü</div>
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🎮 Mini Oyun</div>
+                                        </div>
+                                        {/* Editor Canvas */}
+                                        <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-8 flex flex-col items-center justify-center relative min-h-[180px] shadow-sm">
+                                            <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center text-2xl shadow-inner animate-bounce-slow">🐍</div>
+                                            <span className="text-slate-800 font-black mt-4 text-base">Python Veri Tipleri</span>
+                                            <div className="absolute bottom-4 right-4 text-[10px] font-black text-slate-400">Slayt 2/12</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Tab Content: Live Lesson */}
+                            {activePreviewTab === 'live' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
+                                    <div className="text-center space-y-2 mb-4">
+                                        <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Canlı Ders Paneli</span>
+                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Gerçek Zamanlı Etkileşim</h4>
+                                    </div>
+                                    <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-xs text-slate-500">
+                                        {/* Live Feed Mockup */}
+                                        <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-5 flex flex-col justify-between min-h-[180px] shadow-sm">
+                                            <div className="flex justify-between items-center text-slate-800 font-black">
+                                                <span className="flex items-center gap-1.5"><Video size={14} className="text-rose-500" /> Canlı Yayın</span>
+                                                <span className="text-emerald-600 font-black bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">Kod: 45CZWT</span>
                                             </div>
-                                            <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
-                                                <span className="text-slate-850 truncate">🥈 Mehmet B.</span>
-                                                <span className="text-slate-400">950 XP</span>
+                                            <div className="text-center text-slate-500 py-6 font-bold">
+                                                Öğrenciler quiz sorularını yanıtlıyor... 📊
                                             </div>
                                         </div>
+                                        {/* Student Scoreboard Mockup */}
+                                        <div className="w-1/3 border-l-2 border-slate-200 pl-4 space-y-3 flex flex-col justify-center">
+                                            <h5 className="font-black text-[10px] uppercase text-slate-700 tracking-wider">Liderlik Tablosu</h5>
+                                            <div className="space-y-2 text-[10px] font-black">
+                                                <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
+                                                    <span className="text-slate-800 truncate">🥇 Ayşe K.</span>
+                                                    <span className="text-yellow-600">1200 XP</span>
+                                                </div>
+                                                <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
+                                                    <span className="text-slate-800 truncate">🥈 Mehmet B.</span>
+                                                    <span className="text-slate-400">950 XP</span>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
 
-                        {/* Tab Content: Student View */}
-                        {activePreviewTab === 'student' && (
-                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
-                                <div className="text-center space-y-2 mb-4">
-                                    <span className="bg-pink-50 text-pink-650 border border-pink-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider font-sans">Öğrenci Arayüzü</span>
-                                    <h4 className="text-2xl font-black text-slate-800 tracking-tight font-sans">Oyunlaştırılmış Öğrenci Deneyimi</h4>
-                                </div>
-                                <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-6 flex justify-between items-center text-slate-550 font-bold">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 rounded-2xl bg-white border-2 border-b-4 border-slate-200 text-white flex items-center justify-center shadow-sm">
-                                            <img src={TrophySprite} alt="" className="w-9 h-9 object-contain" />
-                                        </div>
-                                        <div>
-                                            <h5 className="font-black text-slate-800 text-sm leading-none mb-1">Bronz Lig</h5>
-                                            <span className="text-[10px] text-slate-400 font-bold">Seviye 4 Öğrencisi</span>
-                                        </div>
+                            {/* Tab Content: Student View */}
+                            {activePreviewTab === 'student' && (
+                                <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
+                                    <div className="text-center space-y-2 mb-4">
+                                        <span className="bg-pink-50 text-pink-600 border border-pink-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Öğrenci Arayüzü</span>
+                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Oyunlaştırılmış Öğrenci Deneyimi</h4>
                                     </div>
-                                    <div className="w-32 bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
-                                        <div className="h-full bg-gradient-to-r from-purple-500 to-pink-500 w-[65%]"></div>
+                                    <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-6 flex justify-between items-center text-slate-500 font-bold">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-12 h-12 rounded-2xl bg-white border-2 border-b-4 border-slate-200 flex items-center justify-center shadow-sm">
+                                                <img src={TrophySprite} alt="" className="w-9 h-9 object-contain" />
+                                            </div>
+                                            <div>
+                                                <h5 className="font-black text-slate-800 text-sm leading-none mb-1">Bronz Lig</h5>
+                                                <span className="text-[10px] text-slate-400 font-bold">Seviye 4 Öğrencisi</span>
+                                            </div>
+                                        </div>
+                                        <div className="w-32 bg-slate-200 rounded-full h-3 overflow-hidden shadow-inner">
+                                            <div className="h-full bg-purple-500 w-[65%]"></div>
+                                        </div>
+                                        <span className="text-yellow-600 font-black text-sm">850 XP</span>
                                     </div>
-                                    <span className="text-yellow-600 font-black text-sm">850 XP</span>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* 8. Teacher Experience Reviews */}
-            <section className="py-20 px-6 bg-slate-50">
-                <div className="max-w-7xl mx-auto">
+            {/* ============ 9. TESTIMONIALS ============ */}
+            <section className="py-24 px-6 bg-slate-50 relative overflow-hidden">
+                <div className="absolute inset-0 dot-grid opacity-50 pointer-events-none"></div>
+                <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl md:text-4xl font-black text-slate-800 tracking-tight">Öğretmen Deneyimleri</h2>
-                        <p className="text-slate-555 text-lg max-w-2xl mx-auto font-bold">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
+                        <span className="inline-block text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 border-2 border-amber-100 px-4 py-1.5 rounded-2xl">💬 Deneyimler</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Öğretmenler Ne Diyor?</h2>
+                        <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
                     </div>
 
                     <div className="grid md:grid-cols-3 gap-8">
                         {[
-                            { name: 'Selin K.', role: 'Matematik Öğretmeni', comment: 'Eskiden bir ders hazırlamam 3 saat sürüyordu. Şimdi AI ile 20 dakikada bitiriyorum.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Selin' },
-                            { name: 'Mehmet H.', role: 'Fen Bilgisi Öğretmeni', comment: 'Ders planı, quizler, oyun sahneleri hepsi tek komutla hazırlanıyor. İnanılmaz pratik.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet' },
-                            { name: 'Sibel G.', role: 'Sınıf Öğretmeni', comment: 'Çocuklar derse katılmak için can atıyor. Oyunlaştırma yapısı gerçekten mükemmel çalışıyor.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sibel' }
+                            { name: 'Selin K.', role: 'Matematik Öğretmeni', comment: 'Eskiden bir ders hazırlamam 3 saat sürüyordu. Şimdi AI ile 20 dakikada bitiriyorum.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Selin', tilt: 'md:rotate-[-1.5deg]', accent: 'border-t-purple-300' },
+                            { name: 'Mehmet H.', role: 'Fen Bilgisi Öğretmeni', comment: 'Ders planı, quizler, oyun sahneleri hepsi tek komutla hazırlanıyor. İnanılmaz pratik.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Mehmet', tilt: 'md:translate-y-3', accent: 'border-t-green-300' },
+                            { name: 'Sibel G.', role: 'Sınıf Öğretmeni', comment: 'Çocuklar derse katılmak için can atıyor. Oyunlaştırma yapısı gerçekten mükemmel çalışıyor.', avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=Sibel', tilt: 'md:rotate-[1.5deg]', accent: 'border-t-pink-300' }
                         ].map((review, idx) => (
                             <div
                                 key={idx}
-                                className="reveal-scale bg-white p-8 rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 shadow-xl flex flex-col justify-between hover:-translate-y-1 transition-all duration-300"
-                                style={{ transitionDelay: `${idx * 150}ms` }}
+                                className={`reveal-scale bg-white p-8 rounded-[2.5rem] border-2 border-slate-200 border-b-[8px] border-b-slate-300 border-t-4 ${review.accent} ${review.tilt} flex flex-col justify-between hover:-translate-y-1 hover:rotate-0 hover:border-slate-300 hover:border-b-slate-400 transition-all duration-300`}
+                                style={{ transitionDelay: `${idx * 120}ms` }}
                             >
-                                <p className="text-slate-655 font-bold leading-relaxed text-sm md:text-base italic mb-6">"{review.comment}"</p>
+                                <div>
+                                    <Quote size={28} className="text-slate-200 mb-3 fill-slate-200" />
+                                    <div className="flex gap-1 mb-4">
+                                        {Array.from({ length: 5 }).map((_, s) => (
+                                            <Star key={s} size={15} className="text-amber-400 fill-amber-400" />
+                                        ))}
+                                    </div>
+                                    <p className="text-slate-600 font-bold leading-relaxed text-sm md:text-base mb-6 text-left">"{review.comment}"</p>
+                                </div>
                                 <div className="flex items-center gap-3 pt-4 border-t-2 border-slate-100">
                                     <img src={review.avatar} alt={review.name} className="w-11 h-11 rounded-2xl bg-slate-50 border-2 border-b-[3px] border-slate-200" />
                                     <div className="text-left">
@@ -1424,40 +1701,63 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 9. CTA - AI Lesson Creator Start */}
-            <section className="reveal py-12 px-6 bg-white">
+            {/* ============ 10. BIG CTA ============ */}
+            <section className="reveal py-16 px-6 bg-white">
                 <div className="max-w-7xl mx-auto">
-                    <div className="relative overflow-hidden bg-slate-900 rounded-[3rem] p-12 md:p-20 text-center border-b-8 border-slate-950">
-                        {/* Glow shapes */}
-                        <div className="absolute top-0 left-0 w-full h-full">
+                    <div className="relative overflow-hidden bg-gradient-to-r from-[#0d3b2e] via-[#151c38] to-[#2e1040] rounded-[3rem] p-12 md:p-20 text-center border-2 border-slate-800 border-b-[10px] border-b-slate-950 shadow-2xl">
+                        {/* Glow shapes + dark dot grid */}
+                        <div className="absolute inset-0">
+                            <div className="absolute inset-0 dot-grid-dark"></div>
                             <div className="absolute top-[-50%] left-[-20%] w-[40rem] h-[40rem] bg-green-500 rounded-full mix-blend-screen filter blur-[120px] opacity-30"></div>
                             <div className="absolute bottom-[-50%] right-[-20%] w-[40rem] h-[40rem] bg-purple-600 rounded-full mix-blend-screen filter blur-[120px] opacity-30"></div>
                         </div>
 
+                        {/* Floating sprites */}
+                        <img src={BrainSprite} alt="" className="absolute top-10 left-[8%] w-10 h-10 object-contain opacity-30 animate-float hidden md:block" />
+                        <img src={TrophySprite} alt="" className="absolute top-16 right-[12%] w-12 h-12 object-contain opacity-30 animate-float hidden md:block" style={{ animationDelay: '1s' }} />
+                        <img src={QuestionSprite} alt="" className="absolute bottom-16 left-[15%] w-9 h-9 object-contain opacity-25 animate-float hidden md:block" style={{ animationDelay: '1.8s' }} />
+
                         {/* Mascot */}
-                        <img src={MufiMascot} alt="" className="absolute -bottom-6 -right-6 w-32 h-32 object-contain opacity-25" />
+                        <img src={MufiMascot} alt="" className="absolute -bottom-4 -right-4 w-36 h-36 object-contain opacity-40 animate-wiggle" />
 
                         <div className="relative z-10 max-w-2xl mx-auto space-y-8">
-                            <h2 className="text-3xl md:text-5xl font-black text-white tracking-tight">AI ile Ders Hazırlamaya Başla</h2>
-                            <p className="text-slate-350 text-base md:text-lg font-bold leading-relaxed">GoMufi'yi ücretsiz dene. İlk dersini birkaç dakikada oluştur.</p>
-                            <button
-                                onClick={() => navigate('/auth')}
-                                className="px-10 py-5 border-2 border-b-4 border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 text-white rounded-[2rem] font-black text-lg transition-all shadow-lg cursor-pointer flex items-center gap-2 mx-auto"
-                            >
-                                <Sparkles size={18} className="animate-pulse" />
-                                ✨ AI ile Ücretsiz Oluştur
-                            </button>
+                            <span className="inline-flex items-center gap-2 text-[11px] font-black text-emerald-300 uppercase tracking-widest bg-white/5 border-2 border-white/10 px-4 py-1.5 rounded-2xl backdrop-blur-sm">
+                                <Sparkles size={13} /> Kredi kartı gerekmez
+                            </span>
+                            <h2 className="font-display text-3xl md:text-5xl font-black text-white tracking-tight leading-tight">
+                                İlk AI Dersini <span className="text-[#23c55e]">Bugün</span> Oluştur
+                            </h2>
+                            <p className="text-slate-300 text-base md:text-lg font-bold leading-relaxed">
+                                GoMufi'yi ücretsiz dene. Konuyu yaz, dersin birkaç dakikada sunuma hazır olsun.
+                            </p>
+                            <div className="flex flex-wrap justify-center gap-4">
+                                <button
+                                    onClick={() => navigate('/auth')}
+                                    className="group px-10 py-5 border-2 border-b-[6px] border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[3px] active:border-b-2 text-white rounded-[1.8rem] font-black text-lg transition-all shadow-lg shadow-green-900/40 cursor-pointer flex items-center gap-2.5"
+                                >
+                                    <Wand2 size={20} className="group-hover:rotate-12 transition-transform" />
+                                    AI ile Ücretsiz Oluştur
+                                    <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
+                                </button>
+                            </div>
                         </div>
+
+                        {/* Grass silhouette bottom */}
+                        <div
+                            className="absolute bottom-0 inset-x-0 h-[22px] bg-repeat-x opacity-20 pointer-events-none"
+                            style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'auto 100%' }}
+                        ></div>
                     </div>
                 </div>
             </section>
 
-            {/* 10. FAQ Section */}
-            <section id="faq" className="py-20 px-6 bg-white border-t-2 border-slate-100">
+            {/* ============ 11. FAQ ============ */}
+            <section id="faq" className="py-24 px-6 bg-white">
                 <div className="max-w-3xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <h2 className="text-3xl font-black text-slate-805 tracking-tight">Sıkça Sorulan Sorular</h2>
-                        <p className="text-slate-405 font-bold">Platformumuz hakkında en çok merak edilenler</p>
+                        <span className="inline-block text-[11px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 border-2 border-indigo-100 px-4 py-1.5 rounded-2xl">Merak Edilenler</span>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Sıkça Sorulan Sorular</h2>
+                        <p className="text-slate-500 font-bold">Cevabını bulamadığın bir soru mu var? Bize yaz, Mufi cevaplasın. 🐾</p>
                     </div>
 
                     <div className="space-y-4">
@@ -1466,18 +1766,27 @@ const LandingPage: React.FC = () => {
                             return (
                                 <div
                                     key={idx}
-                                    className="reveal border-2 border-slate-200 border-b-[5px] rounded-2xl overflow-hidden bg-slate-50/50 hover:bg-slate-50 transition-all"
-                                    style={{ transitionDelay: `${idx * 50}ms` }}
+                                    className={`reveal border-2 border-b-[5px] rounded-[1.6rem] overflow-hidden transition-all duration-300 ${
+                                        isOpen ? 'border-green-300 border-b-green-400 bg-green-50/40' : 'border-slate-200 border-b-slate-300 bg-white hover:bg-slate-50 hover:border-slate-300 hover:border-b-slate-400'
+                                    }`}
+                                    style={{ transitionDelay: `${idx * 40}ms` }}
                                 >
                                     <button
-                                        className="w-full flex justify-between items-center p-5 font-black text-left text-sm md:text-base text-slate-800"
+                                        className="w-full flex justify-between items-center gap-4 p-5 font-black text-left text-sm md:text-base text-slate-800 cursor-pointer"
                                         onClick={() => setFaqOpen(isOpen ? null : idx)}
                                     >
-                                        <span>{faq.q}</span>
-                                        <ChevronDown className={`w-5 h-5 text-slate-400 transition-transform duration-205 ${isOpen ? "transform rotate-180 text-green-600" : ""}`} />
+                                        <span className="flex items-center gap-3">
+                                            <span className={`w-8 h-8 rounded-xl border-2 border-b-[3px] flex items-center justify-center text-xs shrink-0 transition-colors ${
+                                                isOpen ? 'bg-[#23c55e] border-green-700 text-white' : 'bg-white border-slate-200 text-slate-400'
+                                            }`}>
+                                                {isOpen ? '−' : '?'}
+                                            </span>
+                                            {faq.q}
+                                        </span>
+                                        <ChevronDown className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-green-600" : "text-slate-400"}`} />
                                     </button>
                                     {isOpen && (
-                                        <div className="px-5 pb-5 text-slate-505 font-bold text-xs md:text-sm leading-relaxed animate-in fade-in duration-200 text-left border-t border-slate-100 pt-3">
+                                        <div className="px-5 pb-5 pl-[4.25rem] text-slate-500 font-bold text-xs md:text-sm leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 text-left">
                                             {faq.a}
                                         </div>
                                     )}
@@ -1488,51 +1797,69 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* 11. Modern Footer */}
-            <footer id="footer" className="bg-slate-900 text-slate-455 py-16 px-6 text-sm border-t-2 border-slate-800">
-                <div className="max-w-7xl mx-auto">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-12 mb-16 text-left">
-                        {/* Column 1: Ürün */}
-                        <div className="space-y-4">
-                            <h3 className="font-black text-white text-base">Ürün</h3>
-                            <ul className="space-y-2 font-bold text-xs">
-                                <li><a href="#" className="hover:text-white transition-colors">Özellikler</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Yol Haritası</a></li>
-                                <li><a href="#" className="hover:text-white transition-colors">Blog</a></li>
+            {/* ============ 12. FOOTER ============ */}
+            <footer id="footer" className="bg-slate-900 text-slate-400 pt-0 text-sm relative overflow-hidden">
+                <ScallopDivider className="text-white" />
+                <div className="absolute inset-0 dot-grid-dark pointer-events-none"></div>
+
+                <div className="max-w-7xl mx-auto px-6 py-16 relative z-10">
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-12 mb-14 text-left">
+                        {/* Brand column */}
+                        <div className="md:col-span-4 space-y-5">
+                            <img src={LogoText} alt="GoMufi" className="h-12 object-contain brightness-0 invert opacity-90" />
+                            <p className="font-bold text-xs leading-relaxed text-slate-400 max-w-xs">
+                                Öğretmenlerin yapay zekâ ile dakikalar içinde oyunlaştırılmış canlı dersler oluşturmasını sağlayan yeni nesil eğitim platformu.
+                            </p>
+                            <div className="flex items-center gap-2.5">
+                                <img src={MufiMascot} alt="" className="w-9 h-9 object-contain animate-bounce-slow" />
+                                <span className="text-[11px] font-black text-slate-500">Mufi seni bekliyor! 🐾</span>
+                            </div>
+                        </div>
+
+                        {/* Link columns */}
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="font-display font-black text-white text-sm uppercase tracking-widest">Ürün</h3>
+                            <ul className="space-y-2.5 font-bold text-xs">
+                                <li><button onClick={() => scrollToSection('features')} className="hover:text-white transition-colors cursor-pointer">Özellikler</button></li>
+                                <li><button onClick={() => scrollToSection('sample-courses')} className="hover:text-white transition-colors cursor-pointer">Örnek Dersler</button></li>
+                                <li><button onClick={() => scrollToSection('steps')} className="hover:text-white transition-colors cursor-pointer">Nasıl Çalışır?</button></li>
                             </ul>
                         </div>
 
-                        {/* Column 2: Bilgi */}
-                        <div className="space-y-4">
-                            <h3 className="font-black text-white text-base font-sans">Kaynaklar</h3>
-                            <ul className="space-y-2 font-bold text-xs">
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="font-display font-black text-white text-sm uppercase tracking-widest">Kaynaklar</h3>
+                            <ul className="space-y-2.5 font-bold text-xs">
                                 <li><a href="#" className="hover:text-white transition-colors">Dokümantasyon</a></li>
                                 <li><a href="#" className="hover:text-white transition-colors">Yardım Merkezi</a></li>
+                                <li><button onClick={() => scrollToSection('faq')} className="hover:text-white transition-colors cursor-pointer">SSS</button></li>
                             </ul>
                         </div>
 
-                        {/* Column 3: Şirket */}
-                        <div className="space-y-4">
-                            <h3 className="font-black text-white text-base font-sans">İletişim</h3>
-                            <ul className="space-y-2 font-bold text-xs">
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="font-display font-black text-white text-sm uppercase tracking-widest">İletişim</h3>
+                            <ul className="space-y-2.5 font-bold text-xs">
                                 <li><a href="#" className="hover:text-white transition-colors">Bize Ulaşın</a></li>
                                 <li><a href="#" className="hover:text-white transition-colors">Destek Ekibi</a></li>
                             </ul>
                         </div>
 
-                        {/* Column 4: Yasal */}
-                        <div className="space-y-4">
-                            <h3 className="font-black text-white text-base">Yasal</h3>
-                            <ul className="space-y-2 font-bold text-xs">
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="font-display font-black text-white text-sm uppercase tracking-widest">Yasal</h3>
+                            <ul className="space-y-2.5 font-bold text-xs">
                                 <li><a href="#" className="hover:text-white transition-colors">Gizlilik Politikası</a></li>
                                 <li><a href="#" className="hover:text-white transition-colors">Kullanım Şartları</a></li>
                             </ul>
                         </div>
                     </div>
 
-                    <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-6 text-xs font-bold text-slate-500">
+                    <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4 text-xs font-bold text-slate-500">
                         <p>© 2026 GoMufi. Yapay zeka destekli oyunlaştırılmış eğitim.</p>
-                        <p>GoMufi ile öğretmenler yapay zekâ sayesinde dakikalar içinde oyunlaştırılmış canlı dersler oluşturabilir.</p>
+                        <button
+                            onClick={() => navigate('/auth')}
+                            className="px-5 py-2.5 rounded-xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-xs hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer"
+                        >
+                            Ücretsiz Başla →
+                        </button>
                     </div>
                 </div>
             </footer>

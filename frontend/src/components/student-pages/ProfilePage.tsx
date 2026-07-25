@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../api";
+import Leaderboard from "./Leaderboard";
 import {
   Settings,
   Share2,
@@ -662,65 +663,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </button>
               </div>
 
-              {/* Social / Friends Widget */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">
-                <h3 className="text-xl font-black text-gray-800 font-display mb-4">
-                  Arkadaşlar
-                </h3>
-
-                <div className="flex flex-col gap-4">
-                  {[
-                    {
-                      name: "Ayşe Y.",
-                      xp: "18k XP",
-                      rank: 1,
-                      color: "bg-pink-400",
-                    },
-                    {
-                      name: "Mehmet K.",
-                      xp: "11k XP",
-                      rank: 2,
-                      color: "bg-blue-400",
-                    },
-                    {
-                      name: "Selin A.",
-                      xp: "9k XP",
-                      rank: 3,
-                      color: "bg-purple-400",
-                    },
-                  ].map((friend, i) => (
-                    <div
-                      key={i}
-                      className="flex items-center justify-between group cursor-pointer"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-full ${friend.color} border-2 border-white shadow-sm flex items-center justify-center text-white font-bold`}
-                        >
-                          {friend.name[0]}
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-gray-800 text-sm group-hover:text-blue-500 transition-colors">
-                            {friend.name}
-                          </h4>
-                          <span className="text-xs font-bold text-gray-400">
-                            {friend.xp}
-                          </span>
-                        </div>
-                      </div>
-                      {i === 0 && <span className="text-xl">🥇</span>}
-                      {i === 1 && <span className="text-xl">🥈</span>}
-                      {i === 2 && <span className="text-xl">🥉</span>}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="mt-6 pt-4 border-t border-gray-100">
-                  <button className="w-full py-2.5 rounded-xl border-2 border-gray-200 font-black text-gray-500 hover:bg-gray-50 hover:border-gray-300 hover:text-gray-700 transition-all uppercase text-sm tracking-wide">
-                    ARKADAŞ EKLE
-                  </button>
-                </div>
-              </div>
+              {/* Gerçek liderlik tablosu (global + sınıf) */}
+              <Leaderboard defaultScope="global" />
 
               {/* Calendar / Streak View (Small) */}
               <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">

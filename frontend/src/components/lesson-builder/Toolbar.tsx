@@ -223,7 +223,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
                                 type: 'challenge', 
                                 icon: LucideTrophy, 
                                 extra: { 
-                                    content: '5 dakikada bu fonksiyonu yaz.', 
+                                    content: '🎯 GÖREV: Sağ taraftaki Kod Editörünü kullanarak ekrana "Merhaba GoMufi" yazdıran Python kodunu oluşturun ve çalıştırın.', 
                                     extra: { 
                                         title: '🎯 Challenge (Mini Görev)', 
                                         submittedText: '', 
