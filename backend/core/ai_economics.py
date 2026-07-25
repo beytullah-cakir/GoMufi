@@ -54,13 +54,16 @@ OPERATION_CATEGORIES = [
     ("Ders planı", ("suggest_lesson_modules", "suggest_lesson_title", "suggest_level_details",
                     "distribute_topics", "suggest_raw_topics")),
     ("Slayt/içerik üretimi", ("generate_lesson_slides",)),
+    # Canvas Builder'daki "AI ile Tekrar Oluştur" — tek modül yeniden üretimi, ilk
+    # üretimden AYRI bir kalem (öğretmenin iterasyon/deneme maliyetini görünür kılar).
+    ("Modül Tekrar Oluşturma", ("regenerate_lesson_module",)),
     ("Quiz/soru üretimi", ("generate_quiz",)),
     ("Diğer AI işlemi", ("expand_topics", "evaluate_homework")),
 ]
 _FALLBACK_CATEGORY = "Diğer AI işlemi"
 # Panelde gösterim sırası (Görsel, Diğer'den önce)
 _OPERATION_ORDER = [
-    "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi",
+    "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi", "Modül Tekrar Oluşturma",
     "Quiz/soru üretimi", "Görsel üretimi", "Diğer AI işlemi",
 ]
 

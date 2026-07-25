@@ -20,6 +20,11 @@ interface LessonBuilderHeaderProps {
     isStageLocked?: boolean;
     isAdmin?: boolean;
     onSaveAsTemplate?: () => void;
+    /** AI'nin bu modülün tüm slaytlarını sıfırdan yeniden üretmesi (mevcut düzenlemelerin üzerine yazar). */
+    onRegenerateAI?: () => void;
+    isRegenerating?: boolean;
+    /** Yalnızca gerçek bir kurs/modül bağlamında (courseId + noteId) açıksa gösterilir. */
+    canRegenerateAI?: boolean;
 }
 
 const stages = [
@@ -49,7 +54,10 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
     setPreviewRole,
     isStageLocked = false,
     isAdmin = false,
-    onSaveAsTemplate
+    onSaveAsTemplate,
+    onRegenerateAI,
+    isRegenerating = false,
+    canRegenerateAI = false
 }) => {
     const getHeaderStyles = () => {
         if (activeStage === 'ANLA') return 'from-fuchsia-600 to-pink-600 border-fuchsia-800';
@@ -171,6 +179,22 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                         >
                             <LayoutTemplate className="w-4 h-4 group-hover:scale-110 transition-transform" />
                             <span>Şablon Kaydet</span>
+                        </button>
+                    )}
+
+                    {canRegenerateAI && !isPreview && (
+                        <button
+                            onClick={onRegenerateAI}
+                            disabled={isRegenerating}
+                            title="AI, bu modülün konu bilgisini kullanarak tüm slaytları sıfırdan yeniden üretir"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-amber-400 to-orange-500 hover:from-amber-500 hover:to-orange-600 text-white font-black rounded-xl shadow-[0_4px_0_rgba(217,119,6,0.4)] hover:shadow-[0_2px_0_rgba(217,119,6,0.4)] hover:translate-y-[2px] transition-all text-sm uppercase tracking-wide group mr-1 disabled:opacity-60 disabled:pointer-events-none"
+                        >
+                            {isRegenerating ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Sparkles className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                            )}
+                            <span>{isRegenerating ? 'Oluşturuluyor...' : 'AI ile Tekrar Oluştur'}</span>
                         </button>
                     )}
 

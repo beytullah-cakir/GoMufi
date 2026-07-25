@@ -210,6 +210,9 @@ class GenerateLessonSlidesRequest(BaseModel):
     lesson_objective: str
     modules: List[Any]
     pdf_content: Optional[str] = None
+    # True: Canvas Builder'daki "AI ile Tekrar Oluştur" — tek bir mevcut modülü yeniden
+    # üretir. Maliyet takibinde ilk üretimden AYRI bir kalem olarak loglanır (bkz. ai_economics.py).
+    is_regeneration: bool = False
 
 
 # --- GEMINI STRUCTURED OUTPUT SCHEMAS ---
@@ -1331,7 +1334,12 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
             contents=prompt,
             config=gen_config(LessonSlidesResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
+        if req.is_regeneration:
+            # Canvas Builder'dan tek modül yeniden üretimi — ayrı bir maliyet kalemi (ai_economics.py)
+            regen_topic = (req.modules[0].get("topic") if req.modules else "") or req.lesson_title
+            await record_ai_usage(db, teacher_id, "regenerate_lesson_module", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül: '{regen_topic}'")
+        else:
+            await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
         
         slide_contents_data = json.loads(response.text.strip())
         modules_content = slide_contents_data.get("modules_content") or []

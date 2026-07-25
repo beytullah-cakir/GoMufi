@@ -132,6 +132,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const [saveStatus, setSaveStatus] = useState<'saved' | 'saving'>('saved');
     const isFirstRender = useRef(true);
 
+    // -- AI ile Tekrar Oluştur --
+    const [courseTitle, setCourseTitle] = useState<string>("");
+    const [isRegenerating, setIsRegenerating] = useState(false);
+
     // -- Stage Indicator State --
     const [activeStage, setActiveStage] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV'>(() => {
         const categoryParam = searchParams.get("category");
@@ -434,6 +438,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 try {
                     const response = await api.get(`/courses/${courseId}`);
                     if (response.data) {
+                        setCourseTitle(response.data.title || "");
                         const curriculum = response.data.curriculum || [];
                         const dbNotes = response.data.notes || [];
                         const levelsOnly = curriculum.filter((item: any) => item.type !== "live_sessions_config");
@@ -1849,6 +1854,68 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSelectionBox(null);
     };
 
+    // ANLA/UYGULA/BİRLEŞTİR/ÜRET/QUIZ/ÖDEV etiketi ↔ backend'in beklediği modül tipi
+    const STAGE_TO_MODULE_TYPE: Record<string, string> = {
+        'ANLA': 'UNDERSTAND', 'UYGULA': 'APPLY', 'BİRLEŞTİR': 'CONNECT',
+        'ÜRET': 'CREATE', 'QUIZ': 'QUIZ', 'ÖDEV': 'HOMEWORK'
+    };
+
+    // Bu modülün ait olduğu Ders'i bulur (yalnızca Ders'in İLK modülünde lessonTopic/
+    // lessonNumber/aiLessonObjective dolu olur — geriye doğru arayarak buluruz).
+    const findDersContext = () => {
+        const idx = allLessons.findIndex((n: any) => String(n.id) === String(noteId));
+        if (idx === -1) return { dersNode: null, currentNode: null };
+        let start = idx;
+        while (start > 0 && allLessons[start].lessonTopic === undefined) start--;
+        return { dersNode: allLessons[start], currentNode: allLessons[idx] };
+    };
+
+    // AI, dersi ilk oluştururken bu modülün konusunu zaten biliyordu (aiModuleTopic) —
+    // aynı konuyu kullanarak SADECE bu modülün slaytlarını (mevcut deste yerine) yeniden üretir.
+    const handleRegenerateWithAI = async () => {
+        if (!courseId || !noteId) return;
+        const ok = window.confirm(
+            "Bu modüldeki TÜM slaytlar silinip AI tarafından sıfırdan yeniden oluşturulacak.\n" +
+            "Yaptığınız düzenlemeler kaybolacak. Devam etmek istiyor musunuz?"
+        );
+        if (!ok) return;
+
+        setIsRegenerating(true);
+        try {
+            const { dersNode, currentNode } = findDersContext();
+            const moduleType = STAGE_TO_MODULE_TYPE[activeStage] || 'UNDERSTAND';
+            const moduleTopic = currentNode?.aiModuleTopic || currentNode?.title || projectName;
+            const lessonTitle = dersNode?.lessonTopic || projectName;
+
+            const response = await api.post('/courses/generate_lesson_slides', {
+                topic: courseTitle || projectName,
+                difficulty: 'Orta',
+                audience: 'Karma seviye öğrenciler',
+                lesson_number: dersNode?.lessonNumber || 1,
+                lesson_title: lessonTitle,
+                lesson_objective: dersNode?.aiLessonObjective || `Bu derste ${moduleTopic} konusu öğrenilecektir.`,
+                modules: [{ type: moduleType, topic: moduleTopic }],
+                is_regeneration: true,
+            });
+
+            const newSlides = response.data?.notes?.[0]?.slides;
+            if (newSlides && newSlides.length > 0) {
+                setSlides(newSlides);
+                setCurrentSlideId(newSlides[0].id);
+                setSelectedElementIds([]);
+                setEditingElementId(null);
+                setSaveStatus('saving'); // öğretmen gözden geçirip "Kaydet"e basmalı
+            } else {
+                alert("AI içerik üretemedi. Lütfen tekrar deneyin.");
+            }
+        } catch (err) {
+            console.error("AI ile yeniden oluşturma hatası:", err);
+            alert("AI ile yeniden oluşturulurken bir hata oluştu.");
+        } finally {
+            setIsRegenerating(false);
+        }
+    };
+
     const handleSaveAction = async () => {
         if (!courseId || !noteId) {
             // Standalone draft mode, fallback to modal selector
@@ -2006,6 +2073,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     setPreviewRole={setPreviewRole}
                     isStageLocked={!!searchParams.get("category")}
                     isAdmin={userData?.role === 'admin'}
+                    canRegenerateAI={!!courseId && !!noteId}
+                    isRegenerating={isRegenerating}
+                    onRegenerateAI={handleRegenerateWithAI}
                     onSaveAsTemplate={() => {
                         setTemplateTitle(`${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} Şablonu`);
                         setTemplateDesc('');

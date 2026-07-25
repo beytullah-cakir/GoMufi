@@ -350,9 +350,11 @@ async def update_student_stats(
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    if user["role"] != "student":
+    # Admin, öğrenci panelini test ederken kendi ADMIN_EMAIL'e bağlı Student kaydı
+    # üzerinden XP kazanabilir (bkz. /profile admin dalı ve /leaderboard aynı desen).
+    if user["role"] not in ("student", "admin"):
         raise HTTPException(status_code=403, detail="Forbidden")
-    
+
     student_id = int(user["user_id"])
     result = await db.execute(select(Student).where(Student.id == student_id))
     student = result.scalar_one_or_none()

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight } from 'lucide-react';
+import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import GameBuilder from '../lesson-builder/GameBuilder';
@@ -20,6 +20,19 @@ interface LessonSlideProps {
     lessonIndex?: number;
     userData?: any;
     initialSlideIndex?: number;
+    /** Bu slayt destesinin ait olduğu roadmap düğümünün sabit aşaması (ör. "ANLA").
+     *  Verilirse tüm deste boyunca SABİT kalır — slayt içeriğinden tahmin edilmez. */
+    moduleStage?: string;
+    /** Aynı Ders içindeki modül dizisi (üst bar için) — {stage, status} sırayla. */
+    dersStages?: { stage: string; status: 'done' | 'current' | 'upcoming' }[];
+    /** Ders'te bu modülden sonraki roadmap düğümünün id'si (varsa). */
+    nextModuleNodeId?: number | null;
+    /** Sonraki düğümün aşaması (geçiş ekranında gösterilir). */
+    nextModuleStage?: string | null;
+    /** Kullanıcı geçiş ekranında "…'YA GEÇ" dediğinde çağrılır; parent bir sonraki düğümü açar. */
+    onAdvanceModule?: (nextNodeId: number) => void;
+    /** Bu modül tamamlanınca kazanılan gerçek XP (roadmap builder'da ayarlanan) — geçiş ekranında gösterilir. */
+    moduleXp?: number;
 }
 
 const getStageColor = (title: string) => {
@@ -36,7 +49,7 @@ const getStageColor = (title: string) => {
 const getSlideStage = (slide: any): string => {
     if (!slide) return 'ANLA';
 
-    // 1. Check explicit properties on slide object
+    // 1. Explicit stage / bubbleTitle on slide object
     const raw = slide.bubbleTitle || slide.bubble_title || slide.stage || slide.stageId || slide.category || slide.templateCategory;
     if (raw && typeof raw === 'string') {
         const upper = raw.toUpperCase().trim();
@@ -49,77 +62,47 @@ const getSlideStage = (slide: any): string => {
         return raw.toUpperCase().trim();
     }
 
-    // 2. Content & Element & Type based Detection
-    const typeUpper = (slide.type || '').toString().toUpperCase();
-    const titleUpper = (slide.title || slide.name || '').toString().toUpperCase();
+    // 2. Content-based inference fallback
     const elements = slide.elements || [];
+    const hasCodeOrChallenge = slide.type === 'game' || elements.some((el: any) =>
+        el.type === 'code' || el.type === 'challenge' || el.type === 'code_editor' || el.type === 'interactive' ||
+        (el.extra && (el.extra.title?.includes('KODLAMA') || el.extra.title?.includes('UYGULA') || el.extra.title?.includes('PRATİK') || el.extra.title?.includes('TEST')))
+    );
+    if (hasCodeOrChallenge) return 'UYGULA';
 
-    // --- BİRLEŞTİR ---
-    if (
-        typeUpper.includes('BIRLESTIR') || typeUpper.includes('PROJECT') || typeUpper.includes('PROJE') ||
-        titleUpper.includes('BİRLEŞTİR') || titleUpper.includes('BIRLESTIR') || titleUpper.includes('KOMBİNASYON') ||
-        elements.some((el: any) =>
-            el.type === 'project_builder' || el.type === 'connector_challenge' || el.type === 'flowchart' || el.type === 'puzzle' ||
-            (el.extra && (el.extra.title?.includes('BİRLEŞTİR') || el.extra.title?.includes('PROJE'))) ||
-            (el.content && typeof el.content === 'string' && el.content.toUpperCase().includes('BİRLEŞTİR'))
-        )
-    ) {
-        return 'BİRLEŞTİR';
-    }
+    const hasQuiz = slide.type === 'quiz' || elements.some((el: any) => el.type === 'multiple_choice' || el.type === 'quiz');
+    if (hasQuiz) return 'QUIZ';
 
-    // --- ÜRET ---
-    if (
-        typeUpper.includes('URET') || typeUpper.includes('CREATIVE') || typeUpper.includes('SANDBOX') ||
-        titleUpper.includes('ÜRET') || titleUpper.includes('URET') || titleUpper.includes('TASARLA') || titleUpper.includes('SERBEST') ||
-        elements.some((el: any) =>
-            el.type === 'creative_canvas' || el.type === 'drawing' || el.type === 'sandbox' ||
-            (el.extra && (el.extra.title?.includes('ÜRET') || el.extra.title?.includes('TASARLA'))) ||
-            (el.content && typeof el.content === 'string' && el.content.toUpperCase().includes('ÜRET'))
-        )
-    ) {
-        return 'ÜRET';
-    }
-
-    // --- ÖDEV ---
-    if (
-        typeUpper.includes('HOMEWORK') || typeUpper.includes('ODEV') || typeUpper.includes('HW') ||
-        titleUpper.includes('ÖDEV') || titleUpper.includes('ODEV') || titleUpper.includes('GÖREV') ||
-        elements.some((el: any) =>
-            el.type === 'homework_box' || el.type === 'file_upload' || el.type === 'answer_box' ||
-            (el.extra && (el.extra.title?.includes('ÖDEV') || el.extra.title?.includes('HOMEWORK'))) ||
-            (el.content && typeof el.content === 'string' && (el.content.toUpperCase().includes('ÖDEV') || el.content.toUpperCase().includes('HOMEWORK')))
-        )
-    ) {
-        return 'ÖDEV';
-    }
-
-    // --- QUIZ ---
-    if (
-        typeUpper.includes('QUIZ') || typeUpper.includes('TEST') || typeUpper.includes('QUESTION') ||
-        titleUpper.includes('QUIZ') || titleUpper.includes('QUİZ') || titleUpper.includes('TEST') || titleUpper.includes('DEĞERLENDİRME') ||
-        elements.some((el: any) =>
-            el.type === 'multiple_choice' || el.type === 'quiz' || el.type === 'question' ||
-            (el.extra && (el.extra.title?.includes('QUIZ') || el.extra.title?.includes('TEST') || el.extra.title?.includes('SORU'))) ||
-            (el.content && typeof el.content === 'string' && (el.content.toUpperCase().includes('QUIZ') || el.content.toUpperCase().includes('TEST')))
-        )
-    ) {
-        return 'QUIZ';
-    }
-
-    // --- UYGULA ---
-    if (
-        typeUpper.includes('GAME') || typeUpper.includes('CHALLENGE') || typeUpper.includes('CODE') || typeUpper.includes('PRACTICE') ||
-        titleUpper.includes('UYGULA') || titleUpper.includes('PRATİK') || titleUpper.includes('KODLAMA') ||
-        elements.some((el: any) =>
-            el.type === 'code' || el.type === 'challenge' || el.type === 'code_editor' || el.type === 'interactive' ||
-            (el.extra && (el.extra.title?.includes('KODLAMA') || el.extra.title?.includes('UYGULA') || el.extra.title?.includes('PRATİK') || el.extra.title?.includes('TEST'))) ||
-            (el.content && typeof el.content === 'string' && (el.content.toUpperCase().includes('UYGULA') || el.content.toUpperCase().includes('KODLAMA')))
-        )
-    ) {
-        return 'UYGULA';
-    }
+    const hasHw = slide.type === 'homework' || slide.type === 'HOMEWORK';
+    if (hasHw) return 'ÖDEV';
 
     return 'ANLA';
+};
+
+// Kanonik aşama sırası — üst bar bu sırayı takip eder.
+const STAGE_ORDER = ['ANLA', 'UYGULA', 'BİRLEŞTİR', 'ÜRET', 'QUIZ', 'ÖDEV'];
+// Bir modülün öğrenme iskeleti — bu 4 aşama slaytta olmasa da yol haritası olarak gösterilir.
+const CORE_STAGES = ['ANLA', 'UYGULA', 'BİRLEŞTİR', 'ÜRET'];
+
+// Aşamalar arası geçiş ekranı metinleri
+const STAGE_INFO: Record<string, { emoji: string; done: string; desc: string; next: string }> = {
+    ANLA: { emoji: '🎯', done: 'Anlama bölümü tamamlandı!', desc: 'Konunun ne olduğunu artık biliyorsun.', next: 'Şimdi öğrendiklerini uygulamaya hazır mısın?' },
+    UYGULA: { emoji: '⚡', done: 'Uygulama bölümü tamamlandı!', desc: 'Kendi ellerinle denedin, harikasın!', next: 'Şimdi bilgini birleştirmeye hazır mısın?' },
+    'BİRLEŞTİR': { emoji: '🧩', done: 'Birleştirme bölümü tamamlandı!', desc: 'Parçaları bir araya getirdin.', next: 'Şimdi kendi eserini üretmeye hazır mısın?' },
+    'ÜRET': { emoji: '🚀', done: 'Üretme bölümü tamamlandı!', desc: 'Öğrendiklerinle bir şey ürettin!', next: 'Bir sonraki adıma hazır mısın?' },
+    QUIZ: { emoji: '🧠', done: 'Quiz tamamlandı!', desc: 'Bilgini test ettin.', next: 'Devam etmeye hazır mısın?' },
+    'ÖDEV': { emoji: '📝', done: 'Ödev bölümüne geldin!', desc: 'Öğrendiklerini pekiştirme zamanı.', next: 'Ödevi teslim etmeye hazır mısın?' },
+};
+
+// Türkçe yönelme eki (-a/-e/-ya/-ye) ile "X'YA GEÇ" üretir
+const toStageLabel = (stage: string) => {
+    const upper = stage.toUpperCase();
+    const vowels = upper.match(/[AEIİOÖUÜ]/g) || [];
+    const lastVowel = vowels[vowels.length - 1] || 'A';
+    const isBack = 'AIOU'.includes(lastVowel);
+    const endsWithVowel = /[AEIİOÖUÜ]$/.test(upper);
+    const suffix = isBack ? (endsWithVowel ? 'YA' : 'A') : (endsWithVowel ? 'YE' : 'E');
+    return `${stage}'${suffix} GEÇ`;
 };
 
 const LessonSlide: React.FC<LessonSlideProps> = ({
@@ -133,10 +116,19 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     courseId,
     lessonIndex,
     userData,
-    initialSlideIndex = 0
+    initialSlideIndex = 0,
+    moduleStage,
+    dersStages,
+    nextModuleNodeId = null,
+    nextModuleStage = null,
+    onAdvanceModule,
+    moduleXp
 }) => {
     // Yalnızca canlı derse bağlanmış bir öğrenci hocayı takip eder / WS ile senkron olur.
     const isLiveStudent = previewRole === 'student' && isLive;
+    // Modül-tabanlı roadmap modu: parent bu slayt destesinin sabit aşamasını biliyor
+    // (bkz. HomePage). Bu moddayken aşama slayt içeriğinden ASLA tahmin edilmez.
+    const isModuleMode = !!dersStages && dersStages.length > 0;
     const [currentSlide, setCurrentSlide] = useState(0);
     const [localSlides, setLocalSlides] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -169,12 +161,87 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const [isFollowingTeacher, setIsFollowingTeacher] = useState<boolean>(true);
     const [isReady, setIsReady] = useState<boolean>(false);
     const [showCatchUpAlert, setShowCatchUpAlert] = useState<boolean>(false);
+    // Aşamalar arası geçiş kutlama ekranı (ör. ANLA → UYGULA)
+    const [stageTransition, setStageTransition] = useState<{ from: string; to: string } | null>(null);
 
     // Teacher active students tracking list
     const [studentsList, setStudentsList] = useState<{ [id: string]: { name: string, isReady: boolean, currentSlide: number, lastSeen: number } }>({});
 
     // Real-time WebSocket hook
     const { sendMessage, lastMessage } = useWebSocket();
+
+    // Fullscreen state & auto-fullscreen on open/close
+    const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!(document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement));
+        };
+
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+        return () => {
+            document.removeEventListener('fullscreenchange', handleFullscreenChange);
+            document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+            document.removeEventListener('msfullscreenchange', handleFullscreenChange);
+        };
+    }, []);
+
+    useEffect(() => {
+        if (isOpen) {
+            const elem = document.documentElement;
+            if (!document.fullscreenElement && !(document as any).webkitFullscreenElement && !(document as any).msFullscreenElement) {
+                if (elem.requestFullscreen) {
+                    elem.requestFullscreen().catch(() => {});
+                } else if ((elem as any).webkitRequestFullscreen) {
+                    (elem as any).webkitRequestFullscreen();
+                } else if ((elem as any).msRequestFullscreen) {
+                    (elem as any).msRequestFullscreen();
+                }
+            }
+        } else {
+            if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                } else if ((document as any).webkitExitFullscreen) {
+                    (document as any).webkitExitFullscreen();
+                } else if ((document as any).msExitFullscreen) {
+                    (document as any).msExitFullscreen();
+                }
+            }
+        }
+
+        return () => {
+            if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen().catch(() => {});
+                } else if ((document as any).webkitExitFullscreen) {
+                    (document as any).webkitExitFullscreen();
+                } else if ((document as any).msExitFullscreen) {
+                    (document as any).msExitFullscreen();
+                }
+            }
+        };
+    }, [isOpen]);
+
+    const toggleFullscreen = () => {
+        if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
+            if (document.exitFullscreen) {
+                document.exitFullscreen().catch(() => {});
+            } else if ((document as any).webkitExitFullscreen) {
+                (document as any).webkitExitFullscreen();
+            }
+        } else {
+            const elem = document.documentElement;
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen().catch(() => {});
+            } else if ((elem as any).webkitRequestFullscreen) {
+                (elem as any).webkitRequestFullscreen();
+            }
+        }
+    };
 
     // Deep copy slides on open/load
     useEffect(() => {
@@ -187,6 +254,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             setStudentsList({});
             setGameStatuses({});
             setAllAnswers({});
+            setStageTransition(null);
             if (slides && slides.length > 0) {
                 setLocalSlides(JSON.parse(JSON.stringify(slides)));
             } else {
@@ -409,13 +477,30 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
     if (!isOpen) return null;
 
+    // Bu deste boyunca SABİT aşama: modül modunda parent'tan gelir, aksi halde
+    // (öğretmen önizlemesi / canlı ders) ilk slayttan bir kereliğine çıkarılır — asla
+    // mevcut slayta göre değişmez, böylece bir ANLA slaytındaki kod örneği UYGULA sanılmaz.
+    const deckStage = moduleStage || getSlideStage(localSlides[0]);
+
     const handleNext = () => {
         if (currentSlide < localSlides.length - 1) {
             setCurrentSlide(currentSlide + 1);
             setIsReady(false);
-        } else {
-            onComplete();
+            return;
         }
+        // Bu modülün (deck) son slaytına gelindi.
+        if (isModuleMode && previewRole === 'student' && !isLive && nextModuleNodeId != null) {
+            setStageTransition({ from: deckStage, to: nextModuleStage || 'Sonraki Modül' });
+            return;
+        }
+        onComplete();
+    };
+
+    // Geçiş ekranındaki "…'YA GEÇ" butonu bir sonraki roadmap düğümünü (modülü) açar
+    const proceedFromStageTransition = () => {
+        if (!stageTransition) return;
+        if (nextModuleNodeId != null) onAdvanceModule?.(nextModuleNodeId);
+        setStageTransition(null);
     };
 
     const handlePrev = () => {
@@ -636,20 +721,37 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const stepNum = Math.min(currentSlide + 1, totalSlides);
     const progressPct = (stepNum / totalSlides) * 100;
     const isLastSlide = currentSlide === totalSlides - 1;
-    const currentBubbleTitle = getSlideStage(localSlides[currentSlide]);
-    const nextSlideStage = localSlides[currentSlide + 1] ? getSlideStage(localSlides[currentSlide + 1]) : null;
-    const isLastSlideOfCurrentStage = isLastSlide || (nextSlideStage !== null && nextSlideStage !== currentBubbleTitle);
-    const curBubbleIdx = bubbles.findIndex(b => b.title === currentBubbleTitle);
+    // Modül modunda bu deste TEK bir aşamaya aittir (roadmap düğümünün kendi aşaması).
+    // Değilse (öğretmen önizlemesi / canlı ders) eski davranış: slayt içeriğinden tahmin.
+    const currentBubbleTitle = isModuleMode ? deckStage : getSlideStage(localSlides[currentSlide]);
     const streakVal = userData?.streak ?? 0;
     const xpVal = userData?.xp ?? 0;
+
+    // Üst bar: modül modunda parent'ın verdiği gerçek Ders modül listesi; değilse
+    // slayt içeriğinden tahmin edilen kanonik yol haritası (öğretmen önizleme fallback'i).
+    const presentStages = new Set(bubbles.map(b => b.title));
+    const extraStages = [...presentStages].filter(s => !STAGE_ORDER.includes(s));
+    const displayStages = isModuleMode
+        ? (dersStages as NonNullable<typeof dersStages>).map(d => d.stage)
+        : [
+            ...STAGE_ORDER.filter(s => CORE_STAGES.includes(s) || presentStages.has(s)),
+            ...extraStages,
+        ];
+    const currentStageIdx = isModuleMode
+        ? (dersStages as NonNullable<typeof dersStages>).findIndex(d => d.status === 'current')
+        : displayStages.indexOf(currentBubbleTitle);
 
     // CTA ekranın türüne göre değişir ("Devam Et" her yerde olmasın)
     const hasChallengeEl = !!slide?.elements?.some((el: any) => el.type === 'challenge');
     const hasCodeEl = !!slide?.elements?.some((el: any) => el.type === 'code' || el.type === 'code_editor');
+    const willAdvanceToNextModule = isModuleMode && previewRole === 'student' && !isLive && nextModuleNodeId != null;
     let ctaLabel = 'Devam Et';
     let CtaIcon = ChevronRight;
-    if (isLastSlideOfCurrentStage || isLastSlide) {
+    if (isLastSlide && willAdvanceToNextModule) {
         ctaLabel = `${currentBubbleTitle}'YI TAMAMLA`;
+        CtaIcon = Check;
+    } else if (isLastSlide) {
+        ctaLabel = 'Dersi Bitir';
         CtaIcon = Check;
     } else if (hasChallengeEl) {
         ctaLabel = 'Gönder';
@@ -702,47 +804,43 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         </span>
                     </div>
 
-                    {/* Bölüm Stepper Badges (CanvasBuilder Stili) */}
-                    {bubbles.length > 0 && !isHwSlide && (
+                    {/* Bölüm Stepper — tam kanonik yol haritası, salt gösterim (tıklayıp atlanamaz) */}
+                    {displayStages.length > 0 && !isHwSlide && (
                         <div className="hidden lg:flex items-center gap-1 bg-white/90 backdrop-blur-xl border border-gray-200/80 rounded-2xl px-2 py-1.5 shadow-lg max-w-full select-none">
-                            {bubbles.map((b, bIdx) => {
-                                const state = bIdx < curBubbleIdx ? 'done' : bIdx === curBubbleIdx ? 'current' : 'upcoming';
-                                const isClickable = previewRole === 'teacher' || (
-                                    previewRole === 'student' && !isFollowingTeacher && (
-                                        followMode === 'free' || (followMode === 'previous_only' && b.firstSlideIndex <= teacherCurrentSlide)
-                                    )
-                                );
-                                const stageColor = getStageColor(b.title);
+                            {displayStages.map((stageName, sIdx) => {
+                                const state = sIdx < currentStageIdx ? 'done' : sIdx === currentStageIdx ? 'current' : 'upcoming';
                                 const isActive = state === 'current';
+                                // Modül modunda dersStages'teki her girdi gerçek bir roadmap düğümüdür.
+                                const isPresent = isModuleMode || presentStages.has(stageName);
+                                const stageColor = getStageColor(stageName);
 
                                 return (
-                                    <button
-                                        key={bIdx}
-                                        onClick={() => isClickable && setCurrentSlide(b.firstSlideIndex)}
-                                        disabled={!isClickable}
+                                    <div
+                                        key={`${stageName}-${sIdx}`}
                                         style={{
                                             backgroundColor: isActive ? stageColor.bg : 'transparent',
-                                            boxShadow: isActive ? `0 4px 12px ${stageColor.shadow}` : 'none'
+                                            boxShadow: isActive ? `0 4px 12px ${stageColor.shadow}` : 'none',
                                         }}
                                         className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all duration-300 shrink-0 ${
                                             isActive
                                                 ? 'text-white font-black scale-[1.02]'
-                                                : isClickable
-                                                ? 'text-slate-500 font-bold hover:text-slate-800 hover:bg-slate-100/80'
-                                                : 'text-slate-300 font-bold cursor-not-allowed opacity-60'
+                                                : state === 'done'
+                                                ? 'text-slate-600 font-bold'
+                                                : `text-slate-400 font-bold ${isPresent ? '' : 'opacity-45'}`
                                         }`}
-                                        title={b.title}
+                                        title={isPresent ? stageName : `${stageName} (bu derste yok)`}
                                     >
-                                        {/* Dot Indicator: Solid White for active, Hollow Circle for inactive */}
                                         {isActive ? (
                                             <div className="w-2.5 h-2.5 rounded-full bg-white shrink-0 shadow-sm" />
+                                        ) : state === 'done' ? (
+                                            <div className="w-4 h-4 rounded-full bg-emerald-500 shrink-0 flex items-center justify-center">
+                                                <Check className="w-2.5 h-2.5 text-white stroke-[4]" />
+                                            </div>
                                         ) : (
-                                            <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 ${
-                                                state === 'done' ? 'border-emerald-500 bg-emerald-500/20' : 'border-slate-300'
-                                            }`} />
+                                            <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 border-slate-300 ${isPresent ? '' : 'border-dashed'}`} />
                                         )}
-                                        <span className="text-xs uppercase tracking-wider">{b.title}</span>
-                                    </button>
+                                        <span className="text-xs uppercase tracking-wider">{stageName}</span>
+                                    </div>
                                 );
                             })}
                         </div>
@@ -799,6 +897,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                             <Settings className="w-6 h-6" />
                         </button>
                     )}
+
+                    <button
+                        onClick={toggleFullscreen}
+                        className="w-11 h-11 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600 flex items-center justify-center rounded-2xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
+                        title={isFullscreen ? "Tam Ekrandan Çık" : "Tam Ekran Yap"}
+                    >
+                        {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+                    </button>
 
                     <button
                         onClick={onClose}
@@ -983,6 +1089,64 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     </div>
                 </div>
             )}
+
+            {/* ── Aşamalar arası geçiş / kutlama ekranı ── */}
+            {stageTransition && (() => {
+                const info = STAGE_INFO[stageTransition.from] || {
+                    emoji: '🎉',
+                    done: `${stageTransition.from} bölümü tamamlandı!`,
+                    desc: 'Harika iş çıkardın!',
+                    next: 'Devam etmeye hazır mısın?',
+                };
+                const fromColor = getStageColor(stageTransition.from);
+                const toColor = getStageColor(stageTransition.to);
+                return (
+                    <div
+                        className="absolute inset-0 z-[200] flex items-center justify-center p-6 animate-in fade-in duration-300"
+                        style={{
+                            background: `radial-gradient(circle at 50% 25%, ${fromColor.shadow}, rgba(15,23,42,0.55))`,
+                            backdropFilter: 'blur(6px)',
+                        }}
+                    >
+                        <div className="relative w-full max-w-md bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 border-b-slate-300 shadow-2xl p-8 text-center animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
+                            {/* Emoji rozeti */}
+                            <div
+                                className="mx-auto w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-4xl mb-4 shadow-md border-2 border-b-4"
+                                style={{ backgroundColor: `${fromColor.bg}1a`, borderColor: fromColor.border }}
+                            >
+                                {info.emoji}
+                            </div>
+                            <h2 className="text-2xl font-black text-slate-800 font-display mb-1.5">{info.done}</h2>
+                            <p className="text-sm font-bold text-slate-500 mb-4">{info.desc}</p>
+
+                            {moduleXp != null && moduleXp > 0 && (
+                                <div className="inline-flex items-center gap-1.5 bg-amber-50 border-2 border-b-4 border-amber-200 border-b-amber-300 text-amber-600 font-black rounded-2xl px-4 py-2 mb-5 text-sm">
+                                    ⭐ +{moduleXp} XP
+                                </div>
+                            )}
+
+                            <p className="text-sm font-bold text-slate-600 mb-5">{info.next}</p>
+
+                            {/* Sonraki aşamaya geç */}
+                            <button
+                                onClick={proceedFromStageTransition}
+                                style={{ backgroundColor: toColor.bg, borderColor: toColor.border }}
+                                className="group w-full flex items-center justify-center gap-2 py-4 rounded-2xl text-white font-black text-base uppercase tracking-wider border-2 border-b-[6px] shadow-lg active:translate-y-[3px] active:border-b-2 transition-all cursor-pointer"
+                            >
+                                <span>{toStageLabel(stageTransition.to)}</span>
+                                <ArrowRight className="w-5 h-5 stroke-[3] group-hover:translate-x-0.5 transition-transform" />
+                            </button>
+
+                            <button
+                                onClick={() => setStageTransition(null)}
+                                className="mt-3 text-xs font-bold text-slate-400 hover:text-slate-600 cursor-pointer"
+                            >
+                                Bu bölümde kal
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
         </div>
     );
 };
