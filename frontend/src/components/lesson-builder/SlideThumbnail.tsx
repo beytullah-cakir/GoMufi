@@ -105,6 +105,36 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                             </div>
                         </div>
                     </div>
+                ) : slide.type === 'challenge' ? (
+                    <div className="w-full h-full flex gap-3 p-6 bg-slate-50">
+                        {/* Sol: görev kartı */}
+                        <div className="w-[38%] bg-white border-2 border-slate-200 border-b-[6px] rounded-2xl p-4 flex flex-col gap-2">
+                            <div className="w-28 h-4 bg-cyan-200 rounded-full" />
+                            <div className="w-full h-3 bg-slate-800/80 rounded-full mt-1" />
+                            <div className="w-full h-2 bg-slate-200 rounded-full" />
+                            <div className="w-4/5 h-2 bg-slate-200 rounded-full" />
+                            <div className="mt-auto w-20 h-4 bg-amber-200 rounded-full" />
+                        </div>
+                        {/* Sağ: editör + testler */}
+                        <div className="flex-1 flex flex-col gap-3">
+                            <div className="flex-1 bg-[#1e1e1e] rounded-2xl p-4 flex flex-col gap-2">
+                                <div className="w-20 h-2 bg-emerald-800 rounded-full" />
+                                <div className="w-32 h-2 bg-zinc-700 rounded-full" />
+                                <div className="w-24 h-2 bg-zinc-700 rounded-full" />
+                            </div>
+                            <div className="h-[38%] bg-white border-2 border-slate-200 border-b-[6px] rounded-2xl p-3 flex flex-col gap-2">
+                                <div className="w-24 h-2 bg-slate-200 rounded-full" />
+                                <div className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-emerald-500" />
+                                    <span className="flex-1 h-2 bg-slate-200 rounded-full" />
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="w-4 h-4 rounded-full bg-emerald-500" />
+                                    <span className="flex-1 h-2 bg-slate-200 rounded-full" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 ) : slide.type === 'coding' ? (
                     <div className="w-full h-full flex p-8 gap-4 bg-[#f5f5f7]">
                         {/* Left: Code */}

@@ -9,6 +9,7 @@ import {
   Layers,
   Search,
   Calculator,
+  FileText,
   Info,
   CheckCircle2,
   Trash2,
@@ -108,6 +109,35 @@ interface OperationBreakdown {
   rows: OperationRow[];
 }
 
+interface Money {
+  usd: number;
+  tl: number;
+}
+
+interface SourceActionRow {
+  action: string;
+  label: string;
+  calls: number;
+  source_chars: number;
+  source_tokens: number;
+  avg_chars_per_call: number;
+  cost_usd: number;
+  cost_tl: number;
+}
+
+/** Yüklenen kaynak PDF'in maliyetteki PAYI — toplama ek değil, içinden ayrıştırma. */
+interface SourceMaterial {
+  calls_with_source: number;
+  calls_total: number;
+  total_source_chars: number;
+  total_source_tokens: number;
+  avg_source_chars_per_call: number;
+  share_of_total_pct: number;
+  total_source_cost: Money;
+  source_cost_per_lesson: Money;
+  by_action: SourceActionRow[];
+}
+
 interface MetricsData {
   total_requests: number;
   total_prompt_tokens: number;
@@ -122,6 +152,7 @@ interface MetricsData {
   by_course: CourseSummaryItem[];
   unit_economics?: UnitEconomics;
   operation_breakdown?: OperationBreakdown;
+  source_material?: SourceMaterial;
   recent_logs: AIUsageItem[];
 }
 
@@ -564,8 +595,98 @@ const InstructorMetrics: React.FC = () => {
           </div>
           <p className="text-xs font-semibold text-slate-500 mt-3.5 italic leading-relaxed">
             * "Ders başı" değerleri, kategorinin toplam maliyetinin üretilen ders sayısına bölünmesiyle (amortisman) bulunur — müfredat gibi kurs-başı işlemler ders başına düşen paylarıyla görünür.
-            "8 derslik kurs" = ders başı toplam × 8 (tipik kurs varsayımı). "Öğretmen aylık" ise {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımına dayalı AYRI bir projeksiyondur — bir kursun değil, bir öğretmenin bir ayda ürettiği TÜM derslerin toplam maliyetidir, bu yüzden kurs maliyetinden yüksek görünür. Görseller loremflickr'dan ücretsiz çekilir (AI maliyeti yok).
+            "8 derslik kurs" = ders başı toplam × 8 (tipik kurs varsayımı). "Öğretmen aylık" ise {metrics.operation_breakdown.lessons_per_teacher_month} ders/ay varsayımına dayalı AYRI bir projeksiyondur — bir kursun değil, bir öğretmenin bir ayda ürettiği TÜM derslerin toplam maliyetidir, bu yüzden kurs maliyetinden yüksek görünür. Görseller Wikipedia ve Openverse'ten ücretsiz çekilir (AI maliyeti yok).
           </p>
+        </div>
+      )}
+
+      {/* KAYNAK PDF MALİYETİ — toplama ek değil, toplamın içinden ayrıştırma */}
+      {metrics?.source_material && (
+        <div className="bg-white p-6 rounded-3xl border-2 border-teal-100 shadow-sm">
+          <div className="mb-5">
+            <h2 className="text-lg font-black text-slate-900 font-display flex items-center gap-2">
+              <FileText className="text-teal-600" size={22} /> Yüklenen Kaynak (PDF) Maliyeti
+            </h2>
+            <p className="text-xs font-semibold text-slate-500 mt-1 leading-relaxed">
+              Öğretmenin yüklediği kaynak, prompt'un içine gömülü gider. Bu bölüm o maliyeti
+              toplamın <span className="font-black text-teal-700">içinden ayrıştırır</span> — üstüne
+              eklemez. Yani buradaki tutar zaten yukarıdaki toplam maliyetin bir parçasıdır.
+            </p>
+          </div>
+
+          {metrics.source_material.calls_with_source === 0 ? (
+            <div className="bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center">
+              <p className="text-sm font-bold text-slate-500">
+                Henüz kaynak PDF ile yapılmış bir üretim yok.
+              </p>
+              <p className="text-xs font-semibold text-slate-400 mt-1">
+                Kaynak ölçümü bu özellik eklendikten sonraki üretimlerde birikir; daha eski
+                kayıtlar "kaynaksız" görünür.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="bg-teal-50 border-2 border-teal-100 rounded-2xl p-4">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-teal-700 mb-1.5">Toplam Kaynak Maliyeti</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.source_material.total_source_cost.tl.toFixed(3)}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-1">
+                    ${metrics.source_material.total_source_cost.usd.toFixed(5)} • {metrics.source_material.calls_with_source}/{metrics.source_material.calls_total} çağrıda kaynak var
+                  </div>
+                </div>
+                <div className="bg-teal-50 border-2 border-teal-100 rounded-2xl p-4">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-teal-700 mb-1.5">Toplam Maliyetteki Payı</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono">%{metrics.source_material.share_of_total_pct.toFixed(2)}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-1">tüm AI harcamasının içinde</div>
+                </div>
+                <div className="bg-teal-50 border-2 border-teal-100 rounded-2xl p-4">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-teal-700 mb-1.5">Ders Başına Kaynak</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono">₺{metrics.source_material.source_cost_per_lesson.tl.toFixed(4)}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-1">${metrics.source_material.source_cost_per_lesson.usd.toFixed(6)}</div>
+                </div>
+                <div className="bg-slate-50 border-2 border-slate-100 rounded-2xl p-4">
+                  <div className="text-[11px] font-black uppercase tracking-wider text-slate-600 mb-1.5">Gönderilen Kaynak Metni</div>
+                  <div className="text-2xl font-black text-slate-900 font-mono">{metrics.source_material.total_source_tokens.toLocaleString("tr-TR")}</div>
+                  <div className="text-[11px] font-semibold text-slate-500 mt-1">
+                    token • {metrics.source_material.total_source_chars.toLocaleString("tr-TR")} karakter
+                  </div>
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b-2 border-slate-100">
+                      <th className="text-left py-3 px-4 text-[11px] font-black uppercase tracking-wider text-slate-500">İşlem</th>
+                      <th className="text-right py-3 px-4 text-[11px] font-black uppercase tracking-wider text-slate-500">Çağrı</th>
+                      <th className="text-right py-3 px-4 text-[11px] font-black uppercase tracking-wider text-slate-500">Ort. Karakter</th>
+                      <th className="text-right py-3 px-4 text-[11px] font-black uppercase tracking-wider text-slate-500">Kaynak Token</th>
+                      <th className="text-right py-3 px-4 text-[11px] font-black uppercase tracking-wider text-slate-500">Maliyet</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {metrics.source_material.by_action.map((row) => (
+                      <tr key={row.action} className="border-b border-slate-50 hover:bg-teal-50/40 transition-colors">
+                        <td className="py-3 px-4 font-black text-slate-800">{row.label}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-600 tabular-nums">{row.calls}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-600 tabular-nums">{row.avg_chars_per_call.toLocaleString("tr-TR")}</td>
+                        <td className="py-3 px-4 text-right font-mono font-bold text-slate-600 tabular-nums">{row.source_tokens.toLocaleString("tr-TR")}</td>
+                        <td className="py-3 px-4 text-right font-mono font-black text-teal-700 tabular-nums">₺{row.cost_tl.toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <p className="text-xs font-semibold text-slate-500 mt-3.5 italic leading-relaxed">
+                * Kaynak token sayısı, kaydın ÖLÇÜLEN prompt token'ının karakter oranıyla
+                paylaştırılmasıdır — sabit bir karakter/token katsayısı kullanılmadığı için dile
+                göre kendini düzeltir, ama token yoğunluğu metin boyunca birebir düzgün
+                dağılmadığından YAKLAŞIK bir değerdir. Kaynak yalnızca girdi tarafında
+                faturalanır; çıktı ve thinking token'ı üretmez.
+              </p>
+            </>
+          )}
         </div>
       )}
 

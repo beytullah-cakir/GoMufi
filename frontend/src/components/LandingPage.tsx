@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import {
     Layout,
@@ -76,6 +77,15 @@ const LandingPage: React.FC = () => {
     const [joinCode, setJoinCode] = useState('');
     const [activePreviewTab, setActivePreviewTab] = useState<'roadmap' | 'editor' | 'live' | 'student'>('roadmap');
     const [faqOpen, setFaqOpen] = useState<number | null>(null);
+    const [isScrolled, setIsScrolled] = useState(false);
+
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 30);
+        };
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
 
     // AI dynamic creation loop states (Step 0 to 5)
     const [simStep, setSimStep] = useState(0);
@@ -357,9 +367,9 @@ const LandingPage: React.FC = () => {
     ];
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-800 selection:bg-purple-200 overflow-x-hidden">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-700 selection:bg-purple-200">
             <style>{`
-                .font-display { font-family: "Outfit", "Inter", ui-sans-serif, system-ui, sans-serif; }
+                .font-display { font-family: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif; }
 
                 .reveal {
                     opacity: 0;
@@ -532,115 +542,153 @@ const LandingPage: React.FC = () => {
             `}</style>
 
             {/* ============ NAVBAR ============ */}
-            <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg h-[84px] px-6 lg:px-12 flex items-center justify-between border-b-2 border-slate-100">
-                <div className="flex items-center gap-6 xl:gap-8 w-full justify-between max-w-[1400px] mx-auto">
-                    {/* Logo */}
-                    <div className="flex-shrink-0 cursor-pointer group" onClick={() => navigate('/')}>
-                        <img src={LogoText} alt="GoMufi" className="h-[46px] md:h-[54px] object-contain group-hover:scale-105 transition-transform duration-300" />
-                    </div>
+            <header className="sticky top-0 z-50 w-full pointer-events-none">
+                <motion.nav
+                    initial={{ y: -60, opacity: 0 }}
+                    animate={{ y: 0, opacity: 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                    className={`pointer-events-auto transition-all duration-500 ease-out flex items-center justify-between ${
+                        isScrolled
+                            ? 'mt-3 mx-4 lg:mx-auto max-w-6xl rounded-3xl bg-white/90 backdrop-blur-xl border-2 border-slate-200/90 shadow-xl shadow-slate-900/5 py-2.5 px-6'
+                            : 'w-full bg-white/90 backdrop-blur-md border-b-2 border-slate-100 py-4 px-6 lg:px-12'
+                    }`}
+                >
+                    <div className="flex items-center gap-6 xl:gap-8 w-full justify-between max-w-[1400px] mx-auto">
+                        {/* Logo */}
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="flex-shrink-0 cursor-pointer"
+                            onClick={() => navigate('/')}
+                        >
+                            <img
+                                src={LogoText}
+                                alt="GoMufi"
+                                className={`object-contain transition-all duration-300 ${
+                                    isScrolled ? 'h-[36px] md:h-[40px]' : 'h-[46px] md:h-[54px]'
+                                }`}
+                            />
+                        </motion.div>
 
-                    {/* Nav pills */}
-                    <div className="hidden xl:flex items-center gap-1 text-[13px] font-black tracking-wide whitespace-nowrap bg-slate-100/70 border-2 border-slate-200/60 rounded-2xl p-1.5">
-                        {[
-                            { id: 'features', label: 'Özellikler' },
-                            { id: 'sample-courses', label: 'Örnek Dersler' },
-                            { id: 'steps', label: 'Nasıl Çalışır?' },
-                            { id: 'preview', label: 'Platform' },
-                            { id: 'faq', label: 'SSS' }
-                        ].map(link => (
-                            <button
-                                key={link.id}
-                                onClick={() => scrollToSection(link.id)}
-                                className="px-4 py-2 rounded-xl text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm transition-all cursor-pointer"
+                        {/* Nav pills */}
+                        <div className={`hidden xl:flex items-center gap-1 font-black tracking-wide whitespace-nowrap bg-slate-100/70 border-2 border-slate-200/60 rounded-2xl transition-all duration-300 ${
+                            isScrolled ? 'p-1 text-[12px]' : 'p-1.5 text-[13px]'
+                        }`}>
+                            {[
+                                { id: 'features', label: 'Özellikler' },
+                                { id: 'sample-courses', label: 'Örnek Dersler' },
+                                { id: 'steps', label: 'Nasıl Çalışır?' },
+                                { id: 'preview', label: 'Platform' },
+                                { id: 'faq', label: 'SSS' }
+                            ].map(link => (
+                                <motion.button
+                                    key={link.id}
+                                    whileHover={{ scale: 1.04, y: -1 }}
+                                    whileTap={{ scale: 0.96 }}
+                                    onClick={() => scrollToSection(link.id)}
+                                    className={`rounded-xl text-slate-500 hover:bg-white hover:text-slate-800 hover:shadow-sm transition-all cursor-pointer ${
+                                        isScrolled ? 'px-3 py-1.5' : 'px-4 py-2'
+                                    }`}
+                                >
+                                    {link.label}
+                                </motion.button>
+                            ))}
+                            <motion.button
+                                whileHover={{ scale: 1.05, y: -1 }}
+                                whileTap={{ scale: 0.95 }}
+                                onClick={() => navigate('/animation')}
+                                className={`rounded-xl text-purple-600 hover:bg-white hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    isScrolled ? 'px-3 py-1.5' : 'px-4 py-2'
+                                }`}
                             >
-                                {link.label}
-                            </button>
-                        ))}
-                        <button
-                            onClick={() => navigate('/animation')}
-                            className="px-4 py-2 rounded-xl text-purple-600 hover:bg-white hover:shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
-                        >
-                            <Sparkles size={13} /> Animasyon
-                        </button>
-                    </div>
+                                <Sparkles size={13} className="animate-pulse" /> Animasyon
+                            </motion.button>
+                        </div>
 
-                    {/* CTA Actions */}
-                    <div className="hidden sm:flex items-center gap-3">
-                        <button
-                            onClick={() => navigate('/auth')}
-                            className="px-6 py-3 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white text-slate-700 font-black text-sm hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer"
-                        >
-                            Giriş Yap
-                        </button>
-                        <button
-                            onClick={() => navigate('/auth')}
-                            className="px-6 py-3 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-sm hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer shadow-sm"
-                        >
-                            Ücretsiz Başla
-                        </button>
-                    </div>
+                        {/* CTA Actions */}
+                        <div className="hidden sm:flex items-center gap-3">
+                            <motion.button
+                                whileHover={{ scale: 1.04, y: -1 }}
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => navigate('/auth')}
+                                className={`rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white text-slate-700 font-black hover:bg-slate-50 active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer ${
+                                    isScrolled ? 'px-4 py-2 text-xs' : 'px-6 py-2.5 text-sm'
+                                }`}
+                            >
+                                Giriş Yap
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.05, y: -1 }}
+                                whileTap={{ scale: 0.96 }}
+                                onClick={() => navigate('/auth')}
+                                className={`rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black hover:bg-[#1ea54c] active:translate-y-[2px] active:border-b-2 transition-all cursor-pointer shadow-md shadow-green-200/50 ${
+                                    isScrolled ? 'px-5 py-2 text-xs' : 'px-6 py-2.5 text-sm'
+                                }`}
+                            >
+                                Ücretsiz Başla
+                            </motion.button>
+                        </div>
 
-                    {/* Mobile Menu Button */}
-                    <button className="xl:hidden p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl border-2 border-slate-200" onClick={() => setIsMobileMenuOpen(true)}>
-                        <Menu className="w-5 h-5" />
-                    </button>
-                </div>
-            </nav>
+                        {/* Mobile Menu Button */}
+                        <motion.button
+                            whileTap={{ scale: 0.9 }}
+                            className="xl:hidden p-2.5 text-slate-600 hover:bg-slate-100 rounded-xl border-2 border-slate-200"
+                            onClick={() => setIsMobileMenuOpen(true)}
+                        >
+                            <Menu className="w-5 h-5" />
+                        </motion.button>
+                    </div>
+                </motion.nav>
+            </header>
 
             {/* Mobile Drawer */}
-            {isMobileMenuOpen && (
-                <div className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm transition-opacity" onClick={() => setIsMobileMenuOpen(false)}>
-                    <div className="absolute top-0 right-0 w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col" onClick={e => e.stopPropagation()}>
-                        <div className="flex justify-between items-center mb-6">
-                            <img src={LogoText} alt="GoMufi" className="h-10 object-contain" />
-                            <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-slate-100 rounded-full">
-                                <X className="w-6 h-6 text-slate-500" />
-                            </button>
-                        </div>
-                        <div className="flex flex-col gap-2 text-base font-black text-slate-700">
-                            <button onClick={() => scrollToSection('features')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Özellikler</button>
-                            <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Örnek Dersler</button>
-                            <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Nasıl Çalışır?</button>
-                            <button onClick={() => scrollToSection('preview')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Platform</button>
-                            <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">SSS</button>
-                            <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-3 hover:bg-slate-50 rounded-xl transition-colors text-purple-600">✨ Animasyon</button>
-                        </div>
-                        <div className="mt-auto pt-6 border-t-2 border-slate-100 flex flex-col gap-3">
-                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
-                            <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-center active:translate-y-[2px] active:border-b-2 transition-all">Kayıt Ol</button>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <AnimatePresence>
+                {isMobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="fixed inset-0 z-[60] bg-slate-900/50 backdrop-blur-sm"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                        <motion.div
+                            initial={{ x: '100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 280 }}
+                            className="absolute top-0 right-0 w-[85%] max-w-sm h-full bg-white shadow-2xl p-6 flex flex-col"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className="flex justify-between items-center mb-6">
+                                <img src={LogoText} alt="GoMufi" className="h-10 object-contain" />
+                                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 hover:bg-slate-100 rounded-full">
+                                    <X className="w-6 h-6 text-slate-500" />
+                                </button>
+                            </div>
+                            <div className="flex flex-col gap-2 text-base font-black text-slate-700">
+                                <button onClick={() => scrollToSection('features')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Özellikler</button>
+                                <button onClick={() => scrollToSection('sample-courses')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Örnek Dersler</button>
+                                <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Nasıl Çalışır?</button>
+                                <button onClick={() => scrollToSection('preview')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Platform</button>
+                                <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">SSS</button>
+                                <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-3 hover:bg-slate-50 rounded-xl transition-colors text-purple-600">✨ Animasyon</button>
+                            </div>
+                            <div className="mt-auto pt-6 border-t-2 border-slate-100 flex flex-col gap-3">
+                                <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
+                                <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-b-4 border-green-700 bg-[#23c55e] text-white font-black text-center active:translate-y-[2px] active:border-b-2 transition-all">Kayıt Ol</button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* ============ 1. HERO ============ */}
             <section className="relative pt-14 lg:pt-20 pb-28 px-6 md:px-12 overflow-hidden bg-white">
                 {/* Layered background: dot grid */}
                 <div className="absolute inset-0 z-0 dot-grid opacity-60"></div>
 
-                {/* Floating decorations */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none z-0 select-none">
-                    <img src={BrainSprite} alt="" className="absolute top-[14%] left-[7%] w-11 h-11 opacity-25 blur-[1px] animate-float" />
-                    <img src={PuzzleSprite} alt="" className="absolute bottom-[28%] left-[4%] w-12 h-12 opacity-20 blur-[1px] animate-float" style={{ animationDelay: '1.2s' }} />
-                    <img src={TrophySprite} alt="" className="absolute top-[20%] right-[4%] w-14 h-14 opacity-25 blur-[1.5px] animate-float" style={{ animationDelay: '2s' }} />
-                    <img src={PencilSprite} alt="" className="absolute bottom-[22%] right-[8%] w-9 h-9 opacity-20 blur-[1px] animate-float" style={{ animationDelay: '0.6s' }} />
 
-                    <div className="absolute top-[15%] left-[26%] text-[9px] font-mono text-purple-400/50 rotate-6 bg-white/80 border border-purple-100 px-2.5 py-1.5 rounded-xl shadow-sm">
-                        def mufi_ai():
-                    </div>
-                    <div className="absolute bottom-[36%] left-[9%] text-[9px] font-mono text-emerald-500/50 -rotate-12 bg-white/80 border border-emerald-100 px-2.5 py-1.5 rounded-xl shadow-sm">
-                        import gomufi
-                    </div>
-                    <div className="absolute bottom-[26%] right-[24%] text-[9px] font-mono text-pink-500/50 -rotate-6 bg-white/80 border border-pink-100 px-2.5 py-1.5 rounded-xl shadow-sm hidden lg:block">
-                        await lesson.generate()
-                    </div>
-
-                    <VectorCloud className="absolute top-[7%] left-[3%] w-24 opacity-40 text-emerald-100 animate-cloud-1" />
-                    <VectorCloud className="absolute top-[32%] right-[13%] w-32 opacity-35 text-indigo-100 animate-cloud-2" />
-
-                    <Sparkles className="absolute top-[13%] left-[46%] w-5 h-5 text-yellow-400/50 animate-pulse" />
-                    <Sparkles className="absolute bottom-[42%] left-[30%] w-6 h-6 text-[#8b5cf6]/40 animate-pulse" style={{ animationDelay: '1s' }} />
-                </div>
 
                 <div className="max-w-7xl mx-auto grid lg:grid-cols-12 gap-10 items-center relative z-10">
                     {/* Hero Text */}
@@ -656,11 +704,13 @@ const LandingPage: React.FC = () => {
                             <span className="text-[11px] font-black text-slate-600 uppercase tracking-widest">Yapay Zeka Destekli Eğitim Platformu</span>
                         </div>
 
-                        <h1 className="font-display text-[42px] sm:text-5xl md:text-[58px] font-black text-slate-900 tracking-tight leading-[1.12]">
+                        <h1 className="font-display text-[42px] sm:text-5xl md:text-[58px] font-bold text-slate-700 tracking-wide leading-[1.15]">
                             Canlı Derslerini
                             <br />
-                            Yapay Zeka ile{' '}
-                            <span className="relative inline-block align-middle text-white bg-[#23c55e] px-5 py-1.5 my-2 rounded-2xl border-2 border-b-[6px] border-[#16a34a] font-black shadow-lg shadow-green-200/50 transform rotate-[-1.5deg] hover:rotate-0 hover:scale-[1.03] transition-transform duration-300">
+                            <span className="bg-gradient-to-r from-purple-600 via-fuchsia-600 to-indigo-600 bg-clip-text text-transparent">
+                                Yapay Zeka ile
+                            </span>{' '}
+                            <span className="relative inline-block align-middle text-white bg-[#23c55e] px-5 py-1.5 my-2 rounded-2xl border-2 border-b-[6px] border-[#16a34a] font-bold shadow-lg shadow-green-200/50 transform rotate-[-1.5deg] hover:rotate-0 hover:scale-[1.03] transition-transform duration-300">
                                 15 Dakikada
                                 <Sparkles size={20} className="absolute -top-3 -right-3 text-yellow-300 fill-yellow-300 animate-pulse" />
                             </span>
@@ -674,21 +724,25 @@ const LandingPage: React.FC = () => {
                         </p>
 
                         <div className="flex flex-wrap gap-4 pt-1">
-                            <button
+                            <motion.button
+                                whileHover={{ scale: 1.04, y: -2 }}
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => navigate('/auth')}
                                 className="group px-8 py-4 rounded-[1.6rem] border-2 border-b-[6px] border-green-700 bg-[#23c55e] hover:bg-[#1ea54c] active:translate-y-[3px] active:border-b-2 text-white font-black text-base shadow-lg shadow-green-200/60 transition-all flex items-center gap-2.5 cursor-pointer"
                             >
                                 <Wand2 size={19} className="group-hover:rotate-12 transition-transform" />
                                 AI ile Ücretsiz Oluştur
                                 <ArrowRight size={17} className="group-hover:translate-x-1 transition-transform" />
-                            </button>
-                            <button
+                            </motion.button>
+                            <motion.button
+                                whileHover={{ scale: 1.04, y: -2 }}
+                                whileTap={{ scale: 0.96 }}
                                 onClick={() => scrollToSection('preview')}
                                 className="px-8 py-4 rounded-[1.6rem] border-2 border-slate-200 border-b-[6px] border-b-slate-300 bg-white hover:bg-slate-50 active:translate-y-[3px] active:border-b-2 text-slate-700 font-black text-base transition-all cursor-pointer flex items-center gap-2"
                             >
                                 <MousePointerClick size={18} className="text-purple-500" />
                                 Demo İzle
-                            </button>
+                            </motion.button>
                         </div>
 
                         {/* Trust strip */}
@@ -1068,7 +1122,7 @@ const LandingPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black text-[#d946ef] uppercase tracking-widest bg-[#d946ef]/10 border border-[#d946ef]/30 px-2.5 py-1 rounded-xl">Eğitmen</span>
-                                    <h3 className="font-display text-2xl font-black text-slate-800 mt-1.5">Öğretmenim</h3>
+                                    <h3 className="font-display text-2xl font-black text-slate-700 mt-1.5">Öğretmenim</h3>
                                 </div>
                             </div>
                         </div>
@@ -1099,7 +1153,7 @@ const LandingPage: React.FC = () => {
                                 </div>
                                 <div>
                                     <span className="text-[10px] font-black text-green-600 uppercase tracking-widest bg-green-100/70 border border-green-200 px-2.5 py-1 rounded-xl">Katılım</span>
-                                    <h3 className="font-display text-2xl font-black text-slate-800 mt-1.5">Öğrenciyim</h3>
+                                    <h3 className="font-display text-2xl font-black text-slate-700 mt-1.5">Öğrenciyim</h3>
                                 </div>
                             </div>
                         </div>
@@ -1150,7 +1204,7 @@ const LandingPage: React.FC = () => {
                                     {stat.icon}
                                 </div>
                                 <div className="text-left leading-tight">
-                                    <div className="font-display font-black text-slate-800 text-sm">{stat.title}</div>
+                                    <div className="font-display font-black text-slate-700 text-sm">{stat.title}</div>
                                     <div className="font-bold text-slate-400 text-xs mt-0.5">{stat.sub}</div>
                                 </div>
                             </div>
@@ -1165,7 +1219,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-16 space-y-4">
                         <span className="inline-block text-[11px] font-black text-purple-600 uppercase tracking-widest bg-purple-50 border-2 border-purple-100 px-4 py-1.5 rounded-2xl">Neler Yapabilirsin?</span>
-                        <h2 className="font-display text-3xl md:text-[44px] font-black tracking-tight leading-tight text-slate-900">
+                        <h2 className="font-display text-3xl md:text-[44px] font-black tracking-tight leading-tight text-slate-700">
                             Neden <span className="text-purple-600">GoMufi?</span>
                         </h2>
                         <p className="text-slate-500 text-base md:text-lg max-w-2xl mx-auto font-bold">
@@ -1182,7 +1236,7 @@ const LandingPage: React.FC = () => {
                                         <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#d946ef] bg-[#d946ef]/10 border border-[#d946ef]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                             <Sparkles size={12} /> AI Destekli Üretim
                                         </span>
-                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-700 tracking-tight">
                                             <span className="text-[#d946ef]">AI</span> Lesson Builder
                                         </h3>
                                         <p className="text-slate-500 font-bold text-sm leading-relaxed">
@@ -1239,7 +1293,7 @@ const LandingPage: React.FC = () => {
                                 <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                     🎨 Sürükle & Bırak
                                 </span>
-                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     Canva Benzeri <span className="text-[#06b6d4]">Editör</span>
                                 </h3>
                                 <p className="text-slate-500 font-bold text-sm leading-relaxed">
@@ -1263,7 +1317,7 @@ const LandingPage: React.FC = () => {
                                 <span className="inline-block text-[10px] font-black text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                     🎮 Oyunlaştırma
                                 </span>
-                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     <span className="text-[#22c55e]">Oyunlaştırılmış</span> Dersler
                                 </h3>
                                 <p className="text-slate-500 font-bold text-sm leading-relaxed">
@@ -1290,7 +1344,7 @@ const LandingPage: React.FC = () => {
                                 <span className="inline-block text-[10px] font-black text-[#ca8a04] bg-[#eab308]/10 border border-[#eab308]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                     📦 Modül Kütüphanesi
                                 </span>
-                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     Hazır <span className="text-[#ca8a04]">Modüller</span>
                                 </h3>
                                 <p className="text-slate-500 font-bold text-sm leading-relaxed">
@@ -1320,7 +1374,7 @@ const LandingPage: React.FC = () => {
                                 <span className="inline-block text-[10px] font-black text-[#7c3aed] bg-[#7c3aed]/10 border border-[#7c3aed]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                     📹 Canlı Sınıf
                                 </span>
-                                <h3 className="font-display text-xl font-black text-slate-900 tracking-tight">
+                                <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     <span className="text-[#7c3aed]">Canlı Ders</span> Yönetimi
                                 </h3>
                                 <p className="text-slate-500 font-bold text-sm leading-relaxed">
@@ -1351,7 +1405,7 @@ const LandingPage: React.FC = () => {
                                         <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
                                             📊 Detaylı Analiz
                                         </span>
-                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
+                                        <h3 className="font-display text-2xl md:text-3xl font-black text-slate-700 tracking-tight">
                                             Öğrenci <span className="text-[#06b6d4]">Analitiği</span> & Gelişim Raporları
                                         </h3>
                                         <p className="text-slate-500 font-bold text-sm leading-relaxed max-w-md">
@@ -1408,7 +1462,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
                         <span className="inline-block text-[11px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 border-2 border-emerald-100 px-4 py-1.5 rounded-2xl">✨ AI Üretimi</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Örnek Ders Müfredatları</h2>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Örnek Ders Müfredatları</h2>
                         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">Yapay zekanın saniyeler içinde kurguladığı ders akışlarını inceleyin.</p>
                     </div>
 
@@ -1430,7 +1484,7 @@ const LandingPage: React.FC = () => {
                                 </div>
 
                                 <div className="px-6 py-5 flex-1 flex flex-col justify-between gap-4">
-                                    <h3 className="font-display text-lg font-black text-slate-800 leading-tight text-left">{course.title}</h3>
+                                    <h3 className="font-display text-lg font-black text-slate-700 leading-tight text-left">{course.title}</h3>
                                     <div>
                                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden mb-3">
                                             <div className={`h-full ${course.bar} rounded-full w-0 group-hover:w-full transition-all duration-700 ease-out`}></div>
@@ -1456,7 +1510,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-20 space-y-4">
                         <span className="inline-block text-[11px] font-black text-blue-600 uppercase tracking-widest bg-blue-50 border-2 border-blue-100 px-4 py-1.5 rounded-2xl">Nasıl Çalışır?</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">4 Adımda Dersin Hazır</h2>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">4 Adımda Dersin Hazır</h2>
                         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">Saatler süren ders hazırlığını dakikalara düşürün.</p>
                     </div>
 
@@ -1482,7 +1536,7 @@ const LandingPage: React.FC = () => {
                                 </div>
                                 {/* Card */}
                                 <div className="bg-white pt-12 pb-7 px-6 rounded-[2.2rem] border-2 border-slate-200 border-b-[8px] border-b-slate-300 group-hover:-translate-y-1 group-hover:border-slate-300 group-hover:border-b-slate-400 transition-all duration-300 w-full">
-                                    <h3 className="font-display text-lg font-black text-slate-800 mb-2">{item.title}</h3>
+                                    <h3 className="font-display text-lg font-black text-slate-700 mb-2">{item.title}</h3>
                                     <p className="text-slate-500 font-bold text-xs leading-relaxed">{item.desc}</p>
                                 </div>
                             </div>
@@ -1496,7 +1550,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-6xl mx-auto space-y-12">
                     <div className="reveal text-center space-y-4">
                         <span className="inline-block text-[11px] font-black text-pink-600 uppercase tracking-widest bg-pink-50 border-2 border-pink-100 px-4 py-1.5 rounded-2xl">Platform Turu</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Platformdan Görseller</h2>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Platformdan Görseller</h2>
                         <p className="text-slate-500 text-lg font-bold">GoMufi'nin zengin ve dinamik arayüzlerini yakından keşfedin.</p>
                     </div>
 
@@ -1543,7 +1597,7 @@ const LandingPage: React.FC = () => {
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                     <div className="text-center space-y-2 mb-4">
                                         <span className="bg-purple-50 text-purple-600 border border-purple-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Görsel Yol Haritası</span>
-                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Ders Planını Haritaya Çevirin</h4>
+                                        <h4 className="font-display text-2xl font-black text-slate-700 tracking-tight">Ders Planını Haritaya Çevirin</h4>
                                     </div>
                                     <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-8 flex flex-col items-center relative overflow-hidden">
                                         <div className="absolute inset-x-0 top-1/2 h-[34px] bg-repeat-x opacity-15 pointer-events-none -translate-y-1/2 z-0" style={{ backgroundImage: `url(${GrassIcon})`, backgroundSize: 'contain' }}></div>
@@ -1574,7 +1628,7 @@ const LandingPage: React.FC = () => {
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                     <div className="text-center space-y-2 mb-4">
                                         <span className="bg-blue-50 text-blue-600 border border-blue-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Zengin Editör</span>
-                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Sürükle & Bırak İçerik Üretimi</h4>
+                                        <h4 className="font-display text-2xl font-black text-slate-700 tracking-tight">Sürükle & Bırak İçerik Üretimi</h4>
                                     </div>
                                     <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 text-xs">
                                         {/* Editor Sidebar */}
@@ -1598,7 +1652,7 @@ const LandingPage: React.FC = () => {
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                     <div className="text-center space-y-2 mb-4">
                                         <span className="bg-emerald-50 text-emerald-600 border border-emerald-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Canlı Ders Paneli</span>
-                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Gerçek Zamanlı Etkileşim</h4>
+                                        <h4 className="font-display text-2xl font-black text-slate-700 tracking-tight">Gerçek Zamanlı Etkileşim</h4>
                                     </div>
                                     <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-xs text-slate-500">
                                         {/* Live Feed Mockup */}
@@ -1634,7 +1688,7 @@ const LandingPage: React.FC = () => {
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300 flex-1 flex flex-col justify-center">
                                     <div className="text-center space-y-2 mb-4">
                                         <span className="bg-pink-50 text-pink-600 border border-pink-200 px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider">Öğrenci Arayüzü</span>
-                                        <h4 className="font-display text-2xl font-black text-slate-800 tracking-tight">Oyunlaştırılmış Öğrenci Deneyimi</h4>
+                                        <h4 className="font-display text-2xl font-black text-slate-700 tracking-tight">Oyunlaştırılmış Öğrenci Deneyimi</h4>
                                     </div>
                                     <div className="max-w-2xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-6 flex justify-between items-center text-slate-500 font-bold">
                                         <div className="flex items-center gap-3">
@@ -1664,7 +1718,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-16 space-y-4">
                         <span className="inline-block text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 border-2 border-amber-100 px-4 py-1.5 rounded-2xl">💬 Deneyimler</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Öğretmenler Ne Diyor?</h2>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Öğretmenler Ne Diyor?</h2>
                         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
                     </div>
 
@@ -1756,7 +1810,7 @@ const LandingPage: React.FC = () => {
                 <div className="max-w-3xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
                         <span className="inline-block text-[11px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 border-2 border-indigo-100 px-4 py-1.5 rounded-2xl">Merak Edilenler</span>
-                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-900 tracking-tight">Sıkça Sorulan Sorular</h2>
+                        <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Sıkça Sorulan Sorular</h2>
                         <p className="text-slate-500 font-bold">Cevabını bulamadığın bir soru mu var? Bize yaz, Mufi cevaplasın. 🐾</p>
                     </div>
 
@@ -1764,15 +1818,16 @@ const LandingPage: React.FC = () => {
                         {faqs.map((faq, idx) => {
                             const isOpen = faqOpen === idx;
                             return (
-                                <div
+                                <motion.div
                                     key={idx}
-                                    className={`reveal border-2 border-b-[5px] rounded-[1.6rem] overflow-hidden transition-all duration-300 ${
+                                    layout
+                                    className={`reveal border-2 border-b-[5px] rounded-[1.6rem] overflow-hidden transition-colors duration-300 ${
                                         isOpen ? 'border-green-300 border-b-green-400 bg-green-50/40' : 'border-slate-200 border-b-slate-300 bg-white hover:bg-slate-50 hover:border-slate-300 hover:border-b-slate-400'
                                     }`}
                                     style={{ transitionDelay: `${idx * 40}ms` }}
                                 >
                                     <button
-                                        className="w-full flex justify-between items-center gap-4 p-5 font-black text-left text-sm md:text-base text-slate-800 cursor-pointer"
+                                        className="w-full flex justify-between items-center gap-4 p-5 font-black text-left text-sm md:text-base text-slate-700 cursor-pointer"
                                         onClick={() => setFaqOpen(isOpen ? null : idx)}
                                     >
                                         <span className="flex items-center gap-3">
@@ -1785,12 +1840,22 @@ const LandingPage: React.FC = () => {
                                         </span>
                                         <ChevronDown className={`w-5 h-5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180 text-green-600" : "text-slate-400"}`} />
                                     </button>
-                                    {isOpen && (
-                                        <div className="px-5 pb-5 pl-[4.25rem] text-slate-500 font-bold text-xs md:text-sm leading-relaxed animate-in fade-in slide-in-from-top-1 duration-200 text-left">
-                                            {faq.a}
-                                        </div>
-                                    )}
-                                </div>
+                                    <AnimatePresence>
+                                        {isOpen && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                transition={{ duration: 0.25, ease: 'easeInOut' }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="px-5 pb-5 pl-[4.25rem] text-slate-500 font-bold text-xs md:text-sm leading-relaxed text-left">
+                                                    {faq.a}
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </motion.div>
                             );
                         })}
                     </div>
@@ -1799,7 +1864,18 @@ const LandingPage: React.FC = () => {
 
             {/* ============ 12. FOOTER ============ */}
             <footer id="footer" className="bg-slate-900 text-slate-400 pt-0 text-sm relative overflow-hidden">
-                <ScallopDivider className="text-white" />
+                {/* Seamless top wave transition from white FAQ section */}
+                <div className="w-full overflow-hidden leading-none bg-white -mt-0.5">
+                    <svg
+                        viewBox="0 0 1440 72"
+                        preserveAspectRatio="none"
+                        className="relative block w-full h-10 md:h-16 text-slate-900"
+                        fill="currentColor"
+                        xmlns="http://www.w3.org/2000/svg"
+                    >
+                        <path d="M 0,32 Q 60,64 120,32 Q 180,0 240,32 Q 300,64 360,32 Q 420,0 480,32 Q 540,64 600,32 Q 660,0 720,32 Q 780,64 840,32 Q 900,0 960,32 Q 1020,64 1080,32 Q 1140,0 1200,32 Q 1260,64 1320,32 Q 1380,0 1440,32 L 1440,72 L 0,72 Z" />
+                    </svg>
+                </div>
                 <div className="absolute inset-0 dot-grid-dark pointer-events-none"></div>
 
                 <div className="max-w-7xl mx-auto px-6 py-16 relative z-10">

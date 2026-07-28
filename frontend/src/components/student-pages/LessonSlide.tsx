@@ -3,6 +3,7 @@ import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRig
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import GameBuilder from '../lesson-builder/GameBuilder';
+import ChallengeSlideBuilder from '../lesson-builder/ChallengeSlideBuilder';
 import StudentHomeworkView from './StudentHomeworkView';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
@@ -64,7 +65,7 @@ const getSlideStage = (slide: any): string => {
 
     // 2. Content-based inference fallback
     const elements = slide.elements || [];
-    const hasCodeOrChallenge = slide.type === 'game' || elements.some((el: any) =>
+    const hasCodeOrChallenge = slide.type === 'game' || slide.type === 'challenge' || elements.some((el: any) =>
         el.type === 'code' || el.type === 'challenge' || el.type === 'code_editor' || el.type === 'interactive' ||
         (el.extra && (el.extra.title?.includes('KODLAMA') || el.extra.title?.includes('UYGULA') || el.extra.title?.includes('PRATİK') || el.extra.title?.includes('TEST')))
     );
@@ -614,6 +615,26 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                             }
                             handleNext();
                         }}
+                    />
+                </div>
+            );
+        }
+
+        if (slide.type === 'challenge') {
+            return (
+                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                    <ChallengeSlideBuilder
+                        slide={slide}
+                        updateSlide={(updates) => {
+                            setLocalSlides(prev => prev.map((s, i) => i === currentSlide ? { ...s, ...updates } : s));
+                        }}
+                        // Öğretmen bu ekranda görevi kurmaz, teslimleri izler.
+                        role={previewRole === 'teacher' ? 'review' : 'student'}
+                        courseId={courseId}
+                        // Slayt id'si kurs içinde benzersiz ve İKİ TARAFTA DA aynı
+                        // (course.notes içinde saklanır) — öğretmenin gördüğü teslim
+                        // anahtarıyla öğrencininki bu sayede eşleşir.
+                        submissionNodeId={`challenge:${slide.id}`}
                     />
                 </div>
             );

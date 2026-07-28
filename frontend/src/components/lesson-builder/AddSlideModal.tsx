@@ -7,7 +7,7 @@ import api from '../../api';
 interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework', config?: { gameType?: string; elements?: any[]; background?: string }) => void;
+    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework' | 'challenge', config?: { gameType?: string; elements?: any[]; background?: string; challengeConfig?: any }) => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV' | (string & {});
     stageColor: string;
     isAdmin?: boolean;
@@ -277,6 +277,42 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 {/* UYGULA ŞABLONLARI */}
                                 {activeStage === 'UYGULA' && (
                                     <>
+                                        {/* UYGULA'ya özel tam slayt — tuval widget'ı değil (bkz. ChallengeSlideBuilder) */}
+                                        <button
+                                            onClick={() => onAddSlide('challenge')}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-cyan-500 group-hover:shadow-md transition-all relative flex gap-1.5 p-3">
+                                                <div className="w-[38%] bg-white border-2 border-slate-200 border-b-4 rounded-lg p-2 flex flex-col gap-1.5">
+                                                    <div className="w-14 h-2 bg-cyan-200 rounded-full" />
+                                                    <div className="w-full h-1 bg-slate-200 rounded-full" />
+                                                    <div className="w-2/3 h-1 bg-slate-200 rounded-full" />
+                                                    <div className="mt-auto w-12 h-2 bg-amber-200 rounded-full" />
+                                                </div>
+                                                <div className="flex-1 flex flex-col gap-1.5">
+                                                    <div className="flex-1 bg-[#1e1e1e] rounded-lg p-2 flex flex-col gap-1">
+                                                        <div className="w-10 h-1 bg-emerald-800 rounded-full" />
+                                                        <div className="w-16 h-1 bg-zinc-700 rounded-full" />
+                                                        <div className="w-12 h-1 bg-zinc-700 rounded-full" />
+                                                    </div>
+                                                    <div className="h-1/3 bg-white border-2 border-slate-200 rounded-lg p-1.5 flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="w-10 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="w-8 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-cyan-600 transition-colors">Uygulama Görevi Slaytı</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Kod, metin, ekran görüntüsü veya dosya teslimi.</p>
+                                            </div>
+                                        </button>
+
                                         <button
                                             onClick={() => onAddSlide('template', {
                                                 elements: [

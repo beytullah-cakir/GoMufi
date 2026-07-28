@@ -4,6 +4,7 @@ GoMufi — Gemini Yapay Zeka (AI) İçerik Üretim Router'ı.
 import json
 import os
 import random
+import re
 import copy
 import io
 import logging
@@ -15,6 +16,7 @@ from google.genai import types
 from core.config import settings
 from core import ai_pricing
 from core import ai_economics
+from core.image_search import resolve_image_url
 from core import analytics
 from core.permissions import ensure_course_access
 from auth.dependencies import get_current_teacher_id, get_current_user_info
@@ -24,11 +26,328 @@ from sqlalchemy import delete
 from models.ai_usage_log import AIUsageLog
 from models.course import Course
 
-import urllib.parse
-import urllib.request
-import re
-
 logger = logging.getLogger(__name__)
+
+
+_LIST_ITEM_BREAK_RE = re.compile(r"([.:!?])\s?(\d{1,2}\.\s)")
+_SENTENCE_END_RE = re.compile(r"[.!?](?:</?[a-z]*>)*\s")
+
+# Slayt gövde metni kuralları. Model, prompt'a rağmen ansiklopedi paragrafı
+# üretebiliyor (ölçüldü: tek blokta 90 kelime) — bu, tahtaya yansıtıldığında
+# okunmuyor. Aşağısı sunucu tarafı güvenlik ağı.
+_BULLET_MAX = 4              # slayt başına en fazla madde
+_BULLET_MIN_MAXCHARS = 120   # yalnız uzun gövde kutuları (başlık/sticky hariç)
+_PROSE_MAX_SENTENCES = 4     # bu sınıra kadar akıcı metin geçerli bir slayt formatı
+_BR_SPLIT_RE = re.compile(r"(?i)<br\s*/?>")
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+_LEADING_MARKER_RE = re.compile(r"^[•\-\*•]\s*")
+_NUMBERED_ITEM_RE = re.compile(r"^\d{1,2}[.)]\s")
+
+# --- Kutuya sığma (geometriden türetilen karakter kapasitesi) ----------------
+# Şablonlardaki maxChars değerleri ELLE konmuş ve kutu boyutundan bağımsız:
+# ölçüldü, aynı fontSize:60 başlık elemanının 1215px genişindeki sürümü de
+# 759px genişindeki sürümü de maxChars:30 taşıyor. Dar olanında 30 karakterlik
+# başlık iki satıra sarıyor, kutu yüksekliği (85px) tek satırlık olduğu için
+# ikinci satır kırpılıyor — yani AI limite UYSA BİLE metin taşıyor.
+# Çözüm: gerçek kapasiteyi genişlik/yükseklik/fontSize'dan hesapla.
+_FONT_WIDTH_RATIO = {          # ortalama karakter genişliği / fontSize
+    "Fredoka": 0.47,           # ölçüldü: ~13.1px @ fs28, ~29.3px @ fs60
+    "Patrick Hand": 0.42,      # el yazısı, daha dar (~10.1px @ fs24)
+}
+_DEFAULT_WIDTH_RATIO = 0.50
+# CSS'te açık line-height YOK (bkz. CanvasElement.tsx style objesi) — tarayıcı
+# `normal` kullanır ve bu, fontun kendi metriklerine göre değişir. Ölçüldü:
+# Fredoka ~40.6px @ fs28, Patrick Hand ~33.6px @ fs24.
+_FONT_LINE_HEIGHT = {
+    "Fredoka": 1.45,
+    "Patrick Hand": 1.40,
+}
+_DEFAULT_LINE_HEIGHT = 1.45
+
+# Kelime kaydırma kaybı, satır sayısına göre DEĞİŞİR:
+#  * Çok satırlı kutuda her satır sonunda yarım kelime boşa gider — ölçüldü:
+#    173 karakterlik metin 6 satırlık kutuya sığmadı (36 kar/satır tahminine
+#    karşı gerçekte 28.8 kar/satır). Bu yüzden sert bir katsayı gerekiyor.
+#  * Tek satırlık kutuda (başlık/alt başlık) sarma diye bir şey yok: metin ya
+#    sığar ya taşar. Buraya çok satırlı katsayıyı uygulamak başlıkları gereksiz
+#    yere kesiyordu ("Temel Veri Tipleri: Metin ve" — ölçülen gerçek hata).
+_WRAP_WASTE_MULTILINE = 0.8
+_WRAP_WASTE_SINGLE_LINE = 0.9
+_ELEMENT_PADDING = {"sticky": 16}   # sticky note'ta p-4 (bkz. CanvasElement.tsx)
+_TAG_RE = re.compile(r"<[^>]+>")
+# Geometri modeli yalnız DÜZ METİN kutularını tarif eder: tek font, tek boyut,
+# basit satır sarma. challenge / code_editor / connection_task gibi widget'lar
+# kendi iç düzenine sahip ayrı bileşenler (bkz. ChallengeWidget.tsx) — onlarda
+# fontSize bile tanımlı değil, tahminle daraltmak gerçek içeriği kırpar.
+_GEOMETRY_TYPES = {"text", "sticky"}
+
+
+def _visible_len(text: str) -> int:
+    """Görünen karakter sayısı — <br> gibi işaretleme kotayı yememeli."""
+    return len(_TAG_RE.sub("", text or "").replace("&nbsp;", " "))
+
+
+def _fit_text(el: dict, raw: str, pending: list) -> None:
+    """
+    Metni elemana yazar; sığmıyorsa KESMEZ, yeniden yazdırılmak üzere kuyruğa alır.
+
+    Kesmek yara bandıydı: cümle sınırında bile kesilse anlam eksik kalıyor ve
+    slayt yarım duruyor. Doğrusu metnin sınıra göre ÜRETİLMESİ. Sığmayan
+    parçalar toplanıp tek bir ucuz çağrıyla modele yeniden yazdırılır
+    (bkz. _shrink_overflowing); kesme yalnızca o da başarısız olursa devreye
+    girer.
+    """
+    text = _enforce_slide_bullets(el, _format_list_breaks(raw))
+    el["content"] = text
+    limit = _effective_max_chars(el)
+    if limit and _visible_len(text) > limit:
+        pending.append({"el": el, "limit": limit})
+
+
+_DEFAULT_CHALLENGE = {
+    "title": "Uygulama Görevi",
+    "prompt": "Öğrendiklerini kullanarak aşağıdaki görevi tamamla.",
+    "submissionType": "code",
+    "checkMode": "output",
+    "expectedOutput": "",
+    "functionName": "cozum",
+    "hint": "",
+    "xp": 100,
+    "samples": [],
+    "tests": [],
+}
+_SUBMISSION_TYPES = {"code", "text", "image", "file"}
+_CHECK_MODES = {"output", "tests", "manual"}
+
+
+def _build_challenge_slide(raw: str) -> dict:
+    """
+    UYGULA'ya özel "Uygulama Görevi" slaydını kurar (tuval elemanı değil, kendi tipi).
+
+    Görev kod olmak ZORUNDA DEĞİL: metin, ekran görüntüsü veya dosya da
+    istenebilir. Kod görevlerinde de doğruluk iki şekilde ölçülebilir —
+    ekran çıktısı ("adını yazdır") ya da fonksiyon dönüşü.
+
+    AI, yapılandırmayı `elementContents` içinde "challenge" anahtarıyla JSON
+    metni olarak verir — connection_task/production_task ile aynı desen.
+    Bozuk/eksik JSON gelirse varsayılanlarla güvenli bir görev döner; slayt
+    hiçbir koşulda boş kalmaz.
+    """
+    cfg = dict(_DEFAULT_CHALLENGE)
+    try:
+        parsed = json.loads(raw) if raw else {}
+        if isinstance(parsed, dict):
+            cfg.update({k: v for k, v in parsed.items() if v not in (None, "")})
+    except Exception:
+        logger.warning("Challenge yapılandırması çözümlenemedi, varsayılan kullanıldı")
+
+    sub_type = str(cfg.get("submissionType") or "code")
+    if sub_type not in _SUBMISSION_TYPES:
+        sub_type = "code"
+
+    check_mode = str(cfg.get("checkMode") or "output")
+    if check_mode not in _CHECK_MODES:
+        check_mode = "output"
+    # Kod dışı teslimlerde otomatik kontrol anlamsız — öğretmen değerlendirir.
+    if sub_type != "code":
+        check_mode = "manual"
+
+    fn = str(cfg.get("functionName") or "cozum").strip() or "cozum"
+    samples = [
+        {"input": str(s.get("input", "")), "output": str(s.get("output", ""))}
+        for s in (cfg.get("samples") or []) if isinstance(s, dict)
+    ]
+    tests = [
+        {"id": f"t{i + 1}", "call": str(t.get("call", "")), "expected": str(t.get("expected", ""))}
+        for i, t in enumerate(cfg.get("tests") or []) if isinstance(t, dict) and t.get("call")
+    ] if check_mode == "tests" else []
+
+    # Testler istendi ama hiçbiri geçerli değilse otomatik kontrol yapılamaz;
+    # sessizce "hepsi geçti" görünmesindense öğretmene bırakılır.
+    if check_mode == "tests" and not tests:
+        check_mode = "manual"
+
+    try:
+        xp = int(cfg.get("xp") or 100)
+    except (TypeError, ValueError):
+        xp = 100
+
+    starter = (
+        f"# Kodunu buraya yaz 👇\ndef {fn}():\n    pass\n"
+        if check_mode == "tests" else "# Kodunu buraya yaz 👇\n"
+    )
+
+    return {
+        "id": int(random.random() * 1000000000),
+        "type": "challenge",
+        "elements": [],
+        "challengeConfig": {
+            "title": str(cfg.get("title") or "Uygulama Görevi"),
+            "prompt": str(cfg.get("prompt") or ""),
+            "submissionType": sub_type,
+            "checkMode": check_mode,
+            "expectedOutput": str(cfg.get("expectedOutput") or ""),
+            "functionName": fn,
+            "starterCode": starter,
+            "hint": str(cfg.get("hint") or ""),
+            "xp": xp,
+            "samples": samples,
+            "tests": tests,
+        },
+    }
+
+
+def _clear_unfilled_placeholder(el: dict) -> None:
+    """
+    AI'nin doldurmadığı metin/sticky elemanından şablon yer tutucusunu siler.
+
+    Şablonlarda tasarım amaçlı örnek metin var ("important note 1", "Header 1",
+    "Explanation Long Text 1"). AI o elemanı doldurmazsa bu metin olduğu gibi
+    slayta yazılıyordu — ölçüldü, veritabanında "important note 1" içerikli
+    sarı notlar var. Boş bir kutu, anlamsız yer tutucudan iyidir: öğretmen
+    eksiği görür, öğrenciye saçma metin gitmez.
+    """
+    if el.get("type") in _GEOMETRY_TYPES:
+        el["content"] = ""
+
+
+def _text_metrics(el: dict):
+    """(satır başına karakter, sığan satır sayısı) — kutu geometrisinden."""
+    style = el.get("style") or {}
+    font_size = style.get("fontSize") or 20
+    font = style.get("fontFamily") or ""
+    ratio = _FONT_WIDTH_RATIO.get(font, _DEFAULT_WIDTH_RATIO)
+    line_height = _FONT_LINE_HEIGHT.get(font, _DEFAULT_LINE_HEIGHT)
+    pad = _ELEMENT_PADDING.get(el.get("type"), 0)
+    width = max((el.get("width") or 0) - 2 * pad, 1)
+    height = max((el.get("height") or 0) - 2 * pad, 1)
+    chars_per_line = max(int(width / (font_size * ratio)), 1)
+    # 1e-9: kayan nokta gürültüsü tam sığan son satırı düşürmesin (168/33.6 gibi)
+    max_lines = max(int(height / (font_size * line_height) + 1e-9), 1)
+    return chars_per_line, max_lines
+
+
+def _effective_max_chars(el: dict) -> int:
+    """
+    Kutunun gerçek karakter kapasitesi (geometriden).
+
+    Ölçülebildiğinde ŞABLONDAKİ maxChars DEĞİL, bu değer kullanılır. Bildirilen
+    değerler güvenilmez olduğu kanıtlandı: aynı fontSize:60 başlık elemanının
+    759px ve 1215px genişindeki sürümleri ikisi de maxChars:30 taşıyor. Dar
+    olanında 30 karakter taşıyor, geniş olanında ise kutu ~41 karakter aldığı
+    halde başlık 30'da kesiliyordu ("Temel Veri Tipleri: Metin ve" — ölçüldü).
+    Yani tek bir elle konmuş sayı iki kutuyu birden doğru tarif edemiyor.
+
+    Geometri ölçülemiyorsa (widget tipleri, fontSize yok) bildirilen değere
+    düşülür — orada tahminle daraltmak gerçek içeriği kırpardı.
+    """
+    declared = el.get("maxChars") or 0
+    if el.get("type") not in _GEOMETRY_TYPES:
+        return declared
+    if not el.get("width") or not el.get("height"):
+        return declared
+    if not (el.get("style") or {}).get("fontSize"):
+        return declared  # ölçüm dayanağı yok; tahminle daraltma
+    chars_per_line, max_lines = _text_metrics(el)
+    waste = _WRAP_WASTE_SINGLE_LINE if max_lines == 1 else _WRAP_WASTE_MULTILINE
+    return max(int(chars_per_line * max_lines * waste), 1)
+
+
+def _enforce_slide_bullets(el: dict, text: str) -> str:
+    """
+    Gövde metnini slayt formatına oturtur — ama formatı DAYATMADAN.
+
+    Madde listesi evrensel bir kalıp DEĞİL: adımlar/karşılaştırmalar liste
+    ister, tanım ve kavram anlatımı ister istemez akıcı metindir. Cümleleri
+    koparmak açıklamayı birbirine bağlayan dokuyu siler ve içi boş tek
+    satırlar üretir. Formatı içeriğin türüne göre model seçer (bkz. prompt'taki
+    slayt formatı kuralı); burası yalnızca UÇ hatayı yakalar:
+
+      * Zaten madde/satır olarak gelmişse  -> normalize et, _BULLET_MAX ile sınırla.
+      * _PROSE_MAX_SENTENCES'a kadar akıcı metin -> GEÇERLİ FORMAT, dokunma.
+      * Daha uzun paragraf (ansiklopedi hatası) -> maddelere böl ve sınırla.
+
+    Yalnız YAPI düzeltilir, kelimeler değiştirilmez. Numaralı adımlar
+    ("1. ...") numarasını korur; sıra bilgisi taşıdıkları için başlarına
+    ayrıca • konmaz.
+    """
+    limit = el.get("maxChars") or 0
+    if not text or limit < _BULLET_MIN_MAXCHARS:
+        return text
+
+    if _BR_SPLIT_RE.search(text):
+        parts = [p for p in _BR_SPLIT_RE.split(text) if p.strip()]
+    else:
+        parts = [p for p in _SENTENCE_SPLIT_RE.split(text) if p.strip()]
+        if len(parts) <= _PROSE_MAX_SENTENCES:
+            return text  # kısa akıcı metin: tanım/kavram için doğru format
+
+    lines = []
+    for part in parts[:_BULLET_MAX]:
+        item = _LEADING_MARKER_RE.sub("", part.strip())
+        if not item:
+            continue
+        lines.append(item if _NUMBERED_ITEM_RE.match(item) else f"• {item}")
+
+    return "<br>".join(lines) if lines else text
+
+
+def _format_list_breaks(text: str) -> str:
+    """
+    AI numaralı listeleri ("1. ... 2. ... 3. ...") satır sonu olmadan tek
+    paragraf halinde üretiyor (ölçüldü) — bazen madde arasında boşluk bile
+    bırakmıyor ("gidin.2."). İçerik ham HTML olarak render edildiği için
+    (bkz. frontend CanvasElement.tsx dangerouslySetInnerHTML) düz metindeki
+    satır sonları hiçbir işe yaramaz — madde başlarına gerçek <br> etiketi
+    eklenmesi gerekir.
+    """
+    if not text:
+        return text
+    return _LIST_ITEM_BREAK_RE.sub(r"\1<br><br>\2", text)
+
+
+def _clip_to_max_chars(el: dict, text: str) -> str:
+    """
+    AI, prompttaki maxChars kısıtına ölçülen sıklıkta uymuyor ("arada uzun
+    çıkartıyor") ve metin şablon kutusunun dışına taşıyor. Bu, tek başına
+    prompt talimatına güvenmek yerine sunucu tarafında sert bir güvenlik ağı.
+
+    ÖNEMLİ: kelime sınırında "…" ile kesmek yarım cümle bırakıyordu (ölçüldü,
+    kullanıcı şikayeti: "her yere 3 nokta koyuyor, cümleyi kesmemeli"). Bunun
+    yerine limit içine sığan SON TAM CÜMLEYE kadar kırpılır — üç nokta YOK,
+    her zaman noktalama ile biten tam bir cümle kalır. Limit içinde tek bir
+    cümle bile bitmiyorsa (nadir/çok uzun tek cümle) kelime sınırında kırpılır
+    (bu durumda da üç nokta eklenmez — eksik ama en azından iddialı değildir).
+
+    Limit, şablonun bildirdiği maxChars DEĞİL, kutunun gerçek kapasitesiyle
+    kesişimidir (bkz. _effective_max_chars) — çünkü bildirilen değerler kutu
+    boyutundan bağımsız elle konmuş ve tek başına taşmayı önlemiyor. Ölçüm de
+    görünen metin üzerinden yapılır; <br> gibi işaretleme kotayı yememeli.
+    """
+    limit = _effective_max_chars(el)
+    if not limit or not text or _visible_len(text) <= limit:
+        return text
+
+    # Görünür karakter sayısına göre kes; etiketler sayaca dahil değil.
+    window, shown = [], 0
+    for token in re.split(r"(<[^>]+>)", text):
+        if token.startswith("<") and token.endswith(">"):
+            window.append(token)
+            continue
+        room = limit - shown
+        if room <= 0:
+            break
+        window.append(token[:room])
+        shown += min(len(token), room)
+    window = "".join(window)
+
+    last_end = None
+    for m in _SENTENCE_END_RE.finditer(window):
+        last_end = m.end()
+    if last_end and last_end >= len(window) * 0.4:
+        return window[:last_end].rstrip()
+
+    return window.rsplit(" ", 1)[0].rstrip(" .,;:-")
 
 
 async def record_ai_usage(
@@ -39,9 +358,20 @@ async def record_ai_usage(
     response: Any,
     details: Optional[str] = None,
     course_id: Optional[int] = None,
-    course_title: Optional[str] = None
+    course_title: Optional[str] = None,
+    source_chars: int = 0,
+    prompt_chars: int = 0,
 ):
-    """Helper function to extract usage metadata from Gemini response and store log in database."""
+    """Helper function to extract usage metadata from Gemini response and store log in database.
+
+    `source_chars` / `prompt_chars`: öğretmenin yüklediği kaynak PDF'in bu prompt'a
+    giren karakter sayısı ve prompt'un toplam karakter sayısı. Kaynak metnin maliyeti
+    zaten prompt token'larının içindedir; bu ikisi onu AYRIŞTIRMAK içindir.
+
+    Atıf, sabit bir "karakter/token" katsayısı yerine ÖLÇÜLEN prompt token sayısının
+    karakter oranıyla paylaştırılmasıdır — dile göre kendini düzeltir (Türkçe metin
+    İngilizceden daha çok token yakar, sabit katsayı bunu kaçırırdı).
+    """
     try:
         usage = getattr(response, "usage_metadata", None)
         prompt_tokens = getattr(usage, "prompt_token_count", 0) or 0
@@ -58,6 +388,13 @@ async def record_ai_usage(
             model_name, prompt_tokens, candidates_tokens, thoughts_tokens
         )
 
+        # Kaynak PDF payı: ölçülen prompt token'ının karakter oranıyla paylaştırılması.
+        source_tokens = 0
+        if source_chars > 0 and prompt_chars > 0 and prompt_tokens > 0:
+            source_tokens = min(prompt_tokens, round(prompt_tokens * source_chars / prompt_chars))
+        # Kaynak yalnızca GİRDİ tarafında; çıktı/thinking token'ı üretmez.
+        source_cost_usd = ai_pricing.cost_usd(model_name, source_tokens, 0, 0)
+
         log_entry = AIUsageLog(
             teacher_id=teacher_id,
             course_id=course_id,
@@ -69,7 +406,10 @@ async def record_ai_usage(
             thoughts_tokens=thoughts_tokens,
             total_tokens=total_tokens,
             cost_usd=round(entry_cost_usd, 6),
-            details=details
+            details=details,
+            source_chars=source_chars,
+            source_tokens=source_tokens,
+            source_cost_usd=round(source_cost_usd, 6),
         )
         db.add(log_entry)
         await db.commit()
@@ -133,56 +473,55 @@ def gen_config(
     return types.GenerateContentConfig(**kwargs)
 
 
+# Her içerik üretim prompt'unun başına konan sabit platform bağlamı.
+#
+# NEDEN: Model, konudan bağımsız olarak "ortam kurulumu" reflekslerini getiriyordu
+# (ölçüldü: Python kurulumu, IDE indirme/karşılaştırması, PATH ayarı, terminal
+# komutları). Bunların hiçbiri GoMufi'de OLMUYOR — öğrenci tarayıcıdaki gömülü
+# editörde çalışıyor, kuracak bir şey yok. Yani üretilen dersin bir kısmı
+# öğrencinin asla göremeyeceği bir dünyayı anlatıyordu.
+#
+# Prompt'un EN BAŞINA konur: hem tüm çağrılarda aynı kaldığı için Gemini'nin
+# implicit prefix cache'ini bozmaz, hem de müfredat kararları alınmadan önce
+# okunur.
+PLATFORM_CONTEXT = """Platform Context (ALWAYS TRUE, applies to every topic):
+This content will be used inside the GoMufi platform. The student works in a browser, in a code editor embedded in the platform. There is nothing to install, download or configure: no local setup, no IDE installation or comparison, no terminal or command line, no PATH or environment variables, no operating system differences. None of that is ever visible to the student.
+Therefore you MUST NOT include these as topics, lessons, modules, slides or tasks: installing a language or runtime, downloading or choosing an IDE/editor, comparing editors, setting PATH or environment variables, running terminal/shell commands, creating or saving files on disk, file extensions and folder structure, or verifying an installation.
+The student starts by writing code immediately. Begin the curriculum at the first real concept of the subject itself, and spend the freed lesson time on that subject instead.
+"""
+
+
 def format_templates_summary(cat_list: List[Dict[str, Any]]) -> str:
-    """Format templates list into compact single-line descriptions to minimize prompt tokens."""
+    """
+    Format templates list into compact single-line descriptions to minimize prompt tokens.
+
+    maxChars olarak şablondaki ham değer DEĞİL, kutuya gerçekten sığan kapasite
+    yayınlanır (bkz. _effective_max_chars). Ham değerler kutu boyutundan bağımsız
+    elle konmuş; AI onlara uysa bile metin taşıyordu. Doğru sayıyı kaynağında
+    vermek, sunucunun sonradan kırpmasından iyidir — özellikle başlıklarda,
+    çünkü kırpılan bir başlık yarım kalır.
+    """
     lines = []
     for t in cat_list:
+        # Özel slayt şablonu: tuval elemanı yok, kendi yapılandırması var.
+        if t.get("slideType") == "challenge":
+            lines.append(
+                f"- Template ID: \"{t['id']}\" | Title: \"{t['title']}\" | SPECIAL SLIDE (challenge) | "
+                "Elements: [challenge (single JSON element, elementId MUST be \"challenge\")]"
+            )
+            continue
         els = []
         for el in t.get("elements", []):
-            m_char = f", maxChars:{el['maxChars']}" if el.get("maxChars") else ""
+            limit = _effective_max_chars(el)
+            m_char = f", maxChars:{limit}" if limit else ""
             els.append(f"{el['id']} ({el['type']}{m_char})")
         lines.append(f"- Template ID: \"{t['id']}\" | Title: \"{t['title']}\" | Elements: [{', '.join(els)}]")
     return "\n".join(lines)
 
 
-def get_web_image(query: str, is_fallback: bool = False) -> str:
-    # Basic translation dictionary for common academic/structural fallback terms
-    translation_dict = {
-        "giris": "introduction",
-        "nedir": "about",
-        "kurulum": "setup",
-        "ortami": "workspace",
-        "tarih": "history",
-        "cografya": "geography",
-        "matematik": "mathematics",
-        "fizik": "physics",
-        "kimya": "chemistry",
-        "biyoloji": "biology",
-        "operatorler": "operators",
-        "degiskenler": "variables",
-    }
-    
-    tr_map = str.maketrans("çğıöşüÇĞİÖŞÜ", "cgiosuCGIOSU")
-    query_clean = query.translate(tr_map).lower()
-    
-    # Split query into words
-    words = [w.strip() for w in re.split(r'[^a-zA-Z0-9]', query_clean) if w.strip()]
-    
-    eng_keywords = []
-    for w in words:
-        if w in translation_dict:
-            eng_keywords.append(translation_dict[w])
-        elif not is_fallback and w.isalnum():
-            # If not fallback, it is English keywords generated by Gemini, so keep it!
-            eng_keywords.append(w)
-            
-    if not eng_keywords:
-        eng_keywords = ["education"]
-        
-    # Get unique keywords preserving order
-    unique_keywords = list(dict.fromkeys(eng_keywords))
-    keywords_str = ",".join(unique_keywords)
-    return f"https://loremflickr.com/640/480/{urllib.parse.quote(keywords_str)}"
+# Görsel çözümleme core/image_search.py'a taşındı: eski akış loremflickr'a
+# yalnızca URL kuruyor, hiç arama yapmıyordu — eşleşme bulunmayınca rastgele
+# foto (pratikte hep kedi) dönüyordu. Yenisi gerçek arama yapar (ücretsiz).
 
 router = APIRouter()
 
@@ -213,6 +552,15 @@ class GenerateLessonSlidesRequest(BaseModel):
     # True: Canvas Builder'daki "AI ile Tekrar Oluştur" — tek bir mevcut modülü yeniden
     # üretir. Maliyet takibinde ilk üretimden AYRI bir kalem olarak loglanır (bkz. ai_economics.py).
     is_regeneration: bool = False
+    # Tekrar üretimde HANGİ modülün yeniden yazılacağı (modules listesindeki 0-tabanlı indeks).
+    #
+    # NEDEN GEREKLİ: ilk üretimde `modules` dersin TÜM modüllerini içerir; model kardeş
+    # modülleri görüp kapsamı kendiliğinden ayırır ("değişkenler" 3. modülde, ben 1.
+    # modülüm). Tekrar üretimde eskiden tek modül gönderiliyordu — sınır kalmadığı için
+    # model ders başlığındaki her şeyi ("Ders 1: Giriş, Değişkenler") o tek modüle
+    # dolduruyordu. Artık kardeşler yine gönderilir, bu indeks hangisinin üretileceğini
+    # söyler; diğerleri YALNIZCA kapsam sınırı olarak kullanılır.
+    target_module_index: Optional[int] = None
 
 
 # --- GEMINI STRUCTURED OUTPUT SCHEMAS ---
@@ -345,6 +693,217 @@ class LessonSlidesResponse(BaseModel):
     homework_map: HomeworkData
 
 
+class ShrunkText(BaseModel):
+    id: str
+    text: str
+
+
+class ShrinkTextsResponse(BaseModel):
+    items: List[ShrunkText]
+
+
+async def _shrink_overflowing(client, pending: list, db=None, teacher_id=None, course_topic: str = "") -> None:
+    """
+    Kutusuna sığmayan metinleri modele YENİDEN YAZDIRIR (kesmez).
+
+    Neden ayrı bir çağrı: kesme, cümle sınırında bile yapılsa anlamı eksiltiyor
+    ve slayt yarım duruyor. Kısaltma bir yazma işi — sunucu kelimeleri atarak
+    bunu yapamaz, ancak model yapabilir.
+
+    Maliyet: ders üretimi başına EN FAZLA bir ek çağrı ve yalnızca gerçekten
+    taşma varsa. Ucuz model + thinking kapalı kullanılır; bu bir yaratıcılık
+    değil, yeniden yazma işi.
+
+    Son çare: model yine sığdıramazsa ilgili metin kesilir — yani davranış
+    hiçbir koşulda eskisinden kötü olmaz.
+    """
+    if not pending:
+        return
+
+    payload = [
+        {"id": str(i), "maxChars": p["limit"], "text": p["el"].get("content") or ""}
+        for i, p in enumerate(pending)
+    ]
+    prompt = f"""Role: You are a Turkish slide copy editor. Türkçe yaz.
+Each item below is slide text that is TOO LONG for its box. Rewrite each one so it FITS.
+
+STRICT RULES:
+- The visible length (ignoring <br> tags) MUST be <= that item's maxChars. Count before answering.
+- NEVER cut mid-sentence and NEVER use "…" or "...". Every item must end as a complete sentence or a complete bullet.
+- Keep the meaning and the concrete details: commands, function names, error names, numbers, option labels. These are the value of the text.
+- Keep the SAME format: if the text uses "• ...<br>• ..." bullets, return bullets; if it is flowing prose, return prose.
+- To save space, DROP a whole bullet or a whole sentence rather than making every sentence vague. Fewer complete, specific statements beat many watered-down ones.
+- Return the same `id` for each item.
+
+Course topic: {course_topic}
+
+Items:
+{json.dumps(payload, ensure_ascii=False, indent=1)}
+"""
+    try:
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL_LITE,
+            contents=prompt,
+            config=gen_config(ShrinkTextsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
+        )
+        if db is not None:
+            await record_ai_usage(
+                db, teacher_id, "shrink_slide_texts", settings.GEMINI_MODEL_LITE, response,
+                details=f"Kurs: '{course_topic}' | Sığdırılan metin: {len(payload)}",
+            )
+        rewritten = {
+            str(item.get("id")): item.get("text") or ""
+            for item in (json.loads(response.text.strip()).get("items") or [])
+        }
+    except Exception as err:
+        logger.warning("Slayt metni sığdırma çağrısı başarısız: %s", err)
+        rewritten = {}
+
+    for i, p in enumerate(pending):
+        el, limit = p["el"], p["limit"]
+        new_text = _enforce_slide_bullets(el, rewritten.get(str(i), ""))
+        if new_text and _visible_len(new_text) <= limit:
+            el["content"] = new_text
+        else:
+            # Model sığdıramadı — son çare olarak kes (eski davranış).
+            el["content"] = _clip_to_max_chars(el, el.get("content") or "")
+
+
+# --- ÖĞRETMENİN YÜKLEDİĞİ KAYNAK PDF ------------------------------------------
+
+# Bir derse gönderilecek kaynak metin bütçesi (karakter).
+_PDF_LESSON_BUDGET = 30000
+# Puanlama için metnin bölündüğü parça boyutu.
+_PDF_CHUNK = 1500
+# Atlanan bölümlerin işareti. Modelin iki uzak parçayı bitişik metin sanmaması için.
+_PDF_GAP = "\n[...]\n"
+
+# Ders/modül başlıklarında geçen ama kaynakta ayırt edici olmayan kelimeler.
+# Bunlar elenmezse "Ders 5: Döngülere Giriş" başlığındaki "ders" ve "giriş"
+# kitabın her sayfasında geçtiği için puanlama anlamsızlaşır.
+_PDF_STOPWORDS = {
+    "ders", "dersi", "konu", "konusu", "konular", "modül", "bölüm", "ünite",
+    "giriş", "temel", "genel", "nedir", "hakkında", "kullanımı", "kullanma",
+    "için", "ile", "veya", "gibi", "olan", "olarak", "daha", "sonra", "önce",
+    "pratiği", "uygulama", "alıştırma", "örnek", "örnekler", "anlatımı",
+    "öğrenci", "öğrencinin", "tanır", "kavrar", "yapar",
+}
+
+
+def _pdf_keywords(focus: str) -> set:
+    words = re.findall(r"\w+", focus.casefold(), flags=re.UNICODE)
+    return {w for w in words if len(w) >= 4 and w not in _PDF_STOPWORDS}
+
+
+def _select_pdf_excerpt(pdf_text: str, focus: str, budget: int = _PDF_LESSON_BUDGET) -> str:
+    """
+    Kaynak PDF'ten BU DERSE ait bölümü seçer.
+
+    Eskiden `pdf_content[:30000]` yapılıyordu. 200 sayfalık bir kitabın ilk ~12
+    sayfası HER derse gidiyordu: 6. dersin slaytları 1. bölümün metnini görüyor,
+    kendi bölümünü hiç görmüyordu. Model de doğal olarak kaynağı yok sayıp kendi
+    genel bilgisinden üretiyordu.
+
+    Artık metin parçalara bölünür, ders başlığı/hedefi/modül konularıyla kelime
+    örtüşmesine göre puanlanır; en ilgili parçalar KİTAPTAKİ SIRAYLA birleştirilir
+    (atlanan yerler `[...]` ile işaretlenir, model kopukluğu görsün diye).
+    """
+    text = (pdf_text or "").strip()
+    if len(text) <= budget:
+        return text
+
+    keys = _pdf_keywords(focus)
+    if not keys:
+        return text[:budget]
+
+    # Puanlama SIKLIK değil KAPSAM temellidir: kaç FARKLI anahtar kelime geçiyor.
+    #
+    # Neden: ölçülen hata — "string, integer, float, complex, bool" dersinde ham
+    # sıklık, bu terimleri onlarca kez tekrarlayan tip-dönüşüm listesi sayfasını
+    # seçiyor, terimlerin TANIMLANDIĞI sayfayı eliyordu. Tanım sayfası az tekrarla
+    # çok terim içerir; liste sayfası çok tekrarla az terim. Kapsam bunu ayırır.
+    # Sıklık yalnızca eşitlik bozucu olarak kalır.
+    chunks = [text[i:i + _PDF_CHUNK] for i in range(0, len(text), _PDF_CHUNK)]
+    scored = []
+    for i, ch in enumerate(chunks):
+        low = ch.casefold()
+        gecen = {k: low.count(k) for k in keys if k in low}
+        scored.append((len(gecen), sum(gecen.values()), i, ch))
+
+    if not any(kapsam for kapsam, _, _, _ in scored):
+        return text[:budget]  # kaynakta bu dersle ilgili hiçbir iz yok
+
+    scored.sort(key=lambda t: (-t[0], -t[1], t[2]))
+    chosen: list = []
+    used = 0
+    for kapsam, _yogunluk, i, ch in scored:
+        if kapsam == 0:
+            break  # ilgisiz parçalarla bütçeyi doldurma
+        # Ayırıcı payı da düşülür, yoksa `[...]` eklendikten sonra bütçe aşılıyor.
+        maliyet = len(ch) + len(_PDF_GAP)
+        if used + maliyet > budget:
+            continue
+        chosen.append((i, ch))
+        used += maliyet
+
+    if not chosen:
+        return text[:budget]
+
+    chosen.sort()
+    out: list = []
+    prev = None
+    for i, ch in chosen:
+        if prev is not None and i != prev + 1:
+            out.append(_PDF_GAP)
+        out.append(ch)
+        prev = i
+    return "".join(out)
+
+
+def _pdf_source_block(pdf_text: str, focus: str, budget: int = _PDF_LESSON_BUDGET) -> str:
+    """Kaynak metni, modelin kendi bilgisini EZECEK bir talimat bloğuyla sarar.
+
+    Eski hâli tek satırlık bir "Base the slide contents ... strictly on the PDF"
+    cümlesiydi; prompt'un geri kalanı büyük harfli STRICT/INVALID OUTPUT kurallarıyla
+    doluyken bu cümle ağırlıksız kalıyor ve model kaynağın örneklerini kendi
+    genel ders kitabı örnekleriyle değiştiriyordu (ölçülen davranış).
+    """
+    excerpt = _select_pdf_excerpt(pdf_text, focus, budget)
+    if not excerpt:
+        return ""
+    return f"""
+
+=== SOURCE MATERIAL — THE TEACHER'S OWN UPLOADED DOCUMENT (HIGHEST AUTHORITY) ===
+The teacher uploaded their own course material. For this lesson it OUTRANKS your own
+knowledge of the subject. Obey in this order:
+1. USE THE SOURCE'S OWN EXAMPLES. Where the source demonstrates something with a specific
+   function, variable, constant, number, file name, dataset or scenario, reproduce THAT
+   EXACT ONE on the slides. Replacing it with a generic textbook example of your own
+   (a `topla(a, b)`, a `PI = 3.14`, a `selam_ver("Ali")` that the source never mentions)
+   is INVALID OUTPUT — a teacher who uploads material expects to see THEIR examples.
+2. USE THE SOURCE'S OWN TERMINOLOGY, notation and naming style, including its Turkish
+   wording for technical terms and its capitalisation of constants.
+3. THE SOURCE DECIDES SCOPE AND DEPTH: teach what this part of the source teaches, as
+   deeply as it teaches it. Do not add topics the source deliberately leaves out.
+4. EVERY code example, number, identifier and scenario on the slides MUST be traceable to
+   the source above — either copied from it or a minimal, obvious adaptation of one of its
+   examples. Do not put your own standard teaching example next to the source's; replace
+   yours with theirs.
+5. THE SOURCE ALSO DECIDES THE SLIDE COUNT, AND THIS OVERRIDES THE MINIMUMS STATED
+   EARLIER IN THIS PROMPT. Expand the lesson from the SOURCE'S own sections and examples,
+   never from your standard curriculum for this topic. If the source does not carry enough
+   material for the usual number of slides, produce FEWER slides. Padding a lesson with
+   invented examples to reach a slide count is INVALID OUTPUT.
+6. Fall back to your own knowledge ONLY where the source is genuinely silent, and never
+   state anything that contradicts it.
+`[...]` marks text omitted between excerpts — never present the two sides as continuous.
+
+--- BEGIN SOURCE MATERIAL ---
+{excerpt}
+--- END SOURCE MATERIAL ---
+"""
+
+
 @router.post("/courses/generate_roadmap")
 async def generate_roadmap_api(
     req: GenerateRoadmapRequest,
@@ -382,17 +941,25 @@ async def generate_roadmap_api(
                     "id": t.get("id"),
                     "title": t.get("title"),
                     "description": t.get("description"),
+                    # Özel slayt üreten şablonlar (tuval elemanı yerine kendi bileşeni olanlar)
+                    "slideType": t.get("slideType"),
                     "elements": elements_info
                 })
                 
         client = genai.Client(api_key=settings.MY_API_KEY)
-        
+
+        # Bu uç `pdf_content` alıyordu ama hiç kullanmıyordu: öğretmenin yüklediği
+        # kaynak sessizce yok sayılıyordu. Diğer uçlarla aynı yetki bloğuna bağlandı.
+        pdf_context = _pdf_source_block(req.pdf_content or "", req.topic) if req.pdf_content else ""
+
         # --- PHASE 1: GENERATE ROADMAP STRUCTURE ---
         prompt_step1 = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
 
 Goal: Given the course topic, difficulty, desired lesson count, and target audience, generate the sequence of lessons and modules.
+{pdf_context}
 
 Requirements:
 - The roadmap consists of lessons.
@@ -443,12 +1010,13 @@ Audience: {req.audience}
             contents=prompt_step1,
             config=gen_config(RoadmapStructureResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response_step1)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response_step1, source_chars=len(pdf_context), prompt_chars=len(prompt_step1))
         
         roadmap_structure = json.loads(response_step1.text.strip())
         
         # --- PHASE 2: GENERATE SLIDES CONTENT FOR ALL MODULES ---
         prompt_step2 = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is to write detailed educational slide contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided curriculum.
 
@@ -456,6 +1024,7 @@ Course:
 Topic: {req.topic}
 Difficulty: {req.difficulty}
 Audience: {req.audience}
+{pdf_context}
 
 Curriculum Structure to populate:
 {json.dumps(roadmap_structure, ensure_ascii=False, indent=2)}
@@ -477,7 +1046,14 @@ Requirements:
 - For each module in the curriculum of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
 - UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
-  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. A single slide is NEVER sufficient for an UNDERSTAND module — one-slide UNDERSTAND modules are INVALID output. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For UNDERSTAND (ANLA): THE SLIDE COUNT IS DERIVED FROM THE CONTENT, IT IS NOT A FIXED NUMBER. Build it with this two-step expansion, which applies to EVERY subject:
+    STEP 1 — split the module's `topic` into the sub-topics it names.
+    STEP 2 — for EACH sub-topic, list its MEMBERS: the individually named things a student must be able to tell apart afterwards. A sub-topic with one member stays one slide; a sub-topic with four members becomes FOUR slides, one per member, each with its own example and its own gotcha.
+    The slide count is the sum of STEP 2. Produce AT LEAST 3 slides; 4 to 10 is the normal range. If your expansion yields more than 10, keep the 10 most essential — but NEVER merge two members onto one slide just to fit.
+  * ALLOCATE UNEQUALLY — THIS IS THE MOST COMMON FAILURE: sub-topics are NOT equal in weight, so they MUST NOT receive equal slide counts. A module named "print(), Değişken, Veri Tipi" has a light sub-topic (`print()` — one slide) and a heavy one (`Veri Tipi` — `str`, `int`, `float`, `bool` are four members, so four slides). Spending one slide on each of the three sub-topics is INVALID output: it compresses the heaviest part of the module into the same space as the lightest. Before writing, always ask which sub-topic contains the most named members, and give that one the most slides.
+  * THIS RULE IS SUBJECT-INDEPENDENT. "Members" are whatever the field names individually: `str`/`int`/`float`/`bool`; each verb tense; each type of chemical bond; each organ of a system; each branch of government; each solid's volume formula; each period of a historical era. In every case N named members means N slides, NEVER N bullets on one slide. A slide that merely lists names with a one-line gloss each is a table of contents, not teaching.
+  * A slide is CHEAP; student attention is not. When in doubt between one dense slide and two clear ones, ALWAYS produce two.
+  * Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
@@ -486,8 +1062,46 @@ Requirements:
   * In the Produce Task template, the `production_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the production task widget:
     {{"projectTitle": "Title of the project (e.g. Hesap Makinesi)", "taskText": "Detailed instructions on what to build", "expectedOutput": "Example console output showing what the running code should display", "estimatedTime": "Estimated completion time (e.g. 15 Dakika)", "hints": "Useful coding hint or tip"}}
   * Note: The JSON string for `connection_task` or `production_task` must be escaped properly so that it is a valid JSON string inside the outer JSON response. Escape double quotes with `\"` and use `\n` for line breaks. Do not write raw newlines inside the string values.
+- UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
+  * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+  * `submissionType` — HOW the student answers. Choose from what the task actually needs:
+    - "code"  : student writes Python (default for programming topics)
+    - "text"  : a written answer (explain, compare, interpret)
+    - "image" : a screenshot (show your result / your drawing)
+    - "file"  : any uploaded file
+    Non-programming subjects (history, biology, language...) almost always want "text" or "image", NOT "code".
+  * `checkMode` — only meaningful when submissionType is "code". Choose the one that matches the task:
+    - "output" : the task is about what gets PRINTED. Set `expectedOutput` to the exact expected stdout. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed.
+    - "tests"  : the task is to write a FUNCTION with a return value. Set `functionName` and 3 to 5 `tests`, covering at least one edge case (0, 1, empty, negative).
+    - "manual" : open-ended; the teacher grades it. Leave expectedOutput and tests empty.
+  * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
+  * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
+  * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
 - CRITICAL IMAGE REQUIREMENT: Your templates contain "image" elements. For EVERY "image" element, you MUST populate the "content" field in "elementContents" with a descriptive English search query (3-5 words) representing the visual content for that specific slide (e.g., "ancient roman soldier armor" for a history slide, "python coding mathematical operator" for a programming slide, "cell division biology microscope" for a biology slide). DO NOT leave "image" elements empty or unpopulated.
-- For each element you populate in `elementContents`, you MUST strictly respect the `maxChars` limit defined in the template. The number of characters of your generated text (including spaces) for that element ID MUST NOT exceed its `maxChars` value to prevent UI text overflow. This is a critical visual layout constraint.
+- STICKY NOTE RULE — A STICKY NOTE IS A GOTCHA, NOT A SUMMARY (STRICT): Elements of type `sticky` are the small coloured notes on the slide. They are the single most wasted space in a generated slide, so they have their own hard rule. Each sticky note MUST carry information that is NOWHERE ELSE on the slide. Write ONE of these, and nothing else:
+  * The single most common mistake a beginner makes with this exact topic, stated as the mistake ("Tırnak koymayı unutmak en sık hatadır."), or
+  * A non-obvious technical detail that the body text did NOT state ("Tırnak içindeki ifade, dize (string) olarak kabul edilir."), or
+  * A concrete gotcha: an error message they will hit, an edge case, a version/platform difference, a keyboard shortcut.
+  * ABSOLUTELY FORBIDDEN in a sticky note: restating or summarising the body text; generic encouragement or advice with no content ("Farklı IDE'leri deneyin.", "Bol bol pratik yapın.", "Kod yazmak eğlencelidir."); vague benefit claims ("IDE'ler verimliliği artırır.", "Python kolaydır."); repeating the slide title.
+  * TEST BEFORE YOU WRITE IT: if a student who has NOT seen this lesson could still write your sticky note, it is filler — delete it and write the gotcha instead. If two sticky notes exist on one slide, they MUST contain two DIFFERENT facts; never two phrasings of the same point.
+- CRITICAL SLIDE FORMAT RULE — CHOOSE THE FORMAT THAT FITS THE CONTENT (STRICT): Slide body text is projected on a classroom wall and read at a glance while the teacher speaks, so a dense encyclopedia paragraph is invalid output. But bullets are NOT a universal template either: chopping a definition into disconnected fragments destroys the explanation and produces empty one-liners. For every long-form text element (any element whose `maxChars` is 120 or more) you MUST pick the format from the NATURE of the content:
+  * USE BULLETS when the content is genuinely discrete or ordered: installation and setup steps, a comparison of tools or options, a list of features, commands or shortcuts, do's and don'ts, an ordered procedure. These items do not connect into a sentence, so a list is the honest shape for them.
+  * USE SHORT FLOWING PROSE — 2 to 4 sentences, NO bullet markers at all — when the content is a definition, a concept explanation, a "what is X" or "why does X exist" idea, or reasoning where each sentence builds on the one before it. This connective tissue is what makes the concept understandable; bullets delete it. You MAY optionally end with ONE single bullet stating the key takeaway, and nothing more.
+  * NEVER write more than 4 sentences of prose. If the explanation genuinely needs more, split it across two slides instead.
+  * DO NOT default to one shape. Decide per element, after looking at what the content actually is. A lesson where every single slide has the same shape is a failure — steps must look like steps, and a definition must read like an explanation.
+  * ONE idea per slide. If the content covers two ideas, split it across two slides instead of packing one slide.
+  * When you use bullets: AT MOST 4 bullets in a single text element.
+  * EVERY BULLET AND EVERY PROSE SENTENCE MUST BE SPECIFIC — this outranks being short, and it applies to BOTH formats. Each one MUST contain at least one concrete anchor: an exact command, a keyword or function name, a file name or extension, a menu/checkbox label, a number, a key combination, or an exact error name. A bullet with no such anchor is INVALID OUTPUT.
+  * BANNED — generic benefit sentences. These are all INVALID because the student cannot act on them and learns nothing: "Kod yazmayı hızlandırır", "Hata ayıklamayı kolaylaştırır", "Kod tamamlama özelliği sunar", "Proje yönetimini basitleştirir", "Verimliliği artırır", "Kullanımı kolaydır". Replace each with the concrete mechanism instead: "Ctrl+Space fonksiyon adını tamamlar", "Kırmızı alt çizgi hatalı satırı işaretler", "F5 ile satır satır çalıştırıp değişkeni izlersiniz".
+  * SELF-TEST every bullet before writing it, both questions must pass: (1) Could someone who has NEVER seen this topic write this exact sentence from general knowledge? If yes it is filler — rewrite it with the specific command/name/number. (2) Can the student DO something after reading it? If no, rewrite it.
+  * Length is a CEILING, NOT A GOAL: at most 12 words per bullet (prose sentences may be longer, but stay within the 2-4 sentence limit). Use all 12 words if that is what specificity costs. NEVER delete the concrete detail to make a bullet shorter — a specific 12-word bullet is always better than a vague 5-word one. Empty short bullets are exactly as bad as a dense paragraph; they are the same failure.
+  * Cut ceremony, never content: drop "bulunmaktadır", "olarak adlandırılmaktadır", "-dır" chains, and restatements of the slide title. Keep the technical term, the command, the number.
+  * WHEN USING BULLETS, format the element content EXACTLY as: `• first bullet<br>• second bullet<br>• third bullet` — the literal `•` character, separated by the HTML tag `<br>`. Do NOT use `-` or `*` as bullet markers, and do NOT emit `<ul>` or `<li>` tags. WHEN USING PROSE, write plain sentences with NO `•` marker and NO `<br>` between them.
+  * Ordered step-by-step instructions are the ONE exception: keep them numbered (`1. ...<br>2. ...`) and still obey the 4-item and 12-word limits.
+  * Concrete examples and syntax still belong on the slide, in whichever format you chose.
+  * A server-side safety net only catches the extreme failure: a paragraph longer than 4 sentences is force-split into bullets and everything past the 4th is DISCARDED. Prose of 2-4 sentences is left exactly as you wrote it, so you are responsible for choosing the right format yourself.
+- For each element you populate in `elementContents`, you MUST strictly respect the `maxChars` limit defined in the template. The number of characters of your generated text (including spaces) for that element ID MUST NOT exceed its `maxChars` value to prevent UI text overflow. This is a critical visual layout constraint. If a server-side safety net has to cut your text short because it exceeded `maxChars`, it will cut at the last complete sentence that fits — any unfinished trailing sentence is discarded entirely and never shown. So NEVER pad content with an extra clause or sentence that might not fit. When you are close to the limit, drop a WHOLE bullet rather than watering down the ones you keep — three specific bullets beat four vague ones. NEVER sacrifice a concrete detail (a command, a name, a number, an option label) just to save characters; that turns a useful slide into filler, which is a worse failure than being one bullet short.
 - Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -515,7 +1129,7 @@ Expected JSON Structure:
             contents=prompt_step2,
             config=gen_config(AILevelContentsResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_content", settings.GEMINI_MODEL_CONTENT, response_step2)
+        await record_ai_usage(db, teacher_id, "generate_roadmap_content", settings.GEMINI_MODEL_CONTENT, response_step2, source_chars=len(pdf_context), prompt_chars=len(prompt_step2))
         
         slide_contents_data = json.loads(response_step2.text.strip())
         level_contents_list = slide_contents_data.get("levelContents", [])
@@ -525,6 +1139,8 @@ Expected JSON Structure:
         
         curriculum = []
         notes = []
+        # Kutusuna sığmayan metinler: kesilmez, en sonda tek çağrıyla yeniden yazdırılır.
+        pending_shrink: list = []
         overall_idx = 1
         
         theme_map = {
@@ -621,7 +1237,10 @@ Expected JSON Structure:
                         if not selected_t and cat_templates:
                             selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
                             
-                        if selected_t:
+                        if selected_t and selected_t.get("slideType") == "challenge":
+                            # Ozel slayt: tuval elemani yok, kendi yapilandirmasi var.
+                            slides_to_add.append(_build_challenge_slide(elem_contents.get("challenge", "")))
+                        elif selected_t:
                             copied_elements = []
                             for el in selected_t.get("elements", []):
                                  el_copy = copy.deepcopy(el)
@@ -635,7 +1254,7 @@ Expected JSON Structure:
                                      # Determine query - fallback to module topic or lesson title if empty
                                      query = val if val else (mod.get("topic") or les.get("title") or "coding")
                                      is_fb = not bool(val)
-                                     img_url = get_web_image(query, is_fallback=is_fb)
+                                     img_url = await resolve_image_url(query, is_fallback=is_fb, context=req.topic)
                                      el_copy["content"] = img_url
                                      el_copy["imageUrl"] = img_url
                                      el_copy["src"] = img_url
@@ -665,8 +1284,10 @@ Expected JSON Structure:
                                          except Exception:
                                              el_copy["content"] = val
                                      else:
-                                         el_copy["content"] = val
-                                 
+                                         _fit_text(el_copy, val, pending_shrink)
+                                 else:
+                                     _clear_unfilled_placeholder(el_copy)
+
                                  copied_elements.append(el_copy)
                                 
                             slide = {
@@ -683,7 +1304,9 @@ Expected JSON Structure:
                             "slides": slides_to_add
                         }
                         notes.append(note)
-                        
+
+        await _shrink_overflowing(client, pending_shrink, db, teacher_id, req.topic)
+
         return {"success": True, "curriculum": curriculum, "notes": notes, "roadmap": roadmap_structure}
         
     except Exception as e:
@@ -715,6 +1338,20 @@ async def suggest_raw_topics_api(
                 print(f"Error parsing PDF: {e}")
                 raise HTTPException(status_code=400, detail=f"PDF dosyası okunurken bir hata oluştu: {str(e)}")
 
+            # Taranmış (görüntü tabanlı) PDF'lerde extract_text() boş döner. Eskiden bu
+            # sessizce geçiliyordu: öğretmen kaynağını yüklediğini sanıyor, AI ise
+            # kaynağı hiç görmeden genel bilgiden ders üretiyordu. Artık açıkça söyle.
+            if len(pdf_text.strip()) < 100:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "PDF'ten okunabilir metin çıkarılamadı. Dosya büyük olasılıkla "
+                        "taranmış sayfa görüntülerinden oluşuyor (metin katmanı yok). "
+                        "Metin tabanlı bir PDF yükleyin ya da içeriği kopyalayıp "
+                        "hedef kitle alanına yapıştırın."
+                    ),
+                )
+
         client = genai.Client(api_key=settings.MY_API_KEY)
         
         pdf_context = ""
@@ -722,10 +1359,12 @@ async def suggest_raw_topics_api(
             pdf_context = f"\n\nSource Material (PDF Content):\n{pdf_text[:40000]}\n\nInstruction: Base your curriculum topic suggestions strictly on the provided Source Material PDF above."
 
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert computer science curriculum architect and educational planner. Türkçe cevap ver.
 Your task is to analyze the course topic, difficulty, audience, and optional PDF content, and suggest:
 - A flat sequence of substantive, practical coding topics (subject headings) that must be covered in this course (typically between 5 and 15 topics).
 - **Strictly Ban Trivial/Fluff Headings**: Do not generate separate topics for history (e.g., Python history, versions 2.x vs 3.x), compiler/interpreter definitions, syntax trivia (like comment `#` character), or individual data types (like string, integer, float as separate topics).
+- **Strictly Ban Setup/Environment Headings** (see Platform Context above): Do not generate topics such as installing the language, downloading or choosing an IDE, comparing editors, PATH or environment variables, terminal/command line usage, or verifying an installation. On this platform none of that exists — the student is already in a working code editor. The very first topic must be a real concept of the subject.
 - **Cluster Into Substantive Headings**: Group minor details and syntax trivia together into comprehensive, high-density practical headers (each representing a significant coding outcome and at least 20-30 minutes of real teaching time).
   - *Incorrect (Do NOT suggest)*: ["Python Tarihçesi", "Python Kurulumu", "print() kullanımı", "Yorum satırları"]
   - *Correct (Instead suggest)*: ["Python Kurulumu, İlk Programı Çalıştırma (print, yorumlar)"]
@@ -759,12 +1398,14 @@ Expected JSON Structure:
             contents=prompt,
             config=gen_config(SuggestRawTopicsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_raw_topics", settings.GEMINI_MODEL_LITE, response)
+        await record_ai_usage(db, teacher_id, "suggest_raw_topics", settings.GEMINI_MODEL_LITE, response, source_chars=len(pdf_context), prompt_chars=len(prompt))
         data = json.loads(response.text.strip())
         return {
-            "success": True, 
-            "suggested_topics": data.get("suggested_topics", []), 
-            "pdf_text": pdf_text
+            "success": True,
+            "suggested_topics": data.get("suggested_topics", []),
+            "pdf_text": pdf_text,
+            # Arayüz kaynağın gerçekten okunduğunu gösterebilsin diye.
+            "pdf_chars": len(pdf_text),
         }
     except Exception as e:
         print(f"Error suggesting raw topics: {e}")
@@ -781,6 +1422,7 @@ async def distribute_topics_into_lessons_api(
         client = genai.Client(api_key=settings.MY_API_KEY)
         
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert computer science curriculum architect and instructional designer. Türkçe cevap ver.
 Your task is to take a flat list of course sub-topics, the duration of each lesson in minutes, and the target lesson count, and distribute these topics logically across lessons.
 
@@ -855,6 +1497,7 @@ async def expand_topics_api(
             count_instruction = "\nRequirement: Suggest around 3 to 5 sub-topics per high-level topic."
             
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert computer science curriculum architect and educational planner. Türkçe cevap ver.
 Your task is to take a list of course topic headings, analyze them in the context of the course '{req.course_topic}', and expand them into a more detailed, high-density sequence of practical sub-topics.
 Specifically:
@@ -926,6 +1569,7 @@ async def generate_roadmap_structure_api(
         lessons_count_instruction = f"Lessons Count: {req.lessons_count}" if req.lessons_count > 0 else "Lessons Count: [AI, please determine the optimal number of lessons (typically between 3 and 12) based on the depth of the course topic or the length of the PDF content. Design a complete, self-contained curriculum with that optimal number of lessons.]"
 
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is only to design the structure of a learning roadmap (lessons and modules sequence).
 {pdf_context}
@@ -984,7 +1628,7 @@ Audience: {req.audience}
             contents=prompt,
             config=gen_config(RoadmapStructureResponse, thinking_budget=settings.GEMINI_THINKING_BUDGET_CONTENT, model=settings.GEMINI_MODEL_CONTENT),
         )
-        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)")
+        await record_ai_usage(db, teacher_id, "generate_roadmap_structure", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' ({req.lessons_count} Ders İskeleti)", source_chars=len(pdf_context), prompt_chars=len(prompt))
         
         data = json.loads(response.text.strip())
         return {"success": True, "roadmap": data}
@@ -1007,6 +1651,7 @@ async def suggest_lesson_modules_api(
             pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the lesson objective and modular topic titles strictly on the provided Source Material PDF above."
             
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is to design the sub-modules (levels) for a single lesson in a learning roadmap.
 {pdf_context}
@@ -1055,7 +1700,7 @@ Expected JSON Structure:
             contents=prompt,
             config=gen_config(SuggestLessonModulesResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_modules", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}'", source_chars=len(pdf_context), prompt_chars=len(prompt))
         
         data = json.loads(response.text.strip())
         return {"success": True, "objective": data.get("objective"), "modules": data.get("modules", [])}
@@ -1082,6 +1727,7 @@ async def suggest_lesson_title_api(
             pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the title suggestions strictly on the provided Source Material PDF content above."
 
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and computer science curriculum planner. Türkçe cevap ver.
 Your task is to suggest 5 alternative relevant lesson titles for lesson number {req.lesson_number} in a course curriculum.
 {pdf_context}
@@ -1123,7 +1769,7 @@ Expected JSON Structure:
             contents=prompt,
             config=gen_config(SuggestLessonTitleResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_lesson_title", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi")
+        await record_ai_usage(db, teacher_id, "suggest_lesson_title", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders {req.lesson_number} Başlık Önerisi", source_chars=len(pdf_context), prompt_chars=len(prompt))
         data = json.loads(response.text.strip())
         return {"success": True, "titles": data.get("titles", [])}
     except Exception as e:
@@ -1145,6 +1791,7 @@ async def suggest_level_details_api(
             pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the module title and topic suggestions strictly on the provided Source Material PDF content above."
 
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer. Türkçe cevap ver.
 Your task is to suggest the title and detailed topic content for a specific module (level) inside a lesson.
 {pdf_context}
@@ -1179,7 +1826,7 @@ Expected JSON Structure:
             contents=prompt,
             config=gen_config(SuggestLevelDetailsResponse, thinking_budget=0, model=settings.GEMINI_MODEL_LITE),
         )
-        await record_ai_usage(db, teacher_id, "suggest_level_details", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}")
+        await record_ai_usage(db, teacher_id, "suggest_level_details", settings.GEMINI_MODEL_LITE, response, details=f"Kurs: '{req.course_topic}' | Ders: '{req.lesson_title}' | Modül: {req.module_type}", source_chars=len(pdf_context), prompt_chars=len(prompt))
         data = json.loads(response.text.strip())
         return {"success": True, "title": data.get("title"), "topic": data.get("topic")}
     except Exception as e:
@@ -1225,14 +1872,52 @@ async def generate_lesson_slides_api(
                     "id": t.get("id"),
                     "title": t.get("title"),
                     "description": t.get("description"),
+                    # Özel slayt üreten şablonlar (tuval elemanı yerine kendi bileşeni olanlar)
+                    "slideType": t.get("slideType"),
                     "elements": elements_info
                 })
                 
         client = genai.Client(api_key=settings.MY_API_KEY)
         
+        # Kaynak metnin TAMAMI değil, bu derse ait bölümü gönderilir (bkz. _select_pdf_excerpt).
         pdf_context = ""
         if req.pdf_content:
-            pdf_context = f"\n\nSource Material (PDF Content):\n{req.pdf_content[:30000]}\n\nInstruction: Base the slide contents, descriptions, explanations, code snippets, quizzes, and homework topics strictly on the provided Source Material PDF above."
+            focus = " ".join(
+                [req.lesson_title or "", req.lesson_objective or ""]
+                + [str(m.get("topic") or "") for m in req.modules if isinstance(m, dict)]
+            )
+            pdf_context = _pdf_source_block(req.pdf_content, focus)
+
+        # Tek modül yeniden üretimi: kardeş modüller listede kalır ama YALNIZCA kapsam
+        # sınırı olarak. Sınır verilmezse model, ders başlığındaki tüm konuları
+        # ("Ders 1: Giriş, Değişkenler") tek modüle dolduruyor — ölçülen hata buydu.
+        idx = req.target_module_index
+        regen_target_idx = (
+            idx if (req.is_regeneration and idx is not None and 0 <= idx < len(req.modules))
+            else None
+        )
+        regeneration_scope = ""
+        if regen_target_idx is not None:
+            target = req.modules[regen_target_idx]
+            others = [
+                f"  - moduleIndex {i} ({m.get('type')}): {m.get('topic')}"
+                for i, m in enumerate(req.modules) if i != regen_target_idx
+            ]
+            others_block = "\n".join(others) or "  (none)"
+            regeneration_scope = f"""
+REGENERATION — SINGLE MODULE ONLY (STRICT SCOPE):
+You are REWRITING exactly ONE module of this lesson. Output `modules_content` MUST contain EXACTLY ONE entry, with moduleIndex {regen_target_idx} and type {target.get('type')}.
+Target module topic: {target.get('topic')}
+
+The other modules of this lesson already exist and are being taught separately. They are listed ONLY so you know where your scope ENDS:
+{others_block}
+
+HARD RULES:
+- Cover ONLY the target module's topic. Do NOT teach, define, demonstrate or practise any concept that belongs to one of the other modules listed above — those are somebody else's slides.
+- The Lesson Title may name several topics at once (e.g. "Giriş, Değişkenler"). That is the whole LESSON, not your module. Ignore the parts of the title that belong to the other modules.
+- Do NOT try to cover the lesson objective end to end. Your module is one step of it.
+- Do NOT emit quiz_map or homework_map unless the target module type is QUIZ or HOMEWORK.
+"""
 
         # PROMPT SIRALAMASI BİLİNÇLİDİR — DEĞİŞTİRMEDEN ÖNCE OKUYUN:
         # Bir kursun dersleri arka arkaya üretilirken bu prompt'un başındaki her şey
@@ -1241,6 +1926,7 @@ async def generate_lesson_slides_api(
         # Gemini implicit caching ortak ÖNEKİ otomatik olarak ~%75 indirimli faturalar —
         # değişken kısım araya girerse önek bozulur ve indirim tamamen kaybolur.
         prompt = f"""
+{PLATFORM_CONTEXT}
 Role: You are an expert instructional designer and curriculum planner. Türkçe cevap ver.
 Your task is to write detailed educational slide, quiz, and homework contents for the UNDERSTAND, APPLY, CONNECT, and CREATE modules in the provided single lesson (given at the END of this prompt).
 
@@ -1261,7 +1947,14 @@ Requirements:
 - For each module in the lesson of type UNDERSTAND, APPLY, CONNECT, and CREATE, you MUST generate slide contents.
 - For each module, choose the most suitable template from the available templates of its category.
 - UNIVERSAL PEDAGOGICAL RULE FOR ALL TOPICS (STRICT CONSTRAINT):
-  * For UNDERSTAND (ANLA): Generate 2 to 4 slides explaining the lesson concepts. A single slide is NEVER sufficient for an UNDERSTAND module — one-slide UNDERSTAND modules are INVALID output. Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
+  * For UNDERSTAND (ANLA): THE SLIDE COUNT IS DERIVED FROM THE CONTENT, IT IS NOT A FIXED NUMBER. Build it with this two-step expansion, which applies to EVERY subject:
+    STEP 1 — split the module's `topic` into the sub-topics it names.
+    STEP 2 — for EACH sub-topic, list its MEMBERS: the individually named things a student must be able to tell apart afterwards. A sub-topic with one member stays one slide; a sub-topic with four members becomes FOUR slides, one per member, each with its own example and its own gotcha.
+    The slide count is the sum of STEP 2. Produce AT LEAST 3 slides; 4 to 10 is the normal range. If your expansion yields more than 10, keep the 10 most essential — but NEVER merge two members onto one slide just to fit.
+  * ALLOCATE UNEQUALLY — THIS IS THE MOST COMMON FAILURE: sub-topics are NOT equal in weight, so they MUST NOT receive equal slide counts. A module named "print(), Değişken, Veri Tipi" has a light sub-topic (`print()` — one slide) and a heavy one (`Veri Tipi` — `str`, `int`, `float`, `bool` are four members, so four slides). Spending one slide on each of the three sub-topics is INVALID output: it compresses the heaviest part of the module into the same space as the lightest. Before writing, always ask which sub-topic contains the most named members, and give that one the most slides.
+  * THIS RULE IS SUBJECT-INDEPENDENT. "Members" are whatever the field names individually: `str`/`int`/`float`/`bool`; each verb tense; each type of chemical bond; each organ of a system; each branch of government; each solid's volume formula; each period of a historical era. In every case N named members means N slides, NEVER N bullets on one slide. A slide that merely lists names with a one-line gloss each is a table of contents, not teaching.
+  * A slide is CHEAP; student attention is not. When in doubt between one dense slide and two clear ones, ALWAYS produce two.
+  * Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
 - For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
   * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
@@ -1274,8 +1967,46 @@ Requirements:
 - For HOMEWORK: generate 1 practical homework task. Decide if the student should submit code, text, image, or file.
   * For programming topics, use "code" submissionType. For conceptual tasks, use "text".
   * For "code" type: provide a small starterCode template.
+- UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
+  * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+  * `submissionType` — HOW the student answers. Choose from what the task actually needs:
+    - "code"  : student writes Python (default for programming topics)
+    - "text"  : a written answer (explain, compare, interpret)
+    - "image" : a screenshot (show your result / your drawing)
+    - "file"  : any uploaded file
+    Non-programming subjects (history, biology, language...) almost always want "text" or "image", NOT "code".
+  * `checkMode` — only meaningful when submissionType is "code". Choose the one that matches the task:
+    - "output" : the task is about what gets PRINTED. Set `expectedOutput` to the exact expected stdout. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed.
+    - "tests"  : the task is to write a FUNCTION with a return value. Set `functionName` and 3 to 5 `tests`, covering at least one edge case (0, 1, empty, negative).
+    - "manual" : open-ended; the teacher grades it. Leave expectedOutput and tests empty.
+  * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
+  * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
+  * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
 - CRITICAL IMAGE REQUIREMENT: Your templates contain "image" elements. For EVERY "image" element, you MUST populate the "content" field in "elementContents" with a descriptive English search query (3-5 words) representing the visual content for that specific slide (e.g., "ancient roman soldier armor" for a history slide, "python coding mathematical operator" for a programming slide, "cell division biology microscope" for a biology slide). DO NOT leave "image" elements empty or unpopulated.
-- For each element you populate in `elementContents`, you MUST strictly respect the `maxChars` limit defined in the template. The number of characters of your generated text (including spaces) for that element ID MUST NOT exceed its `maxChars` value to prevent UI text overflow. This is a critical visual layout constraint.
+- STICKY NOTE RULE — A STICKY NOTE IS A GOTCHA, NOT A SUMMARY (STRICT): Elements of type `sticky` are the small coloured notes on the slide. They are the single most wasted space in a generated slide, so they have their own hard rule. Each sticky note MUST carry information that is NOWHERE ELSE on the slide. Write ONE of these, and nothing else:
+  * The single most common mistake a beginner makes with this exact topic, stated as the mistake ("Tırnak koymayı unutmak en sık hatadır."), or
+  * A non-obvious technical detail that the body text did NOT state ("Tırnak içindeki ifade, dize (string) olarak kabul edilir."), or
+  * A concrete gotcha: an error message they will hit, an edge case, a version/platform difference, a keyboard shortcut.
+  * ABSOLUTELY FORBIDDEN in a sticky note: restating or summarising the body text; generic encouragement or advice with no content ("Farklı IDE'leri deneyin.", "Bol bol pratik yapın.", "Kod yazmak eğlencelidir."); vague benefit claims ("IDE'ler verimliliği artırır.", "Python kolaydır."); repeating the slide title.
+  * TEST BEFORE YOU WRITE IT: if a student who has NOT seen this lesson could still write your sticky note, it is filler — delete it and write the gotcha instead. If two sticky notes exist on one slide, they MUST contain two DIFFERENT facts; never two phrasings of the same point.
+- CRITICAL SLIDE FORMAT RULE — CHOOSE THE FORMAT THAT FITS THE CONTENT (STRICT): Slide body text is projected on a classroom wall and read at a glance while the teacher speaks, so a dense encyclopedia paragraph is invalid output. But bullets are NOT a universal template either: chopping a definition into disconnected fragments destroys the explanation and produces empty one-liners. For every long-form text element (any element whose `maxChars` is 120 or more) you MUST pick the format from the NATURE of the content:
+  * USE BULLETS when the content is genuinely discrete or ordered: installation and setup steps, a comparison of tools or options, a list of features, commands or shortcuts, do's and don'ts, an ordered procedure. These items do not connect into a sentence, so a list is the honest shape for them.
+  * USE SHORT FLOWING PROSE — 2 to 4 sentences, NO bullet markers at all — when the content is a definition, a concept explanation, a "what is X" or "why does X exist" idea, or reasoning where each sentence builds on the one before it. This connective tissue is what makes the concept understandable; bullets delete it. You MAY optionally end with ONE single bullet stating the key takeaway, and nothing more.
+  * NEVER write more than 4 sentences of prose. If the explanation genuinely needs more, split it across two slides instead.
+  * DO NOT default to one shape. Decide per element, after looking at what the content actually is. A lesson where every single slide has the same shape is a failure — steps must look like steps, and a definition must read like an explanation.
+  * ONE idea per slide. If the content covers two ideas, split it across two slides instead of packing one slide.
+  * When you use bullets: AT MOST 4 bullets in a single text element.
+  * EVERY BULLET AND EVERY PROSE SENTENCE MUST BE SPECIFIC — this outranks being short, and it applies to BOTH formats. Each one MUST contain at least one concrete anchor: an exact command, a keyword or function name, a file name or extension, a menu/checkbox label, a number, a key combination, or an exact error name. A bullet with no such anchor is INVALID OUTPUT.
+  * BANNED — generic benefit sentences. These are all INVALID because the student cannot act on them and learns nothing: "Kod yazmayı hızlandırır", "Hata ayıklamayı kolaylaştırır", "Kod tamamlama özelliği sunar", "Proje yönetimini basitleştirir", "Verimliliği artırır", "Kullanımı kolaydır". Replace each with the concrete mechanism instead: "Ctrl+Space fonksiyon adını tamamlar", "Kırmızı alt çizgi hatalı satırı işaretler", "F5 ile satır satır çalıştırıp değişkeni izlersiniz".
+  * SELF-TEST every bullet before writing it, both questions must pass: (1) Could someone who has NEVER seen this topic write this exact sentence from general knowledge? If yes it is filler — rewrite it with the specific command/name/number. (2) Can the student DO something after reading it? If no, rewrite it.
+  * Length is a CEILING, NOT A GOAL: at most 12 words per bullet (prose sentences may be longer, but stay within the 2-4 sentence limit). Use all 12 words if that is what specificity costs. NEVER delete the concrete detail to make a bullet shorter — a specific 12-word bullet is always better than a vague 5-word one. Empty short bullets are exactly as bad as a dense paragraph; they are the same failure.
+  * Cut ceremony, never content: drop "bulunmaktadır", "olarak adlandırılmaktadır", "-dır" chains, and restatements of the slide title. Keep the technical term, the command, the number.
+  * WHEN USING BULLETS, format the element content EXACTLY as: `• first bullet<br>• second bullet<br>• third bullet` — the literal `•` character, separated by the HTML tag `<br>`. Do NOT use `-` or `*` as bullet markers, and do NOT emit `<ul>` or `<li>` tags. WHEN USING PROSE, write plain sentences with NO `•` marker and NO `<br>` between them.
+  * Ordered step-by-step instructions are the ONE exception: keep them numbered (`1. ...<br>2. ...`) and still obey the 4-item and 12-word limits.
+  * Concrete examples and syntax still belong on the slide, in whichever format you chose.
+  * A server-side safety net only catches the extreme failure: a paragraph longer than 4 sentences is force-split into bullets and everything past the 4th is DISCARDED. Prose of 2-4 sentences is left exactly as you wrote it, so you are responsible for choosing the right format yourself.
+- For each element you populate in `elementContents`, you MUST strictly respect the `maxChars` limit defined in the template. The number of characters of your generated text (including spaces) for that element ID MUST NOT exceed its `maxChars` value to prevent UI text overflow. This is a critical visual layout constraint. If a server-side safety net has to cut your text short because it exceeded `maxChars`, it will cut at the last complete sentence that fits — any unfinished trailing sentence is discarded entirely and never shown. So NEVER pad content with an extra clause or sentence that might not fit. When you are close to the limit, drop a WHOLE bullet rather than watering down the ones you keep — three specific bullets beat four vague ones. NEVER sacrifice a concrete detail (a command, a name, a number, an option label) just to save characters; that turns a useful slide into filler, which is a worse failure than being one bullet short.
 - Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
@@ -1327,7 +2058,7 @@ Lesson Number: {req.lesson_number}
 Lesson Title: {req.lesson_title}
 Lesson Objective: {req.lesson_objective}
 Modules list: {json.dumps(req.modules, ensure_ascii=False)}
-"""
+{regeneration_scope}"""
         # İçerik üretimi kalite yoludur: ana model + SINIRLI thinking bütçesi
         response = client.models.generate_content(
             model=settings.GEMINI_MODEL_CONTENT,
@@ -1337,9 +2068,9 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
         if req.is_regeneration:
             # Canvas Builder'dan tek modül yeniden üretimi — ayrı bir maliyet kalemi (ai_economics.py)
             regen_topic = (req.modules[0].get("topic") if req.modules else "") or req.lesson_title
-            await record_ai_usage(db, teacher_id, "regenerate_lesson_module", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül: '{regen_topic}'")
+            await record_ai_usage(db, teacher_id, "regenerate_lesson_module", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül: '{regen_topic}'", source_chars=len(pdf_context), prompt_chars=len(prompt))
         else:
-            await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}")
+            await record_ai_usage(db, teacher_id, "generate_lesson_slides", settings.GEMINI_MODEL_CONTENT, response, details=f"Kurs: '{req.topic}' | Ders {req.lesson_number}: '{req.lesson_title}' | Modül Sayısı: {len(req.modules)}", source_chars=len(pdf_context), prompt_chars=len(prompt))
         
         slide_contents_data = json.loads(response.text.strip())
         modules_content = slide_contents_data.get("modules_content") or []
@@ -1363,8 +2094,18 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
         
         generated_modules = []
         generated_notes = []
-        
-        for m_idx, mod in enumerate(req.modules):
+        # Kutusuna sığmayan metinler: kesilmez, en sonda tek çağrıyla yeniden yazdırılır.
+        pending_shrink: list = []
+
+        # Tekrar üretimde kardeş modüller prompt'a YALNIZCA kapsam sınırı olarak girer;
+        # slayt/not yalnızca hedef modül için üretilir (frontend notes[0] bekliyor).
+        modules_to_build = (
+            [(regen_target_idx, req.modules[regen_target_idx])]
+            if regen_target_idx is not None
+            else list(enumerate(req.modules))
+        )
+
+        for m_idx, mod in modules_to_build:
             mod_type = mod.get("type", "UNDERSTAND").upper()
             mapped_theme = theme_map.get(mod_type, "purple")
             level_id = f"sec_ai_{int(random.random() * 1000000000)}"
@@ -1422,7 +2163,10 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                     if not selected_t and cat_templates:
                         selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
                         
-                    if selected_t:
+                    if selected_t and selected_t.get("slideType") == "challenge":
+                        # Ozel slayt: tuval elemani yok, kendi yapilandirmasi var.
+                        slides_to_add.append(_build_challenge_slide(elem_contents.get("challenge", "")))
+                    elif selected_t:
                         copied_elements = []
                         for el in selected_t.get("elements", []):
                             el_copy = copy.deepcopy(el)
@@ -1436,7 +2180,7 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                                 # Determine query - fallback to module topic or lesson title if empty
                                 query = val if val else (mod.get("topic") or req.lesson_title or "coding")
                                 is_fb = not bool(val)
-                                img_url = get_web_image(query, is_fallback=is_fb)
+                                img_url = await resolve_image_url(query, is_fallback=is_fb, context=req.topic)
                                 el_copy["content"] = img_url
                                 el_copy["imageUrl"] = img_url
                                 el_copy["src"] = img_url
@@ -1466,8 +2210,10 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                                     except Exception:
                                         el_copy["content"] = val
                                 else:
-                                    el_copy["content"] = val
-                            
+                                    _fit_text(el_copy, val, pending_shrink)
+                            else:
+                                _clear_unfilled_placeholder(el_copy)
+
                             copied_elements.append(el_copy)
                             
                         slide = {
@@ -1563,7 +2309,9 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                     "slides": [homework_slide]
                 }
                 generated_notes.append(note)
-                    
+
+        await _shrink_overflowing(client, pending_shrink, db, teacher_id, req.topic)
+
         return {"success": True, "modules": generated_modules, "notes": generated_notes}
     except Exception as e:
         print(f"Error generating lesson slides: {e}")
@@ -1639,6 +2387,10 @@ async def get_ai_metrics_api(
             "model": l.model_name,
             "cost_usd": c_usd,
             "created_at": l.created_at,
+            # Kaynak PDF payı — kolonlar eklenmeden önceki kayıtlarda 0/None.
+            "source_chars": getattr(l, "source_chars", 0) or 0,
+            "source_tokens": getattr(l, "source_tokens", 0) or 0,
+            "source_cost_usd": getattr(l, "source_cost_usd", 0.0) or 0.0,
         })
 
         act = l.action or "diğer"
@@ -1745,6 +2497,13 @@ async def get_ai_metrics_api(
         settings.LESSONS_PER_TEACHER_MONTH,
     )
 
+    # Yüklenen kaynak PDF'in maliyetteki payı (toplama EK DEĞİL, içinden ayrıştırma)
+    source_breakdown = ai_economics.compute_source_material_breakdown(
+        op_rows,
+        unit_economics["lessons_generated"],
+        usd_to_tl_rate,
+    )
+
     return {
         "success": True,
         "metrics": {
@@ -1761,6 +2520,7 @@ async def get_ai_metrics_api(
             "by_course": courses_summary,
             "unit_economics": unit_economics,
             "operation_breakdown": operation_breakdown,
+            "source_material": source_breakdown,
             "recent_logs": recent_logs
         }
     }

@@ -187,7 +187,7 @@
     "description": "Kod örneği üzerinden yeni bir programlama kavramını öğretmek. Kod kısa, okunabilir ve tek bir fikri anlatmalıdır. Açıklamalar doğrudan kodu desteklemelidir. Gerekirse tek bir önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1784763755834319",
+        "id": "1785101439474027",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -221,7 +221,7 @@
         "maxChars": 38
       },
       {
-        "id": "1784763755834443",
+        "id": "1785101439474804",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -233,12 +233,13 @@
           "fontSize": 28,
           "fontFamily": "Fredoka",
           "textAlign": "left",
-          "underline": false
+          "underline": false,
+          "verticalAlign": "top"
         },
         "maxChars": 100
       },
       {
-        "id": "1784763755834405",
+        "id": "1785101439474427",
         "type": "code",
         "x": 542.4814758300781,
         "y": 188.88888549804688,
@@ -253,7 +254,7 @@
         }
       },
       {
-        "id": "1784763755834124",
+        "id": "1785101439474347",
         "type": "text",
         "x": 20.481475830078125,
         "y": 182.88888549804688,
@@ -271,7 +272,7 @@
         "maxChars": 190
       },
       {
-        "id": "1784763755834351",
+        "id": "1785101439474483",
         "type": "sticky",
         "x": 20.481475830078125,
         "y": 450.8888854980469,
@@ -296,7 +297,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1783968960174255",
+        "id": "1785101318784936",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -330,7 +331,7 @@
         "maxChars": 30
       },
       {
-        "id": "1783968960174338",
+        "id": "1785101318784516",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -342,21 +343,22 @@
           "fontSize": 28,
           "fontFamily": "Fredoka",
           "textAlign": "left",
-          "underline": false
+          "underline": false,
+          "verticalAlign": "top"
         },
         "maxChars": 60
       },
       {
-        "id": "1783968960174717",
+        "id": "1785101318784502",
         "type": "text",
         "x": 20.481475830078125,
-        "y": 155.88888549804688,
+        "y": 161.88888549804688,
         "width": 742,
-        "height": 528,
+        "height": 522,
         "rotation": 0,
         "content": "Explanation Long Text 1",
         "style": {
-          "fontSize": 28,
+          "fontSize": 26,
           "fontFamily": "Fredoka",
           "textAlign": "left",
           "underline": false,
@@ -365,7 +367,7 @@
         "maxChars": 666
       },
       {
-        "id": "1783968960174186",
+        "id": "1785101318784072",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -381,7 +383,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783968960174012",
+        "id": "1785101318784879",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -397,7 +399,7 @@
         "maxChars": 92
       },
       {
-        "id": "1783968960174094",
+        "id": "1785101318784360",
         "type": "image",
         "x": 779.4814758300781,
         "y": 336,
@@ -405,10 +407,22 @@
         "height": 289,
         "rotation": 0,
         "content": "image concept query description",
-        "src": ""
+        "src": "",
+        "extra": {
+          "objectFit": "contain"
+        }
       }
     ],
     "background": "default"
+  },
+  {
+    "id": "a1c9e4f2-7b30-4d55-9c81-3f6d2ab84e10",
+    "title": "Uygulama Görevi (Özel Slayt)",
+    "description": "UYGULA'ya özel tam slayt: ANLA'da öğrenilenin uygulanması. Kod, metin, ekran görüntüsü veya dosya teslimi; kod görevlerinde ekran çıktısı veya fonksiyon testiyle otomatik kontrol.",
+    "category": "UYGULA",
+    "background": "default",
+    "slideType": "challenge",
+    "elements": []
   },
   {
     "id": "49f0fbb8-a3bc-45cc-bfc5-e912ee46517d",

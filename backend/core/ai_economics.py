@@ -58,13 +58,16 @@ OPERATION_CATEGORIES = [
     # üretimden AYRI bir kalem (öğretmenin iterasyon/deneme maliyetini görünür kılar).
     ("Modül Tekrar Oluşturma", ("regenerate_lesson_module",)),
     ("Quiz/soru üretimi", ("generate_quiz",)),
+    # Kutusuna sığmayan slayt metinlerini modele yeniden yazdırma (kesme yerine).
+    # Ucuz model + thinking kapalı; yalnızca gerçekten taşma olduğunda çağrılır.
+    ("Metin sığdırma (düzeltme)", ("shrink_slide_texts",)),
     ("Diğer AI işlemi", ("expand_topics", "evaluate_homework")),
 ]
 _FALLBACK_CATEGORY = "Diğer AI işlemi"
 # Panelde gösterim sırası (Görsel, Diğer'den önce)
 _OPERATION_ORDER = [
     "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi", "Modül Tekrar Oluşturma",
-    "Quiz/soru üretimi", "Görsel üretimi", "Diğer AI işlemi",
+    "Quiz/soru üretimi", "Metin sığdırma (düzeltme)", "Görsel üretimi", "Diğer AI işlemi",
 ]
 
 
@@ -131,13 +134,14 @@ def compute_operation_breakdown(
 
     image_row = {
         "operation": "Görsel üretimi",
-        "model": "loremflickr (ücretsiz)",
+        "model": "Wikipedia + Openverse (ücretsiz)",
         "unit": "1 görsel",
         "unit_cost_usd": 0.0, "unit_cost_tl": 0.0,
         "usage_per_lesson": 0.0, "cost_per_lesson_usd": 0.0, "cost_per_lesson_tl": 0.0,
         "usage_per_month": 0.0, "cost_per_month_usd": 0.0, "cost_per_month_tl": 0.0,
         "samples": 0,
-        "source": "Web görsel servisi — AI maliyeti yok (ücretsiz)",
+        "source": "Ücretsiz görsel arama (anahtarsız) — AI görsel üretimi kullanılmıyor: "
+                  "görsel başına ~$0.02-0.04 ile dersin tüm metin maliyetinin katbekat üstüne çıkardı",
         "last_date": None,
     }
 
@@ -222,4 +226,100 @@ def compute_unit_economics(
         "avg_cost_per_course": _pack(avg_course, usd_to_try),
         "projected_course": _pack(projected_course, usd_to_try),
         "estimated_cost_by_module_type": by_type,
+    }
+
+
+# --- KAYNAK PDF MALİYETİ -------------------------------------------------------
+#
+# Öğretmenin yüklediği PDF, prompt'un içine gömülü gider; maliyeti bu yüzden
+# `cost_usd` içinde zaten VARDIR. Aşağıdaki hesap onu ayrıştırıp görünür kılar —
+# toplam maliyete EKLEMEZ. "Kaynak yüklemek bana ne kadara mal oluyor?" sorusunun
+# yanıtı budur.
+
+# İnsan okuru için: kaynak metnin action'a göre etiketi.
+SOURCE_ACTION_LABELS: Dict[str, str] = {
+    "generate_lesson_slides": "Ders slaytları",
+    "regenerate_lesson_module": "Modül tekrar oluşturma",
+    "generate_roadmap_structure": "Müfredat yapısı",
+    "generate_roadmap_content": "Tüm ders içeriği",
+    "suggest_raw_topics": "Konu önerileri",
+    "suggest_lesson_modules": "Ders modülleri",
+    "suggest_lesson_title": "Ders başlığı",
+    "suggest_level_details": "Modül detayı",
+}
+
+
+def compute_source_material_breakdown(
+    log_rows: List[Dict[str, Any]],
+    lessons_generated: int,
+    usd_to_try: float,
+) -> Dict[str, Any]:
+    """
+    Yüklenen kaynak PDF'in AI maliyetindeki payı.
+
+    log_rows: {"action", "cost_usd", "source_chars", "source_tokens", "source_cost_usd"}
+
+    ÖLÇÜM SINIRI: `source_tokens`, kaydın kendi ölçülen prompt token sayısının
+    karakter oranıyla paylaştırılmasıdır (bkz. record_ai_usage). Token yoğunluğu
+    metin boyunca birebir düzgün dağılmadığı için bu bir YAKLAŞIKTIR; toplam
+    prompt token'ı ise ölçülmüştür. Kaynak kolonları eklenmeden ÖNCEKİ kayıtlarda
+    bu alanlar 0'dır, yani geçmiş üretimler "kaynaksız" görünür.
+    """
+    toplam_maliyet = 0.0
+    kaynak_maliyet = 0.0
+    kaynak_karakter = 0
+    kaynak_token = 0
+    kaynakli_cagri = 0
+    by_action: Dict[str, Dict[str, Any]] = {}
+
+    for row in log_rows:
+        toplam_maliyet += row.get("cost_usd") or 0.0
+        s_chars = row.get("source_chars") or 0
+        if s_chars <= 0:
+            continue
+
+        s_cost = row.get("source_cost_usd") or 0.0
+        s_tok = row.get("source_tokens") or 0
+        kaynakli_cagri += 1
+        kaynak_maliyet += s_cost
+        kaynak_karakter += s_chars
+        kaynak_token += s_tok
+
+        act = row.get("action") or "diğer"
+        g = by_action.setdefault(act, {"calls": 0, "chars": 0, "tokens": 0, "cost_usd": 0.0})
+        g["calls"] += 1
+        g["chars"] += s_chars
+        g["tokens"] += s_tok
+        g["cost_usd"] += s_cost
+
+    satirlar = [
+        {
+            "action": act,
+            "label": SOURCE_ACTION_LABELS.get(act, act),
+            "calls": g["calls"],
+            "source_chars": g["chars"],
+            "source_tokens": g["tokens"],
+            "avg_chars_per_call": round(g["chars"] / g["calls"]) if g["calls"] else 0,
+            **{f"cost_{k}": v for k, v in _pack(g["cost_usd"], usd_to_try).items()},
+        }
+        for act, g in sorted(by_action.items(), key=lambda kv: -kv[1]["cost_usd"])
+    ]
+
+    return {
+        "calls_with_source": kaynakli_cagri,
+        "calls_total": len(log_rows),
+        "total_source_chars": kaynak_karakter,
+        "total_source_tokens": kaynak_token,
+        "avg_source_chars_per_call": (
+            round(kaynak_karakter / kaynakli_cagri) if kaynakli_cagri else 0
+        ),
+        # Kaynağın TOPLAM AI maliyetindeki payı (ek maliyet değil, içindeki pay).
+        "share_of_total_pct": (
+            round(100 * kaynak_maliyet / toplam_maliyet, 2) if toplam_maliyet else 0.0
+        ),
+        "total_source_cost": _pack(kaynak_maliyet, usd_to_try),
+        "source_cost_per_lesson": _pack(
+            (kaynak_maliyet / lessons_generated) if lessons_generated else 0.0, usd_to_try
+        ),
+        "by_action": satirlar,
     }

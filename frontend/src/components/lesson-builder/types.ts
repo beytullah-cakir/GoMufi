@@ -13,6 +13,7 @@ export interface ElementStyle {
     borderWidth?: number;
     borderPosition?: 'inside' | 'outside';
     opacity?: number;
+    objectFit?: 'contain' | 'cover' | 'fill' | 'none' | 'scale-down';
 }
 
 export interface SlideElement {
@@ -92,13 +93,65 @@ export interface HomeworkConfig {
     starterCode?: string;
 }
 
+/**
+ * UYGULA aşamasına özel "Uygulama Görevi" slaydının yapılandırması.
+ * Amaç: öğrencinin ANLA'da öğrendiğini uygulaması. Her görev kod olmak
+ * zorunda değil — metin, ekran görüntüsü veya dosya da istenebilir.
+ */
+export interface ChallengeSample {
+    input: string;
+    output: string;
+}
+
+export interface ChallengeTest {
+    id: string;
+    /** Öğrenci kodu çalıştıktan sonra değerlendirilecek ifade, ör. "asal_mi(7)" */
+    call: string;
+    /** Beklenen değerin metin karşılığı, ör. "True" */
+    expected: string;
+}
+
+/** Öğrencinin görevi nasıl teslim edeceği. */
+export type ChallengeSubmissionType = 'code' | 'text' | 'image' | 'file';
+
+/**
+ * Kod görevlerinde doğruluğun nasıl ölçüleceği:
+ *  - 'output' : ekrana basılan çıktı beklenenle karşılaştırılır (print tipi görevler)
+ *  - 'tests'  : fonksiyon çağrıları çalıştırılıp dönüş değerleri karşılaştırılır
+ *  - 'manual' : otomatik kontrol yok, öğretmen değerlendirir
+ */
+export type ChallengeCheckMode = 'output' | 'tests' | 'manual';
+
+export interface ChallengeConfig {
+    title: string;
+    /** Görev metni (ne yapılacak) */
+    prompt: string;
+    submissionType: ChallengeSubmissionType;
+    xp: number;
+    hint?: string;
+    /** Öğrenciye gösterilen örnek girdi/çıktı tablosu (opsiyonel) */
+    samples?: ChallengeSample[];
+
+    // --- yalnızca submissionType === 'code' için ---
+    checkMode?: ChallengeCheckMode;
+    /** checkMode === 'output' iken beklenen ekran çıktısı */
+    expectedOutput?: string;
+    /** checkMode === 'tests' iken öğrencinin yazacağı fonksiyonun adı */
+    functionName?: string;
+    /** checkMode === 'tests' iken çalıştırılan testler */
+    tests?: ChallengeTest[];
+    starterCode?: string;
+}
+
 export interface Slide {
     id: number | string;
     // 'normal' is default if undefined
-    type?: 'normal' | 'game' | 'coding' | 'homework';
+    type?: 'normal' | 'game' | 'coding' | 'homework' | 'challenge';
     gameType?: 'matching' | 'monster';
     gameConfig?: MatchingGameConfig | any;
     homeworkConfig?: HomeworkConfig;
+    /** type === 'challenge' olduğunda dolu olur */
+    challengeConfig?: ChallengeConfig;
     elements: SlideElement[];
     connections?: SlideConnection[];
     background?: 'default' | 'notebook';

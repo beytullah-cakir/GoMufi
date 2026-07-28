@@ -2473,24 +2473,25 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
             isPreview={isPreview}
           />
         )}
-        {(el.type === "image" || el.type === "video") && (
-          <div
-            className="w-full h-full bg-gray-100 flex items-center justify-center overflow-hidden relative cursor-pointer"
-            style={{
-              borderRadius: el.style?.borderRadius
-                ? `${el.style.borderRadius}px`
-                : "16px",
-              borderWidth:
-                el.style?.borderWidth !== undefined
-                  ? `${el.style.borderWidth}px`
-                  : el.type === "image"
-                    ? "2px"
-                    : "2px",
-              borderColor: el.style?.borderColor || "#d1d5db",
-              borderStyle:
-                el.src || el.imageUrl || el.videoUrl ? "solid" : "dashed",
-            }}
-          >
+        {(el.type === "image" || el.type === "video") && (() => {
+          const hasContent = Boolean(el.src || el.imageUrl || el.videoUrl);
+          return (
+            <div
+              className="w-full h-full flex items-center justify-center overflow-hidden relative cursor-pointer"
+              style={{
+                backgroundColor: el.style?.backgroundColor || (hasContent ? "transparent" : "#f8fafc"),
+                borderRadius: el.style?.borderRadius !== undefined
+                  ? `${el.style.borderRadius}px`
+                  : (hasContent ? "0px" : "16px"),
+                borderWidth:
+                  el.style?.borderWidth !== undefined
+                    ? `${el.style.borderWidth}px`
+                    : (hasContent ? "0px" : "2px"),
+                borderColor: el.style?.borderColor || (hasContent ? "transparent" : "#d1d5db"),
+                borderStyle:
+                  hasContent ? (el.style?.borderWidth ? "solid" : "none") : "dashed",
+              }}
+            >
             {isUploading && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-sm z-10 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 animate-spin text-indigo-600" />
@@ -2559,7 +2560,10 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
               el.imageUrl || el.src ? (
                 <img
                   src={el.imageUrl || el.src}
-                  className="w-full h-full object-cover pointer-events-none"
+                  className="w-full h-full pointer-events-none"
+                  style={{
+                    objectFit: (el.extra?.objectFit || el.style?.objectFit || 'cover') as any
+                  }}
                 />
               ) : (
                 <ImageIcon className="text-gray-300 w-10 h-10" />
@@ -2589,7 +2593,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
               <VideoIcon className="text-gray-500 w-10 h-10" />
             )}
           </div>
-        )}
+        );
+      })()}
         {el.type === "draw" && (
           <div className="w-full h-full">
             <svg className="w-full h-full overflow-visible">
