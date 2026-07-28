@@ -91,6 +91,8 @@ export interface HomeworkConfig {
     points?: number;
     dueDate?: string;
     starterCode?: string;
+    /** Öğrencinin isteğe bağlı açabileceği ipucu (UYGULA'daki ile aynı davranış). */
+    hint?: string;
 }
 
 /**

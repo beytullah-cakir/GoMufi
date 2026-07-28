@@ -8,7 +8,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
     BookCheck, Download, User, Calendar, FileText,
     RefreshCw, ChevronDown, ChevronUp, Loader2, BrainCircuit,
-    Inbox, Sparkles, AlertCircle, X, Search
+    Inbox, Sparkles, AlertCircle, X, Search, CheckCircle2, Clock
 } from 'lucide-react';
 import api from '../../api';
 import { evaluateHomework, type AIReviewResult } from '../student-pages/homeworkAIService';
@@ -26,6 +26,20 @@ interface Submission {
     file_data: string;          // base64
     student_note: string | null;
     submitted_at: string | null;
+    /** Değerlendirme. graded_at, "değerlendirildi mi" sorusunun TEK kaynağıdır —
+     *  0 geçerli bir nottur, grade'in dolu olmasına bakmak yanıltıcı olur. */
+    grade: number | null;
+    feedback: string | null;
+    graded_at: string | null;
+    graded_source: string | null;
+}
+
+type StatusFilter = 'all' | 'pending' | 'graded';
+
+/** Bir satırın kaydedilmemiş değerlendirme taslağı. */
+interface GradeDraft {
+    grade: string;      // metin: boş bırakılabilsin diye number değil
+    feedback: string;
 }
 
 interface Course {
@@ -45,6 +59,13 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+
+    // Değerlendirme taslakları — satır kapanıp açılınca yazılan kaybolmasın diye
+    // gönderi id'sine göre tutulur, kaydedilene kadar sunucuya gitmez.
+    const [drafts, setDrafts] = useState<Record<number, GradeDraft>>({});
+    const [savingId, setSavingId] = useState<number | null>(null);
+    const [savedId, setSavedId] = useState<number | null>(null);
 
     // AI review state
     const [evaluatingId, setEvaluatingId] = useState<number | null>(null);
@@ -118,7 +139,14 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
             );
             setAiResult(result);
             setReviewSub(sub);
-            setShowReview(true);
+
+            // AI sonucu doğrudan nota DÖNÜŞMEZ: öğretmenin taslağına yazılır,
+            // hoca düzenleyip kaydeder. Kayıt `ai_assisted` olarak işaretlenir.
+            patchDraft(sub, {
+                grade: String(Math.max(0, Math.min(100, Math.round(result.overallScore)))),
+                feedback: result.summary,
+            });
+            setExpandedId(sub.id);
         } catch (err: any) {
             alert(`AI değerlendirme hatası: ${err?.message || 'Bilinmeyen hata'}`);
         } finally {
@@ -126,11 +154,64 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         }
     };
 
-    const filtered = submissions.filter(s =>
-        s.student_name.toLowerCase().includes(search.toLowerCase()) ||
-        s.file_name.toLowerCase().includes(search.toLowerCase()) ||
-        s.node_id.toLowerCase().includes(search.toLowerCase())
-    );
+    // ── Değerlendirme ────────────────────────────────────────────────────────
+    const draftFor = (sub: Submission): GradeDraft =>
+        drafts[sub.id] ?? {
+            grade: sub.grade === null || sub.grade === undefined ? '' : String(sub.grade),
+            feedback: sub.feedback ?? '',
+        };
+
+    const patchDraft = (sub: Submission, patch: Partial<GradeDraft>) =>
+        setDrafts(d => ({ ...d, [sub.id]: { ...draftFor(sub), ...patch } }));
+
+    const toggleRow = (sub: Submission) =>
+        setExpandedId(prev => (prev === sub.id ? null : sub.id));
+
+    const saveGrade = async (sub: Submission, source: 'teacher' | 'ai_assisted' = 'teacher') => {
+        const d = draftFor(sub);
+        const feedback = d.feedback.trim();
+        const raw = d.grade.trim();
+        const grade = raw === '' ? null : Number(raw);
+
+        if (grade !== null && (!Number.isFinite(grade) || grade < 0 || grade > 100)) {
+            alert('Not 0 ile 100 arasında bir sayı olmalıdır.');
+            return;
+        }
+        if (grade === null && !feedback) {
+            alert('Değerlendirme için en az bir not veya geri bildirim girin.');
+            return;
+        }
+
+        setSavingId(sub.id);
+        try {
+            const res = await api.put(
+                `/courses/${selectedCourseId}/homework/submissions/${sub.id}/grade`,
+                { grade, feedback: feedback || null, source }
+            );
+            const saved = res.data?.submission;
+            setSubmissions(list => list.map(s => (s.id === sub.id ? { ...s, ...saved } : s)));
+            setSavedId(sub.id);
+            window.setTimeout(() => setSavedId(cur => (cur === sub.id ? null : cur)), 2500);
+        } catch (e: any) {
+            alert(e?.response?.data?.detail || 'Değerlendirme kaydedilemedi.');
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+    const pendingCount = submissions.filter(s => !s.graded_at).length;
+
+    const filtered = submissions.filter(s => {
+        const q = search.toLowerCase();
+        const matchesSearch =
+            s.student_name.toLowerCase().includes(q) ||
+            s.file_name.toLowerCase().includes(q) ||
+            s.node_id.toLowerCase().includes(q);
+        if (!matchesSearch) return false;
+        if (statusFilter === 'pending') return !s.graded_at;
+        if (statusFilter === 'graded') return !!s.graded_at;
+        return true;
+    });
 
     const formatDate = (iso: string | null) => {
         if (!iso) return '—';
@@ -220,17 +301,42 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                     )}
                 </div>
 
-                {/* ── Stats row ── */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {/* ── Stats row ──
+                    Sınıf adları TAM yazılır. Önceden `border-${stat.color}-50` gibi
+                    dinamik kuruluyordu; Tailwind kaynağı statik tarar, birleştirilmiş
+                    sınıfları göremez ve o renkler CSS'e hiç girmezdi. */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                     {[
-                        { label: 'Toplam Gönderim', value: submissions.length, color: 'indigo' },
-                        { label: 'Benzersiz Öğrenci', value: new Set(submissions.map(s => s.student_id)).size, color: 'violet' },
-                        { label: 'Benzersiz Ödev', value: new Set(submissions.map(s => s.node_id)).size, color: 'blue' },
+                        { label: 'Toplam Gönderim', value: submissions.length, box: 'border-indigo-50', text: 'text-indigo-600' },
+                        { label: 'Değerlendirme Bekleyen', value: pendingCount, box: 'border-amber-100', text: 'text-amber-600' },
+                        { label: 'Benzersiz Öğrenci', value: new Set(submissions.map(s => s.student_id)).size, box: 'border-violet-50', text: 'text-violet-600' },
+                        { label: 'Benzersiz Ödev', value: new Set(submissions.map(s => s.node_id)).size, box: 'border-blue-50', text: 'text-blue-600' },
                     ].map(stat => (
-                        <div key={stat.label} className={`bg-white rounded-2xl border-2 border-${stat.color}-50 p-4 shadow-sm`}>
-                            <p className={`text-2xl font-black text-${stat.color}-600`}>{stat.value}</p>
+                        <div key={stat.label} className={`bg-white rounded-2xl border-2 ${stat.box} p-4 shadow-sm`}>
+                            <p className={`text-2xl font-black ${stat.text}`}>{stat.value}</p>
                             <p className="text-xs text-gray-400 font-bold mt-0.5">{stat.label}</p>
                         </div>
+                    ))}
+                </div>
+
+                {/* ── Durum filtresi ── */}
+                <div className="flex items-center gap-2">
+                    {([
+                        { id: 'all', label: `Tümü (${submissions.length})` },
+                        { id: 'pending', label: `Bekleyen (${pendingCount})` },
+                        { id: 'graded', label: `Değerlendirilen (${submissions.length - pendingCount})` },
+                    ] as { id: StatusFilter; label: string }[]).map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setStatusFilter(tab.id)}
+                            className={`px-4 py-2 rounded-xl text-xs font-black transition-all border-2 ${
+                                statusFilter === tab.id
+                                    ? 'bg-indigo-600 border-indigo-600 text-white shadow-sm'
+                                    : 'bg-white border-gray-100 text-gray-500 hover:border-indigo-200 hover:text-indigo-600'
+                            }`}
+                        >
+                            {tab.label}
+                        </button>
                     ))}
                 </div>
 
@@ -301,6 +407,21 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                         {sub.node_title}
                                     </span>
 
+                                    {/* Durum rozeti — graded_at tek doğruluk kaynağı */}
+                                    <div className="shrink-0">
+                                        {sub.graded_at ? (
+                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-full">
+                                                <CheckCircle2 size={13} />
+                                                {sub.grade === null ? 'Yorumlandı' : `${sub.grade} / 100`}
+                                            </span>
+                                        ) : (
+                                            <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full">
+                                                <Clock size={13} />
+                                                Bekliyor
+                                            </span>
+                                        )}
+                                    </div>
+
                                     {/* Actions */}
                                     <div className="flex items-center gap-2 shrink-0">
                                         {/* Download */}
@@ -312,12 +433,14 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                             <Download size={16} />
                                         </button>
 
-                                        {/* Expand */}
+                                        {/* Değerlendir (aç/kapa) */}
                                         <button
-                                            onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
-                                            className="w-9 h-9 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors"
+                                            onClick={() => toggleRow(sub)}
+                                            title={sub.graded_at ? 'Değerlendirmeyi düzenle' : 'Değerlendir'}
+                                            className="h-9 px-3 rounded-xl bg-gray-50 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 flex items-center gap-1.5 text-xs font-black transition-colors"
                                         >
-                                            {expandedId === sub.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                            {sub.graded_at ? 'Düzenle' : 'Değerlendir'}
+                                            {expandedId === sub.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                         </button>
                                     </div>
                                 </div>
@@ -371,6 +494,107 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                             <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-80 whitespace-pre scrollbar-thin">
                                                 <code>{getCodeContent(sub.file_data)}</code>
                                             </pre>
+                                        </div>
+
+                                        {/* ── DEĞERLENDİRME ── */}
+                                        <div className="bg-white rounded-2xl border-2 border-indigo-100 p-5 space-y-4">
+                                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                <h3 className="text-sm font-black text-gray-800 flex items-center gap-2">
+                                                    <BookCheck size={16} className="text-indigo-500" />
+                                                    Değerlendirme
+                                                </h3>
+
+                                                {/* AI DESTEĞİ — free/paid ayrımı buraya gelecek.
+                                                    Free planda bu buton gizlenecek, hoca kendisi
+                                                    yazacak; paid planda AI taslak üretecek.
+                                                    Bugün ikisi de açık, gizleme tek koşulla yapılır. */}
+                                                <button
+                                                    onClick={() => handleAIEvaluate(sub)}
+                                                    disabled={evaluatingId === sub.id}
+                                                    className="inline-flex items-center gap-1.5 text-[11px] font-black px-3 py-2 rounded-xl bg-violet-50 text-violet-600 border border-violet-200 hover:bg-violet-100 disabled:opacity-50 transition-colors"
+                                                >
+                                                    {evaluatingId === sub.id
+                                                        ? <><Loader2 size={13} className="animate-spin" /> AI inceliyor…</>
+                                                        : <><BrainCircuit size={13} /> AI ile taslak oluştur</>}
+                                                </button>
+                                            </div>
+
+                                            {aiResult && reviewSub?.id === sub.id && (
+                                                <div className="bg-violet-50 border border-violet-200 rounded-xl px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+                                                    <p className="text-[11px] font-bold text-violet-700 flex items-center gap-1.5">
+                                                        <Sparkles size={13} />
+                                                        AI taslağı aşağıya yazıldı. Düzenleyip kaydetmeden öğrenciye gitmez.
+                                                    </p>
+                                                    <button
+                                                        onClick={() => setShowReview(true)}
+                                                        className="text-[11px] font-black text-violet-700 underline underline-offset-2 hover:text-violet-900"
+                                                    >
+                                                        Detaylı AI raporu
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            <div className="flex flex-col sm:flex-row gap-4">
+                                                <div className="sm:w-40 shrink-0">
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                                        Not (0-100)
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        max={100}
+                                                        value={draftFor(sub).grade}
+                                                        onChange={e => patchDraft(sub, { grade: e.target.value })}
+                                                        placeholder="—"
+                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-lg font-black text-gray-800 tabular-nums focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors"
+                                                    />
+                                                    <p className="text-[10px] text-gray-400 font-bold mt-1">
+                                                        Boş bırakılabilir
+                                                    </p>
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
+                                                        Geri Bildirim
+                                                    </label>
+                                                    <textarea
+                                                        rows={4}
+                                                        value={draftFor(sub).feedback}
+                                                        onChange={e => patchDraft(sub, { feedback: e.target.value })}
+                                                        placeholder="Öğrencinin göreceği yorum: neyi doğru yapmış, neyi düzeltmeli?"
+                                                        className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-medium text-gray-700 placeholder-gray-400 focus:outline-none focus:border-indigo-400 focus:bg-white transition-colors resize-y"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div className="flex items-center justify-between gap-3 flex-wrap">
+                                                <p className="text-[11px] font-bold text-gray-400">
+                                                    {sub.graded_at
+                                                        ? <>Son değerlendirme: {formatDate(sub.graded_at)}
+                                                            {sub.graded_source === 'ai_assisted' && ' • AI destekli'}</>
+                                                        : 'Bu ödev henüz değerlendirilmedi.'}
+                                                </p>
+
+                                                <div className="flex items-center gap-2">
+                                                    {savedId === sub.id && (
+                                                        <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-emerald-600">
+                                                            <CheckCircle2 size={14} /> Kaydedildi
+                                                        </span>
+                                                    )}
+                                                    <button
+                                                        onClick={() => saveGrade(
+                                                            sub,
+                                                            aiResult && reviewSub?.id === sub.id ? 'ai_assisted' : 'teacher'
+                                                        )}
+                                                        disabled={savingId === sub.id}
+                                                        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-black hover:bg-indigo-700 disabled:opacity-50 transition-colors shadow-sm"
+                                                    >
+                                                        {savingId === sub.id
+                                                            ? <><Loader2 size={14} className="animate-spin" /> Kaydediliyor…</>
+                                                            : <><CheckCircle2 size={14} /> Değerlendirmeyi Kaydet</>}
+                                                    </button>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

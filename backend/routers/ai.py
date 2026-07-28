@@ -790,6 +790,22 @@ _PDF_STOPWORDS = {
 }
 
 
+def _unescape_newlines(text: str) -> str:
+    r"""Modelin kaçırdığı `\n` dizilerini gerçek satır sonuna çevirir.
+
+    Ölçülen hata: ödev yönergesi ekranda `...oluşturun.\n\n1. kitaplar adında...`
+    şeklinde, ters bölü ve n harfi GÖRÜNEREK çıkıyordu. Model JSON'a satır sonunu
+    çift kaçışla (`\\n`) yazınca ayrıştırma sonrası elde iki karakter kalıyor.
+
+    YALNIZCA düz metin alanlarında kullanılır. Kod alanlarına UYGULANMAZ:
+    Python kaynağında `print("a\nb")` içindeki `\n` gerçekten iki karakterdir ve
+    dönüştürülürse kod bozulur.
+    """
+    if not text:
+        return text
+    return text.replace("\\r\\n", "\n").replace("\\n", "\n").replace("\\t", "\t")
+
+
 def _pdf_keywords(focus: str) -> set:
     words = re.findall(r"\w+", focus.casefold(), flags=re.UNICODE)
     return {w for w in words if len(w) >= 4 and w not in _PDF_STOPWORDS}
@@ -2284,7 +2300,11 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
             elif mod_type == "HOMEWORK":
                 hw_data = slide_contents_data.get("homework_map") or {}
                 hw_title = hw_data.get("title") or f"{req.lesson_title} Ödev Görevi"
-                hw_instructions = hw_data.get("instructions") or "Lütfen bu konuyla ilgili ödevinizi tamamlayıp yükleyin."
+                # Yönerge düz metindir; kaçmış `\n` dizileri gerçek satır sonuna çevrilir.
+                # starterCode'a UYGULANMAZ — orada `\n` geçerli Python olabilir.
+                hw_instructions = _unescape_newlines(
+                    hw_data.get("instructions") or "Lütfen bu konuyla ilgili ödevinizi tamamlayıp yükleyin."
+                )
                 hw_sub_type = hw_data.get("submissionType") or "text"
                 hw_points = hw_data.get("points") or 100
                 hw_starter = hw_data.get("starterCode") or "# Kodunuzu buraya yazın\n"

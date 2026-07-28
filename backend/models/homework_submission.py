@@ -16,6 +16,19 @@ class HomeworkSubmission(Base):
     student_note = Column(Text, nullable=True)                  # öğrencinin isteğe bağlı notu
     submitted_at = Column(DateTime, server_default=func.now())
 
+    # --- Değerlendirme ---
+    # NULL = henüz değerlendirilmedi. Değerlendirme yapıldığında grade + graded_at
+    # birlikte dolar; "değerlendirildi mi" sorusunun tek kaynağı graded_at'tir
+    # (0 puan geçerli bir nottur, grade'in varlığına bakmak yanıltıcı olur).
+    grade = Column(Integer, nullable=True)                      # 0-100
+    feedback = Column(Text, nullable=True)                      # öğretmenin yazdığı geri bildirim
+    graded_at = Column(DateTime, nullable=True)
+    graded_by = Column(Integer, ForeignKey("teachers.id", ondelete="SET NULL"), nullable=True)
+    # "teacher" = hoca kendi yazdı, "ai_assisted" = AI taslağı hoca onayladı.
+    # İleride free/paid ayrımında (free'de AI yok) hangi yolun kullanıldığını
+    # geriye dönük ayırt edebilmek için tutulur.
+    graded_source = Column(String(20), nullable=True)
+
     # Relationships
     student = relationship("Student", foreign_keys=[student_id])
     course = relationship("Course", foreign_keys=[course_id])

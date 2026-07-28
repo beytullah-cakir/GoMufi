@@ -1274,6 +1274,14 @@ async def submit_homework(
         sub.file_data = file_data_b64
         sub.file_mime = file.content_type
         sub.student_note = student_note
+        # İçerik değişti: eski değerlendirme ARTIK BU CEVABA AİT DEĞİL.
+        # Silinmezse öğrenci yeni cevabına eski notu görür, öğretmen listesinde de
+        # "değerlendirildi" görünüp yeniden bakılması gerektiği kaçar.
+        sub.grade = None
+        sub.feedback = None
+        sub.graded_at = None
+        sub.graded_by = None
+        sub.graded_source = None
     else:
         sub = HomeworkSubmission(
             course_id=course_id,
@@ -1333,6 +1341,12 @@ async def get_homework_submissions(
             "file_data": sub.file_data,   # base64
             "student_note": sub.student_note,
             "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+            # Değerlendirme. "Değerlendirildi mi" sorusunun tek kaynağı graded_at:
+            # 0 geçerli bir nottur, grade'in dolu olmasına bakmak yanıltıcı olur.
+            "grade": sub.grade,
+            "feedback": sub.feedback,
+            "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
+            "graded_source": sub.graded_source,
         })
 
     return {"submissions": submissions, "count": len(submissions)}
@@ -1402,9 +1416,85 @@ async def get_all_homework_submissions(
             "file_data": sub.file_data,
             "student_note": sub.student_note,
             "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+            # Değerlendirme. "Değerlendirildi mi" sorusunun tek kaynağı graded_at:
+            # 0 geçerli bir nottur, grade'in dolu olmasına bakmak yanıltıcı olur.
+            "grade": sub.grade,
+            "feedback": sub.feedback,
+            "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
+            "graded_source": sub.graded_source,
         })
 
     return {"submissions": submissions, "count": len(submissions)}
+
+
+class GradeHomeworkRequest(BaseModel):
+    grade: Optional[int] = None      # 0-100; None = yalnızca yazılı geri bildirim
+    feedback: Optional[str] = None
+    # "teacher" (hoca kendi yazdı) veya "ai_assisted" (AI taslağını hoca onayladı).
+    # İleride free/paid ayrımında hangi yolun kullanıldığı geriye dönük görülebilsin.
+    source: str = "teacher"
+
+
+@router.put("/courses/{course_id}/homework/submissions/{submission_id}/grade")
+async def grade_homework_submission(
+    course_id: int,
+    submission_id: int,
+    payload: GradeHomeworkRequest,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Eğitmenin bir ödev gönderisine not ve geri bildirim yazması."""
+    role = user.get("role", "")
+    if role not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece eğitmenler değerlendirebilir.")
+
+    # Kurs sahipliği: başka bir hocanın kursundaki ödeve not verilemesin.
+    course_res = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == int(user["sub"]))
+    )
+    if not course_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+
+    sub_res = await db.execute(
+        select(HomeworkSubmission).where(
+            HomeworkSubmission.id == submission_id,
+            HomeworkSubmission.course_id == course_id,
+        )
+    )
+    sub = sub_res.scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Gönderi bulunamadı.")
+
+    if payload.grade is not None and not (0 <= payload.grade <= 100):
+        raise HTTPException(status_code=400, detail="Not 0 ile 100 arasında olmalıdır.")
+
+    feedback = (payload.feedback or "").strip()
+    if payload.grade is None and not feedback:
+        raise HTTPException(
+            status_code=400,
+            detail="Değerlendirme için en az bir not veya geri bildirim girin.",
+        )
+
+    sub.grade = payload.grade
+    sub.feedback = feedback or None
+    sub.graded_at = datetime.utcnow()
+    sub.graded_by = int(user["sub"])
+    sub.graded_source = payload.source if payload.source in ("teacher", "ai_assisted") else "teacher"
+
+    db.add(sub)
+    await db.commit()
+    await db.refresh(sub)
+
+    return {
+        "success": True,
+        "submission": {
+            "id": sub.id,
+            "grade": sub.grade,
+            "feedback": sub.feedback,
+            "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
+            "graded_source": sub.graded_source,
+        },
+    }
 
 
 @router.get("/courses/{course_id}/homework/{node_id}/submission")
@@ -1435,6 +1525,12 @@ async def get_my_homework_submission(
             "file_mime": sub.file_mime,
             "file_data": sub.file_data,  # base64 contents
             "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+            # Öğrenci kendi notunu ve hocanın geri bildirimini görür.
+            # graded_by / graded_source öğrenciye GÖNDERİLMEZ: değerlendirmenin
+            # AI destekli olup olmadığı öğrenciyi ilgilendiren bir bilgi değil.
+            "grade": sub.grade,
+            "feedback": sub.feedback,
+            "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
         }
     }
 

@@ -297,7 +297,7 @@
     "description": "Yeni bir kavramı tanıtmak, temel bilgiyi vermek ve öğrenciyi konuya hazırlamak. Açıklamalar kısa ve sade olmalı. Gerekirse en fazla iki önemli not eklenebilir.",
     "elements": [
       {
-        "id": "1785101318784936",
+        "id": "1785209982602407",
         "type": "text",
         "x": 20.481475830078125,
         "y": 22.888885498046875,
@@ -315,7 +315,7 @@
           "italic": null,
           "underline": null,
           "color": null,
-          "fontSize": 60,
+          "fontSize": 54,
           "fontFamily": "Fredoka",
           "backgroundColor": null,
           "textAlign": "left",
@@ -331,7 +331,7 @@
         "maxChars": 30
       },
       {
-        "id": "1785101318784516",
+        "id": "1785209982602791",
         "type": "text",
         "x": 20.481475830078125,
         "y": 107.88888549804688,
@@ -349,7 +349,7 @@
         "maxChars": 60
       },
       {
-        "id": "1785101318784502",
+        "id": "1785209982602188",
         "type": "text",
         "x": 20.481475830078125,
         "y": 161.88888549804688,
@@ -367,7 +367,7 @@
         "maxChars": 666
       },
       {
-        "id": "1785101318784072",
+        "id": "1785209982602034",
         "type": "sticky",
         "x": 1042.4814758300781,
         "y": 31.888885498046875,
@@ -383,7 +383,7 @@
         "maxChars": 92
       },
       {
-        "id": "1785101318784879",
+        "id": "1785209982602087",
         "type": "sticky",
         "x": 798.4814758300781,
         "y": 31.888885498046875,
@@ -399,7 +399,7 @@
         "maxChars": 92
       },
       {
-        "id": "1785101318784360",
+        "id": "1785209982602369",
         "type": "image",
         "x": 779.4814758300781,
         "y": 336,

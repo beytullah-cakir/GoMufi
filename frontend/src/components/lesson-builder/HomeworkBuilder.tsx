@@ -1,6 +1,43 @@
-import React from 'react';
-import { PenTool, Code, FileText, Image, File, Check, Star } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import {
+    PenTool, Code2, FileText, Image as ImageIcon, File as FileIcon,
+    Lightbulb, Star, Send, Eye, ClipboardCheck,
+} from 'lucide-react';
 import type { Slide, HomeworkConfig } from './types';
+
+/**
+ * ÖDEV slaydı editörü — UYGULA'daki "Uygulama Görevi" özel slaydıyla AYNI
+ * tasarım dilinde (bkz. ChallengeSlideBuilder): kalın alt kenarlı kartlar,
+ * tracking-widest bölüm etiketleri, dört seçenekli teslim türü ızgarası.
+ *
+ * UYGULA'DAN AYRILDIĞI YER — kasıtlı: burada otomatik kontrol (ekran çıktısı /
+ * fonksiyon testi) YOKTUR. Ödev asenkron ve ÖĞRETMEN tarafından notlanır;
+ * teslimler "Ödev Gönderileri" sayfasında değerlendirilir. Buraya otomatik
+ * kontrol koymak iki ayrı değerlendirme yolu doğurur ve hangisinin geçerli
+ * olduğu belirsizleşir.
+ */
+
+const SUBMISSION_META: Record<
+    HomeworkConfig['submissionType'],
+    { label: string; desc: string; icon: React.ElementType }
+> = {
+    text:  { label: 'Metin',           desc: 'Serbest yazılı cevap', icon: FileText  },
+    code:  { label: 'Kod',             desc: 'Python editörü',       icon: Code2     },
+    image: { label: 'Ekran Görüntüsü', desc: 'PNG, JPG',             icon: ImageIcon },
+    file:  { label: 'Dosya',           desc: 'PDF, ZIP, DOCX',       icon: FileIcon  },
+};
+
+const defaultHomeworkConfig = (): HomeworkConfig => ({
+    title: 'Ödev Görevi',
+    instructions: 'Öğrencinin ne yapacağını adım adım yaz.',
+    submissionType: 'text',
+    points: 100,
+    starterCode: '# Kodunu buraya yaz\n',
+});
+
+/** Kaçmış `\n` dizilerini gerçek satır sonuna çevirir (eski kayıtlar için). */
+const normalizeText = (t: string) =>
+    (t || '').replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n').replace(/\\t/g, '\t');
 
 interface HomeworkBuilderProps {
     slide: Slide;
@@ -8,177 +45,183 @@ interface HomeworkBuilderProps {
 }
 
 const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({ slide, updateSlide }) => {
-    // Initialize default config if missing
-    const config: HomeworkConfig = slide.homeworkConfig || {
-        title: 'Değişkenler ve Hesaplamalar',
-        instructions: '1. Bir "ad" değişkeni tanımlayıp kendi isminizi atayın.\n2. Bir "yas" değişkeni tanımlayıp yaşınızı atayın.\n3. Bu değişkenleri print kullanarak konsola yazdırın.',
-        submissionType: 'text',
-        points: 100,
-        starterCode: '# Kodunuzu buraya yazın\n'
-    };
+    const cfg = useMemo<HomeworkConfig>(
+        () => ({ ...defaultHomeworkConfig(), ...(slide.homeworkConfig || {}) }),
+        [slide.homeworkConfig],
+    );
+    const [showHint, setShowHint] = useState(false);
 
-    const updateConfig = (updates: Partial<HomeworkConfig>) => {
-        updateSlide({
-            homeworkConfig: { ...config, ...updates }
-        });
-    };
+    const patch = (updates: Partial<HomeworkConfig>) =>
+        updateSlide({ homeworkConfig: { ...cfg, ...updates } });
+
+    const instructions = normalizeText(cfg.instructions);
+    const SubIcon = SUBMISSION_META[cfg.submissionType]?.icon || FileText;
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 overflow-y-auto pb-20 relative select-none">
-            <div className="max-w-5xl mx-auto w-full p-8">
+        <div className="flex h-full flex-col overflow-y-auto bg-slate-50 p-6 select-none">
+            <div className="mx-auto w-full max-w-5xl space-y-4">
 
-                {/* Header Section */}
-                <div className="flex items-center justify-between mb-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center shadow-md">
-                            <PenTool size={24} className="animate-bounce" />
+                {/* ── Başlık şeridi ── */}
+                <div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-b-[5px] border-blue-200 bg-white px-5 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-100 text-blue-600">
+                            <PenTool size={19} />
                         </div>
                         <div>
-                            <h2 className="text-2xl font-black text-gray-800 font-display">Ödev Editörü</h2>
-                            <p className="text-xs text-gray-400 font-bold mt-0.5">Asenkron ödev teslimat sayfası tasarlayın</p>
+                            <h2 className="text-base font-black tracking-tight text-slate-800">Ödev Görevi</h2>
+                            <p className="text-[11px] font-bold text-slate-400">
+                                Ders dışında yapılır, teslimleri siz değerlendirirsiniz
+                            </p>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {/* Points indicator */}
-                        <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-2xl border-2 border-gray-100 shadow-sm">
-                            <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
-                            <span className="text-xs font-black text-gray-500 uppercase">Ödül:</span>
-                            <input
-                                type="number"
-                                className="w-16 text-center font-black text-gray-800 bg-gray-50 rounded-lg py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 text-xs"
-                                value={config.points}
-                                onChange={(e) => updateConfig({ points: parseInt(e.target.value) || 0 })}
-                            />
-                            <span className="text-xs font-black text-gray-400">XP</span>
-                        </div>
+                    <div className="flex items-center gap-2">
+                        <Star size={15} className="fill-amber-400 text-amber-400" />
+                        <span className="text-[10px] font-black tracking-widest text-slate-500">ÖDÜL</span>
+                        <input
+                            type="number"
+                            value={cfg.points ?? 100}
+                            onChange={(e) => patch({ points: Number(e.target.value) || 0 })}
+                            className="w-20 rounded-lg border-2 border-amber-200 bg-amber-50 px-2 py-0.5 text-[12px] font-bold outline-none focus:border-amber-400"
+                        />
+                        <span className="text-[10px] font-black text-slate-400">XP</span>
                     </div>
                 </div>
 
-                {/* Two Column Workspace */}
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
 
-                    {/* Left Column: Editor for Instructions (7/12) */}
-                    <div className="lg:col-span-7 bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm p-6 space-y-6">
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Ödev Başlığı</label>
+                    {/* ── Sol: görev metni ── */}
+                    <div className="space-y-4 lg:col-span-7">
+                        <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">
+                            <span className="text-[10px] font-black tracking-widest text-slate-500">ÖDEV BAŞLIĞI</span>
                             <input
-                                type="text"
-                                className="w-full px-4 py-3 bg-gray-50 border-2 border-gray-100 hover:border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl font-bold text-gray-800 placeholder-gray-400 transition-all text-sm outline-none"
-                                value={config.title}
-                                placeholder="Ödevin kısa adı"
-                                onChange={(e) => updateConfig({ title: e.target.value })}
+                                value={cfg.title}
+                                onChange={(e) => patch({ title: e.target.value })}
+                                placeholder="Kısa ve net bir ad"
+                                className="mt-1.5 w-full rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-800 outline-none transition-colors focus:border-blue-400 focus:bg-white"
                             />
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Ödev Yönergesi / İçeriği</label>
+                        <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black tracking-widest text-slate-500">YÖNERGE</span>
+                                <span className="text-[10px] font-bold text-slate-400">
+                                    {instructions.length} karakter
+                                </span>
+                            </div>
                             <textarea
-                                className="w-full h-80 px-4 py-3 bg-gray-50 border-2 border-gray-100 hover:border-gray-200 focus:border-blue-500 focus:bg-white rounded-xl font-medium text-gray-700 placeholder-gray-400 transition-all text-sm outline-none resize-none"
-                                value={config.instructions}
-                                placeholder="Ödev detaylarını, soruları veya yönergeleri buraya yazın..."
-                                onChange={(e) => updateConfig({ instructions: e.target.value })}
+                                value={instructions}
+                                onChange={(e) => patch({ instructions: e.target.value })}
+                                rows={12}
+                                placeholder={'Öğrenci ne yapacak? Adım adım yaz.\n\n1. ...\n2. ...'}
+                                className="mt-1.5 w-full resize-y rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-medium leading-relaxed text-slate-700 outline-none transition-colors focus:border-blue-400 focus:bg-white"
                             />
+                            <p className="mt-1.5 text-[10.5px] font-medium text-slate-400">
+                                Satır sonları öğrenciye aynen görünür.
+                            </p>
+                        </div>
+
+                        {/* İpucu — UYGULA'daki ile aynı davranış */}
+                        <div className="rounded-2xl border-2 border-b-[5px] border-amber-200 bg-amber-50 p-4">
+                            <button
+                                onClick={() => setShowHint((v) => !v)}
+                                className="flex items-center gap-2 text-[10px] font-black tracking-widest text-amber-700"
+                            >
+                                <Lightbulb size={13} /> İPUCU {showHint ? '−' : '+'}
+                            </button>
+                            {showHint && (
+                                <textarea
+                                    value={cfg.hint || ''}
+                                    onChange={(e) => patch({ hint: e.target.value })}
+                                    rows={2}
+                                    placeholder="Öğrenci takılırsa açabileceği tek cümlelik ipucu"
+                                    className="mt-2 w-full resize-none rounded-xl border-2 border-amber-200 bg-white p-2 text-[12px] font-medium text-amber-900 outline-none focus:border-amber-400"
+                                />
+                            )}
                         </div>
                     </div>
 
-                    {/* Right Column: Submission Type Settings (5/12) */}
-                    <div className="lg:col-span-5 flex flex-col gap-6">
-
-                        {/* Submission Type Card */}
-                        <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm p-6">
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-4">Öğrenci Teslim Türü</label>
-
-                            <div className="grid grid-cols-2 gap-3">
-                                {[
-                                    { id: 'text',  label: 'Metin Yanıtı', desc: 'Serbest metin',      icon: <FileText size={18} />, color: 'blue'   },
-                                    { id: 'code',  label: 'Kod Editörü',  desc: 'Python editörü',     icon: <Code    size={18} />, color: 'indigo' },
-                                    { id: 'image', label: 'Resim Yükle',  desc: 'Ekran görüntüsü',    icon: <Image   size={18} />, color: 'rose'   },
-                                    { id: 'file',  label: 'Dosya Yükle',  desc: 'PDF, ZIP vb.',       icon: <File    size={18} />, color: 'amber'  },
-                                ].map((type) => {
-                                    const isSelected = config.submissionType === type.id;
-                                    const colorMap: Record<string, string> = {
-                                        blue:   'border-blue-500   bg-blue-50/30   text-blue-700   ring-blue-400/20   bg-blue-100   text-blue-600   bg-blue-500',
-                                        indigo: 'border-indigo-500 bg-indigo-50/30 text-indigo-700 ring-indigo-400/20 bg-indigo-100 text-indigo-600 bg-indigo-500',
-                                        rose:   'border-rose-500   bg-rose-50/30   text-rose-700   ring-rose-400/20   bg-rose-100   text-rose-600   bg-rose-500',
-                                        amber:  'border-amber-500  bg-amber-50/30  text-amber-700  ring-amber-400/20  bg-amber-100  text-amber-600  bg-amber-500',
-                                    };
-                                    // Precomputed classes to avoid Tailwind purging dynamic strings
-                                    const borderClass   = isSelected ? `border-${type.color}-500`   : 'border-gray-100';
-                                    const bgClass       = isSelected ? `bg-${type.color}-50/30`      : '';
-                                    const textClass     = isSelected ? `text-${type.color}-700`      : 'text-gray-500';
-                                    const iconBgClass   = isSelected ? `bg-${type.color}-100 text-${type.color}-600` : 'text-gray-400';
-                                    const checkBgClass  = `bg-${type.color}-500`;
-                                    const titleColor    = isSelected ? `text-${type.color}-700`      : 'text-gray-700';
-
+                    {/* ── Sağ: teslim ayarları ── */}
+                    <div className="space-y-4 lg:col-span-5">
+                        <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">
+                            <span className="text-[10px] font-black tracking-widest text-slate-500">TESLİM TÜRÜ</span>
+                            <div className="mt-1.5 grid grid-cols-2 gap-1.5">
+                                {(Object.keys(SUBMISSION_META) as HomeworkConfig['submissionType'][]).map((k) => {
+                                    const M = SUBMISSION_META[k].icon;
+                                    const on = cfg.submissionType === k;
                                     return (
                                         <button
-                                            key={type.id}
-                                            onClick={() => updateConfig({ submissionType: type.id as any })}
-                                            className={`p-4 rounded-2xl border-2 text-left flex flex-col justify-between transition-all group
-                                                ${borderClass} ${bgClass} ${textClass}
-                                                ${isSelected ? 'shadow-md ring-1' : 'hover:border-gray-200 hover:bg-gray-50/50'}
-                                            `}
+                                            key={k}
+                                            onClick={() => patch({ submissionType: k })}
+                                            className={`flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all ${
+                                                on
+                                                    ? 'border-b-[4px] border-blue-400 bg-blue-50 text-blue-700'
+                                                    : 'border-slate-200 bg-white text-slate-500 hover:border-slate-300'
+                                            }`}
                                         >
-                                            <div className="flex items-center justify-between w-full">
-                                                <div className={`w-8 h-8 rounded-xl bg-gray-50 group-hover:scale-105 transition-transform flex items-center justify-center ${iconBgClass}`}>
-                                                    {type.icon}
-                                                </div>
-                                                {isSelected && (
-                                                    <div className={`w-5 h-5 rounded-full ${checkBgClass} text-white flex items-center justify-center`}>
-                                                        <Check size={12} strokeWidth={3} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <div className="mt-4">
-                                                <h5 className={`text-xs font-black uppercase tracking-wider ${titleColor}`}>
-                                                    {type.label}
-                                                </h5>
-                                                <p className="text-[10px] font-bold text-gray-400 mt-0.5">{type.desc}</p>
-                                            </div>
+                                            <M size={16} />
+                                            <span className="text-[11px] font-black">{SUBMISSION_META[k].label}</span>
+                                            <span className="text-[10px] font-bold text-slate-400">
+                                                {SUBMISSION_META[k].desc}
+                                            </span>
                                         </button>
                                     );
                                 })}
                             </div>
                         </div>
 
-                        {/* Additional Configs based on Selection */}
-                        {config.submissionType === 'code' && (
-                            <div className="bg-white rounded-[2rem] border-2 border-gray-100 shadow-sm p-6 animate-in slide-in-from-bottom duration-200">
-                                <label className="block text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Başlangıç Kodu Taslağı</label>
+                        {cfg.submissionType === 'code' && (
+                            <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">
+                                <span className="text-[10px] font-black tracking-widest text-slate-500">BAŞLANGIÇ KODU</span>
                                 <textarea
-                                    className="w-full h-40 px-3 py-2 bg-gray-900 border border-gray-800 rounded-xl font-mono text-xs text-green-400 placeholder-gray-600 outline-none resize-none"
-                                    value={config.starterCode || ''}
-                                    placeholder="# Öğrencinin göreceği başlangıç kod taslağı..."
-                                    onChange={(e) => updateConfig({ starterCode: e.target.value })}
+                                    value={cfg.starterCode || ''}
+                                    onChange={(e) => patch({ starterCode: e.target.value })}
+                                    rows={8}
+                                    placeholder="# Öğrencinin editöründe hazır gelecek kod"
+                                    spellCheck={false}
+                                    className="mt-1.5 w-full resize-y rounded-xl border-2 border-slate-700 bg-slate-900 p-2.5 font-mono text-[12px] leading-relaxed text-emerald-300 outline-none"
                                 />
                             </div>
                         )}
 
-                        {/* Interactive UI Preview for Student */}
-                        <div className="bg-gradient-to-br from-blue-600 to-indigo-700 rounded-[2rem] p-6 text-white shadow-lg relative overflow-hidden">
-                            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full blur-2xl" />
-                            <h4 className="font-black text-sm uppercase tracking-wider mb-1 flex items-center gap-1.5 font-display">
-                                🎮 Öğrenci Ekranı Önizlemesi
-                            </h4>
-                            <p className="text-[10px] text-blue-100 font-bold mb-4">Bu ödev, ders bittikten sonra öğrencilerin HomePage'inde çıkacaktır.</p>
+                        {/* Değerlendirme yolu — belirsizlik bırakmamak için açıkça yazılı */}
+                        <div className="rounded-2xl border-2 border-b-[5px] border-emerald-200 bg-emerald-50 p-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-emerald-700">
+                                <ClipboardCheck size={13} /> DEĞERLENDİRME
+                            </div>
+                            <p className="mt-1.5 text-[11.5px] font-medium leading-relaxed text-emerald-800">
+                                Bu ödevi <b>siz</b> notlarsınız. Teslimler <b>Ödev Gönderileri</b> sayfasında
+                                birikir; oradan not ve geri bildirim yazarsınız, öğrenci ödev ekranında görür.
+                            </p>
+                        </div>
 
-                            <div className="p-4 bg-white/10 backdrop-blur-md rounded-2xl border border-white/10 text-xs font-medium space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <span className="font-black text-[10px] uppercase text-blue-200">Ödev Durumu</span>
-                                    <span className="bg-yellow-400 text-yellow-950 text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">AKTİF</span>
+                        {/* Öğrenci önizlemesi */}
+                        <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">
+                            <div className="flex items-center gap-2 text-[10px] font-black tracking-widest text-slate-500">
+                                <Eye size={13} /> ÖĞRENCİ NE GÖRECEK
+                            </div>
+                            <div className="mt-2 rounded-xl border-2 border-slate-200 bg-slate-50 p-3">
+                                <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[9px] font-black tracking-wider text-blue-700">
+                                        <SubIcon size={10} /> {SUBMISSION_META[cfg.submissionType]?.label}
+                                    </span>
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-black text-amber-800">
+                                        <Star size={9} className="fill-amber-500 text-amber-500" /> +{cfg.points ?? 100} XP
+                                    </span>
                                 </div>
-                                <h5 className="font-black text-sm text-white truncate">{config.title || 'Başlıksız Ödev'}</h5>
-                                <div className="flex justify-between items-center text-[10px] text-blue-100 font-bold pt-2 border-t border-white/10">
-                                    <span>Tür: {(config.submissionType || 'file').toUpperCase()}</span>
-                                    <span>+{config.points || 100} XP</span>
+                                <h5 className="mt-2 truncate text-sm font-black text-slate-800">
+                                    {cfg.title || 'Başlıksız Ödev'}
+                                </h5>
+                                <p className="mt-1 line-clamp-3 whitespace-pre-line text-[11px] font-medium leading-relaxed text-slate-500">
+                                    {instructions || 'Yönerge yazılmamış.'}
+                                </p>
+                                <div className="mt-2.5 flex items-center justify-center gap-1.5 rounded-lg bg-blue-600 py-1.5 text-[10px] font-black tracking-wider text-white">
+                                    <Send size={11} /> ÖDEVİ TESLİM ET
                                 </div>
                             </div>
                         </div>
-
                     </div>
                 </div>
-
             </div>
         </div>
     );
