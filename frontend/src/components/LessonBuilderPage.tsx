@@ -2187,7 +2187,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                         />
                     </div>
                 ) : currentSlide.type === 'homework' ? (
-                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-gray-50 flex items-center justify-center' : 'h-full overflow-y-auto'}`}>
+                    // Önizlemede items-stretch: StudentHomeworkView artık kabına yayılıyor,
+                    // items-center onu içerik yüksekliğine sıkıştırıp kaydırmayı bozardı.
+                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-slate-50 flex items-stretch' : 'h-full overflow-y-auto'}`}>
                         {isPreview ? (
                             <StudentHomeworkView
                                 slide={currentSlide}

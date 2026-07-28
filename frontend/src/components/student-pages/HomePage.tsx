@@ -1137,17 +1137,20 @@ const HomePage: React.FC<HomePageProps> = ({
                 onStatsUpdate={refreshUserData}
             />
 
-            {/* HOMEWORK OVERLAY */}
+            {/* HOMEWORK OVERLAY — tam ekran konumlandırma burada yapılır;
+                StudentHomeworkView yalnızca kabına yayılır (bkz. bileşendeki not). */}
             {activeHomeworkSlide && (
-                <StudentHomeworkView
-                    slide={activeHomeworkSlide}
-                    courseId={currentCourse.id}
-                    onClose={() => setActiveHomeworkSlide(null)}
-                    onComplete={() => {
-                        setActiveHomeworkSlide(null);
-                        refreshUserData();
-                    }}
-                />
+                <div className="fixed inset-0 z-[300] bg-slate-50">
+                    <StudentHomeworkView
+                        slide={activeHomeworkSlide}
+                        courseId={currentCourse.id}
+                        onClose={() => setActiveHomeworkSlide(null)}
+                        onComplete={() => {
+                            setActiveHomeworkSlide(null);
+                            refreshUserData();
+                        }}
+                    />
+                </div>
             )}
 
         </div>
