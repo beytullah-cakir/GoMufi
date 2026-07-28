@@ -97,7 +97,7 @@ def test_operation_breakdown_kategoriler_ve_sira():
     ops = [row["operation"] for row in r["rows"]]
     assert ops == [
         "Müfredat/yol haritası", "Ders planı", "Slayt/içerik üretimi", "Modül Tekrar Oluşturma",
-        "Quiz/soru üretimi", "Görsel üretimi", "Diğer AI işlemi",
+        "Quiz/soru üretimi", "Metin sığdırma (düzeltme)", "Görsel üretimi", "Diğer AI işlemi",
     ]
 
 

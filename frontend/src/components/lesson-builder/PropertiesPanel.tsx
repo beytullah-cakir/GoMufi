@@ -23,14 +23,14 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     const selectedId = selectedElementIds[0];
     const element = elements.find(el => el.id === selectedId);
 
-    if (!element) return null;
+    if (!element || element.type !== 'code') return null;
 
     return (
         <div className="absolute right-0 top-0 h-full w-72 bg-white border-l border-gray-200 shadow-2xl z-[50] animate-slide-in-right">
             {/* Header */}
             <div className="h-12 border-b border-gray-100 flex items-center justify-between px-4 bg-white">
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-wider">
-                    {element.type === 'code' ? 'Kod Özellikleri' : 'Element Ayarları'}
+                    Kod Özellikleri
                 </span>
                 <button
                     onClick={onClose}
@@ -42,13 +42,7 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
 
             {/* Content Area */}
             <div className="flex-1 overflow-y-auto custom-scrollbar">
-                {element.type === 'code' ? (
-                    <CodeSettingsPanel element={element} updateElement={updateElement} />
-                ) : (
-                    <div className="p-8 text-center text-gray-400 text-sm">
-                        Bu element türü için henüz gelişmiş ayar bulunmuyor.
-                    </div>
-                )}
+                <CodeSettingsPanel element={element} updateElement={updateElement} />
             </div>
         </div>
     );

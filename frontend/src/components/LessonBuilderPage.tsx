@@ -7,6 +7,7 @@ import CanvasElement from './lesson-builder/CanvasElement';
 import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 import GameBuilder from './lesson-builder/GameBuilder';
 import CodingSlideBuilder from './lesson-builder/CodingSlideBuilder';
+import ChallengeSlideBuilder, { defaultChallengeConfig } from './lesson-builder/ChallengeSlideBuilder';
 import HomeworkBuilder from './lesson-builder/HomeworkBuilder';
 import StudentHomeworkView from './student-pages/StudentHomeworkView';
 
@@ -271,15 +272,15 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     // -- State Ref for Event Handlers --
     const stateRef = useRef({
         slides, past, future, selectedElementIds, currentSlideId, clipboard: clipboard.current,
-        projectName, activeStage
+        projectName, activeStage, isPreview
     });
 
     React.useEffect(() => {
-        stateRef.current = { 
+        stateRef.current = {
             slides, past, future, selectedElementIds, currentSlideId, clipboard: clipboard.current,
-            projectName, activeStage
+            projectName, activeStage, isPreview
         };
-    }, [slides, past, future, selectedElementIds, currentSlideId, projectName, activeStage]);
+    }, [slides, past, future, selectedElementIds, currentSlideId, projectName, activeStage, isPreview]);
 
     // Ensure mutually exclusive selection
     React.useEffect(() => {
@@ -293,8 +294,26 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement).isContentEditable) return;
 
-            const { slides, past, future, selectedElementIds, currentSlideId, clipboard } = stateRef.current;
+            const { slides, past, future, selectedElementIds, currentSlideId, clipboard, isPreview } = stateRef.current;
             const currentSlide = slides.find(s => s.id === currentSlideId) || slides[0];
+
+            // Sol/sağ ok: slaytlar arası gezinme.
+            // Önizlemede DEVRE DIŞI — oyun ve uygulama slaytları ok tuşlarını kendileri
+            // kullanıyor, orada slayt atlatmak kontrolü ellerinden alır.
+            if (!e.ctrlKey && !e.metaKey && !e.altKey &&
+                (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+                if (isPreview || slides.length < 2) return;
+                const idx = slides.findIndex(s => s.id === currentSlideId);
+                if (idx === -1) return;
+                const next = idx + (e.key === 'ArrowRight' ? 1 : -1);
+                if (next < 0 || next >= slides.length) return;
+                e.preventDefault();
+                setCurrentSlideId(slides[next].id);
+                // Eski slaydın elemanı seçili kalırsa özellikler paneli o slaytta
+                // olmayan bir elemanı düzenliyormuş gibi görünür.
+                setSelectedElementIds([]);
+                return;
+            }
 
             if (e.ctrlKey || e.metaKey) {
                 if (e.key === 'z') {
@@ -1860,14 +1879,35 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         'ÜRET': 'CREATE', 'QUIZ': 'QUIZ', 'ÖDEV': 'HOMEWORK'
     };
 
-    // Bu modülün ait olduğu Ders'i bulur (yalnızca Ders'in İLK modülünde lessonTopic/
-    // lessonNumber/aiLessonObjective dolu olur — geriye doğru arayarak buluruz).
+    // Roadmap tema rengi ↔ modül aşaması (öğrenci tarafındaki eşlemenin aynısı).
+    const THEME_TO_MODULE_TYPE: Record<string, string> = {
+        purple: 'UNDERSTAND', cyan: 'APPLY', green: 'CONNECT',
+        yellow: 'CREATE', quiz: 'QUIZ', homework: 'HOMEWORK'
+    };
+
+    // Bu modülün ait olduğu Ders'i ve o Ders'in TÜM kardeş modüllerini bulur.
+    // (Yalnızca Ders'in İLK modülünde lessonTopic/lessonNumber/aiLessonObjective dolu
+    // olur — geriye doğru arayarak Ders'in başını, ileri giderek sonunu buluruz.)
+    //
+    // Kardeşler tekrar üretim için ŞART: AI'ye "senin kapsamın nerede bitiyor"u
+    // yalnızca onlar söylüyor. Kardeşsiz istekte model, ders başlığındaki tüm
+    // konuları tek modüle dolduruyordu.
     const findDersContext = () => {
         const idx = allLessons.findIndex((n: any) => String(n.id) === String(noteId));
-        if (idx === -1) return { dersNode: null, currentNode: null };
+        if (idx === -1) return { dersNode: null, currentNode: null, siblings: [], posInDers: 0 };
+
         let start = idx;
         while (start > 0 && allLessons[start].lessonTopic === undefined) start--;
-        return { dersNode: allLessons[start], currentNode: allLessons[idx] };
+
+        let end = start + 1;
+        while (end < allLessons.length && allLessons[end].lessonTopic === undefined) end++;
+
+        return {
+            dersNode: allLessons[start],
+            currentNode: allLessons[idx],
+            siblings: allLessons.slice(start, end),
+            posInDers: idx - start,
+        };
     };
 
     // AI, dersi ilk oluştururken bu modülün konusunu zaten biliyordu (aiModuleTopic) —
@@ -1882,10 +1922,21 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
         setIsRegenerating(true);
         try {
-            const { dersNode, currentNode } = findDersContext();
+            const { dersNode, currentNode, siblings, posInDers } = findDersContext();
             const moduleType = STAGE_TO_MODULE_TYPE[activeStage] || 'UNDERSTAND';
             const moduleTopic = currentNode?.aiModuleTopic || currentNode?.title || projectName;
             const lessonTitle = dersNode?.lessonTopic || projectName;
+
+            // Dersin tüm modülleri gönderilir; hedefin dışındakiler AI için yalnızca
+            // kapsam sınırıdır (backend sadece target_module_index'i üretir).
+            const modules = siblings.length
+                ? siblings.map((n: any, i: number) => ({
+                    type: i === posInDers
+                        ? moduleType
+                        : (THEME_TO_MODULE_TYPE[n.theme] || 'UNDERSTAND'),
+                    topic: n.aiModuleTopic || n.title || '',
+                }))
+                : [{ type: moduleType, topic: moduleTopic }];
 
             const response = await api.post('/courses/generate_lesson_slides', {
                 topic: courseTitle || projectName,
@@ -1894,8 +1945,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 lesson_number: dersNode?.lessonNumber || 1,
                 lesson_title: lessonTitle,
                 lesson_objective: dersNode?.aiLessonObjective || `Bu derste ${moduleTopic} konusu öğrenilecektir.`,
-                modules: [{ type: moduleType, topic: moduleTopic }],
+                modules,
                 is_regeneration: true,
+                target_module_index: siblings.length ? posInDers : 0,
             });
 
             const newSlides = response.data?.notes?.[0]?.slides;
@@ -2151,6 +2203,21 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 }}
                             />
                         )}
+                    </div>
+                ) : currentSlide.type === 'challenge' ? (
+                    // Tam ekran YAPILMAZ: fixed inset-0 önizleme çıkış butonunu örtüyordu.
+                    <div className="flex-1 min-h-0 overflow-hidden">
+                        <ChallengeSlideBuilder
+                            slide={currentSlide}
+                            updateSlide={(updates) => {
+                                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
+                            }}
+                            // Düzenleme: görevi kur · Öğrenci önizlemesi: çöz · Öğretmen önizlemesi: teslimleri gör
+                            role={!isPreview ? 'edit' : previewRole === 'student' ? 'student' : 'review'}
+                            courseId={courseId || undefined}
+                            // Öğrenci tarafıyla AYNI anahtar (bkz. LessonSlide.tsx)
+                            submissionNodeId={`challenge:${currentSlide.id}`}
+                        />
                     </div>
                 ) : currentSlide.type === 'coding' ? (
                     <div className="flex-1 bg-gray-100 flex items-center justify-center overflow-hidden">
@@ -2415,6 +2482,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             background: (config?.background ? config.background : (type === 'notebook' ? 'notebook' : 'default')) as any,
                             gameType: type === 'game' ? (config?.gameType as 'matching' | 'monster' || 'matching') : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
+                            challengeConfig: type === 'challenge'
+                                ? (config?.challengeConfig || defaultChallengeConfig())
+                                : undefined,
                             homeworkConfig: type === 'homework' ? {
                                 title: 'Yeni Ödev Görevi',
                                 instructions: 'Lütfen ödev talimatlarını buraya yazın.',

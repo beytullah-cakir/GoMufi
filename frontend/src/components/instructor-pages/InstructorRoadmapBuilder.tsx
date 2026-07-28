@@ -2431,6 +2431,14 @@ const InstructorRoadmapBuilder: React.FC = () => {
                     <p className="text-[11px] font-bold text-gray-500 leading-normal">
                       Kursunuzda işlemek istediğiniz temel konu başlıklarını aşağıdan düzenleyin. Bir sonraki adımda bu konular ders sürelerinize göre otomatik olarak derslere dağıtılacaktır.
                     </p>
+                    {/* Kaynak PDF'in gerçekten okunduğunun tek görünür kanıtı. Bu olmadan
+                        öğretmen, AI kaynağı hiç görmemişken gördüğünü sanıyordu. */}
+                    {pdfContent && (
+                      <p className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-2.5 py-1.5 mt-1 flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 shrink-0" />
+                        Kaynak PDF okundu: {pdfContent.length.toLocaleString("tr-TR")} karakter. Dersler bu içerikten üretilecek.
+                      </p>
+                    )}
                   </div>
 
                   {/* Detail Level Selector */}

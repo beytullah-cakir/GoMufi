@@ -16,5 +16,11 @@ class AIUsageLog(Base):
     thoughts_tokens = Column(Integer, default=0)
     total_tokens = Column(Integer, default=0)
     cost_usd = Column(Float, default=0.0)
+    # Öğretmenin yüklediği kaynak PDF'in BU çağrıya giren kısmı.
+    # Kaynak metin prompt'un içindedir, yani maliyeti zaten cost_usd'ye dahildir;
+    # bu üç alan onu görünür kılmak için AYRIŞTIRIR, üstüne eklemez.
+    source_chars = Column(Integer, default=0)
+    source_tokens = Column(Integer, default=0)
+    source_cost_usd = Column(Float, default=0.0)
     details = Column(String, nullable=True)
     created_at = Column(DateTime, server_default=func.now())

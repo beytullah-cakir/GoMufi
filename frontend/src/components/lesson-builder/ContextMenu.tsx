@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload } from 'lucide-react';
+import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload, ChevronDown } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
@@ -61,6 +61,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     updateElementStyle, updateElement, deleteElement, editingElementId,
     isCanvasSelected, slideBackgroundColor, onUpdateSlideBackground
 }) => {
+    const [showImageFitDropdown, setShowImageFitDropdown] = useState(false);
 
     if (!canvasRect || (elements.length === 0 && !isCanvasSelected)) return null;
 
@@ -468,7 +469,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                     </>
                 )}
 
-                {/* URL Input (Single Item Only) */}
+                {/* URL Input (Single Item Only) & Image Fit Options */}
                 {isSingle && hasMedia && (
                     <div className="flex items-center gap-1.5">
                         {firstEl.type === 'image' && (
@@ -492,6 +493,73 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                             onMouseDown={(e) => e.stopPropagation()}
                             onKeyDown={(e) => e.stopPropagation()}
                         />
+                        {firstEl.type === 'image' && (
+                            <div className="relative ml-1">
+                                <button
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        setShowImageFitDropdown(!showImageFitDropdown);
+                                    }}
+                                    onMouseDown={(e) => e.stopPropagation()}
+                                    className="px-2.5 py-1 text-[11px] font-bold rounded bg-gray-800 border border-gray-600 hover:bg-gray-700 text-gray-200 flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+                                    title="Görsel Hizalama / Sığdırma Ayarları"
+                                >
+                                    <span>
+                                        {firstEl.extra?.objectFit === 'contain' ? '🎯 Sığdır' :
+                                         firstEl.extra?.objectFit === 'fill' ? '↕️ Uzat' :
+                                         '🖼️ Kırp'}
+                                    </span>
+                                    <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showImageFitDropdown ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {showImageFitDropdown && (
+                                    <div
+                                        className="absolute top-full left-0 mt-1.5 w-44 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl p-1.5 z-[1100] flex flex-col gap-1 animate-in fade-in zoom-in-95 duration-150"
+                                        onMouseDown={(e) => e.stopPropagation()}
+                                    >
+                                        <div className="px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-gray-400 border-b border-gray-800">
+                                            Görsel Hizalama
+                                        </div>
+                                        <button
+                                            onClick={() => {
+                                                updateElement(firstEl.id, { extra: { ...firstEl.extra, objectFit: 'contain' } });
+                                                setShowImageFitDropdown(false);
+                                            }}
+                                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-left transition-colors cursor-pointer ${
+                                                firstEl.extra?.objectFit === 'contain' ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">🎯 Sığdır</span>
+                                            <span className="text-[9px] text-gray-400 font-normal">Oranı Koru</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                updateElement(firstEl.id, { extra: { ...firstEl.extra, objectFit: 'cover' } });
+                                                setShowImageFitDropdown(false);
+                                            }}
+                                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-left transition-colors cursor-pointer ${
+                                                (!firstEl.extra?.objectFit || firstEl.extra?.objectFit === 'cover') ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">🖼️ Kırp</span>
+                                            <span className="text-[9px] text-gray-400 font-normal">Doldur</span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                updateElement(firstEl.id, { extra: { ...firstEl.extra, objectFit: 'fill' } });
+                                                setShowImageFitDropdown(false);
+                                            }}
+                                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold text-left transition-colors cursor-pointer ${
+                                                firstEl.extra?.objectFit === 'fill' ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
+                                            }`}
+                                        >
+                                            <span className="flex items-center gap-1.5">↕️ Uzat</span>
+                                            <span className="text-[9px] text-gray-400 font-normal">Kutuya Yay</span>
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
                 )}
 
