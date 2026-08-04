@@ -2189,7 +2189,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 ) : currentSlide.type === 'homework' ? (
                     // Önizlemede items-stretch: StudentHomeworkView artık kabına yayılıyor,
                     // items-center onu içerik yüksekliğine sıkıştırıp kaydırmayı bozardı.
-                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-slate-50 flex items-stretch' : 'h-full overflow-y-auto'}`}>
+                    <div className={`flex-1 relative ${isPreview ? 'fixed inset-0 w-screen h-screen z-[200] bg-slate-50 flex items-stretch' : 'h-full overflow-y-auto pt-14 pb-20'}`}>
                         {isPreview ? (
                             <StudentHomeworkView
                                 slide={currentSlide}
@@ -2208,7 +2208,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     </div>
                 ) : currentSlide.type === 'challenge' ? (
                     // Tam ekran YAPILMAZ: fixed inset-0 önizleme çıkış butonunu örtüyordu.
-                    <div className="flex-1 min-h-0 overflow-hidden">
+                    <div className="flex-1 min-h-0 w-full h-full overflow-hidden relative">
                         <ChallengeSlideBuilder
                             slide={currentSlide}
                             updateSlide={(updates) => {
