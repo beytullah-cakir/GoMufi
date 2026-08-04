@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python';
+import { usePrismTheme, codeEditorStyles, codeInheritStyles } from './codeTheme';
 import type {
     ChallengeConfig, ChallengeCheckMode, ChallengeSubmissionType, ChallengeTest, Slide,
 } from './types';
@@ -101,6 +102,10 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
     const [subs, setSubs] = useState<Submission[] | null>(null);
+
+    // Prism token'larını renklendiren tema. Bu çağrı olmadan `Prism.highlight`
+    // span'ları üretir ama hiçbiri boyanmaz — kod düz beyaz görünür.
+    usePrismTheme();
 
     const { runTests, runAndCapture } = usePyodide();
     const preRef = useRef<HTMLPreElement>(null);
@@ -378,12 +383,31 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                     </button>
                 </div>
                 <div className="relative flex-1 min-h-0 overflow-hidden">
-                    <pre ref={preRef} aria-hidden className="absolute inset-0 m-0 p-3 overflow-auto font-mono text-[12.5px] leading-[1.6] pointer-events-none">
-                        <code className="language-python" dangerouslySetInnerHTML={{ __html: Prism.highlight(code + '\n', Prism.languages.python, 'python') }} />
+                    {/* Vurgulama katmanı ile yazma katmanı AYNI stil nesnesini kullanır;
+                        ayrı sınıflarla verilirse imleç metnin üstüne oturmaz. */}
+                    <pre
+                        ref={preRef}
+                        aria-hidden
+                        className="absolute inset-0 overflow-auto pointer-events-none"
+                        style={codeEditorStyles()}
+                    >
+                        <code
+                            className="language-python"
+                            style={codeInheritStyles}
+                            dangerouslySetInnerHTML={{ __html: Prism.highlight(code + '\n', Prism.languages.python, 'python') }}
+                        />
                     </pre>
                     <textarea
-                        ref={taRef} value={code} onChange={(e) => setCode(e.target.value)} onScroll={syncScroll} spellCheck={false}
-                        className="absolute inset-0 w-full h-full p-3 bg-transparent text-transparent caret-white font-mono text-[12.5px] leading-[1.6] resize-none outline-none"
+                        ref={taRef}
+                        value={code}
+                        onChange={(e) => setCode(e.target.value)}
+                        onScroll={syncScroll}
+                        spellCheck={false}
+                        autoCapitalize="off"
+                        autoComplete="off"
+                        autoCorrect="off"
+                        className="absolute inset-0 h-full w-full resize-none bg-transparent text-transparent caret-white outline-none"
+                        style={codeEditorStyles()}
                     />
                 </div>
                 <div className="px-3 py-2.5 bg-[#2d2d2d] border-t border-black/30 flex items-center gap-2.5 shrink-0 flex-wrap">
@@ -410,7 +434,7 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
             </div>
 
             {/* Çıktı / testler */}
-            <div className="h-[34%] min-h-[120px] bg-white rounded-2xl border-2 border-slate-200 border-b-[5px] p-3 overflow-y-auto shrink-0">
+            <div className="h-[28%] min-h-[110px] max-h-[190px] bg-white rounded-2xl border-2 border-slate-200 border-b-[5px] p-3 overflow-y-auto shrink-0">
                 <div className="flex items-center justify-between mb-2">
                     <h3 className="text-[10px] font-black text-slate-500 tracking-widest">
                         {checkMode === 'tests' ? 'TEST SONUÇLARI' : checkMode === 'output' ? 'ÇIKTI' : 'NOT'}
@@ -588,10 +612,10 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
 
     /* -------------------------------- LAYOUT -------------------------------- */
     return (
-        <div className="w-full h-full flex gap-4 p-4 bg-slate-50 overflow-hidden">
-            <div className="w-[36%] min-w-[280px] max-w-[420px] overflow-y-auto pr-1">{brief}</div>
+        <div className="w-full h-full flex gap-4 pt-14 pb-20 px-6 bg-slate-50 overflow-hidden">
+            <div className="w-[36%] min-w-[280px] max-w-[420px] h-full flex flex-col overflow-y-auto pr-1">{brief}</div>
 
-            <div className="flex-1 flex flex-col gap-3 min-w-0 min-h-0">
+            <div className="flex-1 h-full flex flex-col gap-3 min-w-0 min-h-0">
                 {isReview ? reviewPanel : (cfg.submissionType === 'code' ? codeWorkspace : uploadWorkspace)}
 
                 {!isEdit && !isReview && (

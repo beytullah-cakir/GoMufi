@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Settings, Play, Eye, MessageCircle, AlertCircle, Loader2, SquareTerminal, FileCode } from 'lucide-react';
 import type { SlideElement } from './types';
 import { usePyodide } from '../../hooks/usePyodide';
+import { usePrismTheme } from './codeTheme';
 
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python'; // Import python syntax
@@ -25,10 +26,7 @@ const PYTHON_SNIPPETS = [
     { label: 'try', doc: 'Try catch', insert: 'try:\n    pass\nexcept Exception as e:\n    print(e)' },
 ];
 
-// Prism Tomorrow Theme (inlined for reliability)
-const PRISM_THEME_CSS = `
-code[class*=language-],pre[class*=language-]{color:#ccc;background:0 0;font-family:Consolas,Monaco,'Andale Mono','Ubuntu Mono',monospace;font-size:1em;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.5;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:1em;margin:.5em 0;overflow:auto}:not(pre)>code[class*=language-],pre[class*=language-]{background:#2d2d2d}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal}.token.block-comment,.token.cdata,.token.comment,.token.doctype,.token.prolog{color:#999}.token.punctuation{color:#ccc}.token.attr-name,.token.deleted,.token.namespace,.token.tag{color:#e2777a}.token.function-name{color:#6196cc}.token.boolean,.token.function,.token.number{color:#f08d49}.token.class-name,.token.constant,.token.property,.token.symbol{color:#f8c555}.token.atrule,.token.builtin,.token.important,.token.keyword,.token.selector{color:#cc99cd}.token.attr-value,.token.char,.token.regex,.token.string,.token.variable{color:#7ec699}.token.entity,.token.operator,.token.url{color:#67cdcc}.token.bold,.token.important{font-weight:700}.token.italic{font-style:italic}.token.entity{cursor:help}.token.inserted{color:green}
-`;
+// Prism teması ve editör tipografisi tek kaynakta: codeTheme.ts
 
 interface CodeWidgetProps {
     el: SlideElement;
@@ -55,15 +53,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
     // Pyodide Hook
     const { runCode, output, isLoading, error } = usePyodide();
 
-    // Inject Styles once
-    useEffect(() => {
-        if (!document.getElementById('prism-theme-style')) {
-            const style = document.createElement('style');
-            style.id = 'prism-theme-style';
-            style.innerHTML = PRISM_THEME_CSS;
-            document.head.appendChild(style);
-        }
-    }, []);
+    // Tema artık ortak modülden gelir (codeTheme.ts) — UYGULA slaydındaki editör
+    // de aynı kaynağı kullanıyor, ikisi birbirinden ayrışmasın diye.
+    usePrismTheme();
 
     // Sync local state when prop changes (if not currently editing heavily)
     useEffect(() => {
