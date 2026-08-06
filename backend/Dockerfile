@@ -1,17 +1,29 @@
-FROM python:3.10
+FROM node:20-alpine
 
 WORKDIR /app
 
-COPY requirements.txt . 
+RUN apk add --no-cache openssl libc6-compat
 
-RUN pip install --no-cache-dir -r requirements.txt
+# Install dependencies
+COPY package*.json ./
+RUN npm ci
 
+# Copy Prisma schema and generate client
+COPY prisma ./prisma/
+RUN npx prisma generate
+
+# Copy source
 COPY . .
 
-# Render.com $PORT env variable'ını atıyor (varsayılan: 10000)
-# ';' kullanarak migration başarısız olsa bile uvicorn her zaman başlar
-EXPOSE ${PORT:-10000}
+# Copy static assets from sibling directory (slide_templates.json etc)
+# These will be mounted as volumes in development
 
-CMD ["sh", "-c", "alembic upgrade head; uvicorn main_fastapi:app --host 0.0.0.0 --port ${PORT:-10000}"]
+# Build TypeScript
+RUN npm run build
 
+# Create static uploads directory
+RUN mkdir -p static/uploads/images
 
+EXPOSE 8000
+
+CMD ["npm", "start"]

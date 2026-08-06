@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Send, User, MessageCircle, X, Paperclip, Image as ImageIcon } from 'lucide-react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+
 import api from '../../api';
 
 interface Message {
@@ -43,7 +43,7 @@ const InstructorMessages: React.FC = () => {
     const [searchTerm, setSearchTerm] = useState('');
     const [newMessage, setNewMessage] = useState('');
 
-    const { sendMessage, lastMessage } = useWebSocket();
+
 
     // Multi-tab sync
     useEffect(() => {
@@ -56,87 +56,7 @@ const InstructorMessages: React.FC = () => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-    // WebSocket Message receiver
-    useEffect(() => {
-        if (!lastMessage) return;
 
-        if (lastMessage.type === 'chat_message') {
-            const { chatId, senderId, senderType, content, timestamp, fileType, fileUrl, fileName } = lastMessage;
-            
-            setChats(prevChats => {
-                const chatExists = prevChats.some(c => c.id === chatId);
-                if (chatExists) {
-                    return prevChats.map(c => {
-                        if (c.id === chatId) {
-                            const msgExists = c.messages.some(m => m.content === content && m.senderType === senderType && m.timestamp === timestamp);
-                            if (msgExists) return c;
-
-                            return {
-                                ...c,
-                                messages: [
-                                    ...c.messages,
-                                    {
-                                        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-                                        senderId,
-                                        senderType,
-                                        content,
-                                        timestamp,
-                                        type: fileType || 'text',
-                                        fileUrl,
-                                        fileName
-                                    }
-                                ],
-                                lastMessage: fileType === 'image' ? '📷 Görsel' : fileType === 'file' ? `📁 ${fileName}` : content,
-                                lastMessageTime: timestamp,
-                                unreadCount: selectedChatId === chatId ? c.unreadCount : c.unreadCount + 1
-                            };
-                        }
-                        return c;
-                    });
-                }
-                return prevChats;
-            });
-        } else if (lastMessage.type === 'new_chat_session') {
-            const { chatId, lessonTitle, topic, instructorName, instructorId, instructorStatus, message, timestamp } = lastMessage;
-            
-            setChats(prevChats => {
-                const chatExists = prevChats.some(c => c.id === chatId);
-                if (chatExists) return prevChats;
-
-                const newChat: ChatSession = {
-                    id: chatId,
-                    lessonTitle,
-                    topic,
-                    instructorName,
-                    instructorId,
-                    instructorStatus,
-                    lastMessage: message,
-                    lastMessageTime: timestamp,
-                    unreadCount: 1,
-                    status: 'active',
-                    messages: [
-                        {
-                            id: 'sys1',
-                            senderId: 'system',
-                            senderType: 'system',
-                            content: `Soru ${instructorName} hocasına iletildi.`,
-                            timestamp: timestamp,
-                            type: 'text'
-                        },
-                        {
-                            id: 'msg1',
-                            senderId: 'user',
-                            senderType: 'user',
-                            content: message,
-                            timestamp: timestamp,
-                            type: 'text'
-                        }
-                    ]
-                };
-                return [newChat, ...prevChats];
-            });
-        }
-    }, [lastMessage, selectedChatId]);
 
     const activeChat = chats.find(c => c.id === selectedChatId);
 
@@ -174,16 +94,6 @@ const InstructorMessages: React.FC = () => {
         });
 
         setChats(updatedChats);
-
-        sendMessage({
-            type: 'chat_message',
-            chatId: selectedChatId,
-            senderId: activeChat.instructorId,
-            senderType: 'instructor',
-            content: newMessage,
-            timestamp: timeStr
-        });
-
         setNewMessage('');
     };
 
@@ -237,19 +147,6 @@ const InstructorMessages: React.FC = () => {
                 });
 
                 setChats(updatedChats);
-
-                // Broadcast
-                sendMessage({
-                    type: 'chat_message',
-                    chatId: selectedChatId,
-                    senderId: activeChat.instructorId,
-                    senderType: 'instructor',
-                    content: fileType === 'image' ? publicUrl : fileName,
-                    timestamp: timeStr,
-                    fileType: fileType,
-                    fileUrl: publicUrl,
-                    fileName: fileName
-                });
             }
         } catch (err: any) {
             console.error("Upload error", err);

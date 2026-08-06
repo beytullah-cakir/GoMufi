@@ -46,12 +46,15 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
     e.preventDefault();
     if (!role || isLoading) return;
 
-    const basePath = role === "student" ? "/student" : role === "teacher" ? "/teacher" : "parent";
+    const basePath = role === "student" ? "/student" : role === "teacher" ? "/teacher" : "/parent";
     setIsLoading(true);
 
     try {
       if (isLogin) {
-        await api.post(`${basePath}/login`, { email, password });
+        const res = await api.post(`${basePath}/login`, { email, password });
+        if (res.data?.token) {
+          localStorage.setItem('access_token', res.data.token);
+        }
         onLogin();
         navigate(role === 'student' ? '/student' : role === 'teacher' ? '/instructor' : '/parent');
       } else {

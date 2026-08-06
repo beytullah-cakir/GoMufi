@@ -1,0 +1,182 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Parent {
+  id              Int       @id @default(autoincrement())
+  first_name      String?
+  last_name       String?
+  email           String    @unique
+  hashed_password String?
+  is_active       Boolean   @default(true)
+  created_at      DateTime  @default(now())
+  students        Student[]
+
+  @@map("parents")
+}
+
+model Student {
+  id              Int                   @id @default(autoincrement())
+  first_name      String?
+  last_name       String?
+  email           String?               @unique
+  nickname        String?
+  password        String?
+  student_code    String?               @unique
+  grade_level     String?
+  education_level String?
+  parent_id       Int?
+  gems            Int                   @default(0)
+  hearts          Int                   @default(5)
+  streak          Int                   @default(0)
+  xp              Int                   @default(0)
+  created_at      DateTime              @default(now())
+  parent          Parent?               @relation(fields: [parent_id], references: [id])
+  enrollments     Enrollment[]
+  homeworkSubs    HomeworkSubmission[]
+
+  @@map("students")
+}
+
+model Teacher {
+  id         Int      @id @default(autoincrement())
+  first_name String?
+  last_name  String?
+  email      String?  @unique
+  expertises String?
+  password   String?
+  bio        String?
+  created_at DateTime @default(now())
+  courses    Course[]
+
+  @@map("teachers")
+}
+
+model Course {
+  id                Int                  @id @default(autoincrement())
+  teacher_id        Int
+  title             String
+  description       String?
+  category          String?
+  progress          Int                  @default(0)
+  price             Int                  @default(0)
+  learning_outcomes Json                 @default("[]")
+  requirements      Json                 @default("[]")
+  curriculum        Json                 @default("[]")
+  notes             Json                 @default("[]")
+  rating            Int                  @default(5)
+  status            String               @default("active")
+  schedule          Json                 @default("[]")
+  classes           Json                 @default("[]")
+  enrollment_code   String?              @unique
+  start_date        String?
+  created_at        DateTime             @default(now())
+  teacher           Teacher              @relation(fields: [teacher_id], references: [id])
+  enrollments       Enrollment[]
+  liveSessions      LiveSession[]
+  quizzes           Quiz[]
+  lessonContents    LessonContent[]
+  homeworkSubs      HomeworkSubmission[]
+
+  @@map("courses")
+}
+
+model Enrollment {
+  id          Int      @id @default(autoincrement())
+  student_id  Int?
+  course_id   Int?
+  enrolled_at DateTime @default(now())
+  student     Student? @relation(fields: [student_id], references: [id])
+  course      Course?  @relation(fields: [course_id], references: [id])
+
+  @@unique([student_id, course_id])
+  @@map("enrollments")
+}
+
+model LessonContent {
+  id        Int     @id @default(autoincrement())
+  course_id Int
+  node_id   String
+  title     String?
+  slides    Json    @default("[]")
+  course    Course  @relation(fields: [course_id], references: [id], onDelete: Cascade)
+
+  @@unique([course_id, node_id])
+  @@map("lesson_contents")
+}
+
+model Quiz {
+  id            Int      @id @default(autoincrement())
+  course_id     Int?
+  section_id    String?
+  node_id       Int?
+  topic         String
+  difficulty    String?
+  question_text String
+  options       Json?
+  correct_answer String
+  explanation   String?
+  question_type String   @default("multiple-choice")
+  created_at    DateTime @default(now())
+  course        Course?  @relation(fields: [course_id], references: [id])
+
+  @@map("quizzes")
+}
+
+model LiveSession {
+  id               Int      @id @default(autoincrement())
+  course_id        Int
+  title            String
+  day_of_week      String?
+  start_time       String?
+  duration_minutes Int      @default(40)
+  type             String   @default("live")
+  status           String   @default("upcoming")
+  created_at       DateTime @default(now())
+  course           Course   @relation(fields: [course_id], references: [id])
+
+  @@map("live_sessions")
+}
+
+model HomeworkSubmission {
+  id           Int      @id @default(autoincrement())
+  course_id    Int
+  node_id      String
+  student_id   Int
+  file_name    String?
+  file_data    String?
+  file_mime    String?
+  student_note String?
+  submitted_at DateTime @default(now())
+  course       Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
+  student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
+
+  @@map("homework_submissions")
+}
+
+model AIUsageLog {
+  id               Int      @id @default(autoincrement())
+  teacher_id       Int?
+  course_id        Int?
+  course_title     String?
+  action           String?
+  model_name       String?
+  prompt_tokens    Int?
+  candidates_tokens Int?
+  total_tokens     Int?
+  cost_usd         Float?
+  details          String?
+  created_at       DateTime @default(now())
+
+  @@map("ai_usage_logs")
+}

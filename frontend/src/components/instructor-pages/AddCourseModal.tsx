@@ -419,7 +419,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   };
 
   return (
-    <div className="fixed top-0 bottom-0 left-24 md:left-64 right-0 z-30 bg-[#F8F9FC] flex flex-col h-screen overflow-hidden animate-in fade-in duration-200">
+    <div className="fixed top-0 bottom-0 left-[var(--sidebar-width,256px)] right-0 z-30 bg-[#F8F9FC] flex flex-col h-[100dvh] max-h-[100dvh] overflow-hidden animate-in fade-in duration-200">
       <div className="relative bg-[#F8F9FC] w-full h-full flex flex-col overflow-hidden border-none">
         {/* Header */}
         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">

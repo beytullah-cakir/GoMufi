@@ -11,7 +11,7 @@ import {
     User,
     Wifi
 } from 'lucide-react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+
 import api from '../../api';
 
 // --- Types ---
@@ -91,7 +91,7 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [newMessage, setNewMessage] = useState('');
 
-    const { sendMessage, lastMessage } = useWebSocket();
+
 
     // Multi-tab sync
     useEffect(() => {
@@ -104,48 +104,7 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
-    // WebSocket Message receiver
-    useEffect(() => {
-        if (!lastMessage) return;
 
-        if (lastMessage.type === 'chat_message') {
-            const { chatId, senderId, senderType, content, timestamp, fileType, fileUrl, fileName } = lastMessage;
-            
-            setChats(prevChats => {
-                const chatExists = prevChats.some(c => c.id === chatId);
-                if (chatExists) {
-                    return prevChats.map(c => {
-                        if (c.id === chatId) {
-                            const msgExists = c.messages.some(m => m.content === content && m.senderType === senderType && m.timestamp === timestamp);
-                            if (msgExists) return c;
-                            
-                            return {
-                                ...c,
-                                messages: [
-                                    ...c.messages,
-                                    {
-                                        id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
-                                        senderId,
-                                        senderType,
-                                        content,
-                                        timestamp,
-                                        type: fileType || 'text',
-                                        fileUrl,
-                                        fileName
-                                    }
-                                ],
-                                lastMessage: fileType === 'image' ? '📷 Görsel' : fileType === 'file' ? `📁 ${fileName}` : content,
-                                lastMessageTime: timestamp,
-                                unreadCount: selectedChatId === chatId ? c.unreadCount : c.unreadCount + 1
-                            };
-                        }
-                        return c;
-                    });
-                }
-                return prevChats;
-            });
-        }
-    }, [lastMessage, selectedChatId]);
 
     // New Question Modal State
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -195,16 +154,6 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
         });
 
         setChats(updatedChats);
-
-        sendMessage({
-            type: 'chat_message',
-            chatId: selectedChatId,
-            senderId: 'user',
-            senderType: 'user',
-            content: newMessage,
-            timestamp: timeStr
-        });
-
         setNewMessage('');
     };
 
@@ -258,19 +207,6 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
                 });
 
                 setChats(updatedChats);
-
-                // Broadcast
-                sendMessage({
-                    type: 'chat_message',
-                    chatId: selectedChatId,
-                    senderId: 'user',
-                    senderType: 'user',
-                    content: fileType === 'image' ? publicUrl : fileName,
-                    timestamp: timeStr,
-                    fileType: fileType,
-                    fileUrl: publicUrl,
-                    fileName: fileName
-                });
             }
         } catch (err: any) {
             console.error("Upload error", err);
@@ -325,18 +261,6 @@ const AskQuestionPage: React.FC<AskQuestionPageProps> = ({ courses = {} }) => {
 
         setChats([newChat, ...chats]);
         setSelectedChatId(chatId);
-
-        sendMessage({
-            type: 'new_chat_session',
-            chatId: chatId,
-            lessonTitle: resolvedTitle,
-            topic: newQuestionForm.topic || 'Genel Soru',
-            instructorName: assignedInstructor.name,
-            instructorId: assignedInstructor.id,
-            instructorStatus: assignedInstructor.status,
-            message: newQuestionForm.message,
-            timestamp: timeStr
-        });
 
         setIsModalOpen(false);
         setNewQuestionForm({ lesson: Object.keys(courses || {})[0] || 'Python', topic: '', instructor: 'auto', message: '' });

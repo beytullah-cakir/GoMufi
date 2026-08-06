@@ -6,31 +6,31 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - /app/node_modules
+      - /app/dist
+      - ./backend/static:/app/static
     env_file:
       - ./backend/.env
     environment:
-      # Yerel geliştirme için URL'leri .env'den gelen değerlerin üzerine yaz
       - FRONTEND_URL=http://localhost:5173
       - BACKEND_URL=http://localhost:8000
       - REDIS_URL=redis://redis:6379/0
-      - DATABASE_URL=postgresql://postgres:password@host.docker.internal:5432/gomufi
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
-    command: >
-      sh -c "alembic upgrade head;
-             uvicorn main_fastapi:app --host 0.0.0.0 --port 8000 --reload"
+      - NODE_ENV=development
+    command: npm run dev
     restart: "no"
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/utils/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 20s
+      start_period: 30s
     develop:
       watch:
         - action: sync
-          path: ./backend
-          target: /app
+          path: ./backend/src
+          target: /app/src
+        - action: rebuild
+          path: ./backend/package.json
 
   frontend:
     build: ./frontend

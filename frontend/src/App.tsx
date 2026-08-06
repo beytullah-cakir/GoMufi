@@ -11,7 +11,6 @@ import AdminApp from './components/admin-pages/AdminApp';
 
 import CompleteProfile from './components/CompleteProfile';
 import Animation from './components/Animation';
-import { WebSocketProvider } from './context/WebSocketContext';
 
 function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -42,8 +41,7 @@ function App() {
             </div>
         </div>
       )}
-      <WebSocketProvider>
-        <Routes>
+      <Routes>
         <Route path="/" element={<LandingPage />} />
         <Route path="/animation" element={<Animation />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
@@ -71,7 +69,6 @@ function App() {
         {/* Redirect unknown routes to Landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      </WebSocketProvider>
     </>
   );
 }

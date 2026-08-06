@@ -109,6 +109,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   const [isAdminMenuOpen, setIsAdminMenuOpen] = useState(false);
   const themeColor = role === "parent" ? "purple" : "sky";
 
+  React.useEffect(() => {
+    document.documentElement.style.setProperty(
+      "--sidebar-width",
+      isCollapsed ? "96px" : "256px"
+    );
+  }, [isCollapsed]);
+
   const handleLogout = async () => {
     try {
       await api.post("/auth/logout");
@@ -163,10 +170,10 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div
-      className={`relative h-screen bg-white border-r-2 border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-[100] shrink-0 box-border ${
+      className={`relative h-full max-h-[100dvh] bg-white border-r-2 border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-[100] shrink-0 box-border ${
         isCollapsed ? "w-24" : "w-64"
       }`}
-      style={{ display: "flex", flexDirection: "column", height: "100vh" }}
+      style={{ display: "flex", flexDirection: "column", height: "100dvh" }}
     >
       {/* Logo Area */}
       <div

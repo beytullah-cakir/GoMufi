@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Users, Calendar as CalendarIcon, LayoutGrid, LayoutList, Play, Loader2, X, Brain, Puzzle, Trophy, HelpCircle } from 'lucide-react';
 import api from '../../api';
 import LessonSlide from '../student-pages/LessonSlide';
-import { useWebSocket } from '../../hooks/useWebSocket';
+
 import LiveLessonTeacher from './LiveLessonTeacher';
 
 // Sprites matching the student view
@@ -68,7 +68,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
     const [activeLessonIndexState, setActiveLessonIndexState] = useState(0);
     const [showSessionManager, setShowSessionManager] = useState(false);
     const [sessionStudents, setSessionStudents] = useState<{ [id: string]: { name: string, isReady: boolean, currentSlide: number, lastSeen: number } }>({});
-    const { sendMessage, lastMessage } = useWebSocket();
+
 
     const [activeSession, setActiveSession] = useState<{
         courseId: string | number;
@@ -116,22 +116,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         checkActiveSessions();
     }, [coursesData]);
 
-    // Process student status reports
-    useEffect(() => {
-        if (lastMessage && lastMessage.type === 'student_status') {
-            if (lastMessage.courseId && activeLaunchCourseId && String(lastMessage.courseId) === String(activeLaunchCourseId)) {
-                setSessionStudents(prev => ({
-                    ...prev,
-                    [lastMessage.sender_id]: {
-                        name: lastMessage.name || 'Öğrenci',
-                        isReady: lastMessage.isReady || false,
-                        currentSlide: lastMessage.currentSlide ?? 0,
-                        lastSeen: Date.now()
-                    }
-                }));
-            }
-        }
-    }, [lastMessage, activeLaunchCourseId]);
+
 
     // Clean inactive students (offline detection)
     useEffect(() => {
@@ -768,15 +753,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     initialSlideIndex={activeLessonIndexState}
                     onClose={async () => {
                         setShowLessonSlide(false);
-                        // Broadcast closing event (so student returns to roadmap)
-                        if (activeLaunchCourseId) {
-                            sendMessage({
-                                type: "level_changed",
-                                courseId: activeLaunchCourseId,
-                                nodeId: null,
-                                isOpen: false
-                            });
-                        }
                     }}
                     onComplete={async () => {
                         setShowLessonSlide(false);
@@ -789,23 +765,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                             completedObj[activeLessonIndex] = 3;
                             localStorage.setItem(key, JSON.stringify(completedObj));
 
-                            // Broadcast lesson completion to student clients so their roadmap updates
-                            sendMessage({
-                                type: "lesson_completed",
-                                courseId: activeLaunchCourseId,
-                                lessonIndex: activeLessonIndex,
-                                stars: 3
-                            });
-                        }
-
-                        // Broadcast closing event (so student returns to roadmap)
-                        if (activeLaunchCourseId) {
-                            sendMessage({
-                                type: "level_changed",
-                                courseId: activeLaunchCourseId,
-                                nodeId: null,
-                                isOpen: false
-                            });
                         }
                     }}
                 />
@@ -820,7 +779,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     coursesData={coursesData}
                     sessionStudents={sessionStudents}
                     showLessonSlide={showLessonSlide}
-                    sendMessage={sendMessage}
                     setActiveLessonIndexState={setActiveLessonIndexState}
                     setActiveLessonTitle={setActiveLessonTitle}
                     setShowLessonSlide={setShowLessonSlide}

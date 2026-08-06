@@ -4,7 +4,7 @@ import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import GameBuilder from '../lesson-builder/GameBuilder';
 import StudentHomeworkView from './StudentHomeworkView';
-import { useWebSocket } from '../../hooks/useWebSocket';
+
 
 interface LessonSlideProps {
     isOpen: boolean;
@@ -67,8 +67,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     // Teacher active students tracking list
     const [studentsList, setStudentsList] = useState<{ [id: string]: { name: string, isReady: boolean, currentSlide: number, lastSeen: number } }>({});
 
-    // Real-time WebSocket hook
-    const { sendMessage, lastMessage } = useWebSocket();
+
 
     // Deep copy slides on open/load
     useEffect(() => {
@@ -125,143 +124,23 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
     // Teacher broadcasts slide change & mode updates to students reactive hook
     useEffect(() => {
-        if (isOpen && previewRole === 'teacher') {
-            sendMessage({
-                type: 'slide_status',
-                courseId: courseId,
-                lessonIndex: lessonIndex,
-                mode: followMode,
-                currentSlide: currentSlide
-            });
-        }
+        // sendMessage removed
     }, [currentSlide, followMode, previewRole, isOpen, courseId, lessonIndex]);
 
     // Student status heartbeat/status reporting loop
     useEffect(() => {
-        if (previewRole !== 'student' || !isOpen) return;
-        
-        const reportStatus = () => {
-            const userName = userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Öğrenci';
-            sendMessage({
-                type: 'student_status',
-                courseId: courseId,
-                name: userName,
-                isReady: isReady,
-                currentSlide: currentSlide
-            });
-        };
-        
-        reportStatus(); // Report instantly on dependency change
-        const interval = setInterval(reportStatus, 3000); // Send heartbeat every 3s
-        return () => clearInterval(interval);
+        // sendMessage removed
     }, [currentSlide, isReady, previewRole, isOpen, userData, courseId]);
 
     // Student sync status on mount/mount event
     useEffect(() => {
-        if (isOpen && previewRole === 'student') {
-            sendMessage({ type: 'request_slide_status' });
-        }
+        // sendMessage removed
     }, [previewRole, isOpen]);
 
     // Listen for incoming slide sync requests and updates
     useEffect(() => {
-        if (!isOpen || !lastMessage) return;
-
-        if (lastMessage.type === 'slide_status') {
-            // Check if courseId matches this lesson
-            if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
-                return; // Ignore updates from other courses
-            }
-
-            if (previewRole === 'student') {
-                const { mode, currentSlide: tSlide } = lastMessage;
-                setFollowMode(mode);
-                setTeacherCurrentSlide(tSlide);
-                
-                // Force follow mode settings
-                if (mode === 'follow') {
-                    setIsFollowingTeacher(true);
-                    setCurrentSlide(tSlide);
-                    setIsReady(false); // Reset ready for the next step
-                } else {
-                    if (isFollowingTeacher) {
-                        setCurrentSlide(tSlide);
-                        setIsReady(false);
-                    } else if (mode === 'previous_only' && currentSlide > tSlide) {
-                        setCurrentSlide(tSlide);
-                        setIsReady(false);
-                    }
-                }
-            }
-        } else if (lastMessage.type === 'request_slide_status') {
-            if (previewRole === 'teacher') {
-                // Teacher responds to newly joined student with current status
-                sendMessage({
-                    type: 'slide_status',
-                    courseId: courseId,
-                    lessonIndex: lessonIndex,
-                    mode: followMode,
-                    currentSlide: currentSlide
-                });
-            }
-        } else if (lastMessage.type === 'student_status') {
-            // Teacher aggregates student pings and status
-            if (previewRole === 'teacher') {
-                if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
-                    return; // Ignore pings from other courses
-                }
-                const { sender_id, name, isReady: sReady, currentSlide: sSlide } = lastMessage;
-                setStudentsList(prev => ({
-                    ...prev,
-                    [sender_id]: {
-                        name: name || 'Öğrenci',
-                        isReady: sReady || false,
-                        currentSlide: sSlide ?? 0,
-                        lastSeen: Date.now()
-                    }
-                }));
-            }
-        } else if (lastMessage.type === 'game_status') {
-            if (previewRole === 'teacher') {
-                if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
-                    return;
-                }
-                const { sender_id, name, stars, score, isCompleted } = lastMessage;
-                setGameStatuses(prev => ({
-                    ...prev,
-                    [sender_id]: {
-                        name: name || 'Öğrenci',
-                        stars: stars || 0,
-                        score: score || 0,
-                        isCompleted: isCompleted || false,
-                        timestamp: Date.now()
-                    }
-                }));
-            }
-        } else if (lastMessage.type === 'question_answered') {
-            if (previewRole === 'teacher') {
-                if (lastMessage.courseId && courseId && String(lastMessage.courseId) !== String(courseId)) {
-                    return;
-                }
-                const { sender_id, name, questionIndex, isCorrect: correct, score: qScore } = lastMessage;
-                setAllAnswers(prev => {
-                    const existing = prev[sender_id] || { name: name || 'Öğrenci', scores: [], isCorrects: [] };
-                    const updatedScores = [...existing.scores];
-                    const updatedCorrects = [...existing.isCorrects];
-                    updatedScores[questionIndex] = qScore;
-                    updatedCorrects[questionIndex] = correct;
-                    return {
-                        ...prev,
-                        [sender_id]: {
-                            ...existing,
-                            scores: updatedScores,
-                            isCorrects: updatedCorrects
-                        }
-                    };
-                });
-            }
-        }
-    }, [lastMessage, previewRole, isOpen, isFollowingTeacher, courseId, lessonIndex, currentSlide, followMode]);
+        // lastMessage / sendMessage removed; sync disabled
+    }, []);
 
     // Force follow update when toggling check state
     useEffect(() => {
@@ -388,7 +267,6 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         studentsList={studentsList}
                         gameStatuses={gameStatuses}
                         allAnswers={allAnswers}
-                        sendMessage={sendMessage}
                         courseId={courseId}
                         onClose={handleNext}
                     />
@@ -407,19 +285,6 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         userData={userData}
                         courseId={courseId}
                         onExitPreview={(stars) => {
-                            if (previewRole === 'student') {
-                                const calculatedStars = typeof stars === 'number' ? stars : 3;
-                                const calculatedScore = calculatedStars * 33 + (calculatedStars === 3 ? 1 : 0);
-                                const userName = userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : 'Öğrenci';
-                                sendMessage({
-                                    type: 'game_status',
-                                    courseId: courseId,
-                                    name: userName,
-                                    stars: calculatedStars,
-                                    score: calculatedScore,
-                                    isCompleted: true
-                                });
-                            }
                             handleNext();
                         }}
                     />
@@ -821,7 +686,6 @@ interface TeacherGameDashboardProps {
     studentsList: Record<string, { name: string, isReady: boolean, currentSlide: number, lastSeen: number }>;
     gameStatuses: Record<string, { name: string, stars: number, score: number, isCompleted: boolean, timestamp: number }>;
     allAnswers: Record<string, { name: string, scores: number[], isCorrects: boolean[] }>;
-    sendMessage: (msg: any) => void;
     courseId?: string;
     onClose: () => void;
 }
@@ -831,7 +695,6 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
     studentsList, 
     gameStatuses, 
     allAnswers,
-    sendMessage,
     courseId,
     onClose 
 }) => {
@@ -885,12 +748,6 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
     const handleNextQuestionOrFinish = () => {
         if (currentQuestionIndex < questions.length - 1) {
             const nextIdx = currentQuestionIndex + 1;
-            // Broadcast next question index to student clients
-            sendMessage({
-                type: 'next_question',
-                courseId: courseId,
-                questionIndex: nextIdx
-            });
             setCurrentQuestionIndex(nextIdx);
             setPhase('playing');
         } else {

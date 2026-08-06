@@ -6,9 +6,28 @@ const API_BASE_URL = import.meta.env.VITE_API_URL || `${window.location.protocol
 // API URL'ini global olarak export et (diğer componentlerde kullanmak için)
 export const getApiBaseUrl = () => API_BASE_URL;
 
+// URL'deki ?token= parametresini otomatik olarak localStorage'a kaydet (OAuth dönüşleri için)
+try {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  if (urlToken) {
+    localStorage.setItem('access_token', urlToken);
+  }
+} catch {
+  // ignore
+}
+
 const api = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
 });
 
 api.interceptors.response.use(

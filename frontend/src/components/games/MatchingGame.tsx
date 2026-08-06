@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api";
 import { Check, X, RefreshCw, AlertCircle, PenTool, FileText } from "lucide-react";
-import { useWebSocket } from "../../hooks/useWebSocket";
+
 
 interface MatchingGameProps {
   level: number;
@@ -92,7 +92,6 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   const [textAnswer, setTextAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const { sendMessage, lastMessage } = useWebSocket();
   const [allAnswers, setAllAnswers] = useState<Record<string, { 
       name: string; 
       scores: number[]; 
@@ -249,38 +248,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     }
   }, [currentQuestionIndex, questions.length]);
 
-  // Listen for WebSocket events in MatchingGame
-  useEffect(() => {
-    if (!lastMessage) return;
 
-    if (lastMessage.type === 'question_answered') {
-      if (lastMessage.courseId && courseId && String(lastMessage.courseId) === String(courseId)) {
-        const { sender_id, name, questionIndex, isCorrect: correct, score: qScore } = lastMessage;
-        setAllAnswers(prev => {
-          const existing = prev[sender_id] || { name: name || 'Öğrenci', scores: [], isCorrects: [] };
-          const updatedScores = [...existing.scores];
-          const updatedCorrects = [...existing.isCorrects];
-          updatedScores[questionIndex] = qScore;
-          updatedCorrects[questionIndex] = correct;
-          return {
-            ...prev,
-            [sender_id]: {
-              ...existing,
-              scores: updatedScores,
-              isCorrects: updatedCorrects
-            }
-          };
-        });
-      }
-    } else if (lastMessage.type === 'next_question') {
-      if (lastMessage.courseId && courseId && String(lastMessage.courseId) === String(courseId)) {
-        const { questionIndex: nextIdx } = lastMessage;
-        if (nextIdx === currentQuestionIndex + 1) {
-          nextQuestion();
-        }
-      }
-    }
-  }, [lastMessage, courseId, currentQuestionIndex, nextQuestion]);
 
   const submitAnswer = useCallback((correct: boolean, timeRemaining: number) => {
     setIsCorrect(correct);
@@ -302,16 +270,6 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
       ? `${userData.first_name} ${userData.last_name || ''}`.trim() 
       : 'Öğrenci';
 
-    sendMessage({
-      type: 'question_answered',
-      courseId: courseId,
-      questionIndex: currentQuestionIndex,
-      name: userName,
-      isCorrect: correct,
-      score: qScore,
-      timeRemaining: timeRemaining
-    });
-
     // Also update locally immediately
     const myId = userData?.id?.toString() || 'me';
     setAllAnswers(prev => {
@@ -329,7 +287,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         }
       };
     });
-  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate]);
+  }, [currentQuestionIndex, courseId, isPreviewMode, userData, onStatsUpdate]);
 
   // Phase Management
   useEffect(() => {
@@ -552,14 +510,6 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     const isTeacher = previewRole === 'teacher';
 
     const handleNextQuestionOrFinish = () => {
-      if (isTeacher) {
-        // Teacher broadcasts to move all students to next question
-        sendMessage({
-          type: 'next_question',
-          courseId: courseId,
-          questionIndex: currentQuestionIndex + 1
-        });
-      }
       nextQuestion();
     };
 

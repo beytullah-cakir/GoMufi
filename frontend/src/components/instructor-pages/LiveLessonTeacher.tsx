@@ -20,7 +20,6 @@ interface LiveLessonTeacherProps {
     coursesData: any[];
     sessionStudents: Record<string, any>;
     showLessonSlide: boolean;
-    sendMessage: (msg: any) => void;
     setActiveLessonIndexState: (idx: number) => void;
     setActiveLessonTitle: (title: string) => void;
     setShowLessonSlide: (val: boolean) => void;
@@ -35,7 +34,6 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
     coursesData,
     sessionStudents,
     showLessonSlide,
-    sendMessage,
     setActiveLessonIndexState,
     setActiveLessonTitle,
     setShowLessonSlide,
@@ -196,14 +194,6 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                             setActiveLessonTitle(node.title);
                             setActiveLessonIndex(node.id);
                             setShowLessonSlide(true);
-
-                            // Broadcast level change via WebSocket
-                            sendMessage({
-                                type: "level_changed",
-                                courseId: activeLaunchCourseId,
-                                nodeId: node.id,
-                                isOpen: true
-                            });
                         };
 
                         return (

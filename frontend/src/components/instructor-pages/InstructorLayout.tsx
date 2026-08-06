@@ -24,7 +24,7 @@ const InstructorLayout: React.FC<InstructorLayoutProps> = ({
   const initials = (firstname.charAt(0) + (lastname.charAt(0) || "")).toUpperCase();
 
   return (
-    <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+    <div className="flex h-[100dvh] bg-gray-50 font-sans text-gray-900 overflow-hidden">
       <InstructorSidebar activePage={activePage} onNavigate={onNavigate} userData={userData} />
       <div className={`flex-1 relative flex flex-col ${activePage === "Builder" ? "overflow-hidden" : "overflow-auto"}`}>
         <div className={`flex-1 relative ${activePage === "Builder" ? "overflow-hidden h-full w-full" : "overflow-y-auto p-8"}`}>

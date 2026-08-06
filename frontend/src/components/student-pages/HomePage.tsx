@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
 import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight } from 'lucide-react';
-import { useWebSocket } from '../../hooks/useWebSocket';
+
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
 import LiveLessonStudent from './LiveLessonStudent';
@@ -87,7 +87,7 @@ const HomePage: React.FC<HomePageProps> = ({
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
-    const { sendMessage, lastMessage } = useWebSocket();
+
 
     const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
         class_name: null,
@@ -186,68 +186,12 @@ const HomePage: React.FC<HomePageProps> = ({
 
             // Student enters live session roadmap dashboard
             setIsLiveSessionJoined(true);
-
-            // Report student readiness & stats via websocket
-            sendMessage({
-                type: "student_status",
-                courseId: targetCourseId,
-                name: userData?.first_name ? `${userData.first_name} ${userData.last_name || ''}`.trim() : "Öğrenci",
-                isReady: true,
-                currentSlide: 0
-            });
         } catch (err) {
             console.error("Join live class helper error:", err);
         }
     };
 
-    // Listen to WebSocket level_changed and lesson_completed messages for students
-    useEffect(() => {
-        if (!isLiveSessionJoined) return;
-        if (lastMessage) {
-            if (lastMessage.type === 'level_changed') {
-                const { courseId: msgCourseId, nodeId: msgNodeId, isOpen: msgIsOpen } = lastMessage;
-                
-                if (msgCourseId && currentCourse && String(msgCourseId) === String(currentCourse.id)) {
-                    if (msgIsOpen) {
-                        setLessonLevel(msgNodeId);
-                        setShowLessonSlide(true);
-                    } else {
-                        setShowLessonSlide(false);
-                    }
-                }
-            } else if (lastMessage.type === 'lesson_completed') {
-                const { courseId: msgCourseId, lessonIndex: msgLessonIndex, stars: msgStars } = lastMessage;
-                
-                if (msgCourseId && currentCourse && String(msgCourseId) === String(currentCourse.id)) {
-                    const completedLessonLevel = Number(msgLessonIndex);
-                    setCourses(prev => {
-                        const currentCourseData = prev[activeCourseId];
-                        if (!currentCourseData) return prev;
 
-                        const updatedNodes = currentCourseData.nodes.map(node => {
-                            if (node.id === completedLessonLevel) {
-                                return { ...node, stars: msgStars || 3 };
-                            }
-                            if (node.id === completedLessonLevel + 1) {
-                                return { ...node, isLocked: false };
-                            }
-                            return node;
-                        });
-
-                        localStorage.setItem(`progress_${activeCourseId}`, completedLessonLevel.toString());
-
-                        return {
-                            ...prev,
-                            [activeCourseId]: {
-                                ...currentCourseData,
-                                nodes: updatedNodes
-                            }
-                        };
-                    });
-                }
-            }
-        }
-    }, [lastMessage, currentCourse, isLiveSessionJoined, activeCourseId, setCourses]);
 
     // Initialize/Update Header when currentCourse changes
     useEffect(() => {
