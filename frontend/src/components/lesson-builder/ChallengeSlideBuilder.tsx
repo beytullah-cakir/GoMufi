@@ -10,6 +10,10 @@ import type {
     ChallengeConfig, ChallengeCheckMode, ChallengeSubmissionType, ChallengeTest, Slide,
 } from './types';
 import { usePyodide, type PythonTestResult } from '../../hooks/usePyodide';
+import { isEmbeddedInVSCode } from '../../vscodeBridge';
+import ChallengeVSCodePanel from './ChallengeVSCodePanel';
+import ExpectedOutputVerifier from './ExpectedOutputVerifier';
+import { criteriaOf } from './challengeCheck';
 import api from '../../api';
 
 /**
@@ -269,13 +273,7 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                             <p className="mt-1.5 text-[10.5px] text-slate-400 font-medium">{CHECK_META[checkMode].hint}</p>
 
                             {checkMode === 'output' && (
-                                <textarea
-                                    value={cfg.expectedOutput || ''}
-                                    onChange={(e) => patch({ expectedOutput: e.target.value })}
-                                    rows={2}
-                                    placeholder="Beklenen ekran çıktısı"
-                                    className="mt-2 w-full font-mono text-[12px] bg-slate-900 text-emerald-300 rounded-xl p-2.5 outline-none resize-none border-2 border-slate-700"
-                                />
+                                <ExpectedOutputVerifier cfg={cfg} patch={patch} />
                             )}
                             {checkMode === 'tests' && (
                                 <div className="mt-2 flex items-center gap-2 text-[12px]">
@@ -610,13 +608,37 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
         </div>
     );
 
+    /**
+     * VS Code panelinde kod görevi: editör yerine gerçek dosya.
+     *
+     * Yalnızca öğrenci görünümünde devreye giriyor — öğretmen görevi kurarken
+     * (isEdit) beklenen çıktıyı ve başlangıç kodunu buradaki editörde ayarlıyor,
+     * teslimleri incelerken (isReview) zaten kod yazmıyor.
+     */
+    const useVSCodeWorkspace = isEmbeddedInVSCode() && !isEdit && !isReview
+        && cfg.submissionType === 'code';
+
+    const vsCodeWorkspace = (
+        <ChallengeVSCodePanel
+            task={`${cfg.title}\n\n${cfg.prompt}`}
+            starter={starterFor(cfg)}
+            criteria={criteriaOf(cfg)}
+            courseId={courseId}
+            xp={cfg.xp}
+            onSolved={onSolved}
+            onCodeRead={setCode}
+        />
+    );
+
     /* -------------------------------- LAYOUT -------------------------------- */
     return (
         <div className="w-full h-full flex gap-4 pt-14 pb-20 px-6 bg-slate-50 overflow-hidden">
             <div className="w-[36%] min-w-[280px] max-w-[420px] h-full flex flex-col overflow-y-auto pr-1">{brief}</div>
 
             <div className="flex-1 h-full flex flex-col gap-3 min-w-0 min-h-0">
-                {isReview ? reviewPanel : (cfg.submissionType === 'code' ? codeWorkspace : uploadWorkspace)}
+                {isReview ? reviewPanel
+                    : useVSCodeWorkspace ? vsCodeWorkspace
+                    : (cfg.submissionType === 'code' ? codeWorkspace : uploadWorkspace)}
 
                 {!isEdit && !isReview && (
                     <button

@@ -11,6 +11,28 @@ const api = axios.create({
   withCredentials: true,
 });
 
+/**
+ * VS Code paneli için Bearer token desteği.
+ *
+ * Site normalde kimliği httpOnly çerezle taşır ve bu KASITLIDIR (XSS'e karşı).
+ * Ama oynatıcı VS Code webview'ünde bir iframe olarak çalıştığında tarayıcı
+ * çerezleri orada yoktur; eklenti kendi cihaz token'ını köprüyle verir.
+ * `withCredentials` açık kalıyor — tarayıcıdaki çerez akışı hiç değişmiyor,
+ * bu yalnızca çerez YOKKEN devreye giren ek bir yol.
+ */
+let bearerToken: string | null = null;
+
+export const setBearerToken = (token: string | null) => {
+  bearerToken = token;
+};
+
+api.interceptors.request.use((config) => {
+  if (bearerToken) {
+    config.headers.Authorization = `Bearer ${bearerToken}`;
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error) => {
@@ -21,8 +43,12 @@ api.interceptors.response.use(
         msg.toLowerCase().includes("has expired") ||
         msg.toLowerCase().includes("not authenticated");
 
+      // VS Code panelinde yönlendirecek bir "giriş sayfası" yok — token'ı eklenti
+      // veriyor. Burada rota değiştirmek paneli boş bir sayfaya düşürürdü;
+      // süresi dolan token'ı kullanıcıya panelin kendisi bildirir.
       if (
         isExpired &&
+        !bearerToken &&
         window.location.pathname !== "/" &&
         window.location.pathname !== "/auth"
       ) {

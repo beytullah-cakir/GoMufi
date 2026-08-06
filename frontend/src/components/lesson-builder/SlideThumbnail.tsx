@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Slide, SlideElement } from './types';
+import { layoutElements } from './grid';
 import { Image as ImageIcon, Video as VideoIcon, Check } from 'lucide-react';
 
 interface SlideThumbnailProps {
@@ -16,6 +17,14 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
     const BASE_WIDTH = 1280;
     const scale = width / BASE_WIDTH;
     const baseHeight = height / scale; // Maintain aspect ratio of container
+
+    // Grid'li slaytlarda elemanların ham x/y'si anlamsız (hepsi 0) — küçük resim
+    // de motorun çözümlediği konumları göstermeli, yoksa şeritte üst üste yığılmış
+    // bir yığın görünür. Şerit sahne modunu gösterir.
+    const thumbElements = React.useMemo(
+        () => (slide.layout ? layoutElements(slide, 'stage').elements : slide.elements),
+        [slide],
+    );
 
     return (
         <div
@@ -151,7 +160,7 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                         </div>
                     </div>
                 ) : (
-                    slide.elements.map(el => (
+                    thumbElements.map(el => (
                         <ThumbnailElement key={el.id} el={el} />
                     ))
                 )}

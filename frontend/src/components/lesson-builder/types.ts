@@ -124,6 +124,31 @@ export type ChallengeSubmissionType = 'code' | 'text' | 'image' | 'file';
  */
 export type ChallengeCheckMode = 'output' | 'tests' | 'manual';
 
+/**
+ * Bir görevin "doğru sayılma" ölçütü.
+ *
+ * NEDEN LİSTE: eskiden tek bir `expectedOutput` vardı ve öğretmene "çıktı ne
+ * olacak?" diye soruyordu. Bu, her öğrencinin ne yazacağını önceden bilmesini
+ * istemek demek — "kendi adını yazdır" gibi görevlerde imkânsız. Doğru soru
+ * "ne doğru sayılır?" ve bunun cevabı bir değer değil, bir ölçüt.
+ *
+ * Sonuç ölçüt-ölçüt raporlanır: öğrenci hangi maddede kaldığını görür ve YZ
+ * koçu "beklenen X gelen Y" yerine "2. ölçüt düştü" bilgisiyle çalışır.
+ */
+export type CriterionKind =
+    | 'exact'      // çıktı birebir eşleşmeli
+    | 'template'   // çıktı bu biçimde; {} yerleri serbest
+    | 'contains'   // çıktı bunu içermeli
+    | 'code'       // kod bu ifadeyi içermeli (yöntemi zorunlu kılar)
+    | 'ai';        // öğretmenin cümlesine göre YZ karar verir
+
+export interface ChallengeCriterion {
+    id: string;
+    kind: CriterionKind;
+    /** exact/template/contains: metin · code: aranan ifade · ai: ölçüt cümlesi */
+    value: string;
+}
+
 export interface ChallengeConfig {
     title: string;
     /** Görev metni (ne yapılacak) */
@@ -143,12 +168,42 @@ export interface ChallengeConfig {
     /** checkMode === 'tests' iken çalıştırılan testler */
     tests?: ChallengeTest[];
     starterCode?: string;
+    /**
+     * Öğretmenin referans çözümü — öğrenciye ASLA gösterilmez.
+     *
+     * `expectedOutput` bunun gerçek çıktısından türetilir. Eskiden beklenen çıktı
+     * elle yazılıyordu ve doğruluğunu hiçbir şey denetlemiyordu; bir boşluk fazla
+     * yazıldığında öğrenci doğru kodla "yanlış" alıyordu.
+     */
+    solutionCode?: string;
+    /**
+     * Doğruluk ölçütleri. VARSA `expectedOutput` yerine bunlar uygulanır.
+     *
+     * `expectedOutput` geriye dönük uyumluluk için duruyor: ölçütü olmayan eski
+     * slaytlar tek bir `exact` ölçütüymüş gibi değerlendirilir (bkz.
+     * challengeCheck.ts `criteriaOf`).
+     */
+    criteria?: ChallengeCriterion[];
+    /**
+     * `expectedOutput` gerçekten çalıştırılarak mı üretildi?
+     *
+     * Eski slaytlarda (ve çalıştırılamayan görevlerde) elle yazılmış çıktılar
+     * var; ikisini ayırmadan öğretmene "bu doğrulandı" diyemeyiz.
+     */
+    outputVerified?: boolean;
 }
 
 export interface Slide {
     id: number | string;
     // 'normal' is default if undefined
     type?: 'normal' | 'game' | 'coding' | 'homework' | 'challenge';
+    /**
+     * Grid yerleşimi. VARSA slayt satır/kolon yapısına göre çözümlenir ve iki
+     * yüzeyde (16:9 sahne + dar VS Code paneli) ayrı ayrı konumlanır. YOKSA
+     * elemanlar kendi x/y'leriyle çizilir — eski slaytlar dokunulmadan çalışır.
+     * Bkz. grid.ts
+     */
+    layout?: import('./grid').SlideLayout;
     gameType?: 'matching' | 'monster';
     gameConfig?: MatchingGameConfig | any;
     homeworkConfig?: HomeworkConfig;

@@ -1,0 +1,250 @@
+{
+  "name": "gomufi",
+  "displayName": "GoMufi",
+  "description": "GoMufi ödevlerini VS Code içinde aç, kendi bilgisayarında çalıştır, teslim et.",
+  "version": "0.4.0",
+  "publisher": "gomufi",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Education",
+    "Themes",
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "themes": [
+      {
+        "label": "GoMufi Karanlık",
+        "uiTheme": "vs-dark",
+        "path": "./themes/gomufi-dark-color-theme.json"
+      },
+      {
+        "label": "GoMufi Aydınlık",
+        "uiTheme": "vs",
+        "path": "./themes/gomufi-light-color-theme.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "gomufi",
+          "title": "GoMufi",
+          "icon": "media/gomufi.svg"
+        }
+      ]
+    },
+    "views": {
+      "gomufi": [
+        {
+          "id": "gomufi.assignments",
+          "name": "Ödevlerim",
+          "when": "gomufi.view == student"
+        },
+        {
+          "id": "gomufi.submissions",
+          "name": "Gelen Teslimler",
+          "when": "gomufi.view == teacher"
+        },
+        {
+          "id": "gomufi.welcome",
+          "name": "GoMufi",
+          "when": "gomufi.view != student && gomufi.view != teacher"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "gomufi.welcome",
+        "when": "!gomufi.signedIn",
+        "contents": "Ödevlerini görmek için GoMufi hesabınla giriş yap.\n\n[Giriş Yap](command:gomufi.signIn)\n\nVS Code'u GoMufi görünümüne çevirmek istersen:\n\n[Temayı Uygula](command:gomufi.applyTheme)"
+      },
+      {
+        "view": "gomufi.welcome",
+        "when": "gomufi.signedIn",
+        "contents": "Bu hesabın rolü VS Code eklentisinde henüz desteklenmiyor.\n\nÖdev görmek için öğrenci, teslim görmek için öğretmen hesabıyla gir.\n\n[Çıkış Yap](command:gomufi.signOut)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "gomufi.signIn",
+        "title": "GoMufi: Giriş Yap"
+      },
+      {
+        "command": "gomufi.signOut",
+        "title": "GoMufi: Çıkış Yap"
+      },
+      {
+        "command": "gomufi.openLessons",
+        "title": "GoMufi: Dersleri Aç",
+        "icon": "$(book)"
+      },
+      {
+        "command": "gomufi.refresh",
+        "title": "Yenile",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "gomufi.applyTheme",
+        "title": "GoMufi: Tasarımı Uygula (Tema ve Yazı Tipleri)",
+        "icon": "$(symbol-color)"
+      },
+      {
+        "command": "gomufi.growLesson",
+        "title": "GoMufi: Ders Panelini Genişlet (%10)",
+        "icon": "$(chevron-left)"
+      },
+      {
+        "command": "gomufi.growEditor",
+        "title": "GoMufi: Kod Ekranını Genişlet (%10)",
+        "icon": "$(chevron-right)"
+      },
+      {
+        "command": "gomufi.resetLayout",
+        "title": "GoMufi: Panel Genişliğini Sıfırla",
+        "icon": "$(discard)"
+      },
+      {
+        "command": "gomufi.openAssignment",
+        "title": "Ödevi Aç"
+      },
+      {
+        "command": "gomufi.submitAssignment",
+        "title": "GoMufi: Ödevi Teslim Et",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "gomufi.openSubmission",
+        "title": "Teslimi İncele"
+      },
+      {
+        "command": "gomufi.gradeSubmission",
+        "title": "GoMufi: Not Ver",
+        "icon": "$(check)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "gomufi.signIn",
+          "when": "!gomufi.signedIn"
+        },
+        {
+          "command": "gomufi.signOut",
+          "when": "gomufi.signedIn"
+        },
+        {
+          "command": "gomufi.refresh",
+          "when": "false"
+        },
+        {
+          "command": "gomufi.openAssignment",
+          "when": "false"
+        },
+        {
+          "command": "gomufi.openSubmission",
+          "when": "false"
+        },
+        {
+          "command": "gomufi.gradeSubmission",
+          "when": "false"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "gomufi.openLessons",
+          "when": "view == gomufi.assignments",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gomufi.refresh",
+          "when": "view == gomufi.assignments || view == gomufi.submissions",
+          "group": "navigation@2"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "gomufi.submitAssignment",
+          "when": "view == gomufi.assignments && viewItem == assignment",
+          "group": "inline"
+        },
+        {
+          "command": "gomufi.gradeSubmission",
+          "when": "view == gomufi.submissions && viewItem == submission",
+          "group": "inline"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "gomufi.growLesson",
+        "key": "ctrl+alt+.",
+        "mac": "cmd+alt+."
+      },
+      {
+        "command": "gomufi.growEditor",
+        "key": "ctrl+alt+,",
+        "mac": "cmd+alt+,"
+      },
+      {
+        "command": "gomufi.resetLayout",
+        "key": "ctrl+alt+0",
+        "mac": "cmd+alt+0"
+      }
+    ],
+    "configuration": {
+      "title": "GoMufi",
+      "properties": {
+        "gomufi.apiUrl": {
+          "type": "string",
+          "default": "http://localhost:8000",
+          "description": "GoMufi sunucu adresi."
+        },
+        "gomufi.allowedOrigins": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Yerel çalıştırıcıya erişebilecek EK site adresleri. Varsayılan GoMufi adresleri zaten izinlidir; buraya yalnızca kendi kurulumunuzun adresini ekleyin."
+        },
+        "gomufi.workspaceRoot": {
+          "type": "string",
+          "default": "",
+          "description": "Ödevlerin indirileceği klasör. Boş bırakılırsa ev dizininde 'GoMufi' klasörü kullanılır."
+        },
+        "gomufi.siteUrl": {
+          "type": "string",
+          "default": "http://localhost:5173",
+          "description": "GoMufi site adresi. Giris bu adreste tarayicida yapilir."
+        },
+        "gomufi.fontFamily": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "\"GoMufi: Temayı ve Yazı Tiplerini Uygula\" komutunun kuracağı kod yazı tipi. Boş bırakılırsa `Cascadia Code → JetBrains Mono → Fira Code → Consolas` sırası kullanılır."
+        },
+        "gomufi.fontSize": {
+          "type": "number",
+          "default": 15,
+          "minimum": 10,
+          "maximum": 28,
+          "markdownDescription": "Editör yazı boyutu. Terminal ve hata ayıklama konsolu bunun bir punto altını kullanır. Ders anlatırken 17-18 rahat okunur."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "typecheck": "tsc -p ./ --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

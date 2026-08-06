@@ -19,6 +19,10 @@ import RightClickMenu from './lesson-builder/RightClickMenu';
 import LayersPanel from './lesson-builder/LayersPanel';
 import PropertiesPanel from './lesson-builder/PropertiesPanel';
 import SelectionOverlay from './lesson-builder/SelectionOverlay';
+import GridOverlay from './lesson-builder/GridOverlay';
+import LayoutModeToggle from './lesson-builder/LayoutModeToggle';
+import { addBlockToCell, cellAtPoint, emptySlotInCell, layoutElements, moveBlockToCell, removeBlock, resizeColumns, STAGE_HEIGHT, STAGE_WIDTH } from './lesson-builder/grid';
+import type { LayoutMode } from './lesson-builder/grid';
 import SaveToCourseModal from "./lesson-builder/SaveToCourseModal";
 import api from "../api";
 import { Loader2, X, LayoutTemplate } from 'lucide-react';
@@ -673,7 +677,17 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
         setSlides(prev => prev.map(slide => {
             if (slide.id === currentSlideId) {
-                return { ...slide, elements: slide.elements.filter(el => !idsToRemove.includes(el.id)) };
+                // Grid'li slaytta yerleşim de temizlenmeli: silinen elemanın yuvası
+                // orada kalsaydı motor var olmayan bir bloğa yer ayırmaya devam
+                // eder, hücrede açıklanamayan bir boşluk görünürdü.
+                const layout = slide.layout
+                    ? idsToRemove.reduce((acc, id) => removeBlock(acc, id), slide.layout)
+                    : slide.layout;
+                return {
+                    ...slide,
+                    layout,
+                    elements: slide.elements.filter(el => !idsToRemove.includes(el.id)),
+                };
             }
             return slide;
         }));
@@ -1079,7 +1093,34 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             };
 
             addToHistory(); // Save state before adding NEW element
-            setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, elements: [...s.elements, newElement] } : s));
+            setSlides(prev => prev.map(s => {
+                if (s.id !== currentSlideId) return s;
+
+                // Grid'li slaytta bırakma noktası bir HÜCREYE denk gelir; x/y
+                // korunmaz, çünkü konumu motor belirliyor. Hücrede boş bir yuva
+                // varsa yeni blok onun yerine geçer — aksi halde "+" işareti
+                // bırakmanın altında öylece durmaya devam ederdi.
+                if (s.layout) {
+                    const cellId = cellAtPoint(s.layout, x, y);
+                    if (cellId) {
+                        const isFilled = (bid: string) => {
+                            const el = s.elements.find(e => e.id === bid);
+                            if (!el) return false;
+                            return (el.content && el.content.replace(/<[^>]*>/g, '').trim().length > 0)
+                                || !!el.src || !!el.imageUrl || !!el.videoUrl || el.type !== 'text';
+                        };
+                        const slot = emptySlotInCell(s.layout, cellId, isFilled);
+                        const nextLayout = addBlockToCell(s.layout, cellId, newElement.id, slot);
+                        // Yerine geçilen boş yuvanın taşıyıcı elemanı artık gereksiz.
+                        const elements = slot
+                            ? [...s.elements.filter(e => e.id !== slot), newElement]
+                            : [...s.elements, newElement];
+                        return { ...s, layout: nextLayout, elements };
+                    }
+                }
+
+                return { ...s, elements: [...s.elements, newElement] };
+            }));
             setSelectedElementIds([newElement.id]); // Triggers ContextMenu render
         }
     };
@@ -2006,6 +2047,42 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     };
     const stageColor = getStageColor();
     const bounds = getSelectionBounds(); // For Group Overlay
+    const [layoutMode, setLayoutMode] = useState<LayoutMode>('stage');
+
+    /**
+     * Grid'li slaytlarda elemanların konumu motordan gelir, el ile sürüklemeden
+     * değil. Builder tuvali de aynı motoru kullanıyor — öğretmen tasarlarken
+     * öğrencinin göreceğinin birebir aynısını görsün diye.
+     *
+     * Öğretmen 16:9 SAHNE katmanında ÇALIŞIR; dar mod salt önizleme. Dar modda
+     * düzenlemeye izin vermek iki ayrı tasarım demek olurdu.
+     */
+    const isNarrowPreview = layoutMode === 'narrow' && !!currentSlide?.layout;
+    const gridLaid = React.useMemo(
+        () => (currentSlide?.layout ? layoutElements(currentSlide, isNarrowPreview ? 'narrow' : 'stage') : null),
+        [currentSlide, isNarrowPreview],
+    );
+    const canvasElements: SlideElement[] = gridLaid ? gridLaid.elements : (currentSlide?.elements || []);
+    const canvasW = gridLaid ? gridLaid.width : STAGE_WIDTH;
+    const canvasH = gridLaid ? gridLaid.height : STAGE_HEIGHT;
+
+    /** Grid düzenini değiştiren işlemler için ortak yazıcı. */
+    const updateLayout = (fn: (l: NonNullable<Slide['layout']>) => NonNullable<Slide['layout']>) => {
+        addToHistory();
+        setSlides(prev => prev.map(s =>
+            s.id === currentSlideId && s.layout ? { ...s, layout: fn(s.layout) } : s));
+    };
+
+    /** İçi dolu bloklar: boş yuvalar "+" alanı olarak çizilecek. */
+    const filledBlockIds = React.useMemo(() => {
+        const set = new Set<string>();
+        (currentSlide?.elements || []).forEach(el => {
+            const hasBody = (el.content && el.content.replace(/<[^>]*>/g, '').trim().length > 0)
+                || !!el.src || !!el.imageUrl || !!el.videoUrl || el.type !== 'text';
+            if (hasBody) set.add(el.id);
+        });
+        return set;
+    }, [currentSlide]);
 
     if (isLoadingCourse) {
         return (
@@ -2306,8 +2383,11 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 }}
                                 className={`shadow-2xl relative transition-transform duration-200 origin-center select-none rounded-sm ${activeTool === 'draw' ? (brushType === 'eraser' ? 'cursor-eraser' : 'cursor-crosshair') : ''} ${activeTool === 'connect' ? 'cursor-crosshair' : ''} ${currentSlide.background === 'notebook' ? 'bg-notebook-pattern pl-16' : ''}`}
                                 style={{
-                                    width: '1280px',
-                                    height: '720px',
+                                    // Dar önizlemede tuval 600 tabanına ve içeriğe göre
+                                    // uzayan bir yüksekliğe geçer — VS Code panelinde
+                                    // görünecek olan tam olarak budur.
+                                    width: `${canvasW}px`,
+                                    height: `${canvasH}px`,
                                     transform: `scale(${scale})`,
                                     backgroundColor: currentSlide.backgroundColor || '#ffffff'
                                 }}
@@ -2345,7 +2425,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                                 {/* SINGLE ELEMENT SELECTION OVERLAY */}
                                 {!isPreview && selectedElementIds.map(id => {
-                                    const el = currentSlide.elements.find(e => e.id === id);
+                                    // Grid'li slaytta seçim çerçevesi de motorun hesapladığı
+                                    // dikdörtgeni izlemeli; ham el.x/y hâlâ 0 olabilir.
+                                    const el = canvasElements.find(e => e.id === id);
                                     if (el && !editingElementId) {
                                         return (
                                             <SelectionOverlay
@@ -2387,7 +2469,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 {/* CONNECTOR LAYER */}
                                 <ConnectorRenderer
                                     connections={currentSlide.connections || []}
-                                    elements={currentSlide.elements}
+                                    elements={canvasElements}
                                 />
 
                                 {/* ALIGNMENT GUIDES */}
@@ -2404,7 +2486,31 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                     />
                                 ))}
 
-                                {currentSlide.elements.map(el => (
+                                {/* GRID HÜCRELERİ — yapıyı görünür kılar, düzenlemeyi mümkün kılar.
+                                    Dar önizlemede gizli: orası salt çıktı, düzenleme yeri değil. */}
+                                {!isPreview && currentSlide.layout && !isNarrowPreview && (
+                                    <GridOverlay
+                                        layout={currentSlide.layout}
+                                        filledBlockIds={filledBlockIds}
+                                        scale={scale}
+                                        onPickSlot={(blockId) => {
+                                            setSelectedElementIds([blockId]);
+                                            setEditingElementId(blockId);
+                                            setIsCanvasSelected(false);
+                                        }}
+                                        onMoveBlock={(blockId, cellId) =>
+                                            updateLayout(l => moveBlockToCell(l, blockId, cellId))}
+                                        onResizeColumns={(rowId, leftCellId, deltaPx) =>
+                                            // Sürükleme sırasında her karede history'ye yazmıyoruz;
+                                            // tek bir çekme onlarca geri-al adımı üretirdi.
+                                            setSlides(prev => prev.map(s =>
+                                                s.id === currentSlideId && s.layout
+                                                    ? { ...s, layout: resizeColumns(s.layout, rowId, leftCellId, deltaPx) }
+                                                    : s))}
+                                    />
+                                )}
+
+                                {canvasElements.map(el => (
                                     <CanvasElement
                                         key={el.id}
                                         el={el}
@@ -2413,10 +2519,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                         updateElement={updateElement}
                                         updateElementStyle={updateElementStyle}
                                         deleteElement={deleteElement}
-                                        handleMouseDown={handleMouseDown}
+                                        // Grid'li slaytta konum motordan geliyor; sürükleme
+                                        // kapalı. Açık bırakılsaydı öğretmen kutuyu taşır,
+                                        // sonraki çizimde motor onu geri koyar ve sistem
+                                        // bozukmuş gibi görünürdü.
+                                        handleMouseDown={currentSlide.layout ? (() => {}) : handleMouseDown}
                                         isPreview={isPreview}
                                         previewRole={previewRole}
-                                        elements={currentSlide.elements}
+                                        elements={canvasElements}
                                         onSpawnCodeEditor={spawnCodeEditorForChallenge}
                                         allLessons={allLessons}
                                     />
@@ -2453,6 +2563,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
                 {/* ZOOM Buttons */}
                 {!isPreview && <LessonBuilderZoomControls scale={scale} setScale={setScale} />}
+                {!isPreview && (
+                    <LayoutModeToggle
+                        mode={layoutMode}
+                        setMode={setLayoutMode}
+                        disabled={!currentSlide?.layout}
+                    />
+                )}
 
                 {/* SLIDE STRIP */}
                 {!isPreview && (
@@ -2494,10 +2611,14 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                                 points: 100,
                                 starterCode: '# Kodunuzu buraya yazın\n'
                             } : undefined,
-                            elements: config?.elements ? config.elements.map((el: any) => ({
+                            layout: config?.layout,
+                            // DİKKAT: grid'li şablonlarda id'ler YENİDEN ÜRETİLMEZ.
+                            // layout, bloklara id ile işaret ediyor; id'yi değiştirmek
+                            // her bloğu yerleşimden koparır ve slayt boş görünür.
+                            elements: config?.elements ? (config.layout ? config.elements : config.elements.map((el: any) => ({
                                 ...el,
                                 id: Date.now().toString() + Math.random().toString().slice(2, 5)
-                            })) : (type === 'coding' ? [
+                            }))) : (type === 'coding' ? [
                                 {
                                     id: 'code-1',
                                     type: 'code_editor',
