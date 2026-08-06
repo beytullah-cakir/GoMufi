@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2022",
+    // DOM: fetch / FormData / Blob web standardı tiplerdir; Node 18+ bunları
+    // global olarak sağlıyor ama tipleri DOM kütüphanesinde tanımlı.
+    "lib": ["ES2022", "DOM"],
+    "outDir": "out",
+    "rootDir": "src",
+    "sourceMap": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noImplicitReturns": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "out"]
+}

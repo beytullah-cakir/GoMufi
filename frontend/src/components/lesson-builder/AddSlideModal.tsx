@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy, Trash2, Sparkles, Pencil } from 'lucide-react';
+import { Gamepad2, LayoutTemplate, X, ChevronRight, Puzzle, Code, PenTool, Layers, Trophy, Trash2, Sparkles, Pencil, LayoutGrid } from 'lucide-react';
 import SlideThumbnail from './SlideThumbnail';
 import type { Slide } from './types';
+import type { SlideLayout } from './grid';
+import { GRID_PRESETS, emptyBlocksFor } from './gridPresets';
 import api from '../../api';
 
 interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework' | 'challenge', config?: { gameType?: string; elements?: any[]; background?: string; challengeConfig?: any }) => void;
+    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework' | 'challenge', config?: { gameType?: string; elements?: any[]; background?: string; challengeConfig?: any; layout?: SlideLayout }) => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV' | (string & {});
     stageColor: string;
     isAdmin?: boolean;
@@ -34,7 +36,7 @@ const MOCK_GAME_SLIDE: Slide = {
 };
 
 const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSlide, activeStage, stageColor, isAdmin = false }) => {
-    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai' | 'homework'>('custom_stage');
+    const [activeTab, setActiveTab] = useState<'slide' | 'game' | 'custom_stage' | 'custom_ai' | 'homework' | 'grid'>('custom_stage');
     const [customTemplates, setCustomTemplates] = useState<any[]>([]);
 
     // Edit Template State
@@ -77,6 +79,17 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 <span className="font-bold text-sm">Slayt Şablonları</span>
                             </div>
                             {activeTab === 'slide' && <ChevronRight className="w-4 h-4 text-indigo-500" />}
+                        </button>
+
+                        <button
+                            onClick={() => setActiveTab('grid')}
+                            className={`w-full text-left px-4 py-3 rounded-xl flex items-center justify-between transition-colors mb-1 ${activeTab === 'grid' ? 'bg-white shadow-sm ring-1 ring-black/5 text-emerald-600 font-bold' : 'text-gray-500 hover:bg-white/50 hover:text-gray-700 font-medium'}`}
+                        >
+                            <div className="flex items-center gap-3">
+                                <LayoutGrid className="w-5 h-5" />
+                                <span className="font-bold text-sm">Bölünmüş Düzenler</span>
+                            </div>
+                            {activeTab === 'grid' && <ChevronRight className="w-4 h-4 text-emerald-500" />}
                         </button>
 
                         <button
@@ -139,13 +152,63 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                             {activeTab === 'custom_ai' && `${activeStage.charAt(0) + activeStage.slice(1).toLowerCase()} AI Şablonları`}
                             {activeTab === 'game' && 'Oyun Şablonları'}
                             {activeTab === 'homework' && 'Ödev Şablonları'}
+                            {activeTab === 'grid' && 'Bölünmüş Düzenler'}
                         </h3>
                         <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full text-gray-400 transition-colors">
                             <X className="w-5 h-5" />
                         </button>
                     </div>
 
+                    {activeTab === 'grid' && (
+                        <p className="-mt-4 mb-6 text-xs text-gray-400 font-medium leading-relaxed shrink-0">
+                            Bunlar boş iskeletler. Bir düzen seç, sonra hücrelere blok koy.
+                            Grid'li slaytlar dar VS Code panelinde otomatik yeniden dizilir —
+                            <span className="text-gray-500 font-bold"> kolonlar alt alta iner.</span>
+                        </p>
+                    )}
+
                     <div className="grid grid-cols-3 gap-6 auto-rows-max">
+
+                        {/* BÖLÜNMÜŞ DÜZENLER (GRID) */}
+                        {activeTab === 'grid' && GRID_PRESETS.map(preset => (
+                            <button
+                                key={preset.key}
+                                onClick={() => {
+                                    const layout = preset.build();
+                                    // Şablonun hazır yuvaları için boş metin blokları.
+                                    // Yuva element'siz kalırsa hücre görünmez olur ve
+                                    // öğretmen "burada bir şey vardı" diye arar.
+                                    const elements = emptyBlocksFor(layout).map(b => ({
+                                        id: b.id,
+                                        type: 'text' as const,
+                                        x: 0, y: 0, width: 100, height: 100,
+                                        rotation: 0,
+                                        content: '',
+                                        style: { fontSize: 24, textAlign: 'left' as const, verticalAlign: 'top' as const },
+                                    }));
+                                    onAddSlide('normal', { layout, elements });
+                                }}
+                                className="text-left group"
+                            >
+                                <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-emerald-500 group-hover:shadow-md transition-all relative p-3 flex flex-col gap-1.5">
+                                    {preset.preview.map((cols, ri) => (
+                                        <div key={ri} className="flex gap-1.5 flex-1">
+                                            {cols.map((w, ci) => (
+                                                <div
+                                                    key={ci}
+                                                    className="bg-white border border-gray-200 rounded-md group-hover:border-emerald-200 transition-colors"
+                                                    style={{ flexGrow: w, flexBasis: 0 }}
+                                                />
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="px-1">
+                                    <h4 className="font-bold text-sm text-gray-700 group-hover:text-emerald-600 transition-colors">{preset.label}</h4>
+                                    <p className="text-xs text-gray-400 mt-0.5 leading-snug">{preset.hint}</p>
+                                </div>
+                            </button>
+                        ))}
 
                         {/* GENEL SLAYT ŞABLONLARI */}
                         {activeTab === 'slide' && (

@@ -25,6 +25,7 @@ from sqlalchemy.future import select
 from sqlalchemy import delete
 from models.ai_usage_log import AIUsageLog
 from models.course import Course
+from grid_layouts import DEFAULT_LAYOUT, build_grid_slide, layout_menu
 
 logger = logging.getLogger(__name__)
 
@@ -120,6 +121,46 @@ _SUBMISSION_TYPES = {"code", "text", "image", "file"}
 _CHECK_MODES = {"output", "tests", "manual"}
 
 
+_CRITERION_KINDS = {"exact", "template", "contains", "code", "ai"}
+
+
+def _normalize_criteria(raw: Any, expected_output: Any, check_mode: str) -> List[dict]:
+    """Modelin verdiği ölçüt listesini temizler.
+
+    İki güvenlik ağı var:
+
+    1. Bilinmeyen `kind` değerleri `template`e düşer. Model "regex" veya "format"
+       gibi uydurma bir tür verirse ölçüt sessizce yok sayılmamalı — şablon en
+       yakın ve en zararsız yorum.
+    2. Ölçüt hiç gelmediyse `expectedOutput`tan tek bir ölçüt türetilir. Burada
+       `exact` DEĞİL `template` seçiyoruz: modelin en sık hatası "kendi adını
+       yazdır" gibi bir göreve kendi örneğini beklenen çıktı diye koymak, ve
+       birebir eşleşme o görevi her öğrenci için imkânsız kılıyor.
+    """
+    if check_mode != "output":
+        return []
+
+    out: List[dict] = []
+    for i, item in enumerate(raw or []):
+        if not isinstance(item, dict):
+            continue
+        value = str(item.get("value") or "").strip()
+        if not value:
+            continue
+        kind = str(item.get("kind") or "template").strip()
+        if kind not in _CRITERION_KINDS:
+            kind = "template"
+        out.append({"id": f"k{i + 1}", "kind": kind, "value": value})
+
+    if out:
+        return out[:3]
+
+    fallback = str(expected_output or "").strip()
+    if not fallback:
+        return []
+    return [{"id": "k1", "kind": "template", "value": fallback}]
+
+
 def _build_challenge_slide(raw: str) -> dict:
     """
     UYGULA'ya özel "Uygulama Görevi" slaydını kurar (tuval elemanı değil, kendi tipi).
@@ -167,6 +208,8 @@ def _build_challenge_slide(raw: str) -> dict:
     if check_mode == "tests" and not tests:
         check_mode = "manual"
 
+    criteria = _normalize_criteria(cfg.get("criteria"), cfg.get("expectedOutput"), check_mode)
+
     try:
         xp = int(cfg.get("xp") or 100)
     except (TypeError, ValueError):
@@ -187,6 +230,7 @@ def _build_challenge_slide(raw: str) -> dict:
             "submissionType": sub_type,
             "checkMode": check_mode,
             "expectedOutput": str(cfg.get("expectedOutput") or ""),
+            "criteria": criteria,
             "functionName": fn,
             "starterCode": starter,
             "hint": str(cfg.get("hint") or ""),
@@ -1080,7 +1124,7 @@ Requirements:
   * Note: The JSON string for `connection_task` or `production_task` must be escaped properly so that it is a valid JSON string inside the outer JSON response. Escape double quotes with `\"` and use `\n` for line breaks. Do not write raw newlines inside the string values.
 - UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
   * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
-    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
   * `submissionType` — HOW the student answers. Choose from what the task actually needs:
     - "code"  : student writes Python (default for programming topics)
     - "text"  : a written answer (explain, compare, interpret)
@@ -1088,9 +1132,22 @@ Requirements:
     - "file"  : any uploaded file
     Non-programming subjects (history, biology, language...) almost always want "text" or "image", NOT "code".
   * `checkMode` — only meaningful when submissionType is "code". Choose the one that matches the task:
-    - "output" : the task is about what gets PRINTED. Set `expectedOutput` to the exact expected stdout. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed.
+    - "output" : the task is about what gets PRINTED. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed. Define `criteria` (see below); `expectedOutput` is only a fallback example.
     - "tests"  : the task is to write a FUNCTION with a return value. Set `functionName` and 3 to 5 `tests`, covering at least one edge case (0, 1, empty, negative).
     - "manual" : open-ended; the teacher grades it. Leave expectedOutput and tests empty.
+  * `criteria` — what makes an answer CORRECT. This is the real check; write it for every checkMode "output" task.
+    Each entry is {{"kind": ..., "value": ...}}. Pick the LOOSEST kind that still tests what the task teaches:
+    - "template" : output has a fixed shape but parts vary per student. Mark the varying parts with {{}}.
+      THIS IS THE DEFAULT. "Print your own name" is NOT a fixed string — a student named Deniz will never
+      match "Adım: John". Write "Adım: {{ad}}, Soyadım: {{soyad}}!" instead.
+    - "exact"    : ONLY when every student must produce byte-identical output ("print numbers 1 to 5").
+    - "contains" : the output must mention something, the rest is free.
+    - "code"     : the student must use a specific construct ("for", "while", "def").
+    - "ai"       : a one-sentence rule judged by a model. LAST RESORT — slow and costly. Use only when none
+      of the above can express the rule.
+    Write 1 to 3 criteria. Do NOT restate the same rule in two kinds.
+    Punctuation and letter-case slips are forgiven automatically by the checker, so you do NOT need to
+    write loose criteria to be kind — write the correct shape and let the checker handle near misses.
   * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
   * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
   * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
@@ -1935,6 +1992,10 @@ HARD RULES:
 - Do NOT emit quiz_map or homework_map unless the target module type is QUIZ or HOMEWORK.
 """
 
+        # Düzen menüsü sabit bir metin — prompt'un önbelleklenen önekinde kalması
+        # için burada, değişken bloklardan ÖNCE hesaplanıyor.
+        grid_menu = layout_menu()
+
         # PROMPT SIRALAMASI BİLİNÇLİDİR — DEĞİŞTİRMEDEN ÖNCE OKUYUN:
         # Bir kursun dersleri arka arkaya üretilirken bu prompt'un başındaki her şey
         # (rol, kurallar, şablonlar, JSON şeması, kurs bağlamı, PDF) çağrılar arasında
@@ -1985,7 +2046,7 @@ Requirements:
   * For "code" type: provide a small starterCode template.
 - UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
   * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
-    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
   * `submissionType` — HOW the student answers. Choose from what the task actually needs:
     - "code"  : student writes Python (default for programming topics)
     - "text"  : a written answer (explain, compare, interpret)
@@ -1993,9 +2054,22 @@ Requirements:
     - "file"  : any uploaded file
     Non-programming subjects (history, biology, language...) almost always want "text" or "image", NOT "code".
   * `checkMode` — only meaningful when submissionType is "code". Choose the one that matches the task:
-    - "output" : the task is about what gets PRINTED. Set `expectedOutput` to the exact expected stdout. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed.
+    - "output" : the task is about what gets PRINTED. USE THIS for simple tasks like "print your name" — do NOT force a function where none is needed. Define `criteria` (see below); `expectedOutput` is only a fallback example.
     - "tests"  : the task is to write a FUNCTION with a return value. Set `functionName` and 3 to 5 `tests`, covering at least one edge case (0, 1, empty, negative).
     - "manual" : open-ended; the teacher grades it. Leave expectedOutput and tests empty.
+  * `criteria` — what makes an answer CORRECT. This is the real check; write it for every checkMode "output" task.
+    Each entry is {{"kind": ..., "value": ...}}. Pick the LOOSEST kind that still tests what the task teaches:
+    - "template" : output has a fixed shape but parts vary per student. Mark the varying parts with {{}}.
+      THIS IS THE DEFAULT. "Print your own name" is NOT a fixed string — a student named Deniz will never
+      match "Adım: John". Write "Adım: {{ad}}, Soyadım: {{soyad}}!" instead.
+    - "exact"    : ONLY when every student must produce byte-identical output ("print numbers 1 to 5").
+    - "contains" : the output must mention something, the rest is free.
+    - "code"     : the student must use a specific construct ("for", "while", "def").
+    - "ai"       : a one-sentence rule judged by a model. LAST RESORT — slow and costly. Use only when none
+      of the above can express the rule.
+    Write 1 to 3 criteria. Do NOT restate the same rule in two kinds.
+    Punctuation and letter-case slips are forgiven automatically by the checker, so you do NOT need to
+    write loose criteria to be kind — write the correct shape and let the checker handle near misses.
   * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
   * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
   * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
@@ -2024,6 +2098,28 @@ Requirements:
   * A server-side safety net only catches the extreme failure: a paragraph longer than 4 sentences is force-split into bullets and everything past the 4th is DISCARDED. Prose of 2-4 sentences is left exactly as you wrote it, so you are responsible for choosing the right format yourself.
 - For each element you populate in `elementContents`, you MUST strictly respect the `maxChars` limit defined in the template. The number of characters of your generated text (including spaces) for that element ID MUST NOT exceed its `maxChars` value to prevent UI text overflow. This is a critical visual layout constraint. If a server-side safety net has to cut your text short because it exceeded `maxChars`, it will cut at the last complete sentence that fits — any unfinished trailing sentence is discarded entirely and never shown. So NEVER pad content with an extra clause or sentence that might not fit. When you are close to the limit, drop a WHOLE bullet rather than watering down the ones you keep — three specific bullets beat four vague ones. NEVER sacrifice a concrete detail (a command, a name, a number, an option label) just to save characters; that turns a useful slide into filler, which is a worse failure than being one bullet short.
 - Populate `elementContents` mapping the template element IDs to your generated educational contents in Turkish.
+
+**LAYOUT MODE (PREFERRED — use this instead of templates whenever possible):**
+Instead of `selectedTemplateId` + `elementContents`, a slide MAY use `layout` + `blocks`.
+This is the preferred form: you compose the layout yourself rather than filling a fixed skeleton.
+You NEVER emit pixel coordinates — a layout engine resolves positions. You only choose
+WHICH layout and WHAT goes in each cell.
+
+Available layouts (pick the `layout` key that fits the content):
+{grid_menu}
+
+- `blocks[].cell` is the 0-based index of the cell, counted left-to-right then top-to-bottom.
+- `blocks[].type` is one of: text, code, sticky, image.
+- `blocks[].weight` (optional, default 1) is that block's share of its cell's height.
+  Use a small weight for a heading and a larger one for the body (e.g. heading 1, body 3).
+- Multiple blocks MAY share one cell; they stack vertically in the order you list them.
+- Leave a cell out entirely if you have nothing for it — empty cells are dropped, they do
+  NOT leave a hole. Never emit a block with empty content just to fill a cell.
+- The SAME character limits and bullet rules above still apply to every block's content.
+- Layout slides automatically reflow on narrow screens (VS Code panel): columns stack
+  vertically. So put content that belongs together in the SAME cell, and never rely on
+  two cells being side by side for meaning (e.g. never write "soldaki tabloda" / "sağdaki kodda").
+
 - Return ONLY valid JSON matching the structure below. No markdown formatting, no text before or after the JSON.
 
 Expected JSON Structure:
@@ -2034,11 +2130,16 @@ Expected JSON Structure:
       "moduleIndex": 0, // 0-based index of the module in the lesson's modules list
       "slides": [
         {{
-          "selectedTemplateId": "template_id_here",
-          "elementContents": [
-             {{ "elementId": "element_id_1", "content": "Generated text explanation in Turkish" }},
-             {{ "elementId": "element_id_2", "content": "Generated python code or note..." }}
+          // PREFERRED FORM — compose your own layout:
+          "layout": "two-wide-left",
+          "blocks": [
+             {{ "cell": 0, "type": "text", "weight": 1, "content": "<b>Başlık</b>" }},
+             {{ "cell": 0, "type": "text", "weight": 3, "content": "• madde bir<br>• madde iki" }},
+             {{ "cell": 1, "type": "code", "content": "mesaj = \\"Merhaba\\"\\nprint(mesaj)" }}
           ]
+          // OR the legacy form, only when a template fits far better:
+          // "selectedTemplateId": "template_id_here",
+          // "elementContents": [ {{ "elementId": "element_id_1", "content": "..." }} ]
         }}
       ]
     }}
@@ -2163,6 +2264,33 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                     
                 slides_to_add = []
                 for ai_slide in ai_slides:
+                    # GRID YOLU (tercih edilen): model düzeni kendisi kurmuş.
+                    # Şablon yolundan ÖNCE bakılıyor — model ikisini birden
+                    # döndürürse yapısal olanı kazanmalı.
+                    if isinstance(ai_slide.get("blocks"), list) and ai_slide.get("blocks"):
+                        grid_slide = build_grid_slide(
+                            str(ai_slide.get("layout") or DEFAULT_LAYOUT),
+                            ai_slide["blocks"],
+                        )
+                        # Görsel blokları model URL üretemez; sorgu metnini
+                        # gerçek bir görselle değiştiriyoruz.
+                        for el in grid_slide.get("elements", []):
+                            if el.get("type") == "image":
+                                query = el.get("content") or mod.get("topic") or req.lesson_title or "coding"
+                                img_url = await resolve_image_url(
+                                    query, is_fallback=not el.get("content"), context=req.topic,
+                                )
+                                el["content"] = img_url
+                                el["imageUrl"] = img_url
+                                el["src"] = img_url
+                            else:
+                                # Uzunluk güvenlik ağı grid bloklarında da geçerli:
+                                # taşan metin hücreden dışarı sarkar.
+                                _fit_text(el, el.get("content") or "", pending_shrink)
+                        if grid_slide.get("elements"):
+                            slides_to_add.append(grid_slide)
+                        continue
+
                     sel_template_id = ai_slide.get("selectedTemplateId")
                     raw_contents = ai_slide.get("elementContents") or []
                     elem_contents = {}
@@ -2802,6 +2930,82 @@ HOMEWORK_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp"}
 HOMEWORK_MAX_FILE_BYTES = 10 * 1024 * 1024  # 10 MB
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# UYGULA KOÇU — öğrenci görevi çözerken devreye giren canlı geri bildirim
+#
+# Ödev değerlendirmesinden (yukarısı) FARKI: orada iş bitmiştir, puan verilir ve
+# düzeltilmiş kod gösterilir. Burada öğrenci HÂLÂ ÇALIŞIYOR — kodu vermek
+# öğrenmeyi bitirir. Bu yüzden bu uç asla kod üretmez; kuralı prompt'a yazmak
+# yetmiyor (ölçüldü: model yine de kod bloğu döndürebiliyor), o yüzden sunucuda
+# ayrıca eleniyor (bkz. _strip_code_leak).
+# ─────────────────────────────────────────────────────────────────────────────
+
+COACH_BASE_RULES = """Sen bir programlama öğretmenisin. Öğrenci ŞU AN bir görevi çözüyor.
+
+MUTLAK KURAL — ASLA KOD VERME:
+- Kod bloğu, tek satır kod, fonksiyon çağrısı örneği yazma.
+- Öğrencinin yazması gereken ifadeyi (ör. `int(...)`) hazır verme.
+- Fonksiyon ADINI söyleyebilirsin ama kullanımını yazma.
+- Beklenen çıktıyı olduğu gibi yazma.
+
+ÜSLUP:
+- Türkçe, kısa, en fazla 3 cümle.
+- Öğrenciye "sen" diye hitap et, suçlayıcı olma.
+- Somut ol: kaçıncı satırda ne olduğunu söyle.
+
+`line` ALANI: ipucunun ilgili olduğu satır numarası (kodun ilk satırı 1).
+İpucu belirli bir satırla ilgili değilse 0 yaz. Bu numara öğrencinin
+editöründe tam o satırın yanında gösterilecek — yanlış satır göstermek
+öğrenciyi yanlış yere baktırır, emin değilsen 0 yaz.
+"""
+
+# Deneme sayısına göre kademeli yardım. Erken denemede fazla söylemek öğrencinin
+# kendi bulma anını çalar; geç denemede az söylemek öğrenciyi bırakır.
+COACH_LEVELS = {
+    1: "SEVİYE: Sadece YÖN göster. Nereye bakması gerektiğini söyle, kavramı açıklama.",
+    3: "SEVİYE: KAVRAMI açıkla. Neyin neden yanlış olduğunu anlat, çözümün adımlarını verme.",
+    5: "SEVİYE: ADIMI tarif et. Ne yapması gerektiğini kelimelerle anlat — ama yine kod yazma.",
+}
+
+
+def _coach_level(attempt: int) -> str:
+    """Deneme sayısını yardım seviyesine çevirir (1-2 / 3-4 / 5+)."""
+    if attempt >= 5:
+        return COACH_LEVELS[5]
+    if attempt >= 3:
+        return COACH_LEVELS[3]
+    return COACH_LEVELS[1]
+
+
+_CODE_FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
+_INLINE_ASSIGN_RE = re.compile(r"`[^`\n]*(=|\(\s*\w+\s*\))[^`\n]*`")
+
+
+def _leaks_code(text: str, expected_output: Optional[str]) -> bool:
+    """Cevap, öğrencinin kendi bulması gereken şeyi veriyor mu?
+
+    Üç sızıntı biçimi arıyoruz: kod bloğu, çalıştırılabilir görünen satır içi
+    ifade (atama veya fonksiyon çağrısı) ve beklenen çıktının aynen yazılması.
+    """
+    if _CODE_FENCE_RE.search(text):
+        return True
+    if _INLINE_ASSIGN_RE.search(text):
+        return True
+    expected = (expected_output or "").strip()
+    # Çok kısa beklenen çıktılar ("5" gibi) doğal cümlede geçebilir; yalnızca
+    # ezberlenebilir uzunluktakileri sızıntı sayıyoruz.
+    if len(expected) >= 8 and expected in text:
+        return True
+    return False
+
+
+class CoachResponse(BaseModel):
+    message: str
+    # İpucunun ilgili olduğu satır (1'den başlar). Editörde tam o satırın
+    # altına çizilebilmesi için; emin olunamıyorsa 0.
+    line: int = 0
+
+
 class AIWeaknessResponse(BaseModel):
     explanation: str
     studentCode: Optional[str] = None
@@ -2881,6 +3085,199 @@ def _homework_parts(
         f"{header}\n\nÖĞRENCİNİN CEVABI: Öğrenci \"{file_name}\" adlı bir dosya yükledi "
         "(içerik okunamıyor). Bu bilgiyle mümkün olan değerlendirmeyi yap."
     ))]
+
+
+class CriterionVerdict(BaseModel):
+    passed: bool
+    reason: str
+
+
+class ChallengeCheckRequest(BaseModel):
+    course_id: int
+    task: str
+    criterion: str
+    student_code: str
+    stdout: Optional[str] = None
+
+
+CHECK_PROMPT = """Sen bir programlama ödevi değerlendiricisisin.
+
+Sana bir GÖREV, öğrencinin KODU, kodun ÇIKTISI ve tek bir ÖLÇÜT verilecek.
+Yalnızca ÖLÇÜTÜN sağlanıp sağlanmadığına karar ver — başka hiçbir şeye bakma.
+
+KURALLAR:
+- Ölçüt sağlanıyorsa passed=true. Kısmen sağlanıyorsa false.
+- Kod stilini, değişken adlarını, verimliliği DEĞERLENDİRME. Sadece ölçüt.
+- reason: Türkçe, tek cümle, öğrencinin okuyacağı dilde.
+- reason içinde KOD VERME ve doğru cevabı yazma — öğrenci hâlâ çalışıyor.
+- Öğrencinin görevi kendi verisiyle (kendi adı, kendi sayısı) yapması
+  bekleniyorsa, verinin farklı olması ölçütü DÜŞÜRMEZ. Biçim önemlidir.
+"""
+
+
+@router.post("/ai/challenge-check")
+async def challenge_check(
+    payload: ChallengeCheckRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Tek bir YZ ölçütünün sağlanıp sağlanmadığına karar verir.
+
+    Bu uç, kontrol merdiveninin EN ALT basamağı: deterministik ölçütler
+    (birebir / şablon / içerir / kod) geçtikten sonra, yalnızca gerçekten yargı
+    gerektiren maddeler için çağrılır. Karar istemcide (kod, çıktı, ölçüt)
+    üçlüsüne göre önbelleklenir — aynı gönderim hep aynı sonucu vermeli.
+    """
+    if not payload.criterion.strip():
+        raise HTTPException(status_code=400, detail="Ölçüt boş olamaz.")
+    if not payload.student_code.strip():
+        raise HTTPException(status_code=400, detail="Kod boş olamaz.")
+
+    course = await ensure_course_access(db, payload.course_id, user_info)
+
+    prompt = "\n\n".join([
+        CHECK_PROMPT,
+        f"GÖREV:\n{payload.task}",
+        f"ÖLÇÜT:\n{payload.criterion}",
+        f"ÖĞRENCİNİN KODU:\n{payload.student_code[:4000]}",
+        f"ÇIKTI:\n{(payload.stdout or '(boş)')[:2000]}",
+    ])
+
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
+            # Kararlılık burada kaliteden önemli: aynı gönderim her seferinde
+            # aynı sonucu vermeli, o yüzden düşünme kapalı.
+            config=gen_config(CriterionVerdict, thinking_budget=0, model=settings.GEMINI_MODEL),
+        )
+        parsed = json.loads((response.text or "").strip())
+    except Exception as e:
+        logger.exception("Ölçüt değerlendirmesi başarısız: %s", e)
+        raise HTTPException(status_code=502, detail="Değerlendirme servisi yanıt vermiyor.")
+
+    await record_ai_usage(
+        db, None, "challenge_check", settings.GEMINI_MODEL, response,
+        details="UYGULA ölçüt değerlendirmesi",
+        course_id=payload.course_id, course_title=course.title,
+    )
+
+    return {"passed": bool(parsed.get("passed")), "reason": (parsed.get("reason") or "").strip()}
+
+
+class ChallengeCoachRequest(BaseModel):
+    course_id: int
+    phase: str                      # 'error' | 'diff' | 'quality'
+    task: str                       # görev metni
+    student_code: str
+    attempt: int = 1
+    stdout: Optional[str] = None
+    stderr: Optional[str] = None
+    expected_output: Optional[str] = None
+
+
+@router.post("/ai/challenge-coach")
+async def challenge_coach(
+    payload: ChallengeCoachRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """UYGULA görevinde öğrenciye canlı, kod vermeyen geri bildirim üretir.
+
+    Üç an için üç ayrı ton:
+      error   — kod patladı: hatayı açıkla, çözme (deneme sayısına göre kademeli)
+      diff    — kod çalıştı ama çıktı farklı: farkın NEDENİNİ söylet
+      quality — doğru çözdü: tek bir kısa kalite önerisi, başarı hissini bozmadan
+    """
+    if payload.phase not in ("error", "diff", "quality"):
+        raise HTTPException(status_code=400, detail=f"Geçersiz faz: {payload.phase}")
+    if not payload.student_code.strip():
+        raise HTTPException(status_code=400, detail="Kod boş olamaz.")
+
+    course = await ensure_course_access(db, payload.course_id, user_info)
+
+    if payload.phase == "error":
+        focus = (
+            f"{_coach_level(payload.attempt)}\n\n"
+            "DURUM: Öğrencinin kodu HATA verdi. Hata mesajını öğrencinin anlayacağı\n"
+            "dile çevir ve nereye bakması gerektiğini söyle."
+        )
+    elif payload.phase == "diff":
+        focus = (
+            "DURUM: Kod hatasız çalıştı ama çıktı beklenenden FARKLI. Öğrenci\n"
+            "muhtemelen 'benimki doğru görünüyor' diye düşünüyor. İki çıktı\n"
+            "arasındaki farkı işaret et ve bu farkın NEDENİNİ düşündür.\n"
+            "Doğru çıktıyı olduğu gibi yazma."
+        )
+    else:
+        focus = (
+            "DURUM: Öğrenci görevi DOĞRU çözdü. Önce bunu kısaca onayla.\n"
+            "Sonra TEK bir kalite önerisi ver: isimlendirme, okunabilirlik,\n"
+            "tekrar eden kod veya daha basit bir yaklaşım.\n"
+            "'Yanlış' hissi verme — çalışan bir çözümün üstüne ekleme yapıyorsun.\n"
+            "Önerecek anlamlı bir şey yoksa sadece neyi iyi yaptığını söyle."
+        )
+
+    prompt = "\n\n".join([
+        COACH_BASE_RULES,
+        focus,
+        f"GÖREV:\n{payload.task}",
+        f"ÖĞRENCİNİN KODU:\n{payload.student_code[:4000]}",
+        f"ÇALIŞTIRMA ÇIKTISI:\n{(payload.stdout or '(boş)')[:2000]}",
+        f"HATA ÇIKTISI:\n{(payload.stderr or '(yok)')[:2000]}",
+        f"BEKLENEN ÇIKTI:\n{payload.expected_output or '(tanımsız)'}",
+    ])
+
+    async def ask() -> Any:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        return client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
+            # Öğrenci bunu bir görevde defalarca tetikler ve beklemede kalır;
+            # kısa/ucuz cevap burada kaliteden daha önemli.
+            config=gen_config(CoachResponse, thinking_budget=0, model=settings.GEMINI_MODEL),
+        )
+
+    line = 0
+    try:
+        response = await ask()
+        parsed = json.loads((response.text or "").strip())
+        message = (parsed.get("message") or "").strip()
+        line = int(parsed.get("line") or 0)
+
+        # Kural ihlali sunucuda yakalanır: modele "kod verme" demek yetmiyor.
+        # Tek bir kez daha, ihlali açıkça söyleyerek istiyoruz.
+        if _leaks_code(message, payload.expected_output):
+            logger.warning("Koç cevabı kod sızdırdı, yeniden isteniyor (faz=%s)", payload.phase)
+            retry = await ask()
+            retry_parsed = json.loads((retry.text or "").strip())
+            message = (retry_parsed.get("message") or "").strip()
+            line = int(retry_parsed.get("line") or 0)
+            if _leaks_code(message, payload.expected_output):
+                # İkinci kez de ihlal: cevabı hiç göstermiyoruz. Kötü bir ipucu
+                # yoktan iyidir sanılabilir ama burada tam tersi — kodu görmek
+                # öğrencinin o görevden öğreneceği her şeyi bitirir.
+                message = (
+                    "Bu sefer sana yardımcı bir ipucu hazırlayamadım. "
+                    "Hata mesajının son satırını oku — hangi satırı işaret ediyor?"
+                )
+                line = 0
+            response = retry
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception("Koç çağrısı başarısız: %s", e)
+        raise HTTPException(status_code=502, detail="Koç servisi şu anda yanıt vermiyor.")
+
+    await record_ai_usage(
+        db, None, "challenge_coach", settings.GEMINI_MODEL, response,
+        details=f"UYGULA Koçu ({payload.phase}, deneme {payload.attempt})",
+        course_id=payload.course_id,
+        course_title=course.title,
+    )
+
+    return {"message": message, "phase": payload.phase, "line": max(0, line)}
 
 
 @router.post("/ai/evaluate-homework")

@@ -2,6 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
+import { layoutElements, modeForWidth } from '../lesson-builder/grid';
+import CodeInEditorStrip from '../lesson-builder/CodeInEditorStrip';
+import { isEmbeddedInVSCode } from '../../vscodeBridge';
 import GameBuilder from '../lesson-builder/GameBuilder';
 import ChallengeSlideBuilder from '../lesson-builder/ChallengeSlideBuilder';
 import StudentHomeworkView from './StudentHomeworkView';
@@ -133,7 +136,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const [currentSlide, setCurrentSlide] = useState(0);
     const [localSlides, setLocalSlides] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
-    const [scale, setScale] = useState(1);
+    // Ölçek doğrudan tutulmuyor: hangi tabana göre ölçekleneceği slaydın grid'i
+    // olup olmamasına ve kabın genişliğine bağlı. Ham ölçüyü saklayıp kararı
+    // çizim anında veriyoruz.
+    const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
     const [gameStatuses, setGameStatuses] = useState<Record<string, { 
         name: string; 
         stars: number; 
@@ -264,22 +270,25 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         }
     }, [isOpen, slides, initialSlideIndex, isLiveStudent]);
 
-    // Measure container size factor relative to 1280x720 base width/height
+    // Kabın ölçüsünü izler. VS Code panelinde pencere yeniden boyutlanmadan da
+    // genişlik değişiyor (aşama geçişinde panel/kod oranı animasyonla kayıyor),
+    // bu yüzden `resize` olayı yetmez — ResizeObserver şart.
     useEffect(() => {
-        const updateScale = () => {
-            if (containerRef.current) {
-                const rect = containerRef.current.getBoundingClientRect();
-                const scaleX = rect.width / 1280;
-                const scaleY = rect.height / 720;
-                const idealScale = Math.max(0.1, Math.min(scaleX, scaleY, 1));
-                setScale(parseFloat(idealScale.toFixed(3)));
-            }
+        const measure = () => {
+            if (!containerRef.current) return;
+            const rect = containerRef.current.getBoundingClientRect();
+            setContainerSize({ width: rect.width, height: rect.height });
         };
-        if (isOpen) {
-            setTimeout(updateScale, 100); // Wait for transition
-        }
-        window.addEventListener('resize', updateScale);
-        return () => window.removeEventListener('resize', updateScale);
+
+        if (isOpen) setTimeout(measure, 100); // geçiş bitsin
+
+        const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+        if (observer && containerRef.current) observer.observe(containerRef.current);
+        window.addEventListener('resize', measure);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', measure);
+        };
     }, [isOpen, currentSlide, localSlides]);
 
     // Compute unique bubbles inside the slides list to construct dynamic mini-roadmap
@@ -658,15 +667,42 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         const currentBubbleTitle = getSlideStage(slide);
         const stageColor = getStageColor(currentBubbleTitle);
 
+        // Yalnızca grid'i olan slaytlar dar moda geçebilir. Mutlak yerleşimli
+        // eski slaytlar yeniden akamaz; onları zorla dar moda sokmak üst üste
+        // binmiş kutular üretirdi. Onlar her zaman sahne modunda kalır.
+        const mode = slide.layout && containerSize.width > 0
+            ? modeForWidth(containerSize.width)
+            : 'stage';
+        const laid = layoutElements(slide, mode);
+        const isNarrow = mode === 'narrow';
+        // Köprü yalnızca eklentinin webview'ünde kurulur; tarayıcıda dar ekranda
+        // kodu "editörde aç" demek anlamsız olurdu, açacak editör yok.
+        const embeddedInVSCode = isEmbeddedInVSCode();
+
+        // Sahne: iki eksene de sığdır, asla kaydırma. Sınıfta projeksiyonda
+        // kaydırmak arka sıradakinin alt yarıyı hiç görmemesi demek.
+        // Dar mod: genişliği doldur, taşan yükseklik kaysın — orada bağlam
+        // sunum değil, çalışma.
+        const fitScale = containerSize.width > 0
+            ? (isNarrow
+                ? containerSize.width / laid.width
+                : Math.min(containerSize.width / laid.width, containerSize.height / laid.height, 1))
+            : 1;
+        const scale = Math.max(0.1, parseFloat(fitScale.toFixed(3)));
+
         return (
             <div
                 ref={containerRef}
-                className={`relative overflow-hidden select-text mx-auto w-full rounded-[2.5rem] border-4 border-b-[10px] shadow-2xl transition-all duration-500 ${
+                className={`relative select-text mx-auto w-full rounded-[2.5rem] border-4 border-b-[10px] shadow-2xl transition-all duration-500 ${
+                    isNarrow ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
+                } ${
                     slideIsDark ? 'border-slate-800 border-b-slate-950 shadow-slate-950/50' : 'border-slate-200/90 shadow-slate-200/40'
                 }`}
                 style={{
-                    aspectRatio: '16/9',
-                    maxWidth: 'min(100%, calc((100vh - 14.5rem) * 16 / 9))',
+                    // Dar modda 16:9'u dayatmak slaydı bir şeride sıkıştırırdı.
+                    aspectRatio: isNarrow ? undefined : '16/9',
+                    maxWidth: isNarrow ? '100%' : 'min(100%, calc((100vh - 14.5rem) * 16 / 9))',
+                    height: isNarrow ? '100%' : undefined,
                     maxHeight: '100%',
                     backgroundColor: slideIsDark ? '#0f172a' : '#ffffff',
                     borderBottomColor: slideIsDark ? '#020617' : stageColor.border,
@@ -677,41 +713,71 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 }}
             >
                 <div
-                    className="absolute select-none pointer-events-none origin-top-left"
+                    className={`select-none pointer-events-none origin-top-left ${isNarrow ? 'relative' : 'absolute'}`}
                     style={{
-                        width: 1280,
-                        height: 720,
+                        width: laid.width,
+                        height: laid.height,
                         transform: `scale(${scale})`,
-                        top: '50%',
-                        left: '50%',
-                        marginTop: -360 * scale,
-                        marginLeft: -640 * scale,
+                        // Sahnede tuval ortalanır; dar modda üstten akar ve
+                        // ölçeklenen yükseklik kadar yer kaplaması gerekir ki
+                        // kaydırma çubuğu doğru uzunlukta olsun.
+                        ...(isNarrow
+                            ? { marginBottom: laid.height * (scale - 1) }
+                            : {
+                                top: '50%',
+                                left: '50%',
+                                marginTop: (-laid.height / 2) * scale,
+                                marginLeft: (-laid.width / 2) * scale,
+                            }),
                     }}
                 >
-                    {/* CONNECTOR LAYER */}
-                    <ConnectorRenderer
-                        connections={slide.connections || []}
-                        elements={slide.elements}
-                    />
+                    {/* CONNECTOR LAYER — oklar mutlak koordinatlara bağlı olduğu
+                        için yalnızca sahne modunda anlamlı. */}
+                    {!isNarrow && (
+                        <ConnectorRenderer
+                            connections={slide.connections || []}
+                            elements={laid.elements}
+                        />
+                    )}
 
                     {/* ELEMENTS */}
-                    {slide.elements?.map((el: any) => (
-                        <CanvasElement
-                            key={el.id}
-                            el={el}
-                            isEditing={false}
-                            setEditingElementId={() => {}}
-                            updateElement={updateElement}
-                            updateElementStyle={() => {}}
-                            deleteElement={() => {}}
-                            handleMouseDown={() => {}}
-                            isPreview={true}
-                            previewRole={previewRole}
-                            elements={slide.elements}
-                            onSpawnCodeEditor={spawnCodeEditorForChallenge}
-                            allLessons={[]}
-                        />
-                    ))}
+                    {laid.elements?.map((el: any) => {
+                        // DAR PANEL + VS CODE: kod bloğu editöre taşınır. Panelde
+                        // ikinci bir kod ekranı çizmek dar alanı iki kez harcamak
+                        // olurdu — VS Code'da zaten gerçek bir editör açık.
+                        if (isNarrow && embeddedInVSCode && (el.type === 'code' || el.type === 'code_editor')) {
+                            return (
+                                <div
+                                    key={el.id}
+                                    className="absolute pointer-events-auto"
+                                    style={{ left: el.x, top: el.y, width: el.width, height: el.height }}
+                                >
+                                    <CodeInEditorStrip
+                                        code={el.content || ''}
+                                        language={el.codeConfig?.language || 'python'}
+                                        title={slide.title || undefined}
+                                    />
+                                </div>
+                            );
+                        }
+                        return (
+                            <CanvasElement
+                                key={el.id}
+                                el={el}
+                                isEditing={false}
+                                setEditingElementId={() => {}}
+                                updateElement={updateElement}
+                                updateElementStyle={() => {}}
+                                deleteElement={() => {}}
+                                handleMouseDown={() => {}}
+                                isPreview={true}
+                                previewRole={previewRole}
+                                elements={laid.elements}
+                                onSpawnCodeEditor={spawnCodeEditorForChallenge}
+                                allLessons={[]}
+                            />
+                        );
+                    })}
                 </div>
             </div>
         );

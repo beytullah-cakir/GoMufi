@@ -12,6 +12,8 @@ import AdminApp from './components/admin-pages/AdminApp';
 import CompleteProfile from './components/CompleteProfile';
 import Animation from './components/Animation';
 import { WebSocketProvider } from './context/WebSocketContext';
+import VSCodeConnectPage from './components/VSCodeConnectPage';
+import VSCodeLessonPage from './components/VSCodeLessonPage';
 
 function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -47,6 +49,11 @@ function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/animation" element={<Animation />} />
         <Route path="/complete-profile" element={<CompleteProfile />} />
+        {/* VS Code eklentisinin baglanma onayi (eklenti bu adresi acar) */}
+        <Route path="/vscode-baglan" element={<VSCodeConnectPage />} />
+        {/* VS Code sag panelindeki ders oynatici — yalnizca eklentinin webview'u
+            bu adresi bir iframe icinde acar, kimlik Bearer token ile gelir. */}
+        <Route path="/vscode-ders" element={<VSCodeLessonPage />} />
         <Route
           path="/auth"
           element={<AuthPage onLogin={() => { }} />}

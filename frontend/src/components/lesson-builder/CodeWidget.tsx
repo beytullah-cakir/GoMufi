@@ -3,6 +3,7 @@ import { Settings, Play, Eye, MessageCircle, AlertCircle, Loader2, SquareTermina
 import type { SlideElement } from './types';
 import { usePyodide } from '../../hooks/usePyodide';
 import { usePrismTheme } from './codeTheme';
+import { useLocalRunner } from '../../hooks/useLocalRunner';
 
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python'; // Import python syntax
@@ -52,6 +53,8 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
 
     // Pyodide Hook
     const { runCode, output, isLoading, error } = usePyodide();
+    // Sitedeki Calistir butonunu VS Code eklentisine yonlendirir (varsa).
+    const localRunner = useLocalRunner();
 
     // Tema artık ortak modülden gelir (codeTheme.ts) — UYGULA slaydındaki editör
     // de aynı kaynağı kullanıyor, ikisi birbirinden ayrışmasın diye.
@@ -78,7 +81,18 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
 
     const handleRunCode = async (e: React.MouseEvent) => {
         e.stopPropagation();
-        setViewMode('output'); // Switch to output view
+
+        // Öğrencinin VS Code'u açıksa kod ORADA çalışır: gerçek yorumlayıcı,
+        // gerçek terminal, kurulu paketler. Arayüz aynı kalır — buton aynı buton.
+        const language = el.codeConfig?.language || 'python';
+        if (await localRunner.run(localCode, language)) {
+            setViewMode('code');
+            return;
+        }
+
+        // Eklenti yoksa tarayıcı içi Pyodide'ye düş; eklentisi olmayan öğrenci
+        // için hiçbir şey değişmez.
+        setViewMode('output');
         await runCode(localCode);
     };
 

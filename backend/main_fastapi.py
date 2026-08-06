@@ -15,7 +15,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import engine, Base
 from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-from routers import quiz, ws, jitsi, admin, ai
+from routers import quiz, ws, jitsi, admin, ai, device_auth, devices
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -104,6 +104,10 @@ app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 # Router'ları kaydet
 app.include_router(student_auth.router)
+# VS Code eklentisi gibi tarayıcı dışı istemciler için Bearer token ucu
+app.include_router(device_auth.router)
+# Tarayici <-> VS Code eklentisi eslesmesi
+app.include_router(devices.router)
 app.include_router(teacher_auth.router)
 app.include_router(profile.router)
 app.include_router(courses.router)
