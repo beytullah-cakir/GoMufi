@@ -155,15 +155,9 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300"
-        onClick={onClose}
-      />
-
-      {/* Modern Card-Based Modal */}
-      <div className="relative bg-white w-full max-w-5xl h-full sm:h-[90vh] rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col border border-gray-100">
+    <div className="fixed top-0 bottom-0 left-24 md:left-64 right-0 z-30 bg-[#F8F9FC] flex flex-col h-screen overflow-hidden animate-in fade-in duration-200">
+      {/* Modern Card-Based Full Content View */}
+      <div className="relative bg-[#F8F9FC] w-full h-full overflow-hidden flex flex-col border-none">
         {/* HEADER AREA (Sticky) */}
         <div className="p-8 border-b border-gray-100 flex items-center justify-between bg-white z-20 shrink-0">
           <div className="flex items-center gap-5">
@@ -200,16 +194,17 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-3 bg-gray-50 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 font-bold text-xs transition-colors flex items-center gap-2"
+              title="Geri Dön"
             >
-              <X size={24} />
+              <X size={18} /> Geri Dön
             </button>
           </div>
         </div>
 
         {/* SCROLLABLE CONTENT AREA */}
-        <div className="flex-1 overflow-y-auto p-10 sm:p-12 space-y-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto space-y-8">
+        <div className="flex-1 overflow-y-auto p-8 sm:p-12 space-y-8 custom-scrollbar">
+          <div className="max-w-6xl mx-auto space-y-8">
             {/* SECTION 1: OVERVIEW CARD */}
             <section className="bg-white p-10 rounded-[2.5rem] shadow-xl shadow-gray-200/50 border border-gray-100 space-y-10">
               <div className="flex flex-wrap items-center gap-10">

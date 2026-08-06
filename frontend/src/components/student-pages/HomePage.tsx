@@ -836,50 +836,49 @@ const HomePage: React.FC<HomePageProps> = ({
                                                         </span>
 
                                                         {node.type === 'homework' ? (
-                                                            /* ── ÖDEV DÜĞÜMܤ ÖZEL BUTONLAR ── */
-                                                            (() => {
-                                                                const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
-                                                                const isHwSubmitted = hwSlide
-                                                                    ? localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true'
-                                                                    : false;
+                                                             (() => {
+                                                                 const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
+                                                                 const isHwSubmitted = hwSlide
+                                                                     ? localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true'
+                                                                     : false;
 
-                                                                return (
-                                                                    <div className="w-full flex flex-col gap-2.5">
-                                                                        {isHwSubmitted ? (
-                                                                            <>
-                                                                                {/* Teslim edildi badge */}
-                                                                                <div className="w-full px-4 py-2.5 bg-green-500/25 border border-green-400/40 rounded-2xl flex items-center justify-center gap-2">
-                                                                                    <span className="text-[11px] font-black uppercase tracking-wider text-green-100">✅ ÖDEV TESLİM EDİLDİ</span>
-                                                                                </div>
-                                                                                {/* Yine de girebilir */}
-                                                                                <button
-                                                                                    className="w-full bg-white/20 hover:bg-white/30 border border-white/30 text-white text-center py-3 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        if (hwSlide) setActiveHomeworkSlide(hwSlide);
-                                                                                    }}
-                                                                                >
-                                                                                    <span className="font-black text-xs uppercase tracking-wider">📂 ÖDEVE GİR</span>
-                                                                                </button>
-                                                                            </>
-                                                                        ) : (
-                                                                            /* Henüz teslim edilmedi */
-                                                                            <button
-                                                                                className="w-full bg-yellow-400 hover:bg-yellow-300 text-yellow-950 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/10 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    if (hwSlide) setActiveHomeworkSlide(hwSlide);
-                                                                                }}
-                                                                            >
-                                                                                <span className="font-black text-sm uppercase tracking-wider flex items-center gap-1.5">
-                                                                                    📝 ÖDEVİ TESLİM ET (+{hwSlide?.homeworkConfig?.points || 100} XP)
-                                                                                </span>
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                );
-                                                            })()
-                                                        ) : (
+                                                                 return (
+                                                                     <div className="w-full flex flex-col gap-2.5">
+                                                                         {isHwSubmitted ? (
+                                                                             <>
+                                                                                 {/* Teslim edildi badge */}
+                                                                                 <div className="w-full px-4 py-3 bg-white hover:bg-gray-50 border border-green-200 shadow-lg border-b-[4px] border-green-500 rounded-2xl flex items-center justify-center gap-2">
+                                                                                     <span className="text-[11px] font-black uppercase tracking-wider text-green-600">✅ ÖDEV TESLİM EDİLDİ</span>
+                                                                                 </div>
+                                                                                 {/* Yine de girebilir */}
+                                                                                 <button
+                                                                                     className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                                     onClick={(e) => {
+                                                                                         e.stopPropagation();
+                                                                                         if (hwSlide) setActiveHomeworkSlide(hwSlide);
+                                                                                     }}
+                                                                                 >
+                                                                                     <span className="font-black text-xs uppercase tracking-wider" style={{ color: node.baseColor }}>📂 ÖDEVE GİR</span>
+                                                                                 </button>
+                                                                             </>
+                                                                         ) : (
+                                                                             /* Henüz teslim edilmedi */
+                                                                             <button
+                                                                                 className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                                 onClick={(e) => {
+                                                                                     e.stopPropagation();
+                                                                                     if (hwSlide) setActiveHomeworkSlide(hwSlide);
+                                                                                 }}
+                                                                             >
+                                                                                 <span className="font-black text-sm uppercase tracking-wider flex items-center gap-1.5" style={{ color: node.baseColor }}>
+                                                                                     📝 ÖDEVİ TESLİM ET (+{hwSlide?.homeworkConfig?.points || 100} XP)
+                                                                                 </span>
+                                                                             </button>
+                                                                         )}
+                                                                     </div>
+                                                                 );
+                                                             })()
+                                                         ) : (
                                                             /* ── NORMAL DÜĞÜMLERİN BAŞLAT BUTONU ── */
                                                             <>
                                                                 <button

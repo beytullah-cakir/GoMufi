@@ -24,10 +24,16 @@ async def google_login(request: Request, role: str):
     base_url = str(request.base_url).rstrip('/')
     redirect_uri = f"{base_url}/auth/google/callback"
     request.session['role'] = role
-    return await oauth.google.authorize_redirect(request, redirect_uri)
+    print("DEBUG LOGIN: session before authorize_redirect:", dict(request.session))
+    resp = await oauth.google.authorize_redirect(request, redirect_uri)
+    print("DEBUG LOGIN: session after authorize_redirect:", dict(request.session))
+    return resp
 
 @router.get("/auth/google/callback")
 async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_db)):
+    print("DEBUG CALLBACK: cookies:", request.cookies)
+    print("DEBUG CALLBACK: session:", dict(request.session))
+    print("DEBUG CALLBACK: query_params:", dict(request.query_params))
     try:
         try:
             # Explicitly pass redirect_uri to match the one used in login

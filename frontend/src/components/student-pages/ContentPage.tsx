@@ -562,7 +562,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
     };
 
     return (
-        <div className="w-full h-full bg-[#F3F4F6] p-3 md:p-6 font-sans text-gray-800 flex flex-col overflow-x-hidden overflow-y-auto">
+        <div className="w-full h-full bg-[#F3F4F6] p-3 md:p-6 font-sans text-gray-800 flex flex-col overflow-x-hidden overflow-y-auto relative">
 
             {/* --- MAIN GRID CONTENT --- */}
             <div className="grid grid-cols-12 gap-4 md:gap-8 flex-1 pb-20 mt-2">

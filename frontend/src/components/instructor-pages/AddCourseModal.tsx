@@ -18,6 +18,7 @@ import {
   Info,
   Upload,
   BookOpen,
+  Check,
 } from "lucide-react";
 import categoryData from "../../data/categories.json";
 
@@ -302,16 +303,85 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     );
   };
 
-  const removeLecture = (sectionId: string, lectureId: string) => {
-    setSections(
-      sections.map((s) => {
-        if (s.id === sectionId) {
+  const DAYS_OF_WEEK = [
+    "Pazartesi",
+    "Salı",
+    "Çarşamba",
+    "Perşembe",
+    "Cuma",
+    "Cumartesi",
+    "Pazar",
+  ];
+
+  // Helper functions for Classes & Schedule
+  const addClass = () => {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const nextLetter = alphabet[classes.length] || String(classes.length + 1);
+    setClasses([
+      ...classes,
+      {
+        id: `c_${Date.now()}`,
+        name: `${nextLetter} Sınıfı`,
+        schedule: [{ day: "Pazartesi", time: "10:00" }],
+      },
+    ]);
+  };
+
+  const updateClassName = (id: string, name: string) => {
+    setClasses(classes.map((c) => (c.id === id ? { ...c, name } : c)));
+  };
+
+  const removeClass = (id: string) => {
+    if (classes.length > 1) {
+      setClasses(classes.filter((c) => c.id !== id));
+    }
+  };
+
+  const addClassScheduleItem = (classId: string) => {
+    setClasses(
+      classes.map((c) => {
+        if (c.id === classId) {
           return {
-            ...s,
-            lectures: s.lectures.filter((l) => l.id !== lectureId),
+            ...c,
+            schedule: [...(c.schedule || []), { day: "Pazartesi", time: "10:00" }],
           };
         }
-        return s;
+        return c;
+      }),
+    );
+  };
+
+  const updateClassScheduleItem = (
+    classId: string,
+    index: number,
+    field: "day" | "time",
+    value: string,
+  ) => {
+    setClasses(
+      classes.map((c) => {
+        if (c.id === classId) {
+          const updatedSchedule = [...(c.schedule || [])];
+          updatedSchedule[index] = {
+            ...updatedSchedule[index],
+            [field]: value,
+          };
+          return { ...c, schedule: updatedSchedule };
+        }
+        return c;
+      }),
+    );
+  };
+
+  const removeClassScheduleItem = (classId: string, index: number) => {
+    setClasses(
+      classes.map((c) => {
+        if (c.id === classId) {
+          return {
+            ...c,
+            schedule: (c.schedule || []).filter((_, i) => i !== index),
+          };
+        }
+        return c;
       }),
     );
   };
@@ -349,13 +419,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity animate-fade-in"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div className="bg-white rounded-3xl w-full max-w-4xl h-[90vh] shadow-2xl overflow-hidden flex flex-col">
+    <div className="fixed top-0 bottom-0 left-24 md:left-64 right-0 z-30 bg-[#F8F9FC] flex flex-col h-screen overflow-hidden animate-in fade-in duration-200">
+      <div className="relative bg-[#F8F9FC] w-full h-full flex flex-col overflow-hidden border-none">
         {/* Header */}
         <div className="px-8 py-6 border-b border-gray-100 flex justify-between items-center bg-white sticky top-0 z-10">
           <div>
@@ -377,180 +442,124 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
             )}
             <button
               onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+              className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 rounded-xl text-gray-600 font-bold text-xs transition-colors flex items-center gap-2"
+              title="Geri Dön"
             >
-              <X className="w-6 h-6" />
+              <X className="w-4 h-4" /> Geri Dön
             </button>
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 px-8">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "general"
-                ? "border-sky-500 text-sky-600"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            <Layout size={18} />
-            Genel Bilgiler
-          </button>
-          <button
-            onClick={() => setActiveTab("details")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "details"
-                ? "border-sky-500 text-sky-600"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            <List size={18} />
-            Detaylar & Gereksinimler
-          </button>
-          <button
-            onClick={() => setActiveTab("schedule")}
-            className={`py-4 px-6 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === "schedule"
-                ? "border-sky-500 text-sky-600"
-                : "border-transparent text-gray-400 hover:text-gray-600"
-              }`}
-          >
-            <Calendar size={18} />
-            Sınıflar & Ders Saatleri
-          </button>
-        </div>
-
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-8 bg-gray-50">
+        <div className="flex-1 min-h-0 overflow-y-auto p-8 bg-gray-50">
           <form
             id="courseForm"
             onSubmit={handleSubmit}
-            className="space-y-8 max-w-3xl mx-auto"
+            className="space-y-8 max-w-4xl mx-auto pb-12"
           >
-            {/* GENERAL TAB */}
-            {activeTab === "general" && (
-              <div className="space-y-6 animate-fade-in">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
+            {/* BÖLÜM 1: GENEL BİLGİLER */}
+            <div className="space-y-6">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <h4 className="text-xl font-black text-gray-800 border-b border-gray-100 pb-4 flex items-center gap-3">
+                  <Layout className="text-sky-500" size={22} />
+                  Genel Bilgiler
+                </h4>
+                
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Kurs Başlığı <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Örn: Python ile Sıfırdan İleri Seviyeye Programlama"
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-base"
+                    required
+                  />
+                </div>
+
+                {/* Kategoriler */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-3">
+                    Kategori Seçin <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {categories.map((cat) => (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`p-4 rounded-2xl border-2 text-left transition-all flex items-center gap-3 ${selectedCategory === cat.id
+                            ? "border-sky-500 bg-sky-50/50 text-sky-700 shadow-sm ring-2 ring-sky-400/20"
+                            : "border-gray-100 bg-white hover:border-gray-200 text-gray-700"
+                          }`}
+                      >
+                        <span className="text-2xl shrink-0">{cat.icon}</span>
+                        <span className="font-bold text-sm text-gray-800 leading-snug">{cat.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Açıklama */}
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">
+                    Kurs Açıklaması
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Bu kursta öğrenciler neler öğrenecek? Kursun içeriğini ve hedeflerini kısaca anlatın..."
+                    className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-medium text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-sm"
+                  />
+                </div>
+
+                {/* Ücret & Tarih */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-2">
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Kurs Başlığı <span className="text-red-500">*</span>
+                      Kurs Ücreti (₺)
                     </label>
                     <input
-                      type="text"
-                      value={title}
-                      onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Örn: Sıfırdan İleri Seviye Python Programlama"
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
-                      autoFocus
+                      type="number"
+                      value={price}
+                      onChange={(e) => setPrice(Number(e.target.value))}
+                      placeholder="0 (Ücretsiz ise 0 bırakın)"
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-base"
                     />
                   </div>
-
                   <div>
                     <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Kategori <span className="text-red-500">*</span>
+                      Tahmini Başlangıç Tarihi
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                      {categories.map((cat) => (
-                        <button
-                          key={cat.id}
-                          type="button"
-                          onClick={() => setSelectedCategory(cat.id)}
-                          className={`flex items-center gap-3 p-3 rounded-xl border transition-all text-left ${selectedCategory === cat.id
-                              ? "border-sky-500 bg-sky-50 text-sky-700 ring-1 ring-sky-500"
-                              : "border-gray-100 bg-white hover:border-gray-300 text-gray-600"
-                            }`}
-                        >
-                          <div
-                            className={`p-2 rounded-lg ${selectedCategory === cat.id ? `bg-sky-100 text-sky-600` : `bg-gray-100 text-gray-600`
-                              }`}
-                          >
-                            {cat.icon}
-                          </div>
-                          <span className="text-sm font-bold">{cat.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-bold text-gray-700 mb-2">
-                      Kurs Açıklaması
-                    </label>
-                    <textarea
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Kursunuzun içeriğini ve kimler için uygun olduğunu detaylıca anlatın..."
-                      rows={6}
-                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all resize-none"
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="w-full px-5 py-4 bg-gray-50 border border-gray-200 rounded-2xl font-bold text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-base"
                     />
-                  </div>
-
-                  {/* Pricing and Start Date */}
-                  <div className="pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Kurs Ücreti (TL)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                          ₺
-                        </span>
-                        <input
-                          type="number"
-                          value={price}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                          placeholder="0"
-                          className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
-                        />
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Kurs Başlangıç Tarihi
-                      </label>
-                      <input
-                        type="date"
-                        value={startDate}
-                        onChange={(e) => setStartDate(e.target.value)}
-                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-850 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
-                      />
-                    </div>
-                    <p className="text-xs text-gray-400 mt-2 font-bold italic">
-                      * Ücretsiz yapmak için 0 bırakın.
-                    </p>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* DETAILS TAB */}
-            {activeTab === "details" && (
-              <div className="space-y-8 animate-fade-in">
-                {/* Learning Outcomes */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <h4 className="text-lg font-black text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-green-100 text-green-600 flex items-center justify-center">
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                    </div>
-                    Öğrenecekleriniz
-                  </h4>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Öğrencilerin bu kursu tamamladıktan sonra kazanacağı
-                    yetenekleri listeleyin.
-                  </p>
+            {/* BÖLÜM 2: DETAYLAR & GEREKSİNİMLER */}
+            <div className="space-y-6">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <h4 className="text-xl font-black text-gray-800 border-b border-gray-100 pb-4 flex items-center gap-3">
+                  <List className="text-sky-500" size={22} />
+                  Detaylar & Gereksinimler
+                </h4>
 
+                {/* Kazanımlar */}
+                <div>
+                  <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    Kazanımlar (Öğrenciler Ne Öğrenecek?)
+                  </h5>
                   <div className="space-y-3">
                     {learningOutcomes.map((item, idx) => (
-                      <div key={idx} className="flex gap-2">
+                      <div key={idx} className="flex gap-3 items-center">
                         <input
                           type="text"
                           value={item}
@@ -563,17 +572,13 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                             )
                           }
                           placeholder="Örn: Python ile veri analizi yapabileceksiniz"
-                          className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                          className="flex-1 px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl font-medium text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-sm"
                         />
                         {learningOutcomes.length > 1 && (
                           <button
                             type="button"
                             onClick={() =>
-                              removeListItem(
-                                idx,
-                                learningOutcomes,
-                                setLearningOutcomes,
-                              )
+                              removeListItem(idx, learningOutcomes, setLearningOutcomes)
                             }
                             className="p-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                           >
@@ -585,42 +590,21 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     <button
                       type="button"
                       onClick={() => addListItem(setLearningOutcomes)}
-                      className="text-sky-600 font-bold text-sm flex items-center gap-2 hover:bg-sky-50 px-3 py-2 rounded-lg transition-colors"
+                      className="text-sky-600 font-bold text-sm flex items-center gap-2 hover:bg-sky-50 px-4 py-2.5 rounded-xl transition-colors"
                     >
                       <Plus size={16} /> Daha fazla madde ekle
                     </button>
                   </div>
                 </div>
 
-                {/* Requirements */}
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                  <h4 className="text-lg font-black text-gray-800 mb-4 flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-orange-100 text-orange-600 flex items-center justify-center">
-                      <svg
-                        width="20"
-                        height="20"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="3"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                      </svg>
-                    </div>
-                    Gereksinimler
-                  </h4>
-                  <p className="text-sm text-gray-500 mb-4">
-                    Bu kursa başlamadan önce öğrencilerin sahip olması gereken
-                    bilgi veya ekipmanlar.
-                  </p>
-
+                {/* Gereksinimler */}
+                <div className="pt-4">
+                  <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                    Gereksinimler & Ön Koşullar
+                  </h5>
                   <div className="space-y-3">
                     {requirements.map((item, idx) => (
-                      <div key={idx} className="flex gap-2">
+                      <div key={idx} className="flex gap-3 items-center">
                         <input
                           type="text"
                           value={item}
@@ -632,8 +616,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                               setRequirements,
                             )
                           }
-                          placeholder="Örn: Temel bilgisayar kullanma becerisi"
-                          className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400"
+                          placeholder="Örn: Temel bilgisayar kullanımı bilgisi"
+                          className="flex-1 px-5 py-3.5 bg-gray-50 border border-gray-200 rounded-2xl font-medium text-gray-800 focus:outline-none focus:bg-white focus:ring-4 focus:ring-sky-100 focus:border-sky-400 transition-all text-sm"
                         />
                         {requirements.length > 1 && (
                           <button
@@ -651,244 +635,162 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     <button
                       type="button"
                       onClick={() => addListItem(setRequirements)}
-                      className="text-sky-600 font-bold text-sm flex items-center gap-2 hover:bg-sky-50 px-3 py-2 rounded-lg transition-colors"
+                      className="text-sky-600 font-bold text-sm flex items-center gap-2 hover:bg-sky-50 px-4 py-2.5 rounded-xl transition-colors"
                     >
                       <Plus size={16} /> Daha fazla madde ekle
                     </button>
                   </div>
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* SCHEDULE TAB */}
-            {activeTab === "schedule" && (
-              <div className="space-y-6 animate-fade-in pb-20">
-                <div className="bg-white p-6 rounded-[2.5rem] shadow-sm border border-gray-100">
-                  <div className="flex items-center gap-5 mb-8">
-                    <div className="w-14 h-14 bg-gradient-to-br from-sky-500 to-indigo-600 text-white rounded-2xl flex items-center justify-center shadow-lg shadow-sky-200">
-                      <Calendar size={28} />
-                    </div>
-                    <div>
-                      <h4 className="text-2xl font-black text-gray-800">
-                        Kurs Sınıfları & Ders Programı
-                      </h4>
-                      <p className="text-sm text-gray-500 font-medium">
-                        Dersiniz için kaç sınıf istediğinizi ayarlayın, isimlendirin ve ders saatlerini girin.
-                      </p>
-                    </div>
+            {/* BÖLÜM 3: SINIFLAR & DERS SAATLERİ */}
+            <div className="space-y-6 pb-12">
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100 space-y-6">
+                <h4 className="text-xl font-black text-gray-800 border-b border-gray-100 pb-4 flex items-center gap-3">
+                  <Calendar className="text-sky-500" size={22} />
+                  Sınıflar & Ders Programı
+                </h4>
+
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h5 className="text-base font-black text-gray-800">
+                      Kurs Sınıfları ({classes.length})
+                    </h5>
+                    <button
+                      type="button"
+                      onClick={addClass}
+                      className="px-4 py-2 bg-sky-50 hover:bg-sky-100 text-sky-600 font-bold text-xs rounded-xl transition-colors flex items-center gap-2"
+                    >
+                      <Plus size={16} /> Yeni Sınıf Ekle
+                    </button>
                   </div>
 
-                  {/* Classes Management */}
-                  <div className="space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h5 className="text-base font-black text-gray-800">
-                        Sınıf Listesi ({classes.length})
-                      </h5>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-                          const nextLetter = alphabet[classes.length] || String(classes.length + 1);
-                          setClasses([
-                            ...classes,
-                            {
-                              id: `c_${Date.now()}`,
-                              name: `${nextLetter} Sınıfı`,
-                              schedule: []
-                            }
-                          ]);
-                        }}
-                        className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow-md active:scale-95"
+                  <div className="grid grid-cols-1 gap-6">
+                    {classes.map((cls, classIdx) => (
+                      <div
+                        key={cls.id}
+                        className="p-6 bg-slate-50/70 border border-slate-200 rounded-3xl space-y-5"
                       >
-                        <Plus size={14} />
-                        Sınıf Ekle
-                      </button>
-                    </div>
-
-                    <div className="space-y-4">
-                      {classes.map((cls, cIdx) => (
-                        <div key={cls.id} className="bg-white border-2 border-gray-100 p-5 rounded-2xl shadow-sm space-y-4 relative group">
+                        <div className="flex items-center justify-between gap-4">
+                          <input
+                            type="text"
+                            value={cls.name}
+                            onChange={(e) =>
+                              updateClassName(cls.id, e.target.value)
+                            }
+                            placeholder="Sınıf Adı (Örn: A Şubesi)"
+                            className="px-4 py-2.5 bg-white border border-gray-200 rounded-xl font-bold text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 text-sm flex-1"
+                          />
                           {classes.length > 1 && (
                             <button
                               type="button"
-                              onClick={() => {
-                                if (confirm("Bu sınıfı silmek istediğinize emin misiniz?")) {
-                                  setClasses(classes.filter((c) => c.id !== cls.id));
-                                }
-                              }}
-                              className="absolute top-4 right-4 p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                              title="Sınıfı Sil"
+                              onClick={() => removeClass(cls.id)}
+                              className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={18} />
                             </button>
                           )}
+                        </div>
 
-                          <div className="max-w-md">
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1.5">
-                              Sınıf İsmi
-                            </label>
-                            <input
-                              type="text"
-                              value={cls.name}
-                              onChange={(e) => {
-                                const newClasses = [...classes];
-                                newClasses[cIdx].name = e.target.value;
-                                setClasses(newClasses);
-                              }}
-                              className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:border-sky-400 transition-colors"
-                              placeholder="Örn: A Sınıfı veya Akşam Grubu"
-                            />
+                        {/* Ders Saatleri */}
+                        <div className="space-y-3 pl-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                              Ders Saatleri
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => addClassScheduleItem(cls.id)}
+                              className="text-xs font-bold text-sky-600 hover:underline flex items-center gap-1"
+                            >
+                              <Plus size={14} /> Ders Saati Ekle
+                            </button>
                           </div>
 
-                          <div className="space-y-2">
-                            <label className="block text-xs font-black text-gray-400 uppercase tracking-widest">
-                              Haftalık Canlı Ders Saatleri
-                            </label>
-
-                            <div className="flex flex-wrap gap-2 mb-3">
-                              {cls.schedule?.map((slot, sIdx) => (
-                                <div key={sIdx} className="flex items-center gap-1.5 px-3 py-1.5 bg-sky-50 border border-sky-100 rounded-xl text-xs font-bold text-sky-700">
-                                  <Clock size={12} />
-                                  <span>{slot.day} - {slot.time}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const newClasses = [...classes];
-                                      newClasses[cIdx].schedule = cls.schedule.filter((_, idx) => idx !== sIdx);
-                                      setClasses(newClasses);
-                                    }}
-                                    className="text-sky-400 hover:text-sky-700 ml-1 font-black text-xs font-bold"
-                                  >
-                                    ×
-                                  </button>
-                                </div>
-                              ))}
-                              {(!cls.schedule || cls.schedule.length === 0) && (
-                                <span className="text-xs text-gray-400 font-bold italic">Planlanmış ders saati yok</span>
-                              )}
-                            </div>
-
-                            <div className="flex flex-wrap items-center gap-3 bg-gray-50 p-3 rounded-xl border border-gray-100 w-fit">
+                          {(cls.schedule || []).map((sch, schIdx) => (
+                            <div
+                              key={schIdx}
+                              className="flex flex-wrap items-center gap-3"
+                            >
                               <select
-                                id={`day-select-${cls.id}`}
-                                className="bg-white border border-gray-200 text-xs font-bold text-gray-700 rounded-lg p-2 focus:outline-none"
+                                value={sch.day}
+                                onChange={(e) =>
+                                  updateClassScheduleItem(
+                                    cls.id,
+                                    schIdx,
+                                    "day",
+                                    e.target.value,
+                                  )
+                                }
+                                className="px-3 py-2 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 text-xs"
                               >
-                                {["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"].map(d => (
-                                  <option key={d} value={d}>{d}</option>
+                                {DAYS_OF_WEEK.map((d) => (
+                                  <option key={d} value={d}>
+                                    {d}
+                                  </option>
                                 ))}
                               </select>
+
                               <input
                                 type="time"
-                                id={`time-select-${cls.id}`}
-                                defaultValue="14:00"
-                                className="bg-white border border-gray-200 text-xs font-bold text-gray-700 rounded-lg p-1.5 focus:outline-none"
+                                value={sch.time}
+                                onChange={(e) =>
+                                  updateClassScheduleItem(
+                                    cls.id,
+                                    schIdx,
+                                    "time",
+                                    e.target.value,
+                                  )
+                                }
+                                className="px-3 py-2 bg-white border border-gray-200 rounded-xl font-bold text-gray-700 text-xs"
                               />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const daySelect = document.getElementById(`day-select-${cls.id}`) as HTMLSelectElement;
-                                  const timeSelect = document.getElementById(`time-select-${cls.id}`) as HTMLInputElement;
-                                  if (daySelect && timeSelect && timeSelect.value) {
-                                    const newClasses = [...classes];
-                                    newClasses[cIdx].schedule = [
-                                      ...(cls.schedule || []),
-                                      { day: daySelect.value, time: timeSelect.value }
-                                    ];
-                                    setClasses(newClasses);
-                                  }
-                                }}
-                                className="px-3.5 py-2 bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs rounded-lg transition-all"
-                              >
-                                Ekle
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
-                  <div className="mt-10 p-6 bg-gradient-to-br from-sky-50 to-indigo-50 rounded-[2rem] border border-sky-100 flex gap-5">
-                    <div className="w-12 h-12 bg-white text-sky-500 rounded-2xl flex items-center justify-center shrink-0 shadow-sm">
-                      <Info size={24} />
-                    </div>
-                    <div className="space-y-1">
-                      <h5 className="font-black text-sky-900 text-sm">
-                        Sınıflara Göre Programlama
-                      </h5>
-                      <p className="text-sky-700 text-xs font-bold leading-relaxed opacity-80">
-                        Her sınıf için özel bir ders programı atayabilirsiniz. Öğrenciler kayıt olduktan sonra eğitmen panelindeki "Sınıflarım" menüsünden sınıflara yerleştirilebilir ve programları yönetilebilir.
-                      </p>
-                    </div>
+                              {(cls.schedule || []).length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeClassScheduleItem(cls.id, schIdx)
+                                  }
+                                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                >
+                                  <Trash2 size={16} />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
-            )}
-            {/* Curriculum tab view removed - curriculum is now edited on a dedicated roadmap builder page */}
+            </div>
           </form>
         </div>
 
         {/* Footer / Actions */}
-        <div className="p-6 border-t border-gray-100 bg-white flex justify-between items-center z-10">
-          <div className="text-sm font-bold text-gray-400">
-            {activeTab === "general"
-              ? "1/3 Genel Bilgiler"
-              : activeTab === "details"
-                ? "2/3 Detaylar"
-                : "3/3 Sınıflar & Ders Saatleri"}
-          </div>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-6 py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-xl transition-colors"
-            >
-              İptal
-            </button>
-
-            {activeTab !== "schedule" ? (
-              <button
-                type="button"
-                onClick={() =>
-                  setActiveTab(
-                    activeTab === "general"
-                      ? "details"
-                      : "schedule"
-                  )
-                }
-                className="px-6 py-3 bg-gray-800 hover:bg-gray-900 text-white font-bold rounded-xl transition-colors flex items-center gap-2"
-              >
-                Sonraki Adım <ChevronRight size={16} />
-              </button>
+        <div className="p-6 border-t border-gray-100 bg-white flex justify-end items-center z-10 shrink-0">
+          <button
+            onClick={handleSubmit}
+            disabled={isSubmitting}
+            className={`group relative overflow-hidden px-8 py-3.5 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-sky-200/50 active:scale-[0.98] transition-all duration-300 flex items-center gap-3 ${isSubmitting ? "opacity-90 cursor-not-allowed pr-10" : ""
+              }`}
+          >
+            {isSubmitting ? (
+              <div className="flex items-center gap-2">
+                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                <span className="tracking-wide text-sm">Kaydediliyor...</span>
+              </div>
             ) : (
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className={`group relative overflow-hidden px-8 py-3 bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 text-white font-bold rounded-2xl shadow-xl shadow-sky-200/50 active:scale-[0.98] transition-all duration-300 flex items-center gap-3 ${isSubmitting ? "opacity-90 cursor-not-allowed pr-10" : ""
-                  }`}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex items-center justify-center">
-                        <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                        <div className="absolute w-5 h-5 border-2 border-white/10 rounded-full" />
-                      </div>
-                      <span className="tracking-wide">Yönlendiriliyor...</span>
-                    </div>
-                    <div className="absolute right-0 top-0 h-full w-1 bg-white/20 animate-pulse" />
-                  </>
-                ) : (
-                  <>
-                    <span>Roadmap'e Geç</span>
-                    <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
-                      <ChevronRight size={14} />
-                    </div>
-                  </>
-                )}
-              </button>
+              <>
+                <span className="text-sm">Kaydet</span>
+                <div className="w-6 h-6 bg-white/20 rounded-lg flex items-center justify-center group-hover:bg-white/30 transition-colors">
+                  <Check size={14} />
+                </div>
+              </>
             )}
-          </div>
+          </button>
         </div>
       </div>
     </div>

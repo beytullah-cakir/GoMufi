@@ -284,8 +284,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
       if (refreshData) {
           refreshData();
       }
-      // Redirect to dedicated visual roadmap builder page
-      navigate(`/instructor/roadmap-builder/${savedCourseId}`);
     } catch (error: any) {
       console.error("Kurs kaydedilirken hata oluştu:", error);
       const errorMsg =
@@ -372,7 +370,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   });
 
   return (
-    <div className="space-y-6 animate-fade-in-down">
+    <div className="flex flex-col h-full space-y-6 animate-fade-in-down relative -m-8 p-8 bg-[#F8F9FC]">
       {/* Header / Toolbar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div className="flex bg-white p-1.5 rounded-2xl border-2 border-b-4 border-slate-200 shadow-sm gap-1">
