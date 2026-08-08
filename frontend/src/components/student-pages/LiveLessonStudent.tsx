@@ -303,7 +303,7 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
                 onClose={handleCloseLesson}
                 onComplete={handleLessonComplete}
                 courseId={currentCourse?.id}
-                lessonIndex={currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.lessonNumber}
+                lessonIndex={lessonLevel ? (currentCourse?.nodes?.find((n: any) => String(n.id) === String(lessonLevel))?.node_id || lessonLevel) : undefined}
                 userData={userData}
             />
         </div>

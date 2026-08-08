@@ -75,6 +75,18 @@ const InstructorApp: React.FC = () => {
         fetchUserData();
     }, []);
 
+    // Global Hardware Mouse Back Button Handler (Mouse Button 3 / 4)
+    useEffect(() => {
+        const handleMouseBack = (e: MouseEvent) => {
+            if (e.button === 3) {
+                e.preventDefault();
+                window.history.back();
+            }
+        };
+        window.addEventListener('mouseup', handleMouseBack);
+        return () => window.removeEventListener('mouseup', handleMouseBack);
+    }, []);
+
     const handleNavigate = (pageId: string) => {
         const mapping: { [key: string]: string } = {
             'Dashboard': '/instructor/dashboard',

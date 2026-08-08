@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { PenTool, Code, FileText, Image, File, Check, Star } from 'lucide-react';
 import type { Slide, HomeworkConfig } from './types';
 
@@ -7,19 +7,35 @@ interface HomeworkBuilderProps {
     updateSlide: (updates: Partial<Slide>) => void;
 }
 
+const DEFAULT_CONFIG: HomeworkConfig = {
+    title: 'Yeni Ödev Görevi',
+    instructions: 'Ödev detaylarını, soruları veya yönergeleri buraya yazın...',
+    submissionType: 'text',
+    points: 100,
+    starterCode: '# Kodunuzu buraya yazın\n'
+};
+
 const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({ slide, updateSlide }) => {
-    // Initialize default config if missing
-    const config: HomeworkConfig = slide.homeworkConfig || {
-        title: 'Değişkenler ve Hesaplamalar',
-        instructions: '1. Bir "ad" değişkeni tanımlayıp kendi isminizi atayın.\n2. Bir "yas" değişkeni tanımlayıp yaşınızı atayın.\n3. Bu değişkenleri print kullanarak konsola yazdırın.',
-        submissionType: 'text',
-        points: 100,
-        starterCode: '# Kodunuzu buraya yazın\n'
+    // Current config merged with defaults
+    const config: HomeworkConfig = {
+        title: slide.homeworkConfig?.title ?? DEFAULT_CONFIG.title,
+        instructions: slide.homeworkConfig?.instructions ?? DEFAULT_CONFIG.instructions,
+        submissionType: slide.homeworkConfig?.submissionType ?? DEFAULT_CONFIG.submissionType,
+        points: slide.homeworkConfig?.points ?? DEFAULT_CONFIG.points,
+        starterCode: slide.homeworkConfig?.starterCode ?? DEFAULT_CONFIG.starterCode,
     };
 
+    // Ensure initial slide has homeworkConfig attached
+    useEffect(() => {
+        if (!slide.homeworkConfig) {
+            updateSlide({ homeworkConfig: config });
+        }
+    }, [slide.id]);
+
     const updateConfig = (updates: Partial<HomeworkConfig>) => {
+        const newConfig = { ...config, ...updates };
         updateSlide({
-            homeworkConfig: { ...config, ...updates }
+            homeworkConfig: newConfig
         });
     };
 
@@ -91,47 +107,80 @@ const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({ slide, updateSlide })
 
                             <div className="grid grid-cols-2 gap-3">
                                 {[
-                                    { id: 'text',  label: 'Metin Yanıtı', desc: 'Serbest metin',      icon: <FileText size={18} />, color: 'blue'   },
-                                    { id: 'code',  label: 'Kod Editörü',  desc: 'Python editörü',     icon: <Code    size={18} />, color: 'indigo' },
-                                    { id: 'image', label: 'Resim Yükle',  desc: 'Ekran görüntüsü',    icon: <Image   size={18} />, color: 'rose'   },
-                                    { id: 'file',  label: 'Dosya Yükle',  desc: 'PDF, ZIP vb.',       icon: <File    size={18} />, color: 'amber'  },
+                                    {
+                                        id: 'text',
+                                        label: 'Metin Yanıtı',
+                                        desc: 'Serbest metin',
+                                        icon: <FileText size={18} />,
+                                        isDisabled: false,
+                                        activeClass: 'border-blue-500 bg-blue-50/50 text-blue-700 ring-2 ring-blue-500/20 shadow-md',
+                                        iconActiveClass: 'bg-blue-100 text-blue-600',
+                                        checkClass: 'bg-blue-500'
+                                    },
+                                    {
+                                        id: 'code',
+                                        label: 'Kod Editörü',
+                                        desc: 'Python editörü',
+                                        icon: <Code size={18} />,
+                                        isDisabled: false,
+                                        activeClass: 'border-indigo-500 bg-indigo-50/50 text-indigo-700 ring-2 ring-indigo-500/20 shadow-md',
+                                        iconActiveClass: 'bg-indigo-100 text-indigo-600',
+                                        checkClass: 'bg-indigo-500'
+                                    },
+                                    {
+                                        id: 'image',
+                                        label: 'Resim Yükle',
+                                        desc: 'Pasif (Yakında)',
+                                        icon: <Image size={18} />,
+                                        isDisabled: true,
+                                        activeClass: 'border-rose-500 bg-rose-50/50 text-rose-700',
+                                        iconActiveClass: 'bg-rose-100 text-rose-600',
+                                        checkClass: 'bg-rose-500'
+                                    },
+                                    {
+                                        id: 'file',
+                                        label: 'Dosya Yükle',
+                                        desc: 'Pasif (Yakında)',
+                                        icon: <File size={18} />,
+                                        isDisabled: true,
+                                        activeClass: 'border-amber-500 bg-amber-50/50 text-amber-700',
+                                        iconActiveClass: 'bg-amber-100 text-amber-600',
+                                        checkClass: 'bg-amber-500'
+                                    },
                                 ].map((type) => {
                                     const isSelected = config.submissionType === type.id;
-                                    const colorMap: Record<string, string> = {
-                                        blue:   'border-blue-500   bg-blue-50/30   text-blue-700   ring-blue-400/20   bg-blue-100   text-blue-600   bg-blue-500',
-                                        indigo: 'border-indigo-500 bg-indigo-50/30 text-indigo-700 ring-indigo-400/20 bg-indigo-100 text-indigo-600 bg-indigo-500',
-                                        rose:   'border-rose-500   bg-rose-50/30   text-rose-700   ring-rose-400/20   bg-rose-100   text-rose-600   bg-rose-500',
-                                        amber:  'border-amber-500  bg-amber-50/30  text-amber-700  ring-amber-400/20  bg-amber-100  text-amber-600  bg-amber-500',
-                                    };
-                                    // Precomputed classes to avoid Tailwind purging dynamic strings
-                                    const borderClass   = isSelected ? `border-${type.color}-500`   : 'border-gray-100';
-                                    const bgClass       = isSelected ? `bg-${type.color}-50/30`      : '';
-                                    const textClass     = isSelected ? `text-${type.color}-700`      : 'text-gray-500';
-                                    const iconBgClass   = isSelected ? `bg-${type.color}-100 text-${type.color}-600` : 'text-gray-400';
-                                    const checkBgClass  = `bg-${type.color}-500`;
-                                    const titleColor    = isSelected ? `text-${type.color}-700`      : 'text-gray-700';
+                                    const isDisabled = type.isDisabled;
 
                                     return (
                                         <button
                                             key={type.id}
-                                            onClick={() => updateConfig({ submissionType: type.id as any })}
-                                            className={`p-4 rounded-2xl border-2 text-left flex flex-col justify-between transition-all group
-                                                ${borderClass} ${bgClass} ${textClass}
-                                                ${isSelected ? 'shadow-md ring-1' : 'hover:border-gray-200 hover:bg-gray-50/50'}
+                                            type="button"
+                                            disabled={isDisabled}
+                                            onClick={() => {
+                                                if (!isDisabled) {
+                                                    updateConfig({ submissionType: type.id as any });
+                                                }
+                                            }}
+                                            className={`p-4 rounded-2xl border-2 text-left flex flex-col justify-between transition-all group relative cursor-pointer
+                                                ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-100/60 border-gray-200 shadow-none' : isSelected ? type.activeClass : 'border-gray-100 hover:border-gray-300 hover:bg-gray-50/80 text-gray-600'}
                                             `}
                                         >
                                             <div className="flex items-center justify-between w-full">
-                                                <div className={`w-8 h-8 rounded-xl bg-gray-50 group-hover:scale-105 transition-transform flex items-center justify-center ${iconBgClass}`}>
+                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-transform ${isDisabled ? 'bg-gray-200 text-gray-400' : isSelected ? type.iconActiveClass : 'bg-gray-100 text-gray-500 group-hover:scale-105'}`}>
                                                     {type.icon}
                                                 </div>
-                                                {isSelected && (
-                                                    <div className={`w-5 h-5 rounded-full ${checkBgClass} text-white flex items-center justify-center`}>
+                                                {isDisabled ? (
+                                                    <span className="text-[9px] font-black uppercase tracking-wider bg-gray-200 text-gray-500 px-1.5 py-0.5 rounded-md">
+                                                        PASİF
+                                                    </span>
+                                                ) : isSelected && (
+                                                    <div className={`w-5 h-5 rounded-full ${type.checkClass} text-white flex items-center justify-center shadow-sm`}>
                                                         <Check size={12} strokeWidth={3} />
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="mt-4">
-                                                <h5 className={`text-xs font-black uppercase tracking-wider ${titleColor}`}>
+                                                <h5 className={`text-xs font-black uppercase tracking-wider ${isDisabled ? 'text-gray-400' : isSelected ? 'text-gray-900' : 'text-gray-700'}`}>
                                                     {type.label}
                                                 </h5>
                                                 <p className="text-[10px] font-bold text-gray-400 mt-0.5">{type.desc}</p>
@@ -170,7 +219,7 @@ const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({ slide, updateSlide })
                                 </div>
                                 <h5 className="font-black text-sm text-white truncate">{config.title || 'Başlıksız Ödev'}</h5>
                                 <div className="flex justify-between items-center text-[10px] text-blue-100 font-bold pt-2 border-t border-white/10">
-                                    <span>Tür: {(config.submissionType || 'file').toUpperCase()}</span>
+                                    <span>Tür: {(config.submissionType || 'text').toUpperCase()}</span>
                                     <span>+{config.points || 100} XP</span>
                                 </div>
                             </div>

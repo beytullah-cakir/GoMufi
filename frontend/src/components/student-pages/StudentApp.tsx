@@ -126,9 +126,18 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
             actualSections.forEach((section: any, index: number) => {
                 const sectionTitle = section.title || `Ders ${index + 1}`;
-                const sectionId = section.id || `section_${index + 1}`;
-                const matchingNote = course.notes?.find((n: any) => String(n.id) === String(section.id));
-                const slides = matchingNote?.slides || [];
+                const sectionId = section.node_id || section.id || `section_${index + 1}`;
+                const matchingNote = course.notes?.find((n: any) => 
+                    String(n.id) === String(sectionId) || 
+                    String(n.node_id) === String(sectionId) || 
+                    String(n.id) === String(section.id)
+                );
+                const slides = (Array.isArray(section.slides) && section.slides.length > 0)
+                    ? section.slides
+                    : (matchingNote?.slides || []);
+
+                const hasHomeworkSlide = slides.some((s: any) => s && (s.type === 'homework' || s.homeworkConfig));
+                const theme = (section.theme === 'homework' || section.category === 'ÖDEV' || hasHomeworkSlide) ? 'homework' : section.theme;
 
                 const lessonNodes = generateLessonNodes(
                     index + 1,
@@ -136,7 +145,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
                     sectionTitle,
                     true,
                     sectionId,
-                    section.theme,
+                    theme,
                     slides,
                     section.lessonTopic,
                     section.lessonNumber
@@ -218,7 +227,6 @@ function StudentApp() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [activePage, setActivePage] = useState('Ana Sayfa');
     const [activeCourseId, setActiveCourseId] = useState<string>('');
     const [userData, setUserData] = useState<any>(null);
     const [isUserDataLoading, setIsUserDataLoading] = useState(true);
@@ -231,7 +239,6 @@ function StudentApp() {
             console.error("Failed to refresh user data", err);
         }
     };
-    const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
 
     // Page to Path mapping
     const pageToPath: Record<string, string> = {
@@ -256,11 +263,49 @@ function StudentApp() {
         '/student/cart': 'Sepetim'
     };
 
-    // Effect to sync URL -> State (Handle browser back/forward and initial load)
+    // Initialize activePage from current window location URL so F5 refresh keeps exact same page
+    const [activePage, setActivePage] = useState<string>(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/student/catalog/')) return 'Kurslar';
+        return pathToPage[path] || 'Ana Sayfa';
+    });
+
+    const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(() => {
+        const path = window.location.pathname;
+        if (path.startsWith('/student/catalog/')) {
+            const idMatch = path.match(/\/student\/catalog\/(\d+)/);
+            return idMatch ? parseInt(idMatch[1]) : null;
+        }
+        return null;
+    });
+
+    const handleNavigate = (pageName: string) => {
+        setActivePage(pageName);
+        if (pageName !== 'Kurslar') {
+            setSelectedCourseForDetail(null);
+        }
+        const targetPath = pageToPath[pageName] || '/student/home';
+        if (location.pathname !== targetPath) {
+            navigate(targetPath);
+        }
+    };
+
+    // Global Hardware Mouse Back Button Handler (Mouse Button 3 / 4)
+    useEffect(() => {
+        const handleMouseBack = (e: MouseEvent) => {
+            if (e.button === 3) { // Hardware back button on standard 5-button mice
+                e.preventDefault();
+                window.history.back();
+            }
+        };
+        window.addEventListener('mouseup', handleMouseBack);
+        return () => window.removeEventListener('mouseup', handleMouseBack);
+    }, []);
+
+    // Effect to sync URL -> State (Handle browser back/forward and URL changes)
     useEffect(() => {
         const path = location.pathname;
 
-        // Handle course detail specifically
         if (path.startsWith('/student/catalog/')) {
             const idMatch = path.match(/\/student\/catalog\/(\d+)/);
             if (idMatch) {
@@ -275,32 +320,10 @@ function StudentApp() {
             setActivePage(page);
             setSelectedCourseForDetail(null);
         } else if (path === '/student' || path === '/student/') {
-            // Default to home if at base /student
             setActivePage('Ana Sayfa');
             setSelectedCourseForDetail(null);
         }
     }, [location.pathname]);
-
-    // Effect to sync State -> URL (Update URL when user clicks menu)
-    useEffect(() => {
-        let targetPath = pageToPath[activePage] || '/student/home';
-
-        // Override if in course detail
-        if (activePage === 'Kurslar' && selectedCourseForDetail) {
-            targetPath = `/student/catalog/${selectedCourseForDetail}`;
-        }
-
-        if (location.pathname !== targetPath) {
-            navigate(targetPath);
-        }
-    }, [activePage, selectedCourseForDetail]);
-
-    // Reset course detail view when switching pages (already covered by sync, but keep as safety)
-    useEffect(() => {
-        if (activePage !== 'Kurslar') {
-            setSelectedCourseForDetail(null);
-        }
-    }, [activePage]);
 
     // --- Purchased Courses State ---
     const [purchasedCourses, setPurchasedCourses] = useState<any[]>([]);
@@ -464,7 +487,7 @@ function StudentApp() {
                     <Sidebar
                         role="student"
                         activePage={activePage}
-                        onNavigate={setActivePage}
+                        onNavigate={handleNavigate}
                         items={navItems}
                         userData={userData}
                     />

@@ -25,7 +25,11 @@ interface Submission {
     file_mime: string;
     file_data: string;          // base64
     student_note: string | null;
+    status?: string;
+    feedback?: string | null;
     submitted_at: string | null;
+    approved_at?: string | null;
+    student?: { id: number; first_name?: string; last_name?: string; email?: string };
 }
 
 interface Course {
@@ -45,6 +49,31 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] = useState<number | null>(null);
+    const [feedbacks, setFeedbacks] = useState<Record<number, string>>({});
+    const [approvingId, setApprovingId] = useState<number | null>(null);
+
+    const handleApproveHomework = async (sub: Submission) => {
+        if (!selectedCourseId) return;
+        setApprovingId(sub.id);
+        try {
+            const feedbackText = feedbacks[sub.id] !== undefined ? feedbacks[sub.id] : (sub.feedback || '');
+            await api.post(`/courses/${selectedCourseId}/homework/${sub.id}/approve`, {
+                feedback: feedbackText
+            });
+            setSubmissions(prev => prev.map(item => item.id === sub.id ? {
+                ...item,
+                status: 'approved',
+                feedback: feedbackText,
+                approved_at: new Date().toISOString()
+            } : item));
+            alert("Ödev başarıyla onaylandı ve yorumunuz kaydedildi!");
+        } catch (err: any) {
+            console.error("Approve error:", err);
+            alert(err?.response?.data?.error || "Ödev onaylanırken hata oluştu.");
+        } finally {
+            setApprovingId(null);
+        }
+    };
 
     // AI review state
     const [evaluatingId, setEvaluatingId] = useState<number | null>(null);
@@ -74,7 +103,8 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         setError(null);
         try {
             const res = await api.get(`/courses/${courseId}/homework/all-submissions`);
-            setSubmissions(res.data?.submissions || []);
+            const list = Array.isArray(res.data) ? res.data : (res.data?.submissions || []);
+            setSubmissions(list);
         } catch (e: any) {
             setError(e?.response?.data?.detail || 'Gönderiler yüklenemedi.');
         } finally {
@@ -262,116 +292,163 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                 {/* ── Submissions list ── */}
                 {!isLoading && filtered.length > 0 && (
                     <div className="space-y-3">
-                        {filtered.map(sub => (
-                            <div
-                                key={sub.id}
-                                className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden transition-all"
-                            >
-                                {/* Row */}
-                                <div className="flex items-center justify-between px-5 py-4 gap-4">
-                                    {/* Student info */}
-                                    <div className="flex items-center gap-3 min-w-0">
-                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shrink-0">
-                                            <User size={18} className="text-indigo-500" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-black text-gray-800 truncate">{sub.student_name}</p>
-                                            <p className="text-[11px] text-gray-400 font-bold truncate">{sub.student_email}</p>
-                                        </div>
-                                    </div>
+                        {filtered.map(sub => {
+                            const studentName = sub.student ? `${sub.student.first_name || ''} ${sub.student.last_name || ''}`.trim() : (sub.student_name || 'Öğrenci');
+                            const studentEmail = sub.student?.email || sub.student_email || 'E-posta belirtilmemiş';
+                            const displayContent = sub.student_note || getCodeContent(sub.file_data);
 
-                                    {/* File + date */}
-                                    <div className="hidden sm:flex flex-col items-start min-w-0 flex-1 px-4">
-                                        <div className="flex items-center gap-1.5 text-gray-600">
-                                            <FileText size={14} className="text-indigo-400 shrink-0" />
-                                            <span className="text-xs font-bold truncate max-w-[180px]">{sub.file_name}</span>
-                                        </div>
-                                        <div className="flex items-center gap-1.5 text-gray-400 mt-0.5">
-                                            <Calendar size={12} className="shrink-0" />
-                                            <span className="text-[11px] font-bold">{formatDate(sub.submitted_at)}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Node ID badge */}
-                                    <span className="hidden md:inline-block text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-100 px-3 py-1 rounded-full shrink-0 truncate max-w-[200px]" title={sub.node_title}>
-                                        {sub.node_title}
-                                    </span>
-
-                                    {/* Actions */}
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {/* Download */}
-                                        <button
-                                            onClick={() => downloadFile(sub)}
-                                            title="Dosyayı indir"
-                                            className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 hover:bg-indigo-100 flex items-center justify-center transition-colors"
-                                        >
-                                            <Download size={16} />
-                                        </button>
-
-                                        {/* Expand */}
-                                        <button
-                                            onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
-                                            className="w-9 h-9 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors"
-                                        >
-                                            {expandedId === sub.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                                        </button>
-                                    </div>
-                                </div>
-
-                                {/* Expanded detail */}
-                                {expandedId === sub.id && (
-                                    <div className="border-t-2 border-gray-50 px-5 py-4 bg-gray-50/50 space-y-4">
-                                        {/* Mobile metadata */}
-                                        <div className="sm:hidden space-y-1">
-                                            <p className="text-xs font-bold text-gray-500">Dosya: <span className="text-gray-700">{sub.file_name}</span></p>
-                                            <p className="text-xs font-bold text-gray-500">Tarih: <span className="text-gray-700">{formatDate(sub.submitted_at)}</span></p>
-                                            <p className="text-xs font-bold text-gray-500">Ders: <span className="text-violet-600">{sub.node_title}</span></p>
-                                        </div>
-
-                                        {/* Grid Details */}
-                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                            <div className="bg-white rounded-xl border border-gray-200/60 p-3 shadow-xs">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">DERS / GÖREV</p>
-                                                <p className="text-xs font-bold text-gray-700">{sub.node_title}</p>
+                            return (
+                                <div
+                                    key={sub.id}
+                                    className="bg-white rounded-2xl border-2 border-gray-100 shadow-sm overflow-hidden transition-all hover:border-indigo-100"
+                                >
+                                    {/* Row */}
+                                    <div className="flex items-center justify-between px-5 py-4 gap-4">
+                                        {/* Student info */}
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-100 to-violet-100 flex items-center justify-center shrink-0">
+                                                <User size={18} className="text-indigo-500" />
                                             </div>
-                                            <div className="bg-white rounded-xl border border-gray-200/60 p-3 shadow-xs">
-                                                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">TESLİM SAATİ</p>
-                                                <p className="text-xs font-bold text-gray-700">{formatDate(sub.submitted_at)}</p>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-black text-gray-800 truncate">{studentName}</p>
+                                                <p className="text-[11px] text-gray-400 font-bold truncate">{studentEmail}</p>
                                             </div>
                                         </div>
 
-                                        {/* Student Note */}
-                                        {sub.student_note ? (
-                                            <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
-                                                <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest mb-1 font-display">Öğrenci Notu</p>
-                                                <p className="text-sm text-amber-900 font-medium">{sub.student_note}</p>
+                                        {/* File + date */}
+                                        <div className="hidden sm:flex flex-col items-start min-w-0 flex-1 px-4">
+                                            <div className="flex items-center gap-1.5 text-gray-600">
+                                                <FileText size={14} className="text-indigo-400 shrink-0" />
+                                                <span className="text-xs font-bold truncate max-w-[200px]">{sub.file_name || 'Metin / Kod Yanıtı'}</span>
                                             </div>
-                                        ) : (
-                                            <p className="text-xs text-gray-400 font-bold italic">Öğrenci notu yazılmamış.</p>
-                                        )}
+                                            <div className="flex items-center gap-1.5 text-gray-400 mt-0.5">
+                                                <Calendar size={12} className="shrink-0" />
+                                                <span className="text-[11px] font-bold">{formatDate(sub.submitted_at)}</span>
+                                            </div>
+                                        </div>
 
-                                        {/* Code Content Viewer */}
-                                        <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-800 flex flex-col">
-                                            <div className="bg-slate-850 px-4 py-2.5 flex items-center justify-between border-b border-slate-805 text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                                                <span>KOD İÇERİĞİ ({sub.file_name})</span>
+                                        {/* Node ID badge + Status Badge */}
+                                        <div className="hidden md:flex items-center gap-2">
+                                            <span className="text-[10px] font-black text-violet-600 bg-violet-50 border border-violet-100 px-3 py-1 rounded-full shrink-0 truncate max-w-[180px]" title={sub.node_title}>
+                                                {sub.node_title}
+                                            </span>
+                                            {sub.status === 'approved' ? (
+                                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1">
+                                                    <BookCheck size={12} /> EĞİTMEN ONAYLADI
+                                                </span>
+                                            ) : (
+                                                <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full shrink-0 flex items-center gap-1">
+                                                    ⏳ ONAY BEKLİYOR
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {/* Actions */}
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            {sub.file_data && (
                                                 <button
-                                                    onClick={() => {
-                                                        navigator.clipboard.writeText(getCodeContent(sub.file_data));
-                                                        alert("Kod kopyalandı!");
-                                                    }}
-                                                    className="text-[9px] font-black bg-slate-800 hover:bg-slate-700 text-slate-350 hover:text-white px-2 py-1 rounded transition-all cursor-pointer"
+                                                    onClick={() => downloadFile(sub)}
+                                                    title="Dosyayı indir"
+                                                    className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-500 hover:bg-indigo-100 flex items-center justify-center transition-colors"
                                                 >
-                                                    KOPYALA
+                                                    <Download size={16} />
+                                                </button>
+                                            )}
+
+                                            {/* Expand */}
+                                            <button
+                                                onClick={() => setExpandedId(expandedId === sub.id ? null : sub.id)}
+                                                className="w-9 h-9 rounded-xl bg-gray-50 text-gray-400 hover:bg-gray-100 flex items-center justify-center transition-colors"
+                                            >
+                                                {expandedId === sub.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded detail */}
+                                    {expandedId === sub.id && (
+                                        <div className="border-t-2 border-gray-50 px-5 py-4 bg-gray-50/50 space-y-4">
+                                            {/* Mobile metadata */}
+                                            <div className="sm:hidden space-y-1">
+                                                <p className="text-xs font-bold text-gray-500">Öğrenci: <span className="text-gray-700">{studentName}</span></p>
+                                                <p className="text-xs font-bold text-gray-500">Tarih: <span className="text-gray-700">{formatDate(sub.submitted_at)}</span></p>
+                                                <p className="text-xs font-bold text-gray-500">Ders: <span className="text-violet-600">{sub.node_title}</span></p>
+                                                <p className="text-xs font-bold text-gray-500">Durum: <span className={sub.status === 'approved' ? 'text-emerald-600' : 'text-amber-600'}>{sub.status === 'approved' ? 'Eğitmen Onayladı' : 'Onay Bekliyor'}</span></p>
+                                            </div>
+
+                                            {/* Grid Details */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                                <div className="bg-white rounded-xl border border-gray-200/60 p-3 shadow-xs">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">DERS / GÖREV</p>
+                                                    <p className="text-xs font-bold text-gray-700">{sub.node_title}</p>
+                                                </div>
+                                                <div className="bg-white rounded-xl border border-gray-200/60 p-3 shadow-xs">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">TESLİM SAATİ</p>
+                                                    <p className="text-xs font-bold text-gray-700">{formatDate(sub.submitted_at)}</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Code / Text Content Viewer */}
+                                            <div className="bg-slate-900 rounded-2xl overflow-hidden shadow-md border border-slate-800 flex flex-col">
+                                                <div className="bg-slate-850 px-4 py-2.5 flex items-center justify-between border-b border-slate-800 text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                                                    <span>ÖĞRENCİ YANITI / İÇERİK</span>
+                                                    <button
+                                                        onClick={() => {
+                                                            navigator.clipboard.writeText(displayContent);
+                                                            alert("Yanıt kopyalandı!");
+                                                        }}
+                                                        className="text-[9px] font-black bg-slate-800 hover:bg-slate-700 text-slate-350 hover:text-white px-2 py-1 rounded transition-all cursor-pointer"
+                                                    >
+                                                        KOPYALA
+                                                    </button>
+                                                </div>
+                                                <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-80 whitespace-pre-wrap break-words scrollbar-thin">
+                                                    <code>{displayContent || '(Yanıt metni yok)'}</code>
+                                                </pre>
+                                            </div>
+
+                                            {/* Instructor Feedback + Approve Box */}
+                                            <div className="bg-white rounded-2xl border-2 border-indigo-100 p-4 space-y-3 shadow-sm">
+                                                <div className="flex items-center justify-between">
+                                                    <label className="text-xs font-black text-indigo-950 uppercase tracking-wider flex items-center gap-1.5 font-display">
+                                                        ✍️ Eğitmen Yorumu & Geri Bildirimi
+                                                    </label>
+                                                    {sub.status === 'approved' && (
+                                                        <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                                                            ✅ Onaylandı
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <textarea
+                                                    className="w-full h-24 p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs font-medium text-gray-800 placeholder-gray-400 focus:bg-white focus:border-indigo-400 outline-none resize-none"
+                                                    placeholder="Öğrencinin ödevi hakkında yorumunuzu veya tavsiyelerinizi buraya yazın..."
+                                                    value={feedbacks[sub.id] !== undefined ? feedbacks[sub.id] : (sub.feedback || '')}
+                                                    onChange={(e) => setFeedbacks(prev => ({ ...prev, [sub.id]: e.target.value }))}
+                                                />
+                                                <button
+                                                    onClick={() => handleApproveHomework(sub)}
+                                                    disabled={approvingId === sub.id}
+                                                    className={`w-full py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md ${
+                                                        sub.status === 'approved'
+                                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                                                            : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                                                    }`}
+                                                >
+                                                    {approvingId === sub.id ? (
+                                                        <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                    ) : (
+                                                        <>
+                                                            <BookCheck size={16} />
+                                                            <span>{sub.status === 'approved' ? 'YORUMU GÜNCELLE VE ONAYI YENİLE' : 'ÖDEVİ ONAYLA VEYA YORUM EKLE'}</span>
+                                                        </>
+                                                    )}
                                                 </button>
                                             </div>
-                                            <pre className="p-4 text-xs font-mono text-emerald-400 overflow-x-auto max-h-80 whitespace-pre scrollbar-thin">
-                                                <code>{getCodeContent(sub.file_data)}</code>
-                                            </pre>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        ))}
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
             </div>

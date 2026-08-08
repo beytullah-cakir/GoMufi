@@ -157,7 +157,10 @@ model HomeworkSubmission {
   file_data    String?
   file_mime    String?
   student_note String?
+  status       String   @default("submitted")
+  feedback     String?
   submitted_at DateTime @default(now())
+  approved_at  DateTime?
   course       Course   @relation(fields: [course_id], references: [id], onDelete: Cascade)
   student      Student  @relation(fields: [student_id], references: [id], onDelete: Cascade)
 

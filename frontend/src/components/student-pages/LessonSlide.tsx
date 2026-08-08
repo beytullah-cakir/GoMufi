@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings } from 'lucide-react';
+import api from '../../api';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import GameBuilder from '../lesson-builder/GameBuilder';
@@ -83,9 +84,19 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 setLocalSlides(JSON.parse(JSON.stringify(slides)));
             } else {
                 setLocalSlides([]);
+                if (courseId && lessonIndex !== undefined && lessonIndex !== null) {
+                    api.get(`/courses/${courseId}/lessons/${lessonIndex}`)
+                        .then(res => {
+                            if (res.data && Array.isArray(res.data.slides) && res.data.slides.length > 0) {
+                                const validSlides = res.data.slides.filter((s: any) => s.type !== 'homework');
+                                setLocalSlides(validSlides.length > 0 ? validSlides : res.data.slides);
+                            }
+                        })
+                        .catch(err => console.error("Fallback fetch lesson error:", err));
+                }
             }
         }
-    }, [isOpen, slides, initialSlideIndex]);
+    }, [isOpen, slides, initialSlideIndex, courseId, lessonIndex]);
 
     // Measure container size factor relative to 1280x720 base width/height
     useEffect(() => {

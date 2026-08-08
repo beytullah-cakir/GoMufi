@@ -32,7 +32,6 @@ async function generateEnrollmentCode(): Promise<string> {
 }
 
 async function populateCourseNotes(courses: any[]) {
-  const result = [];
   for (const course of courses) {
     const lessonContents = await prisma.lessonContent.findMany({
       where: { course_id: course.id }
@@ -43,25 +42,69 @@ async function populateCourseNotes(courses: any[]) {
     
     // Add legacy notes
     for (const note of combinedNotes) {
-      if (note && typeof note === 'object' && note.node_id) {
-        notesByNodeId.set(note.node_id, note);
+      if (note && typeof note === 'object' && (note.node_id || note.id)) {
+        const idKey = String(note.node_id || note.id);
+        notesByNodeId.set(idKey, note);
       }
     }
     
     // Override with relational lesson contents
     for (const lc of lessonContents) {
       const slides = typeof lc.slides === 'string' ? JSON.parse(lc.slides) : lc.slides;
-      notesByNodeId.set(lc.node_id, {
+      const noteObj = {
+        id: lc.node_id,
         node_id: lc.node_id,
         title: lc.title,
         slides: Array.isArray(slides) ? slides : []
-      });
+      };
+      notesByNodeId.set(String(lc.node_id), noteObj);
     }
     
-    course.notes = Array.from(notesByNodeId.values());
-    result.push(course);
+    const allRelationalNotes = Array.from(notesByNodeId.values());
+    course.notes = allRelationalNotes;
+
+    // Enrich curriculum items with their respective slides
+    if (Array.isArray(course.curriculum)) {
+      course.curriculum = course.curriculum.map((node: any, idx: number) => {
+        if (!node) return node;
+        const targetKey1 = String(node.node_id || node.id || '');
+        const targetKey2 = String(node.id || '');
+        const matchingNote = notesByNodeId.get(targetKey1) || 
+                             notesByNodeId.get(targetKey2) || 
+                             allRelationalNotes[idx];
+                             
+        if (matchingNote && Array.isArray(matchingNote.slides) && matchingNote.slides.length > 0) {
+          return {
+            ...node,
+            node_id: node.node_id || node.id || matchingNote.node_id || matchingNote.id,
+            slides: matchingNote.slides
+          };
+        }
+        return node;
+      });
+    }
+
+    if (Array.isArray(course.nodes)) {
+      course.nodes = course.nodes.map((node: any, idx: number) => {
+        if (!node) return node;
+        const targetKey1 = String(node.node_id || node.id || '');
+        const targetKey2 = String(node.id || '');
+        const matchingNote = notesByNodeId.get(targetKey1) || 
+                             notesByNodeId.get(targetKey2) || 
+                             allRelationalNotes[idx];
+                             
+        if (matchingNote && Array.isArray(matchingNote.slides) && matchingNote.slides.length > 0) {
+          return {
+            ...node,
+            node_id: node.node_id || node.id || matchingNote.node_id || matchingNote.id,
+            slides: matchingNote.slides
+          };
+        }
+        return node;
+      });
+    }
   }
-  return result;
+  return courses;
 }
 
 // Normalization Helpers
@@ -138,11 +181,20 @@ function normalizeElement(el: any) {
 function normalizeSlide(slide: any) {
   if (!slide || typeof slide !== 'object') return {};
   const elements = Array.isArray(slide.elements) ? slide.elements.map(normalizeElement) : [];
+
+  // homeworkConfig: preserve the full object if provided; only fall back to null if truly absent
+  let homeworkConfig = null;
+  if (slide.homeworkConfig !== undefined) {
+    // Keep whatever the frontend sent (could be an object or null)
+    homeworkConfig = slide.homeworkConfig;
+  }
+
   return {
     id: slide.id ?? null,
     type: slide.type ?? 'normal',
     gameType: slide.gameType ?? null,
     gameConfig: slide.gameConfig ?? null,
+    homeworkConfig,
     elements,
     connections: Array.isArray(slide.connections) ? slide.connections : null,
     background: slide.background ?? 'default',
@@ -716,14 +768,26 @@ router.put('/courses/:course_id/lessons/:node_id', authMiddleware, async (req: R
       });
     }
 
+    // Sync slides into Course model's curriculum field
+    let updatedCurriculum = Array.isArray(course.curriculum) ? (course.curriculum as any[]) : [];
+
+    updatedCurriculum = updatedCurriculum.map((node: any) => {
+      if (node && (String(node.id) === String(nodeId) || String(node.node_id) === String(nodeId))) {
+        return { ...node, title: title || node.title, slides: normalizedSlides };
+      }
+      return node;
+    });
+
     const legacyNotes = Array.isArray(course.notes) ? course.notes : [];
     const filteredNotes = legacyNotes.filter((n: any) => n && n.node_id !== nodeId && n.id !== nodeId);
-    if (filteredNotes.length !== legacyNotes.length) {
-      await prisma.course.update({
-        where: { id: courseId },
-        data: { notes: filteredNotes }
-      });
-    }
+
+    await prisma.course.update({
+      where: { id: courseId },
+      data: {
+        curriculum: updatedCurriculum,
+        notes: filteredNotes
+      }
+    });
 
     res.json({ success: true, message: 'Lesson updated' });
   } catch (error: any) {
@@ -993,7 +1057,8 @@ router.post('/courses/:course_id/homework/:node_id/submit', authMiddleware, hwUp
     const courseId = parseInt(req.params['course_id'], 10);
     const nodeId = req.params['node_id'];
     const studentId = parseInt(user.sub, 10);
-    const { student_note } = req.body;
+    const { student_note, answer_text } = req.body;
+    const finalNote = answer_text || student_note || '';
 
     if (user.role !== 'student' && user.role !== 'admin') {
       res.status(403).json({ error: 'Only students can submit homework' });
@@ -1026,7 +1091,7 @@ router.post('/courses/:course_id/homework/:node_id/submit', authMiddleware, hwUp
           file_data: file_data || existing.file_data,
           file_name: file_name || existing.file_name,
           file_mime: file_mime || existing.file_mime,
-          student_note: student_note || existing.student_note,
+          student_note: finalNote || existing.student_note,
           submitted_at: new Date()
         }
       });
@@ -1039,7 +1104,7 @@ router.post('/courses/:course_id/homework/:node_id/submit', authMiddleware, hwUp
           file_data: file_data || '',
           file_name: file_name || '',
           file_mime: file_mime || '',
-          student_note: student_note || ''
+          student_note: finalNote || ''
         }
       });
     }
@@ -1149,9 +1214,45 @@ router.get('/courses/:course_id/homework/:node_id/submission', authMiddleware, a
       return;
     }
 
-    res.json(submission);
+    res.json({ success: true, submission });
   } catch (error: any) {
     res.status(500).json({ error: error.message || 'Failed to fetch submission' });
+  }
+});
+
+router.post('/courses/:course_id/homework/:submission_id/approve', authMiddleware, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.user!;
+    const courseId = parseInt(req.params['course_id'], 10);
+    const submissionId = parseInt(req.params['submission_id'], 10);
+    const userId = parseInt(user.sub, 10);
+    const { feedback } = req.body;
+
+    if (user.role !== 'teacher' && user.role !== 'admin') {
+      res.status(403).json({ error: 'Unauthorized. Only teachers can approve homework.' });
+      return;
+    }
+
+    const course = await prisma.course.findUnique({ where: { id: courseId } });
+    if (!course) { res.status(404).json({ error: 'Course not found' }); return; }
+
+    if (user.role !== 'admin' && course.teacher_id !== userId) {
+      res.status(403).json({ error: 'Not your course' });
+      return;
+    }
+
+    const submission = await prisma.homeworkSubmission.update({
+      where: { id: submissionId },
+      data: {
+        status: 'approved',
+        feedback: feedback || '',
+        approved_at: new Date()
+      }
+    });
+
+    res.json({ success: true, message: 'Homework approved successfully', submission });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || 'Failed to approve homework' });
   }
 });
 

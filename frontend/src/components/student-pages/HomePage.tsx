@@ -83,18 +83,83 @@ const HomePage: React.FC<HomePageProps> = ({
     // Homework Overlay State
     const [activeHomeworkSlide, setActiveHomeworkSlide] = useState<any | null>(null);
 
+    const handleOpenHomework = (hwSlide: any) => {
+        try {
+            window.history.pushState({ modal: 'homework' }, '');
+        } catch (e) {}
+        setActiveHomeworkSlide(hwSlide);
+    };
+
+    const handleCloseHomework = () => {
+        setActiveHomeworkSlide(null);
+    };
+
     // Real-time Class Session States
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
-
 
     const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
         class_name: null,
         classmates: []
     });
 
+    // Listen for browser/mouse back button when homework or lesson modals are open
+    useEffect(() => {
+        const handlePopState = () => {
+            if (activeHomeworkSlide) {
+                setActiveHomeworkSlide(null);
+            }
+            if (showLessonSlide) {
+                setShowLessonSlide(false);
+            }
+            if (showGameOverlay) {
+                setShowGameOverlay(false);
+            }
+        };
+        window.addEventListener('popstate', handlePopState);
+        return () => window.removeEventListener('popstate', handlePopState);
+    }, [activeHomeworkSlide, showLessonSlide, showGameOverlay]);
+
     const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
+
+    // Helper to reliably retrieve or create a homework slide for a node
+    const getHomeworkSlide = (node: PathNode) => {
+        // node.sectionId is the actual DB node_id stored in curriculum/lessonContent
+        const nodeId = (node as any).sectionId || node.id;
+
+        let slide = node.slides?.find((s: any) => s.type === 'homework' || s.homeworkConfig);
+        if (slide) {
+            // Always inject the correct nodeId so StudentHomeworkView can fetch from backend
+            if (!slide.homeworkConfig && (node as any).homeworkConfig) {
+                slide = { ...slide, homeworkConfig: (node as any).homeworkConfig, nodeId };
+            } else {
+                slide = { ...slide, nodeId };
+            }
+        } else if (node.type === 'homework' || (node as any).homeworkConfig) {
+            slide = {
+                id: `hw_node_${node.id}`,
+                nodeId,
+                type: 'homework',
+                homeworkConfig: (node as any).homeworkConfig || {
+                    title: node.title || 'Ödev Görevi',
+                    instructions: node.lessonTopic || 'Lütfen ödevinizi hazırlayıp teslim ediniz.',
+                    submissionType: 'text',
+                    points: 100,
+                }
+            };
+        } else if (node.type === 'homework') {
+            // homework node but no slides yet — will be fetched live by StudentHomeworkView
+            slide = {
+                id: `hw_node_${node.id}`,
+                nodeId,
+                type: 'homework',
+                homeworkConfig: null
+            };
+        }
+        return slide;
+    };
+
 
     useEffect(() => {
         if (!activeCourseId) return;
@@ -635,9 +700,9 @@ const HomePage: React.FC<HomePageProps> = ({
                                 if (!currentCourse || !currentCourse.nodes) return null;
                                 // Find all unsubmitted homeworks in unlocked nodes
                                 const activeHws = currentCourse.nodes
-                                    .filter(n => !n.isLocked && n.slides)
+                                    .filter(n => !n.isLocked)
                                     .flatMap(n => {
-                                        const hs = n.slides?.find((s: any) => s.type === 'homework');
+                                        const hs = getHomeworkSlide(n);
                                         if (hs && localStorage.getItem(`homework_submitted_${currentCourse.id}_${hs.id}`) !== 'true') {
                                             return [{
                                                 nodeId: n.id,
@@ -659,7 +724,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             {activeHws.map((hw, idx) => (
                                                 <div 
                                                     key={idx}
-                                                    onClick={() => setActiveHomeworkSlide(hw.slide)}
+                                                    onClick={() => handleOpenHomework(hw.slide)}
                                                     className="p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-2xl flex flex-col gap-1 cursor-pointer transition-all hover:shadow-sm"
                                                 >
                                                     <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">{hw.lessonTitle}</span>
@@ -781,44 +846,40 @@ const HomePage: React.FC<HomePageProps> = ({
 
                                                         {node.type === 'homework' ? (
                                                              (() => {
-                                                                 const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
+                                                                 const hwSlide = getHomeworkSlide(node);
+                                                                 const key = `homework_submitted_${currentCourse.id}_${hwSlide?.id}`;
+                                                                 const statusKey = `homework_status_${currentCourse.id}_${hwSlide?.id}`;
+                                                                 const savedTxt = localStorage.getItem(`${key}_text`) || '';
                                                                  const isHwSubmitted = hwSlide
-                                                                     ? localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true'
+                                                                     ? (localStorage.getItem(key) === 'true' &&
+                                                                        ((hwSlide.homeworkConfig?.submissionType === 'image' || hwSlide.homeworkConfig?.submissionType === 'file') || savedTxt.trim().length > 0))
                                                                      : false;
+                                                                 const isHwApproved = isHwSubmitted && localStorage.getItem(statusKey) === 'approved';
+
+                                                                 let buttonLabel = `ÖDEVİ TESLİM ET +${hwSlide?.homeworkConfig?.points || 100} Puan`;
+                                                                 let buttonColor = node.baseColor;
+
+                                                                 if (isHwApproved) {
+                                                                     buttonLabel = '🏆 EĞİTMEN ONAYLADI (Yorumu Gör)';
+                                                                     buttonColor = '#059669';
+                                                                 } else if (isHwSubmitted) {
+                                                                     buttonLabel = '✅ ÖDEV TESLİM EDİLDİ (Onay Bekliyor)';
+                                                                     buttonColor = '#d97706';
+                                                                 }
 
                                                                  return (
                                                                      <div className="w-full flex flex-col gap-2.5">
-                                                                         {isHwSubmitted ? (
-                                                                             <>
-                                                                                 {/* Teslim edildi badge */}
-                                                                                 <div className="w-full px-4 py-3 bg-white hover:bg-gray-50 border border-green-200 shadow-lg border-b-[4px] border-green-500 rounded-2xl flex items-center justify-center gap-2">
-                                                                                     <span className="text-[11px] font-black uppercase tracking-wider text-green-600">✅ ÖDEV TESLİM EDİLDİ</span>
-                                                                                 </div>
-                                                                                 {/* Yine de girebilir */}
-                                                                                 <button
-                                                                                     className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                                                                     onClick={(e) => {
-                                                                                         e.stopPropagation();
-                                                                                         if (hwSlide) setActiveHomeworkSlide(hwSlide);
-                                                                                     }}
-                                                                                 >
-                                                                                     <span className="font-black text-xs uppercase tracking-wider" style={{ color: node.baseColor }}>📂 ÖDEVE GİR</span>
-                                                                                 </button>
-                                                                             </>
-                                                                         ) : (
-                                                                             /* Henüz teslim edilmedi */
-                                                                             <button
-                                                                                 className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                                                                                 onClick={(e) => {
-                                                                                     e.stopPropagation();
-                                                                                     if (hwSlide) setActiveHomeworkSlide(hwSlide);
-                                                                                 }}
-                                                                             >
-                                                                                 <span className="font-black text-sm uppercase tracking-wider flex items-center gap-1.5" style={{ color: node.baseColor }}>
-                                                                                     📝 ÖDEVİ TESLİM ET (+{hwSlide?.homeworkConfig?.points || 100} XP)
-                                                                                 </span>
-                                                                             </button>
-                                                                         )}
+                                                                         <button
+                                                                             className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                             onClick={(e) => {
+                                                                                 e.stopPropagation();
+                                                                                 if (hwSlide) handleOpenHomework(hwSlide);
+                                                                             }}
+                                                                         >
+                                                                             <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5" style={{ color: buttonColor }}>
+                                                                                 {buttonLabel}
+                                                                             </span>
+                                                                         </button>
                                                                      </div>
                                                                  );
                                                              })()
@@ -832,31 +893,28 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                         handleOpenLesson(node.id);
                                                                     }}
                                                                 >
-                                                                    <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 PUAN</span>
+                                                                    <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 Puan</span>
                                                                 </button>
 
                                                                 {/* Bu düğümde ayrıca homework slide varsa alt buton */}
                                                                 {(() => {
-                                                                    const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
-                                                                    if (!hwSlide) return null;
+                                                                    const hwSlide = getHomeworkSlide(node);
+                                                                    if (!hwSlide || node.type === 'homework') return null;
                                                                     const isHwSubmitted = localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true';
-                                                                    if (isHwSubmitted) {
-                                                                        return (
-                                                                            <div className="w-full mt-2.5 px-4 py-2.5 bg-green-500/20 border border-green-500/30 rounded-2xl text-center flex items-center justify-center gap-2">
-                                                                                <span className="text-[10px] font-black uppercase tracking-wider text-green-100">✅ ÖDEV TESLİM EDİLDİ</span>
-                                                                            </div>
-                                                                        );
-                                                                    }
                                                                     return (
                                                                         <button
-                                                                            className="w-full mt-2.5 bg-yellow-400 hover:bg-yellow-350 text-yellow-950 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/10 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                            className={`w-full mt-2.5 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/10 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                                                                                isHwSubmitted 
+                                                                                    ? 'bg-green-500 hover:bg-green-600 text-white' 
+                                                                                    : 'bg-yellow-400 hover:bg-yellow-350 text-yellow-950'
+                                                                            }`}
                                                                             onClick={(e) => {
                                                                                 e.stopPropagation();
-                                                                                setActiveHomeworkSlide(hwSlide);
+                                                                                handleOpenHomework(hwSlide);
                                                                             }}
                                                                         >
                                                                             <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                                                                                📝 ÖDEVİ TESLİM ET (+{hwSlide.homeworkConfig?.points || 100} XP)
+                                                                                {isHwSubmitted ? '✅ ÖDEV TESLİM EDİLDİ' : `ÖDEVİ TESLİM ET +${hwSlide.homeworkConfig?.points || 100} Puan`}
                                                                             </span>
                                                                         </button>
                                                                     );
@@ -987,8 +1045,8 @@ const HomePage: React.FC<HomePageProps> = ({
                 slides={(currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.slides || []).filter((s: any) => s.type !== 'homework')}
                 onClose={handleCloseLesson}
                 onComplete={handleLessonComplete}
-                courseId={currentCourse.id}
-                lessonIndex={currentCourse.nodes.find(n => String(n.id) === String(lessonLevel))?.lessonNumber}
+                courseId={currentCourse?.id}
+                lessonIndex={lessonLevel ? (currentCourse?.nodes?.find(n => String(n.id) === String(lessonLevel))?.node_id || lessonLevel) : undefined}
                 userData={userData}
             />
 
@@ -1010,9 +1068,9 @@ const HomePage: React.FC<HomePageProps> = ({
                 <StudentHomeworkView
                     slide={activeHomeworkSlide}
                     courseId={currentCourse.id}
-                    onClose={() => setActiveHomeworkSlide(null)}
+                    onClose={handleCloseHomework}
                     onComplete={() => {
-                        setActiveHomeworkSlide(null);
+                        handleCloseHomework();
                         refreshUserData();
                     }}
                 />

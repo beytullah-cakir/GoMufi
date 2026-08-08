@@ -421,7 +421,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 }
             }
         };
-
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
@@ -432,37 +431,118 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         if (courseId && !initialCurriculum) {
             const fetchCourse = async () => {
                 try {
+                    let fetchedSlides: any[] | null = null;
+                    let fetchedTitle: string | null = null;
+
+                    if (noteId) {
+                        try {
+                            const lessonRes = await api.get(`/courses/${courseId}/lessons/${noteId}`);
+                            if (lessonRes.data && Array.isArray(lessonRes.data.slides)) {
+                                fetchedSlides = lessonRes.data.slides;
+                                if (lessonRes.data.title) fetchedTitle = lessonRes.data.title;
+                            }
+                        } catch (err) {
+                            console.log("Direct lesson fetch fallback to course payload");
+                        }
+                    }
+
                     const response = await api.get(`/courses/${courseId}`);
                     if (response.data) {
-                        const curriculum = response.data.curriculum || [];
+                        const curriculum = response.data.curriculum || response.data.nodes || [];
                         const dbNotes = response.data.notes || [];
                         const levelsOnly = curriculum.filter((item: any) => item.type !== "live_sessions_config");
                         const mergedLessons = levelsOnly.map((lvl: any) => {
-                            const matchingNote = dbNotes.find((n: any) => String(n.id) === String(lvl.id));
+                            const matchingNote = dbNotes.find((n: any) => String(n.id) === String(lvl.id) || String(n.node_id) === String(lvl.id));
                             return {
                                 ...lvl,
-                                slides: matchingNote?.slides || []
+                                slides: matchingNote?.slides || lvl.slides || []
                             };
                         });
                         setAllLessons(mergedLessons);
-                        const targetNote = noteId
-                            ? (dbNotes.find((n: any) => String(n.id) === String(noteId)) ||
-                               curriculum.find((n: any) => String(n.id) === String(noteId)))
-                            : null;
-                        if (targetNote) {
-                            if (targetNote.slides && Array.isArray(targetNote.slides)) {
-                                setSlides(targetNote.slides);
-                                if (targetNote.noteTitle) setProjectName(targetNote.noteTitle);
-                                if (targetNote.slides.length > 0) setCurrentSlideId(targetNote.slides[0].id);
+
+                        if (fetchedSlides && fetchedSlides.length > 0) {
+                            const normalized = fetchedSlides.map((s: any) => {
+                                if (categoryParam === 'ÖDEV') {
+                                    return {
+                                        ...s,
+                                        type: 'homework',
+                                        homeworkConfig: s.homeworkConfig || {
+                                            title: fetchedTitle || 'Yeni Ödev Görevi',
+                                            instructions: 'Ödev detaylarını, soruları veya yönergeleri buraya yazın...',
+                                            submissionType: 'text',
+                                            points: 100,
+                                            starterCode: '# Kodunuzu buraya yazın\n'
+                                        }
+                                    };
+                                }
+                                return s;
+                            });
+                            setSlides(normalized);
+                            if (fetchedTitle) setProjectName(fetchedTitle);
+                            setCurrentSlideId(normalized[0].id || 1);
+                        } else {
+                            const targetNote = noteId
+                                ? (dbNotes.find((n: any) => String(n.id) === String(noteId) || String(n.node_id) === String(noteId)) ||
+                                   curriculum.find((n: any) => String(n.id) === String(noteId) || String(n.node_id) === String(noteId)))
+                                : null;
+
+                            if (targetNote) {
+                                if (targetNote.slides && Array.isArray(targetNote.slides) && targetNote.slides.length > 0) {
+                                    const normalized = targetNote.slides.map((s: any) => {
+                                        if (categoryParam === 'ÖDEV') {
+                                            return {
+                                                ...s,
+                                                type: 'homework',
+                                                homeworkConfig: s.homeworkConfig || {
+                                                    title: targetNote.noteTitle || targetNote.title || 'Yeni Ödev Görevi',
+                                                    instructions: 'Ödev detaylarını, soruları veya yönergeleri buraya yazın...',
+                                                    submissionType: 'text',
+                                                    points: 100,
+                                                    starterCode: '# Kodunuzu buraya yazın\n'
+                                                }
+                                            };
+                                        }
+                                        return s;
+                                    });
+                                    setSlides(normalized);
+                                    if (targetNote.noteTitle || targetNote.title) setProjectName(targetNote.noteTitle || targetNote.title);
+                                    setCurrentSlideId(normalized[0].id || 1);
+                                } else {
+                                    const defaultHwSlide = {
+                                        id: 1,
+                                        type: categoryParam === 'ÖDEV' ? 'homework' : 'normal',
+                                        homeworkConfig: categoryParam === 'ÖDEV' ? {
+                                            title: targetNote.noteTitle || targetNote.title || 'Yeni Ödev Görevi',
+                                            instructions: 'Ödev detaylarını, soruları veya yönergeleri buraya yazın...',
+                                            submissionType: 'text',
+                                            points: 100,
+                                            starterCode: '# Kodunuzu buraya yazın\n'
+                                        } : undefined,
+                                        elements: [],
+                                        connections: []
+                                    };
+                                    setSlides([defaultHwSlide]);
+                                    setProjectName(targetNote.noteTitle || targetNote.title || `Ders Notu`);
+                                    setCurrentSlideId(1);
+                                }
                             } else {
-                                setSlides([{ id: 1, elements: [], connections: [] }]);
-                                setProjectName(targetNote.noteTitle || `Ders Notu`);
+                                const defaultHwSlide = {
+                                    id: 1,
+                                    type: categoryParam === 'ÖDEV' ? 'homework' : 'normal',
+                                    homeworkConfig: categoryParam === 'ÖDEV' ? {
+                                        title: 'Yeni Ödev Görevi',
+                                        instructions: 'Ödev detaylarını, soruları veya yönergeleri buraya yazın...',
+                                        submissionType: 'text',
+                                        points: 100,
+                                        starterCode: '# Kodunuzu buraya yazın\n'
+                                    } : undefined,
+                                    elements: [],
+                                    connections: []
+                                };
+                                setSlides([defaultHwSlide]);
+                                setProjectName(`Yeni Ders Projesi`);
                                 setCurrentSlideId(1);
                             }
-                        } else {
-                            setSlides([{ id: 1, elements: [], connections: [] }]);
-                            setProjectName(`Yeni Ders Projesi`);
-                            setCurrentSlideId(1);
                         }
                     }
                 } catch (error) {
@@ -473,7 +553,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             };
             fetchCourse();
         }
-    }, [courseId]);
+    }, [courseId, noteId]);
 
     // -- Scale Effect on Mount --
     useEffect(() => {
@@ -524,7 +604,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     }, [saveStatus]);
 
     useEffect(() => {
-        const timer = setTimeout(() => {
+        const timer = setTimeout(async () => {
             if (saveStatus === "saving") {
                 const draft = {
                     slides: stateRef.current.slides,
@@ -534,6 +614,21 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                     noteId: noteId
                 };
                 localStorage.setItem(BUILDER_STORAGE_KEY, JSON.stringify(draft));
+
+                // Auto-save to DB if courseId and noteId are present
+                if (courseId && noteId) {
+                    try {
+                        await api.put(`/courses/${courseId}/lessons/${noteId}`, {
+                            title: stateRef.current.projectName,
+                            slides: stateRef.current.slides,
+                        });
+                        console.log('[Builder] Auto-saved to DB successfully');
+                        localStorage.removeItem(BUILDER_STORAGE_KEY);
+                    } catch (err) {
+                        console.warn('[Builder] Auto-save to DB failed, draft kept in localStorage:', err);
+                    }
+                }
+
                 setSaveStatus("saved");
             }
         }, 3000);
@@ -1859,18 +1954,21 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         setSaveStatus('saving');
         try {
             // Yeni ilişkisel endpoint'e doğrudan kaydet (LessonContent tablosu güncellenir)
-            await api.put(`/courses/${courseId}/lessons/${noteId}`, {
+            console.log('[Builder] Saving to DB:', { courseId, noteId, slides });
+            const res = await api.put(`/courses/${courseId}/lessons/${noteId}`, {
                 title: projectName,
                 slides: slides,
             });
+            console.log('[Builder] Save success:', res.data);
 
             setSaveStatus('saved');
             localStorage.removeItem(BUILDER_STORAGE_KEY);
-            alert("Ders içeriği başarıyla kaydedildi!");
-        } catch (error) {
-            console.error("Direct save error:", error);
-            alert("Kaydedilirken bir hata oluştu.");
+        } catch (error: any) {
+            console.error("[Builder] Save error:", error);
+            const msg = error?.response?.data?.error || error?.response?.data?.detail || error?.message || 'Bilinmeyen hata';
+            console.error("[Builder] Kaydedilirken hata:", msg);
             setSaveStatus('saved');
+            alert(`⚠️ Kaydetme Hatası:\n${msg}\n\nLütfen internet bağlantınızı kontrol edin veya tekrar deneyin.`);
         }
     };
 

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, Star, X, BrainCircuit, Sparkles, FileText, Code, Image, File, CheckCircle2, Send } from 'lucide-react';
 import HomeworkAIReview from './HomeworkAIReview';
 import { evaluateHomeworkByType, type AIReviewResult } from './homeworkAIService';
+import api from '../../api';
 
 interface StudentHomeworkViewProps {
     slide: any;
@@ -17,25 +18,76 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     isPreviewMode = false,
     onClose
 }) => {
-    const config = slide?.homeworkConfig || {
-        title: 'Başlıksız Ödev',
-        instructions: 'Ödev sorusu girilmemiş.',
-        submissionType: 'text',
-        points: 100,
+    const [liveSlide, setLiveSlide] = useState<any>(slide);
+
+    useEffect(() => {
+        setLiveSlide(slide);
+    }, [slide]);
+
+    // Always fetch fresh homework config from backend using the correct nodeId
+    useEffect(() => {
+        // The real backend node_id is stored as slide.nodeId (injected by getHomeworkSlide in HomePage)
+        const targetNodeId = slide?.nodeId || slide?.node_id;
+        console.log('[HomeworkView] slide prop:', slide);
+        console.log('[HomeworkView] targetNodeId:', targetNodeId, '| courseId:', courseId);
+        if (!targetNodeId || !courseId || isPreviewMode) return;
+
+        api.get(`/courses/${courseId}/lessons/${targetNodeId}`)
+            .then(res => {
+                console.log('[HomeworkView] Fetched lesson data:', res.data);
+                const fetchedSlides: any[] = res.data?.slides || [];
+                const hw = fetchedSlides.find((s: any) => s.type === 'homework' || s.homeworkConfig);
+                console.log('[HomeworkView] Found hw slide:', hw);
+                if (hw) {
+                    // Preserve nodeId so submit also works correctly
+                    setLiveSlide({ ...hw, nodeId: targetNodeId });
+                }
+            })
+            .catch((err) => { console.error('[HomeworkView] Fetch error:', err); });
+    }, [courseId, slide?.nodeId, slide?.node_id, isPreviewMode]);
+
+
+
+    const activeSlideData = liveSlide || slide;
+
+    const parsedHwConfig = typeof activeSlideData?.homeworkConfig === 'string'
+        ? (() => { try { return JSON.parse(activeSlideData.homeworkConfig); } catch { return {}; } })()
+        : (activeSlideData?.homeworkConfig || {});
+
+    const config = {
+        title: parsedHwConfig.title || activeSlideData?.title || activeSlideData?.noteTitle || 'Ödev Görevi',
+        instructions: parsedHwConfig.instructions || activeSlideData?.instructions || activeSlideData?.lessonTopic || activeSlideData?.description || 'Ödev talimatları henüz girilmemiş.',
+        submissionType: parsedHwConfig.submissionType || activeSlideData?.submissionType || 'text',
+        points: parsedHwConfig.points || activeSlideData?.points || 100,
+        starterCode: parsedHwConfig.starterCode || activeSlideData?.starterCode || '# Kodunuzu buraya yazın\n'
     };
 
     const submissionType: 'text' | 'code' | 'image' | 'file' = config.submissionType || 'text';
-    const storageKey = `homework_submitted_${courseId || 'preview'}_${slide?.id}`;
-    const isAlreadySubmitted = !isPreviewMode && localStorage.getItem(storageKey) === 'true';
+    const storageKey = `homework_submitted_${courseId || 'preview'}_${activeSlideData?.id || slide?.id}`;
+    const savedAnswerText = !isPreviewMode ? (localStorage.getItem(`${storageKey}_text`) || '') : '';
+    const isAlreadySubmitted = !isPreviewMode && localStorage.getItem(storageKey) === 'true' && (
+        (submissionType === 'text' || submissionType === 'code') ? savedAnswerText.trim().length > 0 : true
+    );
 
     // ── State ─────────────────────────────────────────────────────
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [aiResult, setAiResult] = useState<AIReviewResult | null>(null);
     const [aiError, setAiError] = useState<string | null>(null);
     const [showReview, setShowReview] = useState(false);
-    const [answerText, setAnswerText] = useState(config.starterCode || '');
+    const [answerText, setAnswerText] = useState(savedAnswerText || config.starterCode || '');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(isAlreadySubmitted);
+    const [submittedAnswerText, setSubmittedAnswerText] = useState(savedAnswerText);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [updateSuccessMsg, setUpdateSuccessMsg] = useState<string | null>(null);
+    const [submissionStatus, setSubmissionStatus] = useState<string>('submitted');
+    const [instructorFeedback, setInstructorFeedback] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!savedAnswerText && config.starterCode && (!answerText || answerText === '# Kodunuzu buraya yazın\n')) {
+            setAnswerText(config.starterCode);
+        }
+    }, [config.starterCode, savedAnswerText]);
 
     // ── Submission type helpers ────────────────────────────────────
     const typeLabels: Record<string, { label: string; icon: React.ReactNode; color: string }> = {
@@ -46,12 +98,71 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     };
     const typeInfo = typeLabels[submissionType] || typeLabels['text'];
 
-    // ── Submit (teslim et) ─────────────────────────────────────────
-    const handleSubmit = () => {
-        if (!isPreviewMode) {
-            localStorage.setItem(storageKey, 'true');
+    const canEvaluate = (submissionType === 'text' || submissionType === 'code')
+        ? answerText.trim().length > 0
+        : uploadedFile !== null;
+
+    // Fetch existing submission from DB if available
+    // Use nodeId (real DB node_id) for the API call
+    const hwNodeId = activeSlideData?.nodeId || slide?.nodeId || slide?.node_id || slide?.id;
+    useEffect(() => {
+        if (courseId && hwNodeId && !isPreviewMode) {
+            api.get(`/courses/${courseId}/homework/${hwNodeId}/submission`)
+                .then(res => {
+                    if (res.data && res.data.submission) {
+                        const sub = res.data.submission;
+                        if (sub.student_note) {
+                            setAnswerText(sub.student_note);
+                            setSubmittedAnswerText(sub.student_note);
+                            setIsSubmitted(true);
+                        }
+                        if (sub.status) {
+                            setSubmissionStatus(sub.status);
+                            localStorage.setItem(`homework_status_${courseId}_${hwNodeId}`, sub.status);
+                        }
+                        if (sub.feedback) {
+                            setInstructorFeedback(sub.feedback);
+                        }
+                    }
+                })
+                .catch(() => {});
         }
-        setIsSubmitted(true);
+    }, [courseId, hwNodeId, isPreviewMode]);
+
+    // ── Submit & Update (teslim et ve güncelle) ──────────────────────
+    const handleSubmit = async () => {
+        if (!canEvaluate || isSubmitting) return;
+        setIsSubmitting(true);
+        setUpdateSuccessMsg(null);
+
+        try {
+            if (!isPreviewMode) {
+                localStorage.setItem(storageKey, 'true');
+                if (submissionType === 'text' || submissionType === 'code') {
+                    localStorage.setItem(`${storageKey}_text`, answerText);
+                }
+
+                if (courseId && hwNodeId) {
+                    const formData = new FormData();
+                    formData.append('answer_text', answerText);
+                    if (uploadedFile) {
+                        formData.append('file', uploadedFile);
+                    }
+                    await api.post(`/courses/${courseId}/homework/${hwNodeId}/submit`, formData, {
+                        headers: { 'Content-Type': 'multipart/form-data' }
+                    });
+                }
+            }
+            setSubmittedAnswerText(answerText);
+            setIsSubmitted(true);
+            setUpdateSuccessMsg(isSubmitted ? "Cevabınız veritabanında başarıyla güncellendi!" : "Ödeviniz veritabanına başarıyla teslim edildi!");
+            setTimeout(() => setUpdateSuccessMsg(null), 4000);
+            if (onComplete) onComplete();
+        } catch (err) {
+            console.error("Database save error for homework:", err);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     // ── AI Evaluate ───────────────────────────────────────────────
@@ -83,10 +194,6 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
             setIsEvaluating(false);
         }
     };
-
-    const canEvaluate = (submissionType === 'text' || submissionType === 'code')
-        ? answerText.trim().length > 0
-        : uploadedFile !== null;
 
     // ── Show AI review overlay ────────────────────────────────────
     if (showReview && aiResult) {
@@ -171,14 +278,41 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                 {/* ── RIGHT: Answer + AI panel ─────────────────────── */}
                 <div className="flex-1 bg-white p-8 flex flex-col gap-5 overflow-y-auto relative">
 
-                    {/* Submitted banner */}
+                    {/* Submitted / Approved banner */}
                     {isSubmitted && (
-                        <div className="bg-green-50 border-2 border-green-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-                            <CheckCircle2 size={20} className="text-green-500 shrink-0" />
+                        <div className={`border-2 rounded-2xl px-5 py-4 flex items-center gap-3 ${
+                            submissionStatus === 'approved'
+                                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                                : 'bg-amber-50 border-amber-200 text-amber-950'
+                        }`}>
+                            <CheckCircle2 size={22} className={submissionStatus === 'approved' ? 'text-emerald-600 shrink-0' : 'text-amber-500 shrink-0'} />
                             <div>
-                                <p className="font-black text-green-700 text-sm">Ödev Teslim Edildi!</p>
-                                <p className="text-xs text-green-500 font-medium mt-0.5">Cevabınızı güncelleyebilir veya AI ile analiz ettirebilirsiniz.</p>
+                                <p className="font-black text-sm">
+                                    {submissionStatus === 'approved' ? '🏆 Eğitmeniniz Ödevinizi Onayladı!' : '⏳ Ödev Teslim Edildi (Eğitmen Onayı Bekleniyor)'}
+                                </p>
+                                <p className="text-xs font-medium opacity-80 mt-0.5">
+                                    {submissionStatus === 'approved'
+                                        ? 'Eğitmeninizin değerlendirme ve yorumunu aşağıdan inceleyebilirsiniz.'
+                                        : 'Cevabınızı güncelleyebilir veya AI ile analiz ettirebilirsiniz.'}
+                                </p>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Instructor Feedback Card */}
+                    {instructorFeedback && (
+                        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg space-y-3 border border-indigo-500/30 animate-in zoom-in-95 duration-200">
+                            <div className="flex items-center justify-between">
+                                <span className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5 font-display">
+                                    👨‍🏫 Eğitmeninizin Yorumu & Geri Bildirimi
+                                </span>
+                                <span className="text-[10px] font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full uppercase">
+                                    ✅ ONAYLANDI
+                                </span>
+                            </div>
+                            <p className="text-xs font-medium text-slate-200 leading-relaxed bg-white/5 p-3.5 rounded-xl border border-white/10 whitespace-pre-wrap">
+                                {instructorFeedback}
+                            </p>
                         </div>
                     )}
 
@@ -242,21 +376,37 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                         </label>
                     )}
 
-                    {/* ── Submit button ── */}
-                    {!isSubmitted && (
-                        <button
-                            onClick={handleSubmit}
-                            disabled={!canEvaluate}
-                            className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all
-                                ${canEvaluate
-                                    ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 hover:translate-y-[1px]'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
-                                }`}
-                        >
-                            <Send size={16} />
-                            ÖDEVİ TESLİM ET (+{config.points || 100} XP)
-                        </button>
+                    {/* ── Submit / Update button ── */}
+                    {updateSuccessMsg && (
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-black animate-in fade-in flex items-center gap-2">
+                            <CheckCircle2 size={16} className="text-emerald-500" />
+                            <span>{updateSuccessMsg}</span>
+                        </div>
                     )}
+
+                    <button
+                        onClick={handleSubmit}
+                        disabled={!canEvaluate || isSubmitting}
+                        className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all
+                            ${!canEvaluate || isSubmitting
+                                ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
+                                : isSubmitted
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white hover:from-emerald-700 hover:to-teal-700 hover:translate-y-[1px]'
+                                : 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 hover:translate-y-[1px]'
+                            }`}
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                <span>{isSubmitted ? 'Güncelleniyor...' : 'Gönderiliyor...'}</span>
+                            </>
+                        ) : (
+                            <>
+                                <Send size={16} />
+                                <span>{isSubmitted ? 'CEVABI GÜNCELLE' : `ÖDEVİ TESLİM ET +${config.points || 100} Puan`}</span>
+                            </>
+                        )}
+                    </button>
 
                     {/* ── AI Evaluate button ── */}
                     <button
