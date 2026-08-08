@@ -51,11 +51,13 @@ async function populateCourseNotes(courses: any[]) {
     // Override with relational lesson contents
     for (const lc of lessonContents) {
       const slides = typeof lc.slides === 'string' ? JSON.parse(lc.slides) : lc.slides;
+      const slidesArray = Array.isArray(slides) ? slides : [];
+      const title = slidesArray[0]?.title || slidesArray[0]?.homeworkConfig?.title || 'Ders Notu';
       const noteObj = {
         id: lc.node_id,
         node_id: lc.node_id,
-        title: lc.title,
-        slides: Array.isArray(slides) ? slides : []
+        title: title,
+        slides: slidesArray
       };
       notesByNodeId.set(String(lc.node_id), noteObj);
     }
@@ -711,7 +713,9 @@ router.get('/courses/:course_id/lessons/:node_id', authMiddleware, async (req: R
 
     if (lc) {
       const slides = typeof lc.slides === 'string' ? JSON.parse(lc.slides) : (lc.slides || []);
-      res.json({ title: lc.title || '', slides: Array.isArray(slides) ? slides : [] });
+      const slidesArray = Array.isArray(slides) ? slides : [];
+      const title = slidesArray[0]?.title || slidesArray[0]?.homeworkConfig?.title || 'Ders Notu';
+      res.json({ title: title, slides: slidesArray });
       return;
     }
 
@@ -751,7 +755,13 @@ router.put('/courses/:course_id/lessons/:node_id', authMiddleware, async (req: R
       return;
     }
 
-    const normalizedSlides = Array.isArray(slides) ? slides.map(normalizeSlide) : [];
+    const normalizedSlides = Array.isArray(slides) ? slides.map((s, idx) => {
+      const ns = normalizeSlide(s);
+      if (idx === 0) {
+        ns.title = title || ns.title || '';
+      }
+      return ns;
+    }) : [];
 
     const existingLc = await prisma.lessonContent.findFirst({
       where: { course_id: courseId, node_id: nodeId }
@@ -760,11 +770,11 @@ router.put('/courses/:course_id/lessons/:node_id', authMiddleware, async (req: R
     if (existingLc) {
       await prisma.lessonContent.update({
         where: { id: existingLc.id },
-        data: { title: title || existingLc.title, slides: normalizedSlides }
+        data: { slides: normalizedSlides }
       });
     } else {
       await prisma.lessonContent.create({
-        data: { course_id: courseId, node_id: nodeId, title: title || '', slides: normalizedSlides }
+        data: { course_id: courseId, node_id: nodeId, slides: normalizedSlides }
       });
     }
 
@@ -866,11 +876,16 @@ router.get('/courses/:course_id/export_roadmap', authMiddleware, async (req: Req
       success: true,
       course_title: course.title,
       curriculum: course.curriculum,
-      lesson_contents: lessonContents.map(lc => ({
-        node_id: lc.node_id,
-        title: lc.title,
-        slides: typeof lc.slides === 'string' ? JSON.parse(lc.slides) : lc.slides
-      })),
+      lesson_contents: lessonContents.map(lc => {
+        const slides = typeof lc.slides === 'string' ? JSON.parse(lc.slides) : (lc.slides || []);
+        const slidesArray = Array.isArray(slides) ? slides : [];
+        const title = slidesArray[0]?.title || slidesArray[0]?.homeworkConfig?.title || 'Ders Notu';
+        return {
+          node_id: lc.node_id,
+          title: title,
+          slides: slidesArray
+        };
+      }),
       notes: normalizedNotes,
       quizzes
     });
@@ -911,12 +926,18 @@ router.post('/courses/:course_id/import_roadmap', authMiddleware, async (req: Re
 
     if (Array.isArray(lesson_contents) && lesson_contents.length > 0) {
       await prisma.lessonContent.createMany({
-        data: lesson_contents.map((lc: any) => ({
-          course_id: courseId,
-          node_id: String(lc.node_id),
-          title: lc.title || '',
-          slides: lc.slides || []
-        }))
+        data: lesson_contents.map((lc: any) => {
+          const slidesArray = Array.isArray(lc.slides) ? lc.slides : [];
+          if (slidesArray.length > 0 && lc.title) {
+            // Ensure first slide holds the title
+            slidesArray[0].title = lc.title;
+          }
+          return {
+            course_id: courseId,
+            node_id: String(lc.node_id),
+            slides: slidesArray
+          };
+        })
       });
     }
 

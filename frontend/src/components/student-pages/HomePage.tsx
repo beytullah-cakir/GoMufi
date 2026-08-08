@@ -860,10 +860,10 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                  let buttonColor = node.baseColor;
 
                                                                  if (isHwApproved) {
-                                                                     buttonLabel = '🏆 EĞİTMEN ONAYLADI (Yorumu Gör)';
+                                                                     buttonLabel = ' ÖDEV ONAYLANDI';
                                                                      buttonColor = '#059669';
                                                                  } else if (isHwSubmitted) {
-                                                                     buttonLabel = '✅ ÖDEV TESLİM EDİLDİ (Onay Bekliyor)';
+                                                                     buttonLabel = 'ÖDEV TESLİM EDİLDİ';
                                                                      buttonColor = '#d97706';
                                                                  }
 
@@ -876,7 +876,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                                  if (hwSlide) handleOpenHomework(hwSlide);
                                                                              }}
                                                                          >
-                                                                             <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5" style={{ color: buttonColor }}>
+                                                                             <span className="font-black text-sm md:text-base uppercase tracking-wider flex items-center gap-1.5" style={{ color: node.baseColor }}>
                                                                                  {buttonLabel}
                                                                              </span>
                                                                          </button>

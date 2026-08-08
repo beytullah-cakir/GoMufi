@@ -107,7 +107,6 @@ model LessonContent {
   id        Int     @id @default(autoincrement())
   course_id Int
   node_id   String
-  title     String?
   slides    Json    @default("[]")
   course    Course  @relation(fields: [course_id], references: [id], onDelete: Cascade)
 

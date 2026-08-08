@@ -42,8 +42,9 @@ interface InstructorHomeworkSubmissionsProps {
 }
 
 const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps> = ({ coursesData }) => {
-    const [courses, setCourses] = useState<Course[]>([]);
+    const [courses, setCourses] = useState<any[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
+    const [selectedHomeworkId, setSelectedHomeworkId] = useState<string>('all');
     const [submissions, setSubmissions] = useState<Submission[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -51,6 +52,11 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     const [expandedId, setExpandedId] = useState<number | null>(null);
     const [feedbacks, setFeedbacks] = useState<Record<number, string>>({});
     const [approvingId, setApprovingId] = useState<number | null>(null);
+
+    // Reset selected homework filter when course changes
+    useEffect(() => {
+        setSelectedHomeworkId('all');
+    }, [selectedCourseId]);
 
     const handleApproveHomework = async (sub: Submission) => {
         if (!selectedCourseId) return;
@@ -84,13 +90,12 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     // Load instructor courses
     useEffect(() => {
         if (coursesData && coursesData.length > 0) {
-            const data: Course[] = coursesData.map((c: any) => ({ id: c.id, title: c.title }));
-            setCourses(data);
-            setSelectedCourseId(prev => prev ?? data[0].id);
+            setCourses(coursesData);
+            setSelectedCourseId(prev => prev ?? coursesData[0].id);
         } else {
             api.get('/teacher/content')
                 .then(res => {
-                    const data: Course[] = (res.data || []).map((c: any) => ({ id: c.id, title: c.title }));
+                    const data = res.data || [];
                     setCourses(data);
                     if (data.length > 0) setSelectedCourseId(prev => prev ?? data[0].id);
                 })
@@ -152,11 +157,44 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         }
     };
 
-    const filtered = submissions.filter(s =>
-        s.student_name.toLowerCase().includes(search.toLowerCase()) ||
-        s.file_name.toLowerCase().includes(search.toLowerCase()) ||
-        s.node_id.toLowerCase().includes(search.toLowerCase())
-    );
+    // Get unique homework tasks for the selected course
+    const currentCourse = courses.find(c => c.id === selectedCourseId);
+    
+    const homeworkTasks = (() => {
+        const tasksMap = new Map<string, string>(); // node_id -> title
+
+        // 1. Add from curriculum
+        const curriculum = currentCourse?.curriculum || [];
+        curriculum.forEach((node: any) => {
+            if (node && (node.theme === 'homework' || node.theme === 'ÖDEV' || node.type === 'homework')) {
+                tasksMap.set(String(node.id), node.title || 'İsimsiz Ödev');
+            }
+        });
+
+        // 2. Add from submissions (fallback for legacy or dynamic submissions)
+        submissions.forEach(sub => {
+            if (sub.node_id && !tasksMap.has(sub.node_id)) {
+                tasksMap.set(sub.node_id, sub.node_title || sub.node_id);
+            }
+        });
+
+        return Array.from(tasksMap.entries()).map(([id, title]) => ({ id, title }));
+    })();
+
+    const filtered = submissions.filter(s => {
+        // Filter by selected homework pill
+        if (selectedHomeworkId !== 'all' && s.node_id !== selectedHomeworkId) {
+            return false;
+        }
+
+        const studentName = s?.student_name || '';
+        const fileName = s?.file_name || '';
+        const nodeId = s?.node_id || '';
+        const query = search ? search.toLowerCase() : '';
+        return studentName.toLowerCase().includes(query) ||
+               fileName.toLowerCase().includes(query) ||
+               nodeId.toLowerCase().includes(query);
+    });
 
     const formatDate = (iso: string | null) => {
         if (!iso) return '—';
