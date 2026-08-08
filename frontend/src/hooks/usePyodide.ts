@@ -87,7 +87,11 @@ export const usePyodide = () => {
             await instance.runPythonAsync(code);
         } catch (err: any) {
             setError(err.toString());
-            setOutput((prev) => [...prev, `Traceback: ${err.message}`]);
+            // Python runtime errors are already captured by Pyodide's stderr handler.
+            // We only manually append non-Python error tracebacks (like package loading failure).
+            if (!err.toString().includes('PythonError')) {
+                setOutput((prev) => [...prev, `System Error: ${err.message}`]);
+            }
         }
     };
 

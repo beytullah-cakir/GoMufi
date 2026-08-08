@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Star, X, BrainCircuit, Sparkles, FileText, Code, Image, File, CheckCircle2, Send } from 'lucide-react';
+import { BookOpen, Star, X, BrainCircuit, Sparkles, FileText, Code, Image, File, CheckCircle2, Send, Play, Terminal, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import HomeworkAIReview from './HomeworkAIReview';
 import { evaluateHomeworkByType, type AIReviewResult } from './homeworkAIService';
+import { usePyodide } from '../../hooks/usePyodide';
 import api from '../../api';
 
 interface StudentHomeworkViewProps {
@@ -70,10 +71,12 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     );
 
     // ── State ─────────────────────────────────────────────────────
+    const { runCode, output, isLoading: isRunningCode, error: pyodideError } = usePyodide();
     const [isEvaluating, setIsEvaluating] = useState(false);
     const [aiResult, setAiResult] = useState<AIReviewResult | null>(null);
     const [aiError, setAiError] = useState<string | null>(null);
     const [showReview, setShowReview] = useState(false);
+    const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
     const [answerText, setAnswerText] = useState(savedAnswerText || config.starterCode || '');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
     const [isSubmitted, setIsSubmitted] = useState(isAlreadySubmitted);
@@ -213,87 +216,85 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
 
     return (
         <div
-            className="fixed inset-0 z-[300] flex items-center justify-center animate-in fade-in duration-300 select-none overflow-hidden"
+            className="fixed inset-0 z-[300] flex flex-col w-screen h-screen select-none overflow-y-auto pb-32 animate-in fade-in duration-300 custom-scrollbar"
             style={{
                 backgroundColor: '#f8f7ff',
                 backgroundImage: 'radial-gradient(#ddd6fe 1px, transparent 1px)',
                 backgroundSize: '24px 24px',
             }}
         >
-            {/* Card */}
-            <div className="bg-white rounded-[2.5rem] shadow-2xl w-[92%] max-w-4xl border-4 border-gray-100 overflow-hidden flex flex-col md:flex-row relative animate-in zoom-in-95 duration-200 max-h-[88vh]">
+            {/* ── TOP: Clean Symmetrical Heading Area (No Navbar Wrapper) ──────────────────────────── */}
+            <div className="w-full px-10 pt-8 pb-2 shrink-0 flex flex-col items-center relative z-50">
+                
+                {/* Floating Badges (Top-Left) */}
+                <div className="absolute left-10 top-8 flex items-center gap-2">
+                    {/* Status/Type Badge */}
+                    {isSubmitted ? (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-4 py-2.5 rounded-2xl border border-emerald-250/60 flex items-center gap-1.5 shrink-0 shadow-sm">
+                            <CheckCircle2 size={12} className="text-emerald-600" />
+                            <span>Teslim Edildi</span>
+                        </span>
+                    ) : (
+                        <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-2xl border border-indigo-100 flex items-center gap-1.5 shrink-0 shadow-sm">
+                            <Code size={12} className="text-indigo-500" />
+                            <span>{typeInfo.label}</span>
+                        </span>
+                    )}
 
-                {/* Close Button */}
-                <button
-                    onClick={onClose}
-                    className="absolute top-4 right-4 z-50 p-2 hover:bg-gray-100 rounded-full text-gray-400 hover:text-gray-600 transition-colors bg-white shadow-sm"
-                >
-                    <X size={20} />
-                </button>
-
-                {/* ── LEFT: Question panel ──────────────────────────── */}
-                <div className="md:w-[44%] bg-gradient-to-b from-violet-600 to-indigo-700 p-8 text-white flex flex-col justify-between relative overflow-hidden shrink-0">
-                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.12),transparent_55%)]" />
-                    <div className="absolute -bottom-16 -left-16 w-48 h-48 bg-white/5 rounded-full blur-3xl" />
-
-                    <div className="relative z-10 space-y-6 overflow-y-auto">
-                        {/* Badges */}
-                        <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[10px] font-black uppercase tracking-wider bg-white/20 text-white px-3 py-1 rounded-full border border-white/10 flex items-center gap-1">
-                                {typeInfo.icon} {typeInfo.label}
-                            </span>
-                            <span className="text-[10px] font-black uppercase tracking-wider bg-yellow-400 text-yellow-950 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                <Star size={10} fill="currentColor" /> +{config.points || 100} XP
-                            </span>
-                            {isSubmitted && (
-                                <span className="text-[10px] font-black uppercase tracking-wider bg-green-400 text-green-950 px-2.5 py-1 rounded-full flex items-center gap-1">
-                                    <CheckCircle2 size={10} /> Teslim Edildi
-                                </span>
-                            )}
-                        </div>
-
-                        {/* Title */}
-                        <div>
-                            <div className="flex items-center gap-2 mb-2">
-                                <BookOpen size={18} className="text-white/60 shrink-0" />
-                                <span className="text-[10px] font-black text-violet-200 uppercase tracking-widest">Ödev Sorusu</span>
-                            </div>
-                            <h3 className="text-xl font-black tracking-tight text-white leading-snug">
-                                {config.title || 'Başlıksız Ödev'}
-                            </h3>
-                            <div className="w-10 h-1 bg-white/30 rounded-full mt-3" />
-                        </div>
-
-                        {/* Instructions */}
-                        <div className="text-sm text-violet-50 font-medium leading-relaxed whitespace-pre-line bg-black/10 p-4 rounded-2xl border border-white/5 max-h-64 overflow-y-auto">
-                            {config.instructions || 'Henüz soru eklenmemiş.'}
-                        </div>
-                    </div>
-
-                    <div className="relative z-10 text-[10px] text-violet-300 font-bold uppercase tracking-wider mt-6 shrink-0">
-                        GoMufi Akademi
-                    </div>
+                    {/* XP Points Badge (Repositioned to Sol Üst) */}
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-yellow-100 text-yellow-800 px-4 py-2.5 rounded-2xl border border-yellow-200 flex items-center gap-1.5 shrink-0 shadow-sm">
+                        <Star size={12} fill="currentColor" className="text-yellow-600" />
+                        <span>+{config.points || 100} XP</span>
+                    </span>
                 </div>
 
-                {/* ── RIGHT: Answer + AI panel ─────────────────────── */}
-                <div className="flex-1 bg-white p-8 flex flex-col gap-5 overflow-y-auto relative">
+                {/* Centered Heading Title (No Dropdown Toggles) */}
+                <div className="flex items-center gap-3 py-3">
+                    <h1 className="text-4xl font-black text-gray-1000 tracking-tight">
+                        {config.title}
+                    </h1>
+                </div>
 
+                {/* Floating/Exit Button (Top-Right) */}
+                <div className="absolute right-10 top-8">
+                    <button
+                        onClick={onClose}
+                        className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-600 border border-gray-200/60 font-black text-xs uppercase tracking-wider rounded-2xl transition-all shadow-sm flex items-center gap-1.5"
+                    >
+                        <X size={14} />
+                        <span>Kapat</span>
+                    </button>
+                </div>
+
+                {/* Direct Instruction Container (No Dropdown - Stays open directly) */}
+                <div className="w-full px-10 mt-4 shrink-0">
+                    <div className="bg-white text-gray-800 p-6 rounded-[2rem] shadow-sm border border-gray-100/60 select-text">
+                        <div className="flex justify-between items-center mb-2 pb-1.5 border-b border-gray-100">
+                            <span className="font-black text-sm uppercase tracking-wider text-violet-600 flex items-center gap-1.5">
+                                Ödev Yönergesi
+                            </span>
+                        </div>
+                        <div className="text-base font-semibold text-gray-700 leading-relaxed whitespace-pre-line pr-2 select-text">
+                            {config.instructions || 'Henüz ödev detayları girilmemiş.'}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Banners strip (Submitted/Feedback messages) */}
+            {(isSubmitted || instructorFeedback) && (
+                <div className="px-10 pt-4 flex flex-col gap-3 shrink-0">
                     {/* Submitted / Approved banner */}
                     {isSubmitted && (
-                        <div className={`border-2 rounded-2xl px-5 py-4 flex items-center gap-3 ${
+                        <div className={`border rounded-2xl px-5 py-3.5 flex items-center gap-3 shrink-0 ${
                             submissionStatus === 'approved'
-                                ? 'bg-emerald-50 border-emerald-300 text-emerald-950'
+                                ? 'bg-emerald-50 border-emerald-200 text-emerald-950'
                                 : 'bg-amber-50 border-amber-200 text-amber-950'
                         }`}>
-                            <CheckCircle2 size={22} className={submissionStatus === 'approved' ? 'text-emerald-600 shrink-0' : 'text-amber-500 shrink-0'} />
+                            <CheckCircle2 size={20} className={submissionStatus === 'approved' ? 'text-emerald-600 shrink-0' : 'text-amber-505 shrink-0'} />
                             <div>
-                                <p className="font-black text-sm">
+                                <p className="font-black text-xs uppercase tracking-wide">
                                     {submissionStatus === 'approved' ? '🏆 Eğitmeniniz Ödevinizi Onayladı!' : '⏳ Ödev Teslim Edildi (Eğitmen Onayı Bekleniyor)'}
-                                </p>
-                                <p className="text-xs font-medium opacity-80 mt-0.5">
-                                    {submissionStatus === 'approved'
-                                        ? 'Eğitmeninizin değerlendirme ve yorumunu aşağıdan inceleyebilirsiniz.'
-                                        : 'Cevabınızı güncelleyebilir veya AI ile analiz ettirebilirsiniz.'}
                                 </p>
                             </div>
                         </div>
@@ -301,54 +302,76 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
 
                     {/* Instructor Feedback Card */}
                     {instructorFeedback && (
-                        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-5 shadow-lg space-y-3 border border-indigo-500/30 animate-in zoom-in-95 duration-200">
-                            <div className="flex items-center justify-between">
-                                <span className="text-xs font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5 font-display">
-                                    👨‍🏫 Eğitmeninizin Yorumu & Geri Bildirimi
-                                </span>
-                                <span className="text-[10px] font-black bg-emerald-400/20 text-emerald-300 border border-emerald-400/30 px-2.5 py-0.5 rounded-full uppercase">
-                                    ✅ ONAYLANDI
-                                </span>
-                            </div>
-                            <p className="text-xs font-medium text-slate-200 leading-relaxed bg-white/5 p-3.5 rounded-xl border border-white/10 whitespace-pre-wrap">
+                        <div className="bg-gradient-to-br from-slate-900 to-indigo-950 text-white rounded-2xl p-4 shadow-md space-y-2 border border-indigo-500/20 animate-in zoom-in-95 duration-200 shrink-0 flex flex-col">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-emerald-400">
+                                👨‍🏫 Eğitmeninizin Yorumu & Geri Bildirimi
+                            </span>
+                            <p className="text-xs font-medium text-slate-200 leading-relaxed bg-white/5 p-3 rounded-xl border border-white/10 whitespace-pre-wrap">
                                 {instructorFeedback}
                             </p>
                         </div>
                     )}
+                </div>
+            )}
 
-                    <div>
-                        <h4 className="font-black text-gray-800 text-base tracking-tight flex items-center gap-2">
-                            <Sparkles size={18} className="text-violet-500" />
-                            {submissionType === 'code' ? 'Kod Editörü' : submissionType === 'image' ? 'Resim Yükle' : submissionType === 'file' ? 'Dosya Yükle' : 'Cevabınızı Yazın'}
-                        </h4>
-                        <p className="text-xs text-gray-400 font-medium mt-0.5">
-                            {submissionType === 'code'
-                                ? 'Kodunuzu yazın, AI analiz edip geri bildirim versin.'
-                                : submissionType === 'image'
-                                ? 'Ekran görüntüsü veya resim yükleyin.'
-                                : submissionType === 'file'
-                                ? 'Dosyanızı yükleyin (PDF, ZIP, DOCX vb.).'
-                                : 'Cevabınızı yazın, AI ödevinizi analiz edip geri bildirim versin.'}
-                        </p>
-                    </div>
+            {/* ── MIDDLE: Split Workspace (Left: Editor, Right: Output Console) ──────────────────────────── */}
+            <div className="h-[720px] shrink-0 flex flex-col md:flex-row px-10 py-6 gap-6 w-full overflow-hidden">
+                
+                {/* Check submission type */}
+                {(submissionType === 'text' || submissionType === 'code') ? (
+                    <>
+                        {/* LEFT: Editor Area */}
+                        <div className="flex-1 flex flex-col gap-2 h-full min-h-0">
+                            <div className="flex items-center justify-between px-1">
+                                <label className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                    <Code size={14} className="text-violet-500" />
+                                    <span>{submissionType === 'code' ? 'Python Kod Editörü' : 'Cevap Metni'}</span>
+                                </label>
+                            </div>
+                            <textarea
+                                className={`flex-grow w-full px-6 py-5 border-2 border-gray-100 hover:border-violet-300 focus:border-violet-500 rounded-3xl font-medium text-gray-700 placeholder-gray-400 transition-all text-base outline-none resize-none h-full
+                                    ${submissionType === 'code'
+                                        ? 'bg-gray-900 text-green-400 placeholder-gray-650 border-gray-700 focus:border-indigo-500 font-mono leading-relaxed'
+                                        : 'bg-white focus:bg-white leading-relaxed'
+                                    }`}
+                                placeholder={submissionType === 'code' ? '# Kodunuzu buraya yazın...' : 'Cevabınızı buraya yazın…'}
+                                value={answerText}
+                                onChange={(e) => setAnswerText(e.target.value)}
+                            />
+                        </div>
 
-                    {/* ── Text / Code answer area ── */}
-                    {(submissionType === 'text' || submissionType === 'code') && (
-                        <textarea
-                            className={`flex-1 min-h-[200px] w-full px-4 py-3 border-2 border-gray-100 hover:border-violet-300 focus:border-violet-500 rounded-2xl font-medium text-gray-700 placeholder-gray-400 transition-all text-sm outline-none resize-none
-                                ${submissionType === 'code'
-                                    ? 'bg-gray-900 text-green-400 placeholder-gray-600 border-gray-700 focus:border-indigo-500 font-mono'
-                                    : 'bg-gray-50 focus:bg-white'
-                                }`}
-                            placeholder={submissionType === 'code' ? '# Kodunuzu buraya yazın...' : 'Cevabınızı buraya yazın…'}
-                            value={answerText}
-                            onChange={(e) => setAnswerText(e.target.value)}
-                        />
-                    )}
-
-                    {/* ── Image / File upload area ── */}
-                    {(submissionType === 'image' || submissionType === 'file') && (
-                        <label className="flex-1 min-h-[180px] w-full flex flex-col items-center justify-center gap-3 border-2 border-dashed border-gray-200 hover:border-violet-400 rounded-2xl cursor-pointer bg-gray-50 hover:bg-violet-50/30 transition-all group">
+                        {/* RIGHT: Terminal Console Output (Only in code mode) */}
+                        {submissionType === 'code' && (
+                            <div className="w-[40%] flex flex-col gap-2 h-full min-h-0">
+                                <div className="flex items-center justify-between px-1">
+                                    <label className="text-xs font-black text-gray-400 uppercase tracking-wider flex items-center gap-1.5">
+                                        <Terminal size={14} className="text-violet-500" />
+                                        <span>Konsol Çıktısı</span>
+                                    </label>
+                                </div>
+                                <div className="flex-grow bg-gray-950 text-green-400 font-mono text-xs rounded-3xl p-6 border border-gray-800 flex flex-col overflow-hidden select-text h-full">
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar">
+                                        {isRunningCode && (
+                                            <div className="flex items-center gap-2 text-yellow-500 animate-pulse mb-2">
+                                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                                <span>Kod çalıştırılıyor...</span>
+                                            </div>
+                                        )}
+                                        {output.length === 0 && !isRunningCode && (
+                                            <span className="text-gray-600 italic block">Çıktı görmek için alt paneldeki "Kodu Çalıştır" butonuna basın.</span>
+                                        )}
+                                        {output.map((line, idx) => (
+                                            <div key={idx} className="whitespace-pre-wrap leading-relaxed">{line}</div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                ) : (
+                    // For image/file submission types
+                    <div className="flex-grow flex items-center justify-center max-w-4xl mx-auto w-full h-full min-h-0">
+                        <label className="w-full h-64 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-gray-200 hover:border-violet-400 rounded-[2rem] cursor-pointer bg-white hover:bg-violet-50/20 transition-all group">
                             <input
                                 type="file"
                                 className="hidden"
@@ -374,20 +397,83 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                                 </div>
                             )}
                         </label>
-                    )}
+                    </div>
+                )}
+            </div>
 
-                    {/* ── Submit / Update button ── */}
+            {/* ── BOTTOM: Fixed Footer (Action Buttons & Status) ──────────────────────────── */}
+            <div className="fixed bottom-0 left-0 right-0 border-t border-gray-200/80 bg-white/90 backdrop-blur-md px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-4 z-50 shadow-[0_-8px_30px_rgba(0,0,0,0.04)]">
+                <div className="flex flex-col items-start gap-1 flex-1">
+                    {/* AI error */}
+                    {aiError && (
+                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-2 shrink-0">
+                            <p className="text-xs text-red-600 font-bold">{aiError}</p>
+                        </div>
+                    )}
+                    {/* Submit Success Message */}
                     {updateSuccessMsg && (
-                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-black animate-in fade-in flex items-center gap-2">
+                        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-2 rounded-xl text-xs font-black animate-in fade-in flex items-center gap-2">
                             <CheckCircle2 size={16} className="text-emerald-500" />
                             <span>{updateSuccessMsg}</span>
                         </div>
                     )}
+                </div>
 
+                {/* Buttons controls */}
+                <div className="flex items-center gap-3 w-full md:w-auto">
+                    {/* Run Code button (Only visible in code submission mode) */}
+                    {submissionType === 'code' && (
+                        <button
+                            onClick={() => runCode(answerText)}
+                            disabled={isRunningCode || !answerText.trim()}
+                            className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all min-w-[150px]
+                                ${isRunningCode || !answerText.trim()
+                                    ? 'bg-emerald-100 text-emerald-400 cursor-not-allowed shadow-none'
+                                    : 'bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-600 hover:to-green-700 hover:translate-y-[1px] shadow-emerald-400/20'
+                                }`}
+                        >
+                            {isRunningCode ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-emerald-400 border-t-emerald-700 rounded-full animate-spin" />
+                                    <span>Çalışıyor...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <Play size={14} fill="currentColor" />
+                                    <span>Kodu Çalıştır</span>
+                                </>
+                            )}
+                        </button>
+                    )}
+
+                    {/* AI Evaluate button (Only active AFTER student has submitted) */}
+                    <button
+                        onClick={handleEvaluate}
+                        disabled={isEvaluating || !canEvaluate || !isSubmitted}
+                        className={`px-6 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all min-w-[180px]
+                            ${isEvaluating || !canEvaluate || !isSubmitted
+                                ? 'bg-indigo-100 text-indigo-400 cursor-not-allowed shadow-none'
+                                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 hover:translate-y-[1px] shadow-indigo-400/20'
+                            }`}
+                    >
+                        {isEvaluating ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-indigo-400 border-t-indigo-700 rounded-full animate-spin" />
+                                <span>Değerlendiriliyor…</span>
+                            </>
+                        ) : (
+                            <>
+                                <BrainCircuit size={16} />
+                                <span>AI ile Değerlendir</span>
+                            </>
+                        )}
+                    </button>
+
+                    {/* Submit / Update button */}
                     <button
                         onClick={handleSubmit}
                         disabled={!canEvaluate || isSubmitting}
-                        className={`w-full py-3.5 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all
+                        className={`px-8 py-3.5 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-md transition-all min-w-[185px]
                             ${!canEvaluate || isSubmitting
                                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed shadow-none'
                                 : isSubmitted
@@ -402,45 +488,11 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                             </>
                         ) : (
                             <>
-                                <Send size={16} />
-                                <span>{isSubmitted ? 'CEVABI GÜNCELLE' : `ÖDEVİ TESLİM ET +${config.points || 100} Puan`}</span>
+                                <Send size={14} />
+                                <span>{isSubmitted ? 'CEVABI GÜNCELLE' : `ÖDEVİ GÖNDER +${config.points || 100} XP`}</span>
                             </>
                         )}
                     </button>
-
-                    {/* ── AI Evaluate button ── */}
-                    <button
-                        onClick={handleEvaluate}
-                        disabled={isEvaluating || !canEvaluate}
-                        className={`w-full py-4 rounded-2xl font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg transition-all
-                            ${isEvaluating || !canEvaluate
-                                ? 'bg-indigo-100 text-indigo-400 cursor-not-allowed shadow-none'
-                                : 'bg-gradient-to-r from-indigo-600 to-violet-600 text-white hover:from-indigo-700 hover:to-violet-700 hover:translate-y-[1px] shadow-indigo-400/30'
-                            }`}
-                    >
-                        {isEvaluating ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-indigo-400 border-t-indigo-700 rounded-full animate-spin" />
-                                <span>AI Değerlendiriyor…</span>
-                            </>
-                        ) : (
-                            <>
-                                <BrainCircuit size={18} />
-                                <span>AI ile Değerlendir</span>
-                            </>
-                        )}
-                    </button>
-
-                    {/* AI error */}
-                    {aiError && (
-                        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3">
-                            <p className="text-xs text-red-600 font-bold">{aiError}</p>
-                        </div>
-                    )}
-
-                    <p className="text-[10px] text-gray-400 font-medium text-center">
-                        Yapay zeka cevabınızı analiz edecek ve detaylı geri bildirim verecektir.
-                    </p>
                 </div>
             </div>
         </div>
@@ -448,3 +500,4 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
 };
 
 export default StudentHomeworkView;
+

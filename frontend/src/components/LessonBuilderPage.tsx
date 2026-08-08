@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+    import React, { useState, useRef, useEffect } from 'react';
 import { useSearchParams, useLocation } from "react-router-dom";
 import type { Slide, SlideElement, ElementStyle } from './lesson-builder/types';
 import Toolbar from './lesson-builder/Toolbar';
@@ -34,6 +34,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
     const location = useLocation();
     const courseId = searchParams.get("courseId") || searchParams.get("courseid");
     const noteId = searchParams.get("noteId") || searchParams.get("noteid");
+    const categoryParam = searchParams.get("category");
 
     const initialCurriculum = location.state?.curriculum;
     const initialNotes = location.state?.notes;
@@ -134,7 +135,6 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
 
     // -- Stage Indicator State --
     const [activeStage, setActiveStage] = useState<'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV'>(() => {
-        const categoryParam = searchParams.get("category");
         if (categoryParam === 'ANLA' || categoryParam === 'UYGULA' || categoryParam === 'BİRLEŞTİR' || categoryParam === 'ÜRET' || categoryParam === 'QUIZ' || categoryParam === 'ÖDEV') {
             return categoryParam as any;
         }
@@ -553,7 +553,7 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
             };
             fetchCourse();
         }
-    }, [courseId, noteId]);
+    }, [courseId, noteId, categoryParam]);
 
     // -- Scale Effect on Mount --
     useEffect(() => {
