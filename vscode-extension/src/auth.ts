@@ -14,6 +14,13 @@ import type { DeviceToken, Role } from './types';
 const TOKEN_KEY = 'gomufi.accessToken';
 const PROFILE_KEY = 'gomufi.profile';
 
+/** Sona ermeden ne kadar önce tazeleyelim. */
+const RENEW_MARGIN_MS = 5 * 60_000;
+/** Geçici hatadan sonra yeniden deneme aralığı. */
+const RENEW_RETRY_MS = 60_000;
+/** Token'ın `exp` alanı okunamazsa körlemesine bekleme süresi. */
+const RENEW_BLIND_MS = 15 * 60_000;
+
 export interface Session {
     token: string;
     role: Role;
@@ -23,13 +30,28 @@ export interface Session {
 
 export class Auth {
     private session: Session | null = null;
+    private renewTimer: NodeJS.Timeout | null = null;
     private readonly changed = new vscode.EventEmitter<Session | null>();
     readonly onDidChange = this.changed.event;
+
+    /**
+     * Yalnızca TOKEN değişti (giriş, tazeleme, çıkış).
+     *
+     * `onDidChange`'den ayrı, çünkü o olay "oturum sahibi değişti" anlamına
+     * geliyor ve dinleyicisi ders panelini açıyor. Tazeleme her yarım saatte bir
+     * paneli yeniden açsaydı, öğrenci kapattığı panel önüne geri gelirdi.
+     */
+    private readonly tokenChanged = new vscode.EventEmitter<string | null>();
+    readonly onDidChangeToken = this.tokenChanged.event;
 
     constructor(private readonly ctx: vscode.ExtensionContext) {}
 
     get current(): Session | null {
         return this.session;
+    }
+
+    dispose(): void {
+        this.stopRenew();
     }
 
     /** Eklenti açılışında kasadaki oturumu geri yükler. */
@@ -38,7 +60,81 @@ export class Auth {
         const raw = this.ctx.globalState.get<Omit<Session, 'token'>>(PROFILE_KEY);
         // Profil hassas değil (ad/rol), asıl sır olan token kasada.
         this.session = token && raw ? { token, ...raw } : null;
+        this.scheduleRenew();
         await this.publish();
+        this.tokenChanged.fire(this.session?.token ?? null);
+    }
+
+    /**
+     * Kayan oturum: token'ı sona ERMEDEN taze biriyle değiştirir.
+     *
+     * Eskiden token girişte bir kez alınıyordu ve 30 dakika sonra ölüyordu;
+     * öğrenci slaytları okurken oturumu düşüyor, paneldeki "Tekrar dene" ise
+     * aynı ölü token'la aynı 401'i alıyordu — yani hiçbir işe yaramıyordu.
+     */
+    private async renew(): Promise<boolean> {
+        if (!this.session) return false;
+        const base = (
+            vscode.workspace.getConfiguration('gomufi').get<string>('apiUrl') || ''
+        ).replace(/\/+$/, '');
+
+        let res: Response;
+        try {
+            res = await fetch(`${base}/auth/device-renew`, {
+                method: 'POST',
+                headers: { Authorization: `Bearer ${this.session.token}` },
+            });
+        } catch {
+            // Ağ hatası; token büyük ihtimalle hâlâ geçerli, birazdan yine dene.
+            this.retryRenew();
+            return false;
+        }
+
+        if (res.status === 401 || res.status === 403) {
+            // Token gerçekten ölmüş (ör. makine uykudayken süresi doldu). Ölü bir
+            // oturumu ayakta tutmak arayüzü yanıltır; temizleyip yolu gösteriyoruz.
+            await this.signOut();
+            void vscode.window
+                .showWarningMessage('GoMufi: Oturumun sona erdi.', 'Giriş Yap')
+                .then((s) => {
+                    if (s === 'Giriş Yap') void vscode.commands.executeCommand('gomufi.signIn');
+                });
+            return false;
+        }
+        if (!res.ok) {
+            this.retryRenew();
+            return false;
+        }
+
+        const data = (await res.json()) as DeviceToken;
+        this.session = { ...this.session, token: data.access_token };
+        await this.ctx.secrets.store(TOKEN_KEY, data.access_token);
+        this.scheduleRenew();
+        this.tokenChanged.fire(data.access_token);
+        return true;
+    }
+
+    private scheduleRenew(): void {
+        this.stopRenew();
+        if (!this.session) return;
+
+        const exp = expiryOf(this.session.token);
+        const delay = exp === null
+            ? RENEW_BLIND_MS
+            : Math.max(0, exp - Date.now() - RENEW_MARGIN_MS);
+        this.renewTimer = setTimeout(() => { void this.renew(); }, delay);
+    }
+
+    private retryRenew(): void {
+        this.stopRenew();
+        this.renewTimer = setTimeout(() => { void this.renew(); }, RENEW_RETRY_MS);
+    }
+
+    private stopRenew(): void {
+        if (this.renewTimer) {
+            clearTimeout(this.renewTimer);
+            this.renewTimer = null;
+        }
     }
 
     /**
@@ -74,7 +170,9 @@ export class Auth {
             userId: session.userId,
             displayName: session.displayName,
         });
+        this.scheduleRenew();
         await this.publish();
+        this.tokenChanged.fire(session.token);
         return session;
     }
 
@@ -109,10 +207,12 @@ export class Auth {
     }
 
     async signOut(): Promise<void> {
+        this.stopRenew();
         this.session = null;
         await this.ctx.secrets.delete(TOKEN_KEY);
         await this.ctx.globalState.update(PROFILE_KEY, undefined);
         await this.publish();
+        this.tokenChanged.fire(null);
     }
 
     /** Görünümlerin `when` koşulları bu bağlam anahtarlarına bakıyor. */
@@ -138,6 +238,27 @@ export class Auth {
  * Admin sunucuda öğretmen gibi davranır (`get_current_teacher_id` admin'e bir
  * Teacher kaydı eşler), burada da öyle davranıyoruz.
  */
+/**
+ * JWT'nin `exp` alanını okur (ms cinsinden).
+ *
+ * İmza DOĞRULANMAZ ve doğrulanmasına gerek yok: bu bir yetki kararı değil,
+ * yalnızca "ne zaman tazelemeliyim" zamanlaması. Yetkiyi her zamanki gibi
+ * sunucu veriyor.
+ */
+function expiryOf(token: string): number | null {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    try {
+        const json = Buffer.from(
+            payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64',
+        ).toString('utf8');
+        const exp = (JSON.parse(json) as { exp?: unknown }).exp;
+        return typeof exp === 'number' ? exp * 1000 : null;
+    } catch {
+        return null;
+    }
+}
+
 function viewFor(session: Session | null): 'student' | 'teacher' | 'none' {
     if (!session) return 'none';
     switch (session.role) {

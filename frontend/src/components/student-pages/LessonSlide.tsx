@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2 } from 'lucide-react';
+import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2, Send } from 'lucide-react';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import { layoutElements, modeForWidth } from '../lesson-builder/grid';
 import CodeInEditorStrip from '../lesson-builder/CodeInEditorStrip';
-import { isEmbeddedInVSCode } from '../../vscodeBridge';
+import { isEmbeddedInVSCode, runInVSCode } from '../../vscodeBridge';
 import GameBuilder from '../lesson-builder/GameBuilder';
 import ChallengeSlideBuilder from '../lesson-builder/ChallengeSlideBuilder';
 import StudentHomeworkView from './StudentHomeworkView';
@@ -133,6 +133,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     // Modül-tabanlı roadmap modu: parent bu slayt destesinin sabit aşamasını biliyor
     // (bkz. HomePage). Bu moddayken aşama slayt içeriğinden ASLA tahmin edilmez.
     const isModuleMode = !!dersStages && dersStages.length > 0;
+    // Deste aşaması dışarıdan geldiyse (roadmap düğümü / VS Code oynatıcısı) üst bar
+    // slayt içeriğine ASLA bakmaz — `dersStages` verilmemiş olsa bile. Aksi halde bir
+    // ANLA modülünün içindeki kod örneği slaydı UYGULA sanılıp bar renk değiştiriyordu.
+    const hasFixedStage = isModuleMode || !!moduleStage;
     const [currentSlide, setCurrentSlide] = useState(0);
     const [localSlides, setLocalSlides] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
@@ -140,18 +144,18 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     // olup olmamasına ve kabın genişliğine bağlı. Ham ölçüyü saklayıp kararı
     // çizim anında veriyoruz.
     const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
-    const [gameStatuses, setGameStatuses] = useState<Record<string, { 
-        name: string; 
-        stars: number; 
-        score: number; 
-        isCompleted: boolean; 
-        timestamp: number; 
+    const [gameStatuses, setGameStatuses] = useState<Record<string, {
+        name: string;
+        stars: number;
+        score: number;
+        isCompleted: boolean;
+        timestamp: number;
     }>>({});
 
-    const [allAnswers, setAllAnswers] = useState<Record<string, { 
-        name: string; 
-        scores: number[]; 
-        isCorrects: boolean[]; 
+    const [allAnswers, setAllAnswers] = useState<Record<string, {
+        name: string;
+        scores: number[];
+        isCorrects: boolean[];
     }>>({});
 
     useEffect(() => {
@@ -163,13 +167,15 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const [followMode, setFollowMode] = useState<'follow' | 'previous_only' | 'free'>('follow');
     const [teacherCurrentSlide, setTeacherCurrentSlide] = useState<number>(0);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-    
+
     // Student follow choice state & ready state
     const [isFollowingTeacher, setIsFollowingTeacher] = useState<boolean>(true);
     const [isReady, setIsReady] = useState<boolean>(false);
     const [showCatchUpAlert, setShowCatchUpAlert] = useState<boolean>(false);
     // Aşamalar arası geçiş kutlama ekranı (ör. ANLA → UYGULA)
     const [stageTransition, setStageTransition] = useState<{ from: string; to: string } | null>(null);
+    // Görev/Slayt çözüldü mü takibi (Görevi Gönder -> Dersi Bitir dönüşümü için)
+    const [solvedSlides, setSolvedSlides] = useState<Record<number, boolean>>({});
 
     // Teacher active students tracking list
     const [studentsList, setStudentsList] = useState<{ [id: string]: { name: string, isReady: boolean, currentSlide: number, lastSeen: number } }>({});
@@ -201,7 +207,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             const elem = document.documentElement;
             if (!document.fullscreenElement && !(document as any).webkitFullscreenElement && !(document as any).msFullscreenElement) {
                 if (elem.requestFullscreen) {
-                    elem.requestFullscreen().catch(() => {});
+                    elem.requestFullscreen().catch(() => { });
                 } else if ((elem as any).webkitRequestFullscreen) {
                     (elem as any).webkitRequestFullscreen();
                 } else if ((elem as any).msRequestFullscreen) {
@@ -211,7 +217,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         } else {
             if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
                 if (document.exitFullscreen) {
-                    document.exitFullscreen().catch(() => {});
+                    document.exitFullscreen().catch(() => { });
                 } else if ((document as any).webkitExitFullscreen) {
                     (document as any).webkitExitFullscreen();
                 } else if ((document as any).msExitFullscreen) {
@@ -223,7 +229,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         return () => {
             if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
                 if (document.exitFullscreen) {
-                    document.exitFullscreen().catch(() => {});
+                    document.exitFullscreen().catch(() => { });
                 } else if ((document as any).webkitExitFullscreen) {
                     (document as any).webkitExitFullscreen();
                 } else if ((document as any).msExitFullscreen) {
@@ -236,14 +242,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const toggleFullscreen = () => {
         if (document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).msFullscreenElement) {
             if (document.exitFullscreen) {
-                document.exitFullscreen().catch(() => {});
+                document.exitFullscreen().catch(() => { });
             } else if ((document as any).webkitExitFullscreen) {
                 (document as any).webkitExitFullscreen();
             }
         } else {
             const elem = document.documentElement;
             if (elem.requestFullscreen) {
-                elem.requestFullscreen().catch(() => {});
+                elem.requestFullscreen().catch(() => { });
             } else if ((elem as any).webkitRequestFullscreen) {
                 (elem as any).webkitRequestFullscreen();
             }
@@ -335,7 +341,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 currentSlide: currentSlide
             });
         };
-        
+
         reportStatus(); // Report instantly on dependency change
         const interval = setInterval(reportStatus, 3000); // Send heartbeat every 3s
         return () => clearInterval(interval);
@@ -362,7 +368,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 const { mode, currentSlide: tSlide } = lastMessage;
                 setFollowMode(mode);
                 setTeacherCurrentSlide(tSlide);
-                
+
                 // Force follow mode settings
                 if (mode === 'follow') {
                     setIsFollowingTeacher(true);
@@ -644,6 +650,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         // (course.notes içinde saklanır) — öğretmenin gördüğü teslim
                         // anahtarıyla öğrencininki bu sayede eşleşir.
                         submissionNodeId={`challenge:${slide.id}`}
+                        onSolved={() => setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }))}
                     />
                 </div>
             );
@@ -664,7 +671,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         }
 
         const slideIsDark = slide.background === 'dark';
-        const currentBubbleTitle = getSlideStage(slide);
+        // Kart rengi de deste boyunca SABİT deckStage'i izlemeli — aksi halde bir
+        // ANLA slaytındaki kod örneği (UYGULA rengine) yanlış boyanır (bkz. yukarıdaki not).
+        const currentBubbleTitle = hasFixedStage ? deckStage : getSlideStage(slide);
         const stageColor = getStageColor(currentBubbleTitle);
 
         // Yalnızca grid'i olan slaytlar dar moda geçebilir. Mutlak yerleşimli
@@ -693,11 +702,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         return (
             <div
                 ref={containerRef}
-                className={`relative select-text mx-auto w-full rounded-[2.5rem] border-4 border-b-[10px] shadow-2xl transition-all duration-500 ${
-                    isNarrow ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
-                } ${
-                    slideIsDark ? 'border-slate-800 border-b-slate-950 shadow-slate-950/50' : 'border-slate-200/90 shadow-slate-200/40'
-                }`}
+                className={`relative select-text mx-auto w-full rounded-[2.5rem] border-4 border-b-[10px] shadow-2xl transition-all duration-500 ${isNarrow ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
+                    } ${slideIsDark ? 'border-slate-800 border-b-slate-950 shadow-slate-950/50' : 'border-slate-200/90 shadow-slate-200/40'
+                    }`}
                 style={{
                     // Dar modda 16:9'u dayatmak slaydı bir şeride sıkıştırırdı.
                     aspectRatio: isNarrow ? undefined : '16/9',
@@ -765,11 +772,11 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                                 key={el.id}
                                 el={el}
                                 isEditing={false}
-                                setEditingElementId={() => {}}
+                                setEditingElementId={() => { }}
                                 updateElement={updateElement}
-                                updateElementStyle={() => {}}
-                                deleteElement={() => {}}
-                                handleMouseDown={() => {}}
+                                updateElementStyle={() => { }}
+                                deleteElement={() => { }}
+                                handleMouseDown={() => { }}
                                 isPreview={true}
                                 previewRole={previewRole}
                                 elements={laid.elements}
@@ -810,13 +817,17 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const isLastSlide = currentSlide === totalSlides - 1;
     // Modül modunda bu deste TEK bir aşamaya aittir (roadmap düğümünün kendi aşaması).
     // Değilse (öğretmen önizlemesi / canlı ders) eski davranış: slayt içeriğinden tahmin.
-    const currentBubbleTitle = isModuleMode ? deckStage : getSlideStage(localSlides[currentSlide]);
+    const currentBubbleTitle = hasFixedStage ? deckStage : getSlideStage(localSlides[currentSlide]);
     const streakVal = userData?.streak ?? 0;
     const xpVal = userData?.xp ?? 0;
 
     // Üst bar: modül modunda parent'ın verdiği gerçek Ders modül listesi; değilse
     // slayt içeriğinden tahmin edilen kanonik yol haritası (öğretmen önizleme fallback'i).
-    const presentStages = new Set(bubbles.map(b => b.title));
+    // Sabit aşamalı destede "bu deste hangi aşamalara değiyor" sorusunun tek cevabı
+    // deste aşamasıdır; slayt içeriğinden tahmin edilen kabarcıklar bara karışmaz.
+    const presentStages = hasFixedStage
+        ? new Set([deckStage])
+        : new Set(bubbles.map(b => b.title));
     const extraStages = [...presentStages].filter(s => !STAGE_ORDER.includes(s));
     const displayStages = isModuleMode
         ? (dersStages as NonNullable<typeof dersStages>).map(d => d.stage)
@@ -829,24 +840,50 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         : displayStages.indexOf(currentBubbleTitle);
 
     // CTA ekranın türüne göre değişir ("Devam Et" her yerde olmasın)
-    const hasChallengeEl = !!slide?.elements?.some((el: any) => el.type === 'challenge');
+    const isChallengeSlide = slide?.type === 'challenge' || !!slide?.elements?.some((el: any) => el.type === 'challenge');
     const hasCodeEl = !!slide?.elements?.some((el: any) => el.type === 'code' || el.type === 'code_editor');
     const willAdvanceToNextModule = isModuleMode && previewRole === 'student' && !isLive && nextModuleNodeId != null;
+
+    const isTaskSolved = !!solvedSlides[currentSlide];
+    let isTaskPending = isChallengeSlide && !isTaskSolved;
+    // Kod bir kez çalıştırıldıysa buton "Devam Et"e döner — aksi halde öğrenci
+    // aynı kodu tekrar tekrar çalıştırıp slayttan çıkamıyordu.
+    let isTryCodeSlide = !isChallengeSlide && hasCodeEl && !isTaskSolved;
+
     let ctaLabel = 'Devam Et';
     let CtaIcon = ChevronRight;
-    if (isLastSlide && willAdvanceToNextModule) {
+
+    if (isTaskPending) {
+        ctaLabel = 'Görevi Gönder';
+        CtaIcon = Send;
+    } else if (isTryCodeSlide) {
+        ctaLabel = 'Kodu Dene';
+        CtaIcon = Play;
+    } else if (isLastSlide && willAdvanceToNextModule) {
         ctaLabel = `${currentBubbleTitle}'YI TAMAMLA`;
         CtaIcon = Check;
     } else if (isLastSlide) {
         ctaLabel = 'Dersi Bitir';
         CtaIcon = Check;
-    } else if (hasChallengeEl) {
-        ctaLabel = 'Gönder';
-        CtaIcon = ArrowRight;
-    } else if (hasCodeEl) {
-        ctaLabel = 'Çalıştır';
-        CtaIcon = Play;
     }
+
+    const handleCtaAction = () => {
+        if (isTaskPending) {
+            setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }));
+            return;
+        }
+        if (isTryCodeSlide) {
+            const codeEl = slide?.elements?.find((el: any) => el.type === 'code' || el.type === 'code_editor');
+            const codeContent = codeEl?.content || codeEl?.code || '';
+            const lang = codeEl?.codeConfig?.language || 'python';
+            if (codeContent) {
+                runInVSCode(codeContent, lang, slide?.title || 'Kod Örneği');
+            }
+            setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }));
+            return;
+        }
+        handleNext();
+    };
 
     return (
         <div
@@ -867,38 +904,38 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             </div>
 
             {/* ── Learning-player üst bar ── */}
-            <div className="absolute top-5 left-6 right-6 z-50 flex items-center justify-between gap-4">
+            <div className="absolute top-2 md:top-4 left-2 md:left-6 right-2 md:right-6 z-50 flex items-center justify-between gap-1.5 md:gap-3">
                 {/* SOL: Geri + Başlık + Streak + XP + Stepper */}
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center gap-1.5 md:gap-3 min-w-0 flex-1 md:flex-initial">
                     <button
                         onClick={onClose}
                         title="Dersten çık"
-                        className="w-11 h-11 shrink-0 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-700 hover:text-rose-500 rounded-2xl flex items-center justify-center shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
+                        className="w-8 h-8 md:w-10 md:h-10 shrink-0 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-700 hover:text-rose-500 rounded-xl flex items-center justify-center shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
                     >
-                        <ChevronLeft className="w-6 h-6 stroke-[3]" />
+                        <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 stroke-[3]" />
                     </button>
 
-                    <div className="flex items-center gap-3 bg-white/90 backdrop-blur-md border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-2xl px-4 py-2.5 shadow-md min-w-0">
-                        <h2 className="text-sm md:text-base font-black text-gray-800 leading-tight truncate max-w-[160px] md:max-w-[240px]">
+                    <div className="flex items-center gap-1.5 md:gap-3 bg-white/90 backdrop-blur-md border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-xl md:rounded-2xl px-2 md:px-3 py-1 md:py-2 shadow-md min-w-0 flex-1 md:flex-initial">
+                        <h2 className="text-xs md:text-sm font-black text-gray-800 leading-tight truncate min-w-0" title={lessonTitle}>
                             {lessonTitle || 'Ders'}
                         </h2>
-                        <span className="w-px h-5 bg-slate-200 shrink-0" />
-                        <span className="flex items-center gap-1 text-xs font-black text-orange-500 shrink-0 bg-orange-50 px-2.5 py-1 rounded-xl border border-orange-200" title="Günlük seri">
-                            🔥 {streakVal}<span className="text-[10px] text-orange-400/80 font-bold">gün</span>
+                        <span className="w-px h-4 bg-slate-200 shrink-0" />
+                        <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-orange-500 shrink-0 bg-orange-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-orange-200" title="Günlük seri">
+                            🔥 {streakVal}<span className="hidden sm:inline text-[9px] text-orange-400/80 font-bold">gün</span>
                         </span>
-                        <span className="flex items-center gap-1 text-xs font-black text-amber-500 shrink-0 bg-amber-50 px-2.5 py-1 rounded-xl border border-amber-200" title="Toplam XP">
-                            ⭐ {xpVal}<span className="text-[10px] text-amber-400/80 font-bold">XP</span>
+                        <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-amber-500 shrink-0 bg-amber-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-200" title="Toplam XP">
+                            ⭐ {xpVal}<span className="hidden sm:inline text-[9px] text-amber-400/80 font-bold">XP</span>
                         </span>
                     </div>
 
-                    {/* Bölüm Stepper — tam kanonik yol haritası, salt gösterim (tıklayıp atlanamaz) */}
+                    {/* Bölüm Stepper — tam kanonik yol haritası, salt gösterim */}
                     {displayStages.length > 0 && !isHwSlide && (
                         <div className="hidden lg:flex items-center gap-1 bg-white/90 backdrop-blur-xl border border-gray-200/80 rounded-2xl px-2 py-1.5 shadow-lg max-w-full select-none">
                             {displayStages.map((stageName, sIdx) => {
                                 const state = sIdx < currentStageIdx ? 'done' : sIdx === currentStageIdx ? 'current' : 'upcoming';
                                 const isActive = state === 'current';
-                                // Modül modunda dersStages'teki her girdi gerçek bir roadmap düğümüdür.
                                 const isPresent = isModuleMode || presentStages.has(stageName);
+
                                 const stageColor = getStageColor(stageName);
 
                                 return (
@@ -934,101 +971,61 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     )}
                 </div>
 
-                {/* SAĞ: Mod Pili + Ayarlar + Kapat */}
-                <div className="flex items-center gap-3 shrink-0">
-                    {previewRole === 'teacher' && connectedCount > 0 && (
-                        <span className="text-xs font-black uppercase tracking-wider px-4 py-2.5 bg-emerald-50 border-2 border-b-4 border-emerald-300 text-emerald-600 rounded-2xl shadow-sm flex items-center gap-2">
-                            <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                            Hazır: {readyOnCurrentSlide} / {connectedCount}
+                {/* SAĞ: Mod Pili + Kapat */}
+                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
+                    {previewRole === 'student' && !isHwSlide && (
+                        <span className="text-[10px] md:text-xs font-black uppercase tracking-wider px-2 md:px-3 py-1 md:py-1.5 bg-emerald-50 border-2 border-b-4 border-emerald-300 text-emerald-600 rounded-xl flex items-center gap-1 shadow-sm">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            <span>Tekrar Modu</span>
                         </span>
                     )}
 
-                    {isLiveStudent && !isHwSlide && (
-                        <label className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border-2 border-b-4 text-xs font-black select-none transition-all ${
-                            followMode === 'follow'
-                                ? 'bg-slate-50 border-slate-200 border-b-slate-300 text-gray-400 cursor-not-allowed'
-                                : 'bg-white border-sky-200 border-b-sky-300 text-sky-600 hover:bg-sky-50/50 cursor-pointer'
-                        }`}>
-                            <input
-                                type="checkbox"
-                                checked={isFollowingTeacher}
-                                disabled={followMode === 'follow'}
-                                onChange={(e) => setIsFollowingTeacher(e.target.checked)}
-                                className="rounded text-sky-500 focus:ring-sky-400 cursor-pointer"
-                            />
-                            <span>Öğretmeni Takip Et</span>
-                            {followMode === 'follow' && <span className="text-[10px]">🔒</span>}
-                        </label>
-                    )}
-
-                    {previewRole === 'student' && !isHwSlide && (
-                        isLive ? (
-                            <span className="text-xs font-black uppercase tracking-wider px-4 py-2.5 bg-white border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 rounded-2xl flex items-center gap-2 shadow-md">
-                                <span className={`w-2.5 h-2.5 rounded-full ${isFollowingTeacher ? 'bg-sky-500 animate-pulse' : 'bg-amber-500'}`} />
-                                {isFollowingTeacher ? 'Hoca Takibinde' : 'Serbest Gezinti'}
-                            </span>
-                        ) : (
-                            <span className="text-xs font-black uppercase tracking-wider px-4 py-2.5 bg-emerald-50 border-2 border-b-4 border-emerald-300 text-emerald-600 rounded-2xl flex items-center gap-2 shadow-md">
-                                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                                Tekrar Modu
-                            </span>
-                        )
-                    )}
-
-                    {previewRole === 'teacher' && (
+                    {!isEmbeddedInVSCode() && (
                         <button
-                            onClick={() => setIsSettingsOpen(true)}
-                            className="w-11 h-11 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600 flex items-center justify-center rounded-2xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
-                            title="Ders Ayarları"
+                            onClick={toggleFullscreen}
+                            className="w-8 h-8 md:w-10 md:h-10 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600 flex items-center justify-center rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
+                            title={isFullscreen ? "Tam Ekrandan Çık" : "Tam Ekran Yap"}
                         >
-                            <Settings className="w-6 h-6" />
+                            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
                     )}
 
                     <button
-                        onClick={toggleFullscreen}
-                        className="w-11 h-11 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600 flex items-center justify-center rounded-2xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
-                        title={isFullscreen ? "Tam Ekrandan Çık" : "Tam Ekran Yap"}
-                    >
-                        {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
-                    </button>
-
-                    <button
                         onClick={onClose}
-                        className="w-11 h-11 bg-rose-500 hover:bg-rose-600 border-2 border-b-4 border-rose-700 text-white flex items-center justify-center rounded-2xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
+                        className="w-8 h-8 md:w-10 md:h-10 bg-rose-500 hover:bg-rose-600 border-2 border-b-4 border-rose-700 text-white flex items-center justify-center rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer shrink-0"
                         title="Kapat"
                     >
-                        <X className="w-6 h-6 stroke-[3]" />
+                        <X className="w-4 h-4 md:w-5 md:h-5 stroke-[3]" />
                     </button>
                 </div>
             </div>
 
             {/* Full Screen Slide Content */}
-            <div className="absolute inset-0 flex items-center justify-center px-6 md:px-10 pt-24 pb-28 z-10">
+            <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4 md:px-10 pt-14 md:pt-20 pb-16 md:pb-24 z-10">
                 {renderSlideContent()}
             </div>
 
             {/* Small Floating Bottom Navigation Overlay (Floating Island) */}
             {!isGameSlide && !isHwSlide && (
-                <div className="absolute bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-6 bg-white/95 backdrop-blur-xl border-2 border-b-4 border-slate-200/90 border-b-slate-300/90 rounded-[2rem] px-5 py-3 shadow-2xl select-none pointer-events-auto">
+                <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-1.5 md:gap-4 bg-white/95 backdrop-blur-xl border-2 border-b-4 border-slate-200/90 border-b-slate-300/90 rounded-2xl px-2.5 md:px-4 py-1.5 md:py-2 shadow-xl select-none pointer-events-auto w-[calc(100%-1rem)] max-w-md md:w-auto">
                     {/* ← Önceki */}
                     <button
                         onClick={handlePrev}
                         disabled={isPrevDisabled}
-                        className={`group flex items-center gap-2 px-5 py-2.5 border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-2xl font-black text-xs uppercase tracking-wider text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 active:translate-y-[2px] active:border-b-2 transition-all duration-75 shadow-sm ${
+                        className={`group flex items-center gap-1 px-2.5 md:px-4 py-1 md:py-1.5 border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wider text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 active:translate-y-[2px] active:border-b-2 transition-all duration-75 shadow-sm ${
                             isPrevDisabled ? 'opacity-30 pointer-events-none' : 'cursor-pointer'
                         }`}
                     >
-                        <ChevronLeft className="w-4 h-4 stroke-[3] group-hover:-translate-x-0.5 transition-transform text-slate-500" />
+                        <ChevronLeft className="w-3.5 h-3.5 stroke-[3] group-hover:-translate-x-0.5 transition-transform text-slate-500" />
                         <span>Önceki</span>
                     </button>
 
                     {/* Adım sayacı + gerçek progress bar */}
-                    <div className="flex items-center gap-3">
-                        <span className="text-xs font-black text-slate-600 tabular-nums shrink-0">
+                    <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+                        <span className="text-[10px] md:text-xs font-black text-slate-600 tabular-nums shrink-0">
                             {stepNum} <span className="text-slate-300">/</span> {totalSlides}
                         </span>
-                        <div className="w-24 md:w-44 h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shrink-0 p-0.5 shadow-inner">
+                        <div className="w-14 sm:w-20 md:w-36 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shrink-0 p-0.5 shadow-inner">
                             <div
                                 className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500 rounded-full transition-all duration-500 shadow-sm"
                                 style={{ width: `${Math.max(6, progressPct)}%` }}
@@ -1036,37 +1033,28 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         </div>
                     </div>
 
-                    {/* Student "Hazırım" Action Button (yalnızca canlı derste) */}
-                    {isLiveStudent && (
-                        <button
-                            onClick={() => setIsReady(!isReady)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl border-2 text-xs font-black uppercase tracking-wider transition-all select-none cursor-pointer border-b-4 active:border-b-2 active:translate-y-[2px] ${
-                                isReady
-                                    ? 'bg-emerald-500 border-emerald-600 hover:bg-emerald-400 text-white shadow-md'
-                                    : 'bg-white border-slate-200 border-b-slate-300 text-slate-600 hover:bg-slate-50'
-                            }`}
-                        >
-                            {isReady ? '✓ Hazırım!' : 'Hazır Değilim'}
-                        </button>
-                    )}
-
-                    {/* Bağlama duyarlı CTA (Çalıştır / Gönder / …'yı Tamamla / Devam Et) */}
+                    {/* Bağlama duyarlı CTA (Görevi Gönder / Dersi Bitir / Devam Et) */}
                     <button
-                        onClick={handleNext}
+                        onClick={handleCtaAction}
                         disabled={isNextDisabled}
-                        className={`group flex items-center gap-2 px-6 py-2.5 text-white rounded-2xl font-black text-xs md:text-sm uppercase tracking-wider transition-all duration-75 shadow-lg border-2 border-b-4 active:border-b-2 active:translate-y-[2px] ${
+                        className={`group flex items-center gap-1.5 px-3 md:px-5 py-1.5 md:py-2 text-white rounded-xl font-black text-[11px] md:text-xs uppercase tracking-wider transition-all duration-75 shadow-md border-2 border-b-4 active:border-b-2 active:translate-y-[2px] ${
                             isNextDisabled ? 'opacity-30 pointer-events-none bg-gray-300 border-gray-400' : 'cursor-pointer'
                         } ${
-                            isLastSlide
+                            isTaskPending
+                                ? 'bg-gradient-to-r from-cyan-500 to-sky-600 border-cyan-700 hover:from-cyan-400 hover:to-sky-500 shadow-cyan-200'
+                                : isTryCodeSlide
+                                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 border-emerald-700 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-200'
+                                : isLastSlide
                                 ? 'bg-gradient-to-r from-emerald-500 to-green-600 border-emerald-700 hover:from-emerald-400 hover:to-green-500 shadow-emerald-200'
                                 : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 border-indigo-800 hover:from-indigo-500 hover:to-pink-400 shadow-indigo-200'
                         }`}
                     >
-                        {!isLastSlide && hasCodeEl && <CtaIcon className="w-4 h-4 fill-current stroke-[2]" />}
-                        <span>{ctaLabel}</span>
-                        {(isLastSlide || !hasCodeEl) && (
-                            <CtaIcon className="w-4 h-4 stroke-[3] group-hover:translate-x-0.5 transition-transform" />
+                        {isTaskPending ? (
+                            <Send className="w-3.5 h-3.5 fill-current stroke-[2]" />
+                        ) : (
+                            <CtaIcon className="w-3.5 h-3.5 stroke-[3] group-hover:translate-x-0.5 transition-transform" />
                         )}
+                        <span>{ctaLabel}</span>
                     </button>
                 </div>
             )}
@@ -1080,14 +1068,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                             <Settings className="w-4 h-4 text-sky-500" />
                             Ders Kontrol Paneli
                         </h3>
-                        <button 
+                        <button
                             onClick={() => setIsSettingsOpen(false)}
                             className="p-1 text-gray-450 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all cursor-pointer"
                         >
                             <X size={18} />
                         </button>
                     </div>
-                    
+
                     {/* Body */}
                     <div className="p-6 flex-1 space-y-6 overflow-y-auto">
                         <div>
@@ -1096,11 +1084,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                                 {/* Option 1: Follow */}
                                 <button
                                     onClick={() => setFollowMode('follow')}
-                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${
-                                        followMode === 'follow' 
-                                            ? 'border-sky-500 bg-sky-50/30' 
+                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${followMode === 'follow'
+                                            ? 'border-sky-500 bg-sky-50/30'
                                             : 'border-gray-100 bg-white hover:border-gray-200'
-                                    }`}
+                                        }`}
                                 >
                                     <span className={`text-xs font-black flex items-center gap-2 ${followMode === 'follow' ? 'text-sky-600' : 'text-gray-750'}`}>
                                         <span className={`w-2 h-2 rounded-full ${followMode === 'follow' ? 'bg-sky-500 animate-pulse' : 'bg-gray-300'}`} />
@@ -1110,15 +1097,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                                         Öğrencilerin ekranı sizinle aynı anda ilerler, kendi başlarına slayt değiştiremezler.
                                     </span>
                                 </button>
-                                
+
                                 {/* Option 2: Previous Only */}
                                 <button
                                     onClick={() => setFollowMode('previous_only')}
-                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${
-                                        followMode === 'previous_only' 
-                                            ? 'border-sky-500 bg-sky-50/30' 
+                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${followMode === 'previous_only'
+                                            ? 'border-sky-500 bg-sky-50/30'
                                             : 'border-gray-100 bg-white hover:border-gray-200'
-                                    }`}
+                                        }`}
                                 >
                                     <span className={`text-xs font-black flex items-center gap-2 ${followMode === 'previous_only' ? 'text-sky-600' : 'text-gray-750'}`}>
                                         <span className={`w-2 h-2 rounded-full ${followMode === 'previous_only' ? 'bg-sky-500 animate-pulse' : 'bg-gray-300'}`} />
@@ -1128,15 +1114,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                                         Öğrenciler anlattığınız slaytlar arasında serbestçe geri dönebilir ama ileriyi göremezler.
                                     </span>
                                 </button>
-                                
+
                                 {/* Option 3: Free */}
                                 <button
                                     onClick={() => setFollowMode('free')}
-                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${
-                                        followMode === 'free' 
-                                            ? 'border-sky-500 bg-sky-50/30' 
+                                    className={`w-full p-4 rounded-2xl border-2 text-left transition-all flex flex-col gap-1.5 cursor-pointer active:scale-98 ${followMode === 'free'
+                                            ? 'border-sky-500 bg-sky-50/30'
                                             : 'border-gray-100 bg-white hover:border-gray-200'
-                                    }`}
+                                        }`}
                                 >
                                     <span className={`text-xs font-black flex items-center gap-2 ${followMode === 'free' ? 'text-sky-600' : 'text-gray-750'}`}>
                                         <span className={`w-2 h-2 rounded-full ${followMode === 'free' ? 'bg-sky-500 animate-pulse' : 'bg-gray-300'}`} />
@@ -1160,13 +1145,13 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         <h3 className="font-black text-gray-800 text-lg mb-2">Öğretmen Sonraki Aşamaya Geçti</h3>
                         <p className="text-gray-500 font-bold text-xs mb-6">Öğretmen yeni bir etkinliğe/slayta geçti. Yetişmek ister misiniz yoksa buradaki çalışmanızı tamamlayacak mısınız?</p>
                         <div className="flex flex-col gap-2.5 w-full">
-                            <button 
+                            <button
                                 onClick={handleCatchUp}
                                 className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl shadow-md transition-all active:scale-98 cursor-pointer border-b-[3px] border-emerald-700 active:border-b-0"
                             >
                                 Yetiş (Devam Et)
                             </button>
-                            <button 
+                            <button
                                 onClick={handleStayAndFinish}
                                 className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-655 font-black rounded-xl transition-all active:scale-98 cursor-pointer border-b-[3px] border-gray-300 active:border-b-0"
                             >
@@ -1248,14 +1233,14 @@ interface TeacherGameDashboardProps {
     onClose: () => void;
 }
 
-const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({ 
-    slide, 
-    studentsList, 
-    gameStatuses, 
+const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
+    slide,
+    studentsList,
+    gameStatuses,
     allAnswers,
     sendMessage,
     courseId,
-    onClose 
+    onClose
 }) => {
     const questions = slide.gameConfig?.questions || [];
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -1359,7 +1344,7 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                     <h3 className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2 font-display">
                         🏆 LİDERLİK TABLOSU
                     </h3>
-                    
+
                     {leaderboard.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
                             <span className="text-4xl animate-bounce mb-3">⏳</span>
@@ -1370,17 +1355,16 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                             {leaderboard.map((student, idx) => {
                                 const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
                                 return (
-                                    <div 
-                                        key={student.id} 
-                                        className={`flex items-center justify-between p-3.5 rounded-xl border border-slate-800 transition-all ${
-                                            idx === 0 
-                                                ? 'bg-amber-500/10 border-amber-500/30' 
-                                                : idx === 1 
-                                                    ? 'bg-slate-300/10 border-slate-400/30' 
-                                                    : idx === 2 
-                                                        ? 'bg-amber-700/10 border-amber-800/30' 
+                                    <div
+                                        key={student.id}
+                                        className={`flex items-center justify-between p-3.5 rounded-xl border border-slate-800 transition-all ${idx === 0
+                                                ? 'bg-amber-500/10 border-amber-500/30'
+                                                : idx === 1
+                                                    ? 'bg-slate-300/10 border-slate-400/30'
+                                                    : idx === 2
+                                                        ? 'bg-amber-700/10 border-amber-800/30'
                                                         : 'bg-slate-900/50 border-slate-850'
-                                        }`}
+                                            }`}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
                                             <span className="w-6 text-center text-xs font-black text-indigo-400 font-display">
@@ -1424,13 +1408,12 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             {students.map(s => (
-                                <div 
+                                <div
                                     key={s.id}
-                                    className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
-                                        s.hasAnswered 
-                                            ? 'bg-emerald-500/5 border-emerald-500/20' 
+                                    className={`p-4 rounded-xl border flex items-center justify-between transition-all ${s.hasAnswered
+                                            ? 'bg-emerald-500/5 border-emerald-500/20'
                                             : 'bg-slate-900/40 border-slate-800'
-                                    }`}
+                                        }`}
                                 >
                                     <div className="flex items-center gap-3">
                                         <span className="text-2xl">👤</span>

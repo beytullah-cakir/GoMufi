@@ -70,6 +70,11 @@ export class LessonPanel {
         this.panel = null;
     }
 
+    /** İframe webview'e dışarıdan mesaj yollar. */
+    postMessage(msg: any): void {
+        this.panel?.webview.postMessage(msg);
+    }
+
     /** İstek/yanıt mesajlarının cevabını, isteği açan `id` ile geri yollar. */
     private reply(id: unknown, payload: Record<string, unknown>): void {
         if (typeof id !== 'string') return;
@@ -80,6 +85,14 @@ export class LessonPanel {
         if (msg?.type === 'gomufi:ready') {
             // İframe hazır olduğunu bildirdi; token'ı ancak şimdi gönderiyoruz.
             this.panel?.webview.postMessage({ type: 'gomufi:init', token });
+            return;
+        }
+
+        if (msg?.type === 'gomufi:signIn') {
+            // Panel 401 aldı ve kullanıcı yeniden giriş istedi. Girişi panel
+            // yapamaz — akış tarayıcıda yürüyor; komut eklentinin işi. Giriş
+            // bitince `onDidChangeToken` taze token'ı panele geri gönderiyor.
+            void vscode.commands.executeCommand('gomufi.signIn');
             return;
         }
 
@@ -151,6 +164,35 @@ export class LessonPanel {
             return;
         }
 
+        if (msg?.type === 'gomufi:success') {
+            const path = this.runner.taskPath(
+                String(msg.language ?? 'python'),
+                'student',
+            );
+            hints.showSuccess(path, String(msg.message || 'Tebrikler! Görevi tamamladın.'), Number(msg.xp) || 100);
+            return;
+        }
+
+        if (msg?.type === 'gomufi:revealLine') {
+            const line = Number(msg.line) || 1;
+            const path = this.runner.taskPath(
+                String(msg.language ?? 'python'),
+                msg.slot === 'solution' ? 'solution' : 'student',
+            );
+            void vscode.workspace.openTextDocument(vscode.Uri.file(path)).then((doc) => {
+                void vscode.window.showTextDocument(doc, {
+                    viewColumn: vscode.ViewColumn.One,
+                    preserveFocus: false,
+                }).then((editor) => {
+                    const index = Math.min(Math.max(0, line - 1), Math.max(0, doc.lineCount - 1));
+                    const pos = new vscode.Position(index, 0);
+                    editor.selection = new vscode.Selection(pos, pos);
+                    editor.revealRange(new vscode.Range(pos, pos), vscode.TextEditorRevealType.InCenter);
+                });
+            });
+            return;
+        }
+
         if (msg?.type === 'gomufi:checkTask') {
             try {
                 // Yeni çalıştırma: bir önceki ipucu artık geçersiz olabilir.
@@ -158,10 +200,22 @@ export class LessonPanel {
                     String(msg.language ?? 'python'),
                     msg.slot === 'solution' ? 'solution' : 'student',
                 ));
-                const result = await this.runner.checkTask(
-                    String(msg.language ?? 'python'),
-                    msg.slot === 'solution' ? 'solution' : 'student',
-                );
+                const language = String(msg.language ?? 'python');
+                const slot = msg.slot === 'solution' ? 'solution' : 'student';
+
+                // Önce görünür terminalde çalıştırmayı dene: öğrenci programı
+                // çalışırken görür ve `input()` sorularına kendi cevap verir.
+                // Kabuk bunu desteklemiyorsa çıktıyı okuyamayız; o zaman gizli
+                // süreç + örnek girdi yoluna düşüyoruz.
+                let result = msg.visible === false
+                    ? null
+                    : await this.runner.runInTerminal(language, slot);
+
+                if (!result) {
+                    result = await this.runner.checkTask(
+                        language, slot, typeof msg.stdin === 'string' ? msg.stdin : '',
+                    );
+                }
                 this.reply(msg.id, { ok: true, ...result });
             } catch (err) {
                 this.reply(msg.id, { ok: false, error: (err as Error).message });
@@ -205,12 +259,12 @@ function html(siteOrigin: string, src: string): string {
 <meta http-equiv="Content-Security-Policy"
       content="default-src 'none'; frame-src ${siteOrigin}; script-src 'nonce-${nonce}'; style-src 'unsafe-inline';">
 <style>
-  /* Kabuk zemini temayla birlikte değişsin: iframe yüklenene kadar görünen bu
-     yüzey sabit koyu gri kalsaydı, GoMufi Aydınlık temasında her açılışta bir
-     kare siyah flaş olurdu. */
+  /* Kabuk zemini gömülü sayfayla AYNI olmalı: ders paneli (roadmap ve slaytlar)
+     sitedeki gibi beyaz zeminde çiziliyor. Burada VS Code temasının rengini
+     kullansaydık koyu temada her açılışta beyaza açılan bir kare flaş olurdu. */
   html, body {
     margin: 0; padding: 0; height: 100%; overflow: hidden;
-    background: var(--vscode-editor-background, #131a33);
+    background: #ffffff;
   }
   iframe { border: 0; width: 100%; height: 100%; display: block; }
 </style>

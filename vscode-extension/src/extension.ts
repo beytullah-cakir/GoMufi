@@ -44,6 +44,12 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
         vscode.commands.registerCommand('gomufi.growLesson', layout.growLesson),
         vscode.commands.registerCommand('gomufi.growEditor', layout.growEditor),
         vscode.commands.registerCommand('gomufi.resetLayout', layout.resetRatio),
+        vscode.commands.registerCommand('gomufi.triggerCheck', () => {
+            lessons.postMessage({ type: 'gomufi:runCheckFromVSCode' });
+        }),
+        vscode.commands.registerCommand('gomufi.triggerHint', () => {
+            lessons.postMessage({ type: 'gomufi:requestHintFromVSCode' });
+        }),
         auth.onDidChange((session) => {
             refreshAll();
             void syncPairing();
@@ -51,6 +57,13 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
             // ki bir sonraki kullanıcı öncekinin dersini görmesin.
             if (session) void openLessons(); else lessons.close();
         }),
+        // Token tazelendi. Panel token'ı yalnızca el sıkışmada alıyordu; taze
+        // olanı ona iletmezsek eklenti geçerli, panel süresi dolmuş bir token
+        // kullanmaya devam ederdi.
+        auth.onDidChangeToken((token) => {
+            if (token) lessons.postMessage({ type: 'gomufi:init', token });
+        }),
+        { dispose: () => auth.dispose() },
     );
 
     runner = new LocalRunner();

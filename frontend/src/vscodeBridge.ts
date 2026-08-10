@@ -55,38 +55,72 @@ export const getDeviceToken = () => deviceToken;
  * Sıralamayı BİZ başlatıyoruz. Eklenti iframe yüklenir yüklenmez gönderseydi,
  * React henüz dinleyiciyi kurmamış olabilir ve mesaj sessizce kaybolurdu.
  */
+/**
+ * Token her değiştiğinde haber verir.
+ *
+ * Dinleyici KALICI olmak zorunda: eklenti erişim token'ını süresi dolmadan
+ * sessizce tazeliyor ve yenisini aynı `gomufi:init` mesajıyla gönderiyor. İlk
+ * mesajdan sonra dinlemeyi bıraksaydık sayfa eski token'la kalır ve yarım saat
+ * sonra 401'e düşerdi — düzeltmeye çalıştığımız hatanın ta kendisi.
+ */
+const tokenSubs = new Set<(token: string) => void>();
+
+export const onDeviceToken = (fn: (token: string) => void): (() => void) => {
+    tokenSubs.add(fn);
+    return () => { tokenSubs.delete(fn); };
+};
+
+let initListenerBound = false;
+
+const bindInitListener = (): void => {
+    if (initListenerBound) return;
+    initListenerBound = true;
+
+    window.addEventListener('message', (event: MessageEvent) => {
+        if (!event.origin.startsWith(VSCODE_ORIGIN_PREFIX)) return;
+        if (event.source !== window.parent) return;
+
+        const data = event.data as InitMessage;
+        if (data?.type !== 'gomufi:init' || typeof data.token !== 'string') return;
+
+        hostOrigin = event.origin;
+        deviceToken = data.token;
+        initResolve?.(true);
+        initResolve = null;
+        tokenSubs.forEach((fn) => fn(data.token));
+    });
+};
+
 export const connectToVSCode = (timeoutMs = 8000): Promise<boolean> =>
     new Promise((resolve) => {
+        bindInitListener();
         if (deviceToken) {
             resolve(true);
             return;
         }
         initResolve = resolve;
 
-        const onMessage = (event: MessageEvent) => {
-            if (!event.origin.startsWith(VSCODE_ORIGIN_PREFIX)) return;
-            if (event.source !== window.parent) return;
-
-            const data = event.data as InitMessage;
-            if (data?.type !== 'gomufi:init' || typeof data.token !== 'string') return;
-
-            hostOrigin = event.origin;
-            deviceToken = data.token;
-            window.removeEventListener('message', onMessage);
-            initResolve?.(true);
-            initResolve = null;
-        };
-
-        window.addEventListener('message', onMessage);
         window.parent.postMessage({ type: 'gomufi:ready' }, '*');
 
         setTimeout(() => {
             if (deviceToken) return;
-            window.removeEventListener('message', onMessage);
             initResolve?.(false);
             initResolve = null;
         }, timeoutMs);
     });
+
+/**
+ * Eklentiden yeniden giriş ister (tarayıcıda onay akışı).
+ *
+ * Süresi dolmuş bir token'la yapılan her istek aynı 401'i alır; sayfanın kendi
+ * başına yapabileceği hiçbir şey yok. Giriş bitince eklenti taze token'ı
+ * `gomufi:init` ile geri gönderiyor ve `onDeviceToken` dinleyicileri uyanıyor.
+ */
+export const requestSignInFromVSCode = (): boolean => {
+    if (!hostOrigin) return false;
+    window.parent.postMessage({ type: 'gomufi:signIn' }, hostOrigin);
+    return true;
+};
 
 /**
  * Ders seçildiğini bildirir; eklenti o modülün çalışma klasörünü açar (yoksa
@@ -205,9 +239,42 @@ export const showHintInVSCode = (message: string, line = 0, language = 'python')
     );
 };
 
-/** Görev dosyasını çalıştırır ve kod + çıktısıyla döner. */
-export const checkTaskInVSCode = (language = 'python', slot: TaskSlot = 'student') =>
-    request<TaskCheckResult>('gomufi:checkTask', { language, slot });
+/**
+ * Görev doğru çözüldüğünde VS Code editöründe YEŞİL KUTLAMA VURGUSU tetikler.
+ */
+export const showSuccessInVSCode = (message = 'Tebrikler!', xp = 100, language = 'python'): void => {
+    if (!hostOrigin) return;
+    window.parent.postMessage(
+        { type: 'gomufi:success', message, xp, language, slot: 'student' }, hostOrigin,
+    );
+};
+
+/**
+ * Editörde belirtilen satırı öne getirir, imleci o satıra koyar ve odaklanır.
+ */
+export const revealLineInVSCode = (line: number, language = 'python'): void => {
+    if (!hostOrigin) return;
+    window.parent.postMessage(
+        { type: 'gomufi:revealLine', line, language, slot: 'student' }, hostOrigin,
+    );
+};
+
+/**
+ * Görev dosyasını çalıştırır ve kod + çıktısıyla döner.
+ *
+ * `visible` (varsayılan): program öğrencinin terminalinde, gözünün önünde
+ * çalışır ve `input()` sorularına kendisi cevap verir; program durunca çıktısı
+ * okunup kontrol edilir. Öğrenci için doğrusu bu — tek çalıştırma, görünür yer.
+ *
+ * `visible: false`: gizli süreç, girdi `stdin`den beslenir. Öğretmenin çözümü
+ * doğrulaması için — orada etkileşim istemiyoruz, ölçüm istiyoruz.
+ *
+ * `stdin`: yalnızca gizli çalıştırmada kullanılır (ve terminal yolu kabuk
+ * desteği olmadığında ona düştüğünde yedek olarak).
+ */
+export const checkTaskInVSCode = (
+    language = 'python', slot: TaskSlot = 'student', stdin = '', visible = true,
+) => request<TaskCheckResult>('gomufi:checkTask', { language, slot, stdin, visible });
 
 /**
  * Kodu VS Code'a gönderir: eklenti dosyaya yazıp editörde açar ve terminalde

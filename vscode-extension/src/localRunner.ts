@@ -227,8 +227,32 @@ export class LocalRunner {
             ?? vscode.Uri.file(path.join(os.homedir(), 'GoMufi', 'Calisma'));
         await vscode.workspace.fs.createDirectory(dir);
         const file = vscode.Uri.joinPath(dir, `slayt.${ext}`);
-        await vscode.workspace.fs.writeFile(file, new TextEncoder().encode(payload.code));
+        await this.writeCode(file, payload.code);
         return { file, dir, language };
+    }
+
+    /**
+     * Slayt kodunu dosyaya yazar — dosya editörde AÇIKSA arabelleği de değiştirir.
+     *
+     * Yalnızca `fs.writeFile` yetmiyor: belge kirliyse (öğrenci ya da bir önceki
+     * slayt üzerinde oynadıysa) VS Code kendi kaydedilmemiş sürümünü tutar ve
+     * diskteki değişikliği ekrana yansıtmaz. Öğrenci "Kodu Dene" dediğinde solda
+     * yeni slaydın kodu yerine eskisini görmesinin sebebi buydu.
+     */
+    private async writeCode(file: vscode.Uri, code: string): Promise<void> {
+        const open = vscode.workspace.textDocuments.find(
+            (d) => !d.isClosed && d.uri.fsPath === file.fsPath,
+        );
+        if (!open) {
+            await vscode.workspace.fs.writeFile(file, new TextEncoder().encode(code));
+            return;
+        }
+
+        const edit = new vscode.WorkspaceEdit();
+        const end = open.lineAt(open.lineCount - 1).range.end;
+        edit.replace(open.uri, new vscode.Range(new vscode.Position(0, 0), end), code);
+        await vscode.workspace.applyEdit(edit);
+        await open.save();
     }
 
     /**
@@ -276,7 +300,9 @@ export class LocalRunner {
      * Öğrenci kodu sonsuz döngüye girebilir — bu bir hata değil, öğrenmenin
      * normal bir parçası. Zaman aşımı olmasaydı süreç arkada asılı kalırdı.
      */
-    async checkTask(language = 'python', slot: TaskSlot = 'student', timeoutMs = 10_000): Promise<{
+    async checkTask(
+        language = 'python', slot: TaskSlot = 'student', stdin = '', timeoutMs = 10_000,
+    ): Promise<{
         code: string; stdout: string; stderr: string; timedOut: boolean;
     }> {
         const lang = RUN_COMMAND[language] ? language : 'python';
@@ -306,16 +332,31 @@ export class LocalRunner {
                 },
                 (err, stdout, stderr) => {
                     const killed = !!err && (err as any).killed === true;
+                    let errText = (stderr || (err && !killed ? String(err.message) : '')) ?? '';
+
+                    // Beslenecek girdi yokken `input()` çağrılmış: bu öğrencinin
+                    // hatası DEĞİL, görevin örnek girdisi tanımlanmamış demek.
+                    // Ham traceback öğrenciyi kendi kodunu aramaya iter.
+                    if (!stdin && errText.includes('EOFError')) {
+                        errText = 'Bu görev klavyeden girdi bekliyor ama örnek girdi tanımlanmamış. '
+                            + 'Öğretmenin ÖRNEKLER tablosuna bir girdi eklemesi gerekiyor.';
+                    }
+
                     resolve({
                         code,
                         stdout: stdout ?? '',
                         // Yorumlayıcı bulunamadıysa stderr boş kalır; öğrenci
                         // "hiçbir şey olmadı" görmesin diye hatayı biz yazıyoruz.
-                        stderr: (stderr || (err && !killed ? String(err.message) : '')) ?? '',
+                        stderr: errText,
                         timedOut: killed,
                     });
                 },
             );
+            // `input()` kullanan görevler için besleme. Boş gönderip kapatırsak
+            // Python EOFError atar ve öğrenci, kodu doğru olduğu hâlde ham bir
+            // traceback görür. Veri, görevin ÖRNEKLER tablosundan geliyor —
+            // orası zaten "şu girdiye şu çıktı" demek.
+            if (stdin) child.stdin?.write(stdin.endsWith('\n') ? stdin : `${stdin}\n`);
             child.stdin?.end();
         });
     }
@@ -324,6 +365,67 @@ export class LocalRunner {
     taskPath(language = 'python', slot: TaskSlot = 'student'): string {
         const lang = RUN_COMMAND[language] ? language : 'python';
         return vscode.Uri.joinPath(this.dir(), taskFile(slot, EXTENSION[lang] ?? 'py')).fsPath;
+    }
+
+    /**
+     * Görevi ÖĞRENCİNİN GÖRDÜĞÜ terminalde çalıştırır ve bitince çıktısını döner.
+     *
+     * NEDEN GİZLİ SÜREÇ DEĞİL: `input()` kullanan görevlerde gizli çalıştırma,
+     * öğrencinin cevabını klavyeden yazmasına izin vermiyor — girdiyi biz
+     * besliyoruz. Öğrenci aynı programı bir de kendi terminalinde çalıştırınca
+     * ortada iki ayrı çalıştırma oluyor ve hangisinin kontrol edildiği
+     * belirsizleşiyor. Tek çalıştırma, görünür yerde.
+     *
+     * Shell integration olmadan terminal çıktısı OKUNAMAZ; o yüzden yoksa
+     * çağıran `checkTask`e düşer (orada girdi örneklerden beslenir).
+     */
+    async runInTerminal(language = 'python', slot: TaskSlot = 'student'): Promise<{
+        code: string; stdout: string; stderr: string; timedOut: boolean;
+    } | null> {
+        const lang = RUN_COMMAND[language] ? language : 'python';
+        const ext = EXTENSION[lang] ?? 'py';
+        const dir = this.dir();
+        const file = vscode.Uri.joinPath(dir, taskFile(slot, ext));
+
+        const open = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === file.fsPath);
+        if (open?.isDirty) await open.save();
+
+        const raw = await vscode.workspace.fs.readFile(file);
+        const code = new TextDecoder().decode(raw);
+
+        const terminal = this.ensureTerminal(dir);
+        terminal.show(true);
+
+        const shell = await waitForShellIntegration(terminal);
+        if (!shell) return null;
+
+        const execution = shell.executeCommand(RUN_COMMAND[lang](file.fsPath));
+
+        // `read()` çalıştırma bitene kadar akar; bu bekleyiş aynı zamanda
+        // "program durdu mu" sorusunun cevabı.
+        let output = '';
+        for await (const chunk of execution.read()) output += chunk;
+
+        const clean = stripAnsi(output);
+        // Terminalde stdout ve stderr tek akışta gelir, ayıramayız. Python
+        // hatası ayırt edilebilir tek şey: traceback başlığı.
+        const traceAt = clean.indexOf('Traceback (most recent call last)');
+        return {
+            code,
+            stdout: traceAt >= 0 ? clean.slice(0, traceAt).trim() : clean.trim(),
+            stderr: traceAt >= 0 ? clean.slice(traceAt).trim() : '',
+            timedOut: false,
+        };
+    }
+
+    private ensureTerminal(dir: vscode.Uri): vscode.Terminal {
+        if (!this.terminal || this.terminal.exitStatus !== undefined
+            || this.terminalDir !== dir.fsPath) {
+            this.terminal?.dispose();
+            this.terminal = vscode.window.createTerminal({ name: 'GoMufi', cwd: dir });
+            this.terminalDir = dir.fsPath;
+        }
+        return this.terminal;
     }
 
     private dir(): vscode.Uri {
@@ -336,20 +438,48 @@ export class LocalRunner {
         const doc = await vscode.workspace.openTextDocument(file);
         await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.One });
 
-        // Tek bir terminal yeniden kullanılır; her çalıştırmada yenisini açmak
-        // birkaç denemeden sonra ekranı terminal sekmeleriyle doldururdu. Ama
-        // ders değişip klasör değiştiyse yenisi gerekir: terminalin çalışma
-        // dizini sonradan değiştirilemez ve öğrencinin `open('veri.txt')` gibi
-        // göreli yolları yanlış klasörde aranırdı.
-        if (!this.terminal || this.terminal.exitStatus !== undefined
-            || this.terminalDir !== dir.fsPath) {
-            this.terminal?.dispose();
-            this.terminal = vscode.window.createTerminal({ name: 'GoMufi', cwd: dir });
-            this.terminalDir = dir.fsPath;
-        }
-        this.terminal.show(true);
-        this.terminal.sendText(RUN_COMMAND[language](file.fsPath));
+        const terminal = this.ensureTerminal(dir);
+        terminal.show(true);
+        terminal.sendText(RUN_COMMAND[language](file.fsPath));
     }
+}
+
+/**
+ * Terminalin shell integration'ı hazır olana kadar bekler.
+ *
+ * Yeni açılan bir terminalde bu ANINDA hazır olmuyor: VS Code kabuğa kendi
+ * betiğini enjekte ediyor ve kabuk açılışını bitirmesi gerekiyor. Beklemeden
+ * sorsaydık her ilk çalıştırma yedek yola düşerdi.
+ */
+function waitForShellIntegration(
+    terminal: vscode.Terminal, timeoutMs = 5000,
+): Promise<vscode.TerminalShellIntegration | null> {
+    if (terminal.shellIntegration) return Promise.resolve(terminal.shellIntegration);
+
+    return new Promise((resolve) => {
+        const done = (value: vscode.TerminalShellIntegration | null) => {
+            clearTimeout(timer);
+            sub.dispose();
+            resolve(value);
+        };
+        const sub = vscode.window.onDidChangeTerminalShellIntegration((e) => {
+            if (e.terminal === terminal) done(e.shellIntegration);
+        });
+        // Kabuk shell integration desteklemiyor olabilir (eski PowerShell, özel
+        // kabuk). Sonsuza kadar beklemek yerine yedek yola bırakıyoruz.
+        const timer = setTimeout(() => done(null), timeoutMs);
+    });
+}
+
+/** Terminal çıktısındaki renk/konum kaçış dizilerini temizler. */
+function stripAnsi(text: string): string {
+    return text
+        // CSI dizileri: renk, imleç hareketi, satır temizleme
+        .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+        // OSC dizileri: pencere başlığı, shell integration işaretleri
+        .replace(/\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)/g, '')
+        .replace(/\r\n/g, '\n')
+        .replace(/\r/g, '');
 }
 
 function readBody(req: http.IncomingMessage): Promise<string> {

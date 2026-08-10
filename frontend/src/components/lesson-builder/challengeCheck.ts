@@ -33,6 +33,8 @@ export interface CriterionResult {
     status: CriterionStatus;
     /** `near` ve `fail` için açıklama — koça ve öğrenciye gösterilir. */
     detail?: string;
+    /** Tahkim aşamasının ölçüte geri dönebilmesi için kaynak. */
+    source?: ChallengeCriterion;
 }
 
 /** Görev geçildi mi? `near` geçer — kabul edilir, not düşülür. */
@@ -96,7 +98,11 @@ const loosen = (text: string) =>
         // Nokta ve virgül SAYILARIN İÇİNDE korunur: `1.70` bir ondalık, ayırıcı
         // değil. Ayırt etmeseydik `1 70` olurdu ve öğrencinin doğru sayısı
         // bozulmuş görünürdü.
-        .replace(/(?<![0-9])[.,](?![0-9])/g, ' ')
+        //
+        // Ondalık sayılması için İKİ YANIN DA rakam olması şart. Yalnızca
+        // "iki yanı da rakam değilse değiştir" deseydik `20,boy` içindeki virgül
+        // (solu rakam, sağı harf) ondalık sanılıp korunurdu — oysa o bir ayırıcı.
+        .replace(/(?<![0-9])[.,]|[.,](?![0-9])/g, ' ')
         .replace(/[!?;:'"`´’‘“”\-–—_]/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
@@ -158,6 +164,21 @@ interface AIJudge {
 }
 
 /**
+ * Tahkim sorusu.
+ *
+ * Modele "bu doğru mu" diye SORMUYORUZ — beklenen biçimi veriyoruz ve neyin
+ * affedilebilir olduğunu açıkça sayıyoruz. Serbest bıraksak bir gün boşluğu
+ * affeder, ertesi gün etmez; öğrenci için en kötüsü bu.
+ */
+const arbitrationCriterion = (expected: string) => [
+    `Çıktı şu biçimde isteniyor: "${expected}"`,
+    'Öğrenci istenen BİLGİLERİ doğru ve doğru sırada ürettiyse kabul et:',
+    'boşluk farkı, noktalama farkı, büyük/küçük harf, eksik birim eki (m, kg, TL),',
+    've yer tutucuların yerine kendi verisini koymuş olması sorun DEĞİLDİR.',
+    'Bilgilerden biri eksikse, yanlışsa veya sırası bozuksa kabul etme.',
+].join('\n');
+
+/**
  * Ölçütleri sırayla uygular.
  *
  * YZ ölçütleri EN SONA bırakılır ve deterministik ölçütlerden biri düştüyse hiç
@@ -210,7 +231,31 @@ export const evaluate = async (
             if (status === 'fail') detail = `Kodda "${c.value.trim()}" kullanılmamış.`;
         }
 
-        results.push({ id: c.id, kind: c.kind, label, status, detail });
+        results.push({ id: c.id, kind: c.kind, label, status, detail, source: c });
+    }
+
+    // --- GRİ BÖLGE TAHKİMİ ---------------------------------------------------
+    // Biçim ölçütü düştü ama öğrenci istenen bilgiyi üretmiş olabilir: birim eki
+    // unutulmuş, ayırıcı farklı, kelime sırası aynı ama noktalama başka. Metin
+    // karşılaştırması bunu "yanlış" der; oysa insan öğretmen "olmuş, şu ufak
+    // şey eksik" derdi. Kararı burada modele bırakıyoruz.
+    //
+    // YALNIZCA bu durumda çağrılıyor: doğru cevap hiç model görmeden, anında ve
+    // bedava geçiyor. Model yalnızca kararsız kaldığımız yerde devreye giriyor.
+    if (judge) {
+        for (const r of results) {
+            if (r.status !== 'fail') continue;
+            const c = r.source;
+            if (!c || (c.kind !== 'template' && c.kind !== 'exact')) continue;
+
+            const verdict = await judge(arbitrationCriterion(c.value));
+            if (verdict?.passed) {
+                r.status = 'near';
+                r.detail = verdict.reason || 'Kabul edildi, biçimde küçük fark var.';
+            } else if (verdict?.reason) {
+                r.detail = verdict.reason;
+            }
+        }
     }
 
     const deterministicOk = results.every(isAccepted);

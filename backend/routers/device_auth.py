@@ -83,6 +83,31 @@ async def issue_device_token(data: LoginRequest, db: AsyncSession = Depends(get_
     raise HTTPException(status_code=401, detail="E-posta veya parola hatalı.")
 
 
+@router.post("/auth/device-renew", response_model=DeviceTokenResponse)
+async def renew_device_token(user=Depends(get_current_user_info)):
+    """Gecerli bir cihaz token'ini taze biriyle degistirir (kayan oturum).
+
+    NEDEN GEREKLI: erisim token'i 30 dakikalik. Tarayicida bu sorun degil --
+    kullanici zaten site uzerinden yeniden giris yapar. Eklentide ise token
+    girise TEK SEFER uretiliyordu; ogrenci slaytlari okurken, hicbir sey
+    yapmadan oturumu dusuyor ve panelde tek cikis yolu tarayicida yeniden
+    giris olarak kaliyordu.
+
+    NEDEN GUVENLI: cagri HENUZ GECERLI bir token ister. Yeni token, eskisinin
+    zaten sahip oldugu yetkiden fazlasini vermez; suresi dolmus bir token ile
+    buraya girilemez. Yani bu bir yetki genisletmesi degil, kesintinin
+    kaldirilmasi.
+    """
+    role = user.get("role", "student")
+    return DeviceTokenResponse(
+        access_token=create_access_token(str(user["sub"]), role=role),
+        role=role,
+        user_id=str(user["sub"]),
+        display_name=user.get("name") or user.get("email") or "GoMufi kullanicisi",
+        expires_in=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+    )
+
+
 # --- TARAYICI UZERINDEN GIRIS (device authorization) ---------------------------
 #
 # Parolanin eklentiye girilmesi yerine: eklenti rastgele bir `state` uretir,
