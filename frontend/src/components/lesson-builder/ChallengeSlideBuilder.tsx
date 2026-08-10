@@ -189,21 +189,95 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
         }
     };
 
+    /**
+     * Görev tanımındaki fonksiyonları (print(), len() vb.),
+     * string ifadeleri ('Python harika!', "...") ve sayıları
+     * renkli kod rozetlerine (syntax highlighting) dönüştüren yardımcı bileşen.
+     */
+    const renderFormattedPrompt = (text?: string) => {
+        if (!text) return null;
+
+        const regex = /('(?:\\'|[^'])*'|"(?:\\"|[^"])*"|`[^`]+`|\b[a-zA-Z_]\w*\(\)|\b\d+(?:\.\d+)?\b)/g;
+        const parts = text.split(regex);
+
+        if (parts.length === 1) {
+            return <p className="text-[12px] sm:text-xs md:text-[13.5px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">{text}</p>;
+        }
+
+        return (
+            <div className="text-[12px] sm:text-xs md:text-[13.5px] font-medium text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {parts.map((part, index) => {
+                    if (!part) return null;
+
+                    // String ifadeler ('...' veya "...") -> Emerald Yeşil Kod Rozeti
+                    if ((part.startsWith("'") && part.endsWith("'")) || (part.startsWith('"') && part.endsWith('"'))) {
+                        return (
+                            <code
+                                key={index}
+                                className="inline-block font-mono text-emerald-700 bg-emerald-50 border border-emerald-300/90 px-1.5 py-0.5 rounded-md font-bold text-[11.5px] md:text-xs mx-0.5 my-0.5 shadow-sm"
+                            >
+                                {part}
+                            </code>
+                        );
+                    }
+
+                    // Backtick içindeki inline kodlar (`...`) -> Sky Mavi Kod Rozeti
+                    if (part.startsWith('`') && part.endsWith('`')) {
+                        return (
+                            <code
+                                key={index}
+                                className="inline-block font-mono text-sky-700 bg-sky-50 border border-sky-300 px-1.5 py-0.5 rounded-md font-bold text-[11.5px] md:text-xs mx-0.5 my-0.5 shadow-sm"
+                            >
+                                {part.slice(1, -1)}
+                            </code>
+                        );
+                    }
+
+                    // Fonksiyonlar (print(), input(), len() vb.) -> İndigo/Mor Kod Rozeti
+                    if (/^[a-zA-Z_]\w*\(\)$/.test(part)) {
+                        return (
+                            <code
+                                key={index}
+                                className="inline-block font-mono text-indigo-700 bg-indigo-50 border border-indigo-300 px-1.5 py-0.5 rounded-md font-bold text-[11.5px] md:text-xs mx-0.5 my-0.5 shadow-sm"
+                            >
+                                {part}
+                            </code>
+                        );
+                    }
+
+                    // Sayılar (0, 10, 100 vb.) -> Amber/Turuncu Kod Rozeti
+                    if (/^\d+(?:\.\d+)?$/.test(part)) {
+                        return (
+                            <code
+                                key={index}
+                                className="inline-block font-mono text-amber-700 bg-amber-50 border border-amber-300 px-1.5 py-0.5 rounded-md font-bold text-[11.5px] md:text-xs mx-0.5 my-0.5 shadow-sm"
+                            >
+                                {part}
+                            </code>
+                        );
+                    }
+
+                    return <span key={index}>{part}</span>;
+                })}
+            </div>
+        );
+    };
+
     const SubIcon = SUBMISSION_META[cfg.submissionType]?.icon || Code2;
 
     /* ------------------------------- SOL PANEL ------------------------------- */
     const brief = (
-        <div className="flex flex-col gap-3 min-h-0">
-            <div className="bg-white rounded-2xl border-2 border-slate-200 border-b-[5px] p-4">
-                <div className="flex items-center gap-2 mb-2.5 flex-wrap">
-                    <span className="inline-flex items-center gap-1.5 bg-cyan-100 text-cyan-800 border-2 border-cyan-300 border-b-[3px] rounded-full px-2.5 py-0.5 text-[10px] font-black tracking-wide">
-                        <Target size={12} /> UYGULA · GÖREV
+        <div className="flex flex-col gap-3 md:min-h-0">
+            <div className="bg-white rounded-2xl border-2 border-slate-200 border-b-[5px] p-2.5 md:p-4">
+                <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 bg-cyan-100 text-cyan-800 border-2 border-cyan-300 border-b-[3px] rounded-full px-2 py-0.5 text-[9px] md:text-[10px] font-black tracking-wide">
+                        <Target size={11} /> UYGULA · GÖREV
                     </span>
-                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border-2 border-slate-300 border-b-[3px] rounded-full px-2 py-0.5 text-[10px] font-black">
-                        <SubIcon size={11} /> {SUBMISSION_META[cfg.submissionType]?.label}
+                    <span className="inline-flex items-center gap-1 bg-slate-100 text-slate-700 border-2 border-slate-300 border-b-[3px] rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-black">
+                        <SubIcon size={10} /> {SUBMISSION_META[cfg.submissionType]?.label}
                     </span>
-                    <span className="ml-auto inline-flex items-center gap-1 bg-amber-100 text-amber-800 border-2 border-amber-300 border-b-[3px] rounded-full px-2 py-0.5 text-[10px] font-black">
-                        <Trophy size={11} /> +{cfg.xp} XP
+                    <span className="ml-auto inline-flex items-center gap-1 bg-amber-100 text-amber-800 border-2 border-amber-300 border-b-[3px] rounded-full px-1.5 py-0.5 text-[9px] md:text-[10px] font-black">
+                        <Trophy size={10} /> +{cfg.xp} XP
                     </span>
                 </div>
 
@@ -211,10 +285,10 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                     <input
                         value={cfg.title}
                         onChange={(e) => patch({ title: e.target.value })}
-                        className="w-full text-xl font-black text-slate-800 outline-none border-b-2 border-dashed border-slate-200 focus:border-cyan-400 pb-1 mb-2"
+                        className="w-full text-base md:text-xl font-black text-slate-800 outline-none border-b-2 border-dashed border-slate-200 focus:border-cyan-400 pb-1 mb-2"
                     />
                 ) : (
-                    <h2 className="text-xl font-black text-slate-800 mb-2">{cfg.title}</h2>
+                    <h2 className="text-sm sm:text-base md:text-xl font-black text-slate-800 mb-1.5">{cfg.title}</h2>
                 )}
 
                 {isEdit ? (
@@ -222,10 +296,10 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                         value={cfg.prompt}
                         onChange={(e) => patch({ prompt: e.target.value })}
                         rows={3}
-                        className="w-full text-[13.5px] font-medium text-slate-600 leading-relaxed outline-none bg-slate-50 border-2 border-slate-200 rounded-xl p-2.5 resize-none focus:border-cyan-400"
+                        className="w-full text-xs md:text-[13.5px] font-medium text-slate-600 leading-relaxed outline-none bg-slate-50 border-2 border-slate-200 rounded-xl p-2 resize-none focus:border-cyan-400"
                     />
                 ) : (
-                    <p className="text-[13.5px] font-medium text-slate-600 leading-relaxed whitespace-pre-wrap">{cfg.prompt}</p>
+                    renderFormattedPrompt(cfg.prompt)
                 )}
             </div>
 
@@ -242,9 +316,8 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                                     <button
                                         key={k}
                                         onClick={() => patch({ submissionType: k })}
-                                        className={`flex flex-col items-center gap-1 rounded-xl border-2 py-2 text-[10px] font-bold transition-all ${
-                                            on ? 'bg-cyan-50 border-cyan-400 border-b-[4px] text-cyan-700'
-                                               : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                        className={`flex flex-col items-center gap-1 rounded-xl border-2 py-2 text-[10px] font-bold transition-all ${on ? 'bg-cyan-50 border-cyan-400 border-b-[4px] text-cyan-700'
+                                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
                                     >
                                         <M size={14} /> {SUBMISSION_META[k].label}
                                     </button>
@@ -262,9 +335,8 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                                         key={k}
                                         onClick={() => patch({ checkMode: k })}
                                         title={CHECK_META[k].hint}
-                                        className={`flex-1 rounded-xl border-2 py-1.5 text-[10px] font-bold transition-all ${
-                                            checkMode === k ? 'bg-emerald-50 border-emerald-400 border-b-[4px] text-emerald-700'
-                                                            : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+                                        className={`flex-1 rounded-xl border-2 py-1.5 text-[10px] font-bold transition-all ${checkMode === k ? 'bg-emerald-50 border-emerald-400 border-b-[4px] text-emerald-700'
+                                                : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
                                     >
                                         {CHECK_META[k].label}
                                     </button>
@@ -360,7 +432,7 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                             className="mt-2 w-full text-[12px] font-medium text-amber-900 bg-white border-2 border-amber-200 rounded-xl p-2 outline-none resize-none focus:border-amber-400"
                         />
                     ) : (
-                        <p className="mt-2 text-[12px] font-medium text-amber-900 leading-relaxed">{cfg.hint}</p>
+                        <div className="mt-2 text-[12px] font-medium text-amber-900 leading-relaxed">{renderFormattedPrompt(cfg.hint)}</div>
                     ))}
                 </div>
             )}
@@ -461,11 +533,9 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                             {stdout === null ? <span className="text-slate-500">Çalıştır'a bas…</span> : (stdout || <span className="text-slate-500">(boş çıktı)</span>)}
                         </div>
                         {cfg.expectedOutput ? (
-                            <div className={`flex items-start gap-2 rounded-xl border-2 px-2.5 py-2 text-[11.5px] font-mono ${
-                                stdout === null ? 'bg-slate-50 border-slate-200'
+                            <div className={`flex items-start gap-2 rounded-xl border-2 px-2.5 py-2 text-[11.5px] font-mono ${stdout === null ? 'bg-slate-50 border-slate-200'
                                     : outputOk ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
-                                <span className={`shrink-0 w-4 h-4 mt-0.5 rounded-full flex items-center justify-center ${
-                                    stdout === null ? 'bg-slate-200 text-slate-400' : outputOk ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                                <span className={`shrink-0 w-4 h-4 mt-0.5 rounded-full flex items-center justify-center ${stdout === null ? 'bg-slate-200 text-slate-400' : outputOk ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                                     {stdout === null ? '·' : outputOk ? <Check size={10} /> : <X size={10} />}
                                 </span>
                                 <span className="text-slate-600"><b>Beklenen:</b> {cfg.expectedOutput}</span>
@@ -482,10 +552,8 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                         {tests.map((t) => {
                             const r = results[t.id];
                             return (
-                                <div key={t.id} className={`flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1.5 text-[11.5px] font-mono ${
-                                    !r ? 'bg-slate-50 border-slate-200' : r.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
-                                    <span className={`shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${
-                                        !r ? 'bg-slate-200 text-slate-400' : r.passed ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
+                                <div key={t.id} className={`flex items-center gap-1.5 rounded-xl border-2 px-2.5 py-1.5 text-[11.5px] font-mono ${!r ? 'bg-slate-50 border-slate-200' : r.passed ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'}`}>
+                                    <span className={`shrink-0 w-4 h-4 rounded-full flex items-center justify-center ${!r ? 'bg-slate-200 text-slate-400' : r.passed ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'}`}>
                                         {r ? (r.passed ? <Check size={10} /> : <X size={10} />) : '·'}
                                     </span>
                                     {isEdit ? (
@@ -595,7 +663,7 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
                         )}
                         {s.file_mime?.startsWith('image/') && s.file_data && (
                             <img src={`data:${s.file_mime};base64,${s.file_data}`} alt={s.file_name}
-                                 className="mt-2 max-h-48 rounded-lg border-2 border-slate-200" />
+                                className="mt-2 max-h-48 rounded-lg border-2 border-slate-200" />
                         )}
                         {s.file_name && !s.file_mime?.startsWith('image/') && (
                             <span className="mt-1.5 inline-flex items-center gap-1.5 text-[11.5px] font-bold text-slate-500">
@@ -623,6 +691,7 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
             task={`${cfg.title}\n\n${cfg.prompt}`}
             starter={starterFor(cfg)}
             criteria={criteriaOf(cfg)}
+            samples={samples}
             courseId={courseId}
             xp={cfg.xp}
             onSolved={onSolved}
@@ -630,21 +699,34 @@ const ChallengeSlideBuilder: React.FC<Props> = ({
         />
     );
 
-    /* -------------------------------- LAYOUT -------------------------------- */
+    /* -------------------------------- LAYOUT --------------------------------
+     * İki yüzey, iki yerleşim.
+     *
+     * Web'de 16:9 bir sahne var: görev solda, çalışma alanı sağda. VS Code
+     * panelinde ise genişlik ~500px — orada iki sütun zorlamak her ikisini de
+     * kullanılamaz hale getiriyordu (ipucu kutusu 10 karakter genişliğinde bir
+     * şeride dönüşüyordu). Panel dar ama UZUN; doğru cevap alt alta dizmek.
+     *
+     * Ayrımı Tailwind'in `md:` eşiğine bırakıyoruz: iframe kendi görünüm
+     * genişliğine sahip olduğu için panel otomatik olarak dar tarafta kalıyor,
+     * ayrıca "gömülü müyüm" kontrolü gerekmiyor.
+     */
     return (
-        <div className="w-full h-full flex gap-4 pt-14 pb-20 px-6 bg-slate-50 overflow-hidden">
-            <div className="w-[36%] min-w-[280px] max-w-[420px] h-full flex flex-col overflow-y-auto pr-1">{brief}</div>
+        <div className="w-full h-full flex flex-col md:flex-row gap-3 md:gap-4 pt-10 md:pt-16 pb-16 md:pb-20 px-3 md:px-6 bg-slate-50 overflow-y-auto custom-scrollbar">
+            {/* Sol / Üst: Görev bilgisi ve tanımı */}
+            <div className="w-full md:w-[36%] shrink-0 md:shrink flex flex-col">{brief}</div>
 
-            <div className="flex-1 h-full flex flex-col gap-3 min-w-0 min-h-0">
+            {/* Sağ / Alt: Kod çalıştırma, kontroller veya teslim alanı */}
+            <div className="w-full flex-1 flex flex-col gap-2.5 md:gap-3 min-w-0">
                 {isReview ? reviewPanel
                     : useVSCodeWorkspace ? vsCodeWorkspace
                     : (cfg.submissionType === 'code' ? codeWorkspace : uploadWorkspace)}
 
-                {!isEdit && !isReview && (
+                {!isEdit && !isReview && !useVSCodeWorkspace && !isEmbeddedInVSCode() && (
                     <button
                         onClick={handleSubmit}
                         disabled={sending || sent}
-                        className={`shrink-0 flex items-center justify-center gap-2 font-black text-sm py-2.5 rounded-xl border-2 border-b-[5px] active:border-b-2 active:translate-y-0.5 transition-all ${
+                        className={`shrink-0 flex items-center justify-center gap-1.5 font-black text-[11px] md:text-sm py-1.5 md:py-2.5 rounded-xl border-2 border-b-[4px] md:border-b-[5px] active:border-b-2 active:translate-y-0.5 transition-all ${
                             sent ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                  : 'bg-cyan-500 hover:bg-cyan-400 text-white border-cyan-700'}`}
                     >

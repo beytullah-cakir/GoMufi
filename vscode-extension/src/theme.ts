@@ -15,7 +15,7 @@ import * as vscode from 'vscode';
  */
 
 const CODE_FONT =
-    "'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Segoe UI Mono', Consolas, 'Courier New', monospace";
+    "'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas, 'Courier New', monospace";
 
 /** Sitedeki gövde fontu. Markdown önizleme ve yönergeler bununla okunur. */
 const TEXT_FONT =
@@ -78,7 +78,7 @@ async function apply(variant: Variant): Promise<void> {
     const gomufi = vscode.workspace.getConfiguration('gomufi');
 
     const codeFont = (gomufi.get<string>('fontFamily') || '').trim() || CODE_FONT;
-    const size = gomufi.get<number>('fontSize') || 15;
+    const size = gomufi.get<number>('fontSize') || 15.5;
     const G = vscode.ConfigurationTarget.Global;
 
     // Tema. `workbench.preferredDarkColorTheme` da yazılıyor ki sistem
@@ -91,13 +91,15 @@ async function apply(variant: Variant): Promise<void> {
         G,
     );
 
-    // Kod yüzeyleri: editör, terminal, hata ayıklama konsolu, notebook çıktısı.
+    // VS Code Arayüz (SideBar, Sekmeler, Durum Çubuğu, Komut Paleti) Fontu -> GoMufi UI Fontu
+    await set(cfg, 'workbench.fontFamily', "'Outfit', 'Nunito', 'Segoe UI', system-ui, sans-serif", G);
+
+    // Kod yüzeyleri: editör, terminal, hata ayıklama konsolu.
     await set(cfg, 'editor.fontFamily', codeFont, G);
     await set(cfg, 'editor.fontSize', size, G);
-    // 1.7 satır aralığı: slaytta iki satır kod yan yana geldiğinde birbirine
-    // yapışmasın. VS Code 8'den küçük değerleri çarpan olarak yorumluyor.
-    await set(cfg, 'editor.lineHeight', 1.7, G);
+    await set(cfg, 'editor.lineHeight', 1.65, G);
     await set(cfg, 'editor.fontLigatures', true, G);
+
     await set(cfg, 'terminal.integrated.fontFamily', codeFont, G);
     await set(cfg, 'terminal.integrated.fontSize', size - 1, G);
     await set(cfg, 'terminal.integrated.lineHeight', 1.25, G);
@@ -105,20 +107,26 @@ async function apply(variant: Variant): Promise<void> {
     await set(cfg, 'debug.console.fontSize', size - 1, G);
     await set(cfg, 'scm.inputFontFamily', 'editor', G);
 
-    // Metin yüzeyleri: yönerge dosyaları markdown önizlemede açılıyor.
+    // Metin yüzeyleri: yönerge dosyaları ve markdown önizleme
     await set(cfg, 'markdown.preview.fontFamily', TEXT_FONT, G);
     await set(cfg, 'markdown.preview.fontSize', 15, G);
     await set(cfg, 'markdown.preview.lineHeight', 1.7, G);
 
-    // Tema renklerinin görünür olması için gereken birkaç davranış: parantez
-    // renklendirme paletimizin altı rengini kullanır, aksi halde tema dosyasına
-    // yazdığımız editorBracketHighlight renkleri hiç görünmez.
-    await set(cfg, 'editor.bracketPairColorization.enabled', true, G);
-    await set(cfg, 'editor.guides.bracketPairs', 'active', G);
+    // Akışkan ve Şık VS Code Editör Deneyimi
+    await set(cfg, 'editor.cursorStyle', 'line', G);
+    await set(cfg, 'editor.cursorWidth', 3, G);
     await set(cfg, 'editor.cursorBlinking', 'smooth', G);
     await set(cfg, 'editor.cursorSmoothCaretAnimation', 'on', G);
+    await set(cfg, 'editor.smoothScrolling', true, G);
+    await set(cfg, 'workbench.list.smoothScrolling', true, G);
+
+    await set(cfg, 'editor.bracketPairColorization.enabled', true, G);
+    await set(cfg, 'editor.guides.bracketPairs', 'active', G);
     await set(cfg, 'editor.roundedSelection', true, G);
     await set(cfg, 'editor.renderLineHighlight', 'all', G);
+    await set(cfg, 'editor.minimap.enabled', false, G);
+    await set(cfg, 'workbench.tree.indent', 14, G);
+    await set(cfg, 'workbench.tree.renderIndentGuides', 'always', G);
     await set(cfg, 'workbench.iconTheme', 'vs-seti', G);
 }
 

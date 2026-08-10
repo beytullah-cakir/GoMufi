@@ -46,7 +46,12 @@ const ExpectedOutputVerifier: React.FC<Props> = ({ cfg, patch }) => {
                 // Öğretmen paneli VS Code'da açtıysa çözümü öğrencinin ortamında
                 // doğrula — kurulu paketler ve gerçek sürüm burada belirleyici.
                 await prepareTaskInVSCode(solution, 'python', 'solution');
-                const res = await checkTaskInVSCode('python', 'solution');
+                // Çözüm `input()` kullanıyorsa ÖRNEKLER tablosu onu besler;
+                // beslemezsek öğretmenin doğru çözümü EOFError ile patlar.
+                const stdin = (cfg.samples || [])
+                    .map((s) => (s.input || '').trim()).filter(Boolean).join('\n');
+                // Gizli çalıştırma: öğretmen etkileşim değil ölçüm istiyor.
+                const res = await checkTaskInVSCode('python', 'solution', stdin, false);
                 if (!res?.ok) throw new Error(res?.error || 'VS Code yanıt vermedi.');
                 if (res.timedOut) throw new Error('Çözüm 10 saniyede bitmedi.');
                 if (res.stderr.trim()) throw new Error(res.stderr.trim());

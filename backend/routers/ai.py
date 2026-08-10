@@ -1146,8 +1146,14 @@ Requirements:
     - "ai"       : a one-sentence rule judged by a model. LAST RESORT — slow and costly. Use only when none
       of the above can express the rule.
     Write 1 to 3 criteria. Do NOT restate the same rule in two kinds.
-    Punctuation and letter-case slips are forgiven automatically by the checker, so you do NOT need to
-    write loose criteria to be kind — write the correct shape and let the checker handle near misses.
+    BE GENEROUS ABOUT FORM. The checker already forgives spacing, punctuation and letter-case, and a
+    model arbitrates anything close, so the criterion must capture WHAT THE STUDENT MUST PRODUCE, not
+    one cosmetic rendering of it. Concretely:
+    - Do NOT put units, trailing marks or decorative text in the template unless the task is ABOUT them.
+      "Boy: {{boy}}" is better than "Boy: {{boy}} m" — a student who omits "m" still did the exercise.
+    - Do NOT bake your own example data into the template. Every varying value gets a {{}} placeholder.
+    - If the task only says "print the values", prefer "contains" criteria over one rigid template.
+    A criterion that fails a correct student is far worse than one that passes a sloppy one.
   * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
   * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
   * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
@@ -2068,8 +2074,14 @@ Requirements:
     - "ai"       : a one-sentence rule judged by a model. LAST RESORT — slow and costly. Use only when none
       of the above can express the rule.
     Write 1 to 3 criteria. Do NOT restate the same rule in two kinds.
-    Punctuation and letter-case slips are forgiven automatically by the checker, so you do NOT need to
-    write loose criteria to be kind — write the correct shape and let the checker handle near misses.
+    BE GENEROUS ABOUT FORM. The checker already forgives spacing, punctuation and letter-case, and a
+    model arbitrates anything close, so the criterion must capture WHAT THE STUDENT MUST PRODUCE, not
+    one cosmetic rendering of it. Concretely:
+    - Do NOT put units, trailing marks or decorative text in the template unless the task is ABOUT them.
+      "Boy: {{boy}}" is better than "Boy: {{boy}} m" — a student who omits "m" still did the exercise.
+    - Do NOT bake your own example data into the template. Every varying value gets a {{}} placeholder.
+    - If the task only says "print the values", prefer "contains" criteria over one rigid template.
+    A criterion that fails a correct student is far worse than one that passes a sloppy one.
   * `tests` are executed for real: `call` is evaluated in Python after the student's code runs and compared AS TEXT to `expected`. `call` MUST be a valid Python expression using `functionName`, and `expected` MUST be exactly what Python's `str()` returns ("True", "False", "12", "[1, 2]"). `expectedOutput` is compared to real stdout the same way. NEVER write an expected value you have not actually reasoned out — a wrong expectation marks a correct student answer as wrong.
   * The task MUST only require concepts already taught in the preceding UNDERSTAND module.
   * Escape the JSON properly so it is a valid JSON string inside the outer response. Do NOT emit any other elementContents entry for this template.
@@ -3107,6 +3119,9 @@ Yalnızca ÖLÇÜTÜN sağlanıp sağlanmadığına karar ver — başka hiçbir
 
 KURALLAR:
 - Ölçüt sağlanıyorsa passed=true. Kısmen sağlanıyorsa false.
+- ÖLÇÜT KENDİSİ neyin affedilebileceğini yazıyorsa ONA UY. Bu durumda kısmi
+  sapma (boşluk, noktalama, birim eki) passed=true demektir — ölçütün izin
+  verdiği bir farkı "kısmen sağlandı" diye reddetme.
 - Kod stilini, değişken adlarını, verimliliği DEĞERLENDİRME. Sadece ölçüt.
 - reason: Türkçe, tek cümle, öğrencinin okuyacağı dilde.
 - reason içinde KOD VERME ve doğru cevabı yazma — öğrenci hâlâ çalışıyor.
