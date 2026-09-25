@@ -167,7 +167,7 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                     status: 'Çevrimiçi',
                     isOnline: true
                 },
-                stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
+                stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
                 classes: course.classes || []
             };
@@ -207,7 +207,7 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                     status: 'Hazır',
                     isOnline: true
                 },
-                stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0, gems: 100 },
+                stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
                 classes: course.classes || []
             };

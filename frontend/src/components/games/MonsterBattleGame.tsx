@@ -147,7 +147,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
           if (monsterHP - 50 <= 0) {
             setPhase("victory");
             // Victory rewards
-            api.post("/profile/student/stats", { xp_gain: 30, gems_gain: 2 })
+            api.post("/profile/student/stats", { xp_gain: 30 })
               .then(() => onStatsUpdate?.())
               .catch(console.error);
           } else {
@@ -158,14 +158,6 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     } else {
       setPhase("effect");
       setEffectMessage("Iskaladın! 💨");
-      
-      // Decrease hearts on wrong answer
-      try {
-        await api.post("/profile/student/stats", { hearts_change: -1 });
-        onStatsUpdate?.();
-      } catch (err) {
-        console.error("Can güncellenemedi:", err);
-      }
 
       setTimeout(() => setPhase("monster_turn"), 1500);
     }

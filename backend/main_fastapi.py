@@ -65,6 +65,9 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS meeting_url VARCHAR(500);"))
                 # Kurs satışı kaldırıldı; eski kurulumlarda NOT NULL fiyat sütunu yeni kursu engellemesin.
                 await conn.execute(text("ALTER TABLE courses DROP COLUMN IF EXISTS price;"))
+                # Can ve elmas kaldırıldı (hataya ceza veren, işlevsiz mekanik).
+                await conn.execute(text("ALTER TABLE students DROP COLUMN IF EXISTS hearts;"))
+                await conn.execute(text("ALTER TABLE students DROP COLUMN IF EXISTS gems;"))
                 logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")

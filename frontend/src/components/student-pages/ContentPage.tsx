@@ -19,7 +19,6 @@ import {
     Award,
     ChevronRight,
     ChevronDown,
-    Gem,
     Target,
     Cloud,
     Circle,
@@ -31,6 +30,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from '../shared/CourseInfoModal';
+import { AnnouncementFeed, AttendanceCard } from '../shared/SchoolNotices';
 
 // Import Assets (Reusing existing or placeholders if needed)
 import PythonIcon from '../../assets/sprites/PythonIcon.png';
@@ -73,13 +73,6 @@ interface ScheduleSlot {
     courseId?: string;
     sectionTitle?: string;
     lessonIndex?: number;
-}
-
-interface SquadMember {
-    id: number;
-    name: string;
-    status: 'online' | 'offline' | 'in-class';
-    avatarSeed: number;
 }
 
 const getDayName = (dateStr: string) => {
@@ -493,13 +486,6 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
         return () => clearInterval(interval);
     }, [courses, isClassActive, lastActiveSessionTitle, liveCourseId]);
 
-    const squadMembers: SquadMember[] = [
-        { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
-        { id: 2, name: 'Ayşe', status: 'in-class', avatarSeed: 456 },
-        { id: 3, name: 'Can', status: 'offline', avatarSeed: 789 },
-        { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
-    ];
-
 
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth(); 
@@ -799,9 +785,6 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                                                             <div className="h-16 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center group-hover:border-gray-300 transition-colors cursor-pointer group/empty">
                                                                 <div className="flex items-center gap-2 opacity-0 group-hover/empty:opacity-100 transition-opacity">
                                                                     <span className="text-xs font-bold text-gray-400">Ders Ayarla</span>
-                                                                    <div className="bg-sky-100 text-sky-600 px-2 py-0.5 rounded flex items-center gap-1 text-[10px] font-black">
-                                                                        <Gem size={10} /> 50
-                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         )}
@@ -897,97 +880,30 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                 {/* RIGHT COLUMN: DASHBOARD WIDGETS (25%) */}
                 <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
 
-                    {/* Teacher Hub */}
+                    {/* Öğretmen */}
                     <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm border-b-4 border-gray-200">
                         <h3 className="font-black text-gray-800 mb-4 flex items-center gap-2">
                             <Star className="text-yellow-400 fill-yellow-400" size={20} />
-                            Hoca Masası
+                            Öğretmenin
                         </h3>
-
-                        <div className="flex items-center gap-4 mb-6">
-                            <div className="relative">
-                                <div className="w-16 h-16 bg-gray-100 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-4xl shadow-sm">
-                                    👨‍🏫
-                                </div>
-                                <div className="absolute -bottom-1 -right-1 w-5 h-5 bg-green-500 border-2 border-white rounded-full"></div>
+                        <div className="flex items-center gap-4 mb-5">
+                            <div className="w-14 h-14 bg-gray-100 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-3xl shadow-sm">
+                                👩‍🏫
                             </div>
-                            <div>
-                                <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Mufi Hoca"}</h4>
-                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-0.5 rounded-lg">Çevrimiçi</span>
-                            </div>
+                            <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Öğretmen"}</h4>
                         </div>
-
-                        {/* Recent Note */}
-                        <div className="bg-yellow-50 p-4 rounded-2xl border border-yellow-100 relative mb-4">
-                            <div className="absolute -top-2 left-4 w-4 h-4 bg-yellow-50 border-t border-l border-yellow-100 transform rotate-45"></div>
-                            <p className="text-xs font-bold text-gray-600 italic leading-relaxed">
-                                "Kadir, geçen haftaki döngüler ödevinde harikaydın. Listeleri birleştirme yöntemine bayıldım! 🌟"
-                            </p>
-                            <span className="block text-[10px] text-gray-400 font-bold mt-2 text-right">- 10 dk önce</span>
-                        </div>
-
-                        {/* Quick Action */}
-                        <button className="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-sm shadow-[0_4px_0_rgb(67,56,202)] hover:shadow-none hover:translate-y-[4px] transition-all flex items-center justify-center gap-2">
+                        <button
+                            onClick={() => navigate('/student/ask')}
+                            className="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-sm shadow-[0_4px_0_rgb(67,56,202)] hover:shadow-none hover:translate-y-[4px] transition-all flex items-center justify-center gap-2"
+                        >
                             <MessageCircle size={18} />
                             Hocaya Soru Sor
                         </button>
                     </div>
 
-                    {/* Squad Panel */}
-                    <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm border-b-4 border-gray-200">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="font-black text-gray-800 flex items-center gap-2">
-                                <Users className="text-sky-500" size={20} />
-                                Alphateam
-                            </h3>
-                            <button className="text-xs font-bold text-gray-400 hover:text-gray-600">Detay</button>
-                        </div>
-
-                        <div className="flex -space-x-3 mb-6 overflow-x-auto py-2 px-1">
-                            {squadMembers.map((member) => (
-                                <div key={member.id} className="relative group cursor-pointer hover:z-10 hover:scale-110 transition-transform">
-                                    <div className={`w-12 h-12 rounded-2xl border-2 border-white shadow-md flex items-center justify-center bg-gray-100`}>
-                                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-full h-full rounded-xl" />
-                                    </div>
-                                    <div className={`absolute -top-1 -right-1 w-4 h-4 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : member.status === 'in-class' ? 'bg-yellow-500' : 'bg-gray-400'}`}></div>
-
-                                    {/* Tooltip */}
-                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-[10px] font-bold rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                                        {member.name} • {member.status === 'in-class' ? 'Derste' : member.status}
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Squad Mission */}
-                        <div className="bg-sky-50 rounded-2xl p-4 border border-sky-100">
-                            <h4 className="font-black text-sky-900 text-xs uppercase mb-2">Haftalık Klan Görevi</h4>
-                            <div className="flex items-center justify-between text-xs font-bold text-sky-700 mb-1">
-                                <span>Toplam 20 Saat Ders</span>
-                                <span>14/20</span>
-                            </div>
-                            <div className="w-full h-2 bg-sky-200 rounded-full overflow-hidden">
-                                <div className="h-full bg-sky-500 w-[70%] rounded-full"></div>
-                            </div>
-                            <p className="text-[10px] text-sky-400 mt-2 font-bold text-center">
-                                Tamamlayınca +500 Gem kazan! 💎
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* "Aha!" Clips Teaser */}
-                    <div className="bg-rose-50 rounded-3xl border-2 border-rose-100 p-6 flex flex-col items-center text-center">
-                        <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center mb-2 shadow-sm animate-pulse">
-                            <Video className="text-rose-500" size={32} />
-                        </div>
-                        <h3 className="font-black text-rose-900 mb-1">Dersin Yıldızı Ol</h3>
-                        <p className="text-xs font-bold text-rose-700/80 mb-4">
-                            Son dersteki "Aha!" anını paylaştın mı?
-                        </p>
-                        <button className="bg-rose-500 text-white px-6 py-2 rounded-xl text-xs font-black shadow-lg hover:bg-rose-600 transition-colors">
-                            KLİP YÜKLE
-                        </button>
-                    </div>
+                    {/* Öğretmenden gelenler: duyurular ve devam durumu */}
+                    <AnnouncementFeed courseIds={activeCourseData ? [Number(activeCourseData.id)] : undefined} />
+                    <AttendanceCard courseId={activeCourseData?.id ?? null} />
 
                 </div>
             </div>

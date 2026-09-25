@@ -283,26 +283,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                   {userData?.streak ?? 0}
                 </span>
               </div>
-
-              {/* Gems */}
-              <div className="flex flex-col items-center gap-1 group cursor-pointer" title="Elmaslar">
-                <span className="text-lg group-hover:scale-110 transition-transform block text-sky-400 leading-none">
-                  💎
-                </span>
-                <span className="text-[11px] font-black text-sky-500 font-display">
-                  {userData?.gems ?? 0}
-                </span>
-              </div>
-
-              {/* Hearts */}
-              <div className="flex flex-col items-center gap-1 group cursor-pointer" title="Canlar">
-                <span className="text-lg group-hover:scale-110 transition-transform block text-red-500 leading-none">
-                  ❤️
-                </span>
-                <span className="text-[11px] font-black text-red-500 font-display">
-                  {userData?.hearts ?? 5}
-                </span>
-              </div>
             </div>
           </div>
         )}

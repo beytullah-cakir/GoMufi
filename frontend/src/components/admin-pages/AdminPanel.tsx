@@ -25,8 +25,6 @@ interface UserItem {
   role: "student" | "teacher" | "admin";
   grade_level?: string;
   education_level?: string;
-  gems?: number;
-  hearts?: number;
   streak?: number;
   xp?: number;
   expertises?: string;
@@ -111,8 +109,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
     education_level: "ortaokul",
     expertises: "",
     bio: "",
-    gems: 0,
-    hearts: 5,
     streak: 0,
     xp: 0
   });
@@ -202,8 +198,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       education_level: u.education_level || "ortaokul",
       expertises: u.expertises || "",
       bio: u.bio || "",
-      gems: u.gems || 0,
-      hearts: u.hearts || 5,
       streak: u.streak || 0,
       xp: u.xp || 0
     });
@@ -293,8 +287,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       education_level: "ortaokul",
       expertises: "",
       bio: "",
-      gems: 100,
-      hearts: 5,
       streak: 0,
       xp: 0
     });
@@ -623,7 +615,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                           {u.role === 'student' || u.role === 'admin' ? (
                             <div className="flex flex-col gap-1">
                               <span className="text-xs text-gray-500">
-                                ⚡ {u.xp || 0} XP • 💎 {u.gems || 0} • ❤️ {u.hearts ?? 5} Can • 🔥 {u.streak || 0} Seri
+                                ⚡ {u.xp || 0} XP • 🔥 {u.streak || 0} Seri
                               </span>
                               {u.enrolled_courses && u.enrolled_courses.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 mt-1">
@@ -882,18 +874,10 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-4 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     <div>
                       <label className="block text-[10px] font-black uppercase text-gray-400 mb-1">XP</label>
                       <input type="number" value={userForm.xp} onChange={(e) => setUserForm({...userForm, xp: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-400 mb-1">Elmas</label>
-                      <input type="number" value={userForm.gems} onChange={(e) => setUserForm({...userForm, gems: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center" />
-                    </div>
-                    <div>
-                      <label className="block text-[10px] font-black uppercase text-gray-400 mb-1">Can</label>
-                      <input type="number" value={userForm.hearts} onChange={(e) => setUserForm({...userForm, hearts: parseInt(e.target.value) || 0})} className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-black uppercase text-gray-400 mb-1">Seri (Gün)</label>
