@@ -56,7 +56,6 @@ interface Course {
     learning_outcomes?: string[];
     requirements?: string[];
     curriculum?: any[];
-    price?: number;
     classes?: any[];
     schedule?: any[];
 }
@@ -137,7 +136,6 @@ const mapContentCourses = (data: any[]): Course[] => {
             requirements: c.requirements,
             curriculum: c.curriculum || [],
             notes: c.notes || [],
-            price: c.price || 0,
             classes: c.classes || [],
             schedule: c.schedule || []
         };
@@ -145,13 +143,13 @@ const mapContentCourses = (data: any[]): Course[] => {
 };
 
 interface ContentPageProps {
-    purchasedCourses?: any[];
+    enrolledCourses?: any[];
     onOpenJoinModal: () => void;
     userData?: any;
     onJoinLiveClass: (courseId: string) => void;
 }
 
-const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinModal, userData, onJoinLiveClass }) => {
+const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinModal, userData, onJoinLiveClass }) => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('');
     const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
@@ -160,14 +158,14 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
 
     // --- Mock Data ---
     const [courses, setCourses] = useState<Course[]>(() => {
-        if (purchasedCourses && purchasedCourses.length > 0) {
-            const mapped = mapContentCourses(purchasedCourses);
+        if (enrolledCourses && enrolledCourses.length > 0) {
+            const mapped = mapContentCourses(enrolledCourses);
             cachedContentCourses = mapped;
             return mapped;
         }
         return cachedContentCourses;
     });
-    const [isLoading, setIsLoading] = useState(!isContentFetched && (!purchasedCourses || purchasedCourses.length === 0));
+    const [isLoading, setIsLoading] = useState(!isContentFetched && (!enrolledCourses || enrolledCourses.length === 0));
     const [schedule, setSchedule] = useState<ScheduleSlot[]>(cachedSchedule);
 
     useEffect(() => {
@@ -183,10 +181,10 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
             }
 
             try {
-                if (!isContentFetched && (!purchasedCourses || purchasedCourses.length === 0)) setIsLoading(true);
+                if (!isContentFetched && (!enrolledCourses || enrolledCourses.length === 0)) setIsLoading(true);
                 // Fetch courses, schedule and profile in PARALLEL
                 const [contentRes, scheduleRes, profileRes] = await Promise.all([
-                    (!purchasedCourses || purchasedCourses.length === 0) ? api.get('/my-content') : Promise.resolve({ data: purchasedCourses }),
+                    (!enrolledCourses || enrolledCourses.length === 0) ? api.get('/my-content') : Promise.resolve({ data: enrolledCourses }),
                     api.get('/my-schedule'),
                     api.get('/profile')
                 ]);

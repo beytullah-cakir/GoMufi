@@ -56,7 +56,6 @@ class CreateCourseRequest(BaseModel):
     title: str
     description: Optional[str] = None
     category: Optional[str] = None
-    price: Optional[int] = 0
     curriculum: Optional[List[Any]] = []
 
 class UpdateCourseRequest(BaseModel):
@@ -64,7 +63,6 @@ class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    price: Optional[int] = None
     curriculum: Optional[List[Any]] = None
 
 class CreateQuizRequest(BaseModel):
@@ -391,7 +389,6 @@ async def get_courses(
             "title": c.title,
             "description": c.description,
             "category": c.category,
-            "price": c.price,
             "rating": c.rating,
             "status": c.status,
             "curriculum": c.curriculum,
@@ -412,7 +409,6 @@ async def admin_create_course(
         title=course_data.title,
         description=course_data.description,
         category=course_data.category or "Diğer",
-        price=course_data.price or 0,
         curriculum=course_data.curriculum or [],
         status="active"
     )
@@ -439,7 +435,6 @@ async def admin_update_course(
     if course_data.title is not None: course.title = course_data.title
     if course_data.description is not None: course.description = course_data.description
     if course_data.category is not None: course.category = course_data.category
-    if course_data.price is not None: course.price = course_data.price
     if course_data.curriculum is not None: 
         course.curriculum = course_data.curriculum
         flag_modified(course, "curriculum")

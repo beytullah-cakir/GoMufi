@@ -12,7 +12,6 @@ class Course(Base):
     category = Column(String)
     created_at = Column(DateTime, server_default=func.now())
     progress = Column(Integer, default=0)
-    price = Column(Integer, default=0)
     learning_outcomes = Column(JSON, default=[])
     requirements = Column(JSON, default=[])
     curriculum = Column(JSON, default=[])

@@ -12,7 +12,6 @@ authlib
 httpx
 itsdangerous
 python-multipart
-iyzipay
 alembic
 google-genai
 email-validator

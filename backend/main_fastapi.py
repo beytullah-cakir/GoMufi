@@ -15,7 +15,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from connect_db import engine, Base, SessionLocal
 from core.config import settings
-from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
+from routers import profile, courses, student_auth, teacher_auth, oauth, builder, utils
 from routers import quiz, ws, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
 from routers import parent_reports, parent_portal
 from routers import password_reset, attendance, announcements
@@ -63,6 +63,8 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS thoughts_tokens INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE homework_submissions ADD COLUMN IF NOT EXISTS rubric_scores JSON;"))
                 await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS meeting_url VARCHAR(500);"))
+                # Kurs satışı kaldırıldı; eski kurulumlarda NOT NULL fiyat sütunu yeni kursu engellemesin.
+                await conn.execute(text("ALTER TABLE courses DROP COLUMN IF EXISTS price;"))
                 logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")
@@ -174,7 +176,6 @@ app.include_router(profile.router)
 app.include_router(courses.router)
 app.include_router(oauth.router)
 app.include_router(builder.router)
-app.include_router(payment.router)
 app.include_router(utils.router)
 app.include_router(quiz.router)
 app.include_router(ws.router)

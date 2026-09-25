@@ -1,15 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Home, Search, BookOpen, MessageSquare, ShoppingCart, User, Users } from 'lucide-react';
+import { Home, BookOpen, MessageSquare, User, Users } from 'lucide-react';
 import api from '../../api';
 import HomePage from './HomePage';
-import CoursesPage from './CoursesPage';
 import ProfilePage from './ProfilePage';
 import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
-import StudentPayment from './StudentPayment';
-import CourseDetailPage from './CourseDetailPage';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
 import StudentClassesPage from './StudentClassesPage';
 import { useUnreadMessages } from '../../messaging/useUnreadMessages';
@@ -31,14 +28,6 @@ import ButtonDarkBlue from '../../assets/sprites/ButtonDarkBlue.png';
 import ButtonDarkPurple from '../../assets/sprites/ButtonDarkPurple.png';
 import QuestionIcon from '../../assets/sprites/Question.png';
 import BagIcon from '../../assets/sprites/Bag.png';
-
-interface CartItem {
-    id: number;
-    title: string;
-    price: string;
-    icon: string;
-    instructor: string;
-}
 
 // --- Helper to Generate Lesson Nodes ---
 // --- Helper to get theme metadata ---
@@ -115,7 +104,7 @@ const generateLessonNodes = (
     ];
 };
 
-const generateCourseData = (purchasedList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
+const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
     const getProgress = (courseId: string) => {
         const saved = localStorage.getItem(`progress_${courseId}`);
         return saved ? parseInt(saved) : 0; // Default to 0
@@ -123,7 +112,7 @@ const generateCourseData = (purchasedList: any[], instructorsMap: Record<string,
 
     const result: Record<string, CourseData> = {};
 
-    purchasedList.forEach(course => {
+    enrolledList.forEach(course => {
         const courseName = course.title;
         const courseIdStr = course.id.toString();
         const titleLower = courseName.toLowerCase();
@@ -249,83 +238,46 @@ function StudentApp() {
             console.error("Failed to refresh user data", err);
         }
     };
-    const [selectedCourseForDetail, setSelectedCourseForDetail] = useState<number | null>(null);
 
     // Page to Path mapping
     const pageToPath: Record<string, string> = {
         'Ana Sayfa': '/student/home',
         'Kurslarım': '/student/my-courses',
-        'Kurslar': '/student/catalog',
         'Soru Sor!': '/student/ask',
         'Profilim': '/student/profile',
         'PROFILIM': '/student/profile',
         'Sınıflarım': '/student/my-classes',
-        'Sepetim': '/student/cart',
-        'Ödeme': '/student/cart'
     };
 
     const pathToPage: Record<string, string> = {
         '/student/home': 'Ana Sayfa',
         '/student/my-courses': 'Kurslarım',
-        '/student/catalog': 'Kurslar',
         '/student/ask': 'Soru Sor!',
         '/student/profile': 'Profilim',
         '/student/my-classes': 'Sınıflarım',
-        '/student/cart': 'Sepetim'
     };
 
     // Effect to sync URL -> State (Handle browser back/forward and initial load)
     useEffect(() => {
-        const path = location.pathname;
-        
-        // Handle course detail specifically
-        if (path.startsWith('/student/catalog/')) {
-            const idMatch = path.match(/\/student\/catalog\/(\d+)/);
-            if (idMatch) {
-                setActivePage('Kurslar');
-                setSelectedCourseForDetail(parseInt(idMatch[1]));
-                return;
-            }
-        }
-
-        const page = pathToPage[path];
+        const page = pathToPage[location.pathname];
         if (page) {
             setActivePage(page);
-            setSelectedCourseForDetail(null);
-        } else if (path === '/student' || path === '/student/') {
-            // Default to home if at base /student
+        } else {
+            // /student ya da artık olmayan eski adresler (katalog, sepet) ana sayfaya düşer
             setActivePage('Ana Sayfa');
-            setSelectedCourseForDetail(null);
         }
     }, [location.pathname]);
 
     // Effect to sync State -> URL (Update URL when user clicks menu)
     useEffect(() => {
-        let targetPath = pageToPath[activePage] || '/student/home';
-        
-        // Override if in course detail
-        if (activePage === 'Kurslar' && selectedCourseForDetail) {
-            targetPath = `/student/catalog/${selectedCourseForDetail}`;
-        }
-
+        const targetPath = pageToPath[activePage] || '/student/home';
         if (location.pathname !== targetPath) {
             navigate(targetPath);
         }
-    }, [activePage, selectedCourseForDetail]);
-
-    // Reset course detail view when switching pages (already covered by sync, but keep as safety)
-    useEffect(() => {
-        if (activePage !== 'Kurslar') {
-            setSelectedCourseForDetail(null);
-        }
     }, [activePage]);
 
-    // --- Purchased Courses State ---
-    const [purchasedCourses, setPurchasedCourses] = useState<any[]>([]);
-    const [purchasedCourseIds, setPurchasedCourseIds] = useState<number[]>([]);
-
-    // --- Shopping Cart State ---
-    const [cart, setCart] = useState<CartItem[]>([]);
+    // --- Kayıtlı kurslar (öğrenci kursa öğretmenin verdiği katılım koduyla girer) ---
+    const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
 
     // --- Course Data State ---
     const [courses, setCourses] = useState<Record<string, CourseData>>({});
@@ -336,7 +288,7 @@ function StudentApp() {
     // --- Live session joined state ---
     const [isLiveSessionJoined, setIsLiveSessionJoined] = useState<boolean>(false);
 
-    // Fetch user data and purchased courses once on mount
+    // Fetch user data and enrolled courses once on mount
     useEffect(() => {
         const fetchData = async () => {
             try {
@@ -360,9 +312,7 @@ function StudentApp() {
                 
                 setInstructorsMap(newMap);
 
-                // Update purchased courses (Overwrite with full objects)
-                setPurchasedCourses(contentRes.data);
-                setPurchasedCourseIds(contentRes.data.map((c: any) => c.id));
+                setEnrolledCourses(contentRes.data);
 
                 // Generate course data synchronously to batch with isUserDataLoading(false)
                 const newCourseData = generateCourseData(contentRes.data, newMap);
@@ -380,9 +330,9 @@ function StudentApp() {
         fetchData();
     }, []);
 
-    // Sync roadmap state whenever purchasedCourses list changes
+    // Sync roadmap state whenever the enrolled course list changes
     useEffect(() => {
-        const newCourseData = generateCourseData(purchasedCourses, instructorsMap);
+        const newCourseData = generateCourseData(enrolledCourses, instructorsMap);
         setCourses(newCourseData);
         
         // If current active course doesn't exist anymore or it's empty, pick the first one
@@ -396,57 +346,7 @@ function StudentApp() {
                 setActiveCourseId('');
             }
         }
-    }, [purchasedCourses, instructorsMap]);
-
-    const addToCart = (item: CartItem) => {
-        if (!cart.find(i => i.id === item.id)) {
-            const newCart = [...cart, item];
-            setCart(newCart);
-        }
-    };
-
-    const removeFromCart = (id: number) => {
-        const newCart = cart.filter(item => item.id !== id);
-        setCart(newCart);
-    };
-
-    const completePurchase = () => {
-        // Construct mock objects for the newly purchased items from cart
-        const newPurchasedFromCart = cart.map(item => ({
-            id: item.id,
-            title: item.title,
-            curriculum: [{ title: 'Giriş', lectures: [] }] // Default curriculum for new purchase
-        }));
-        
-        const newPurchased = [...purchasedCourses, ...newPurchasedFromCart];
-        
-        // Save instructors from cart
-        const newMap = { ...instructorsMap };
-        cart.forEach(item => {
-            newMap[item.title] = item.instructor;
-        });
-        setInstructorsMap(newMap);
-
-        // Remove duplicates just in case
-        const uniquePurchased = Array.from(new Set(newPurchased));
-        setPurchasedCourses(uniquePurchased);
-
-        // CRITICAL: Update roadmap data state IMMEDIATELY for instant UI feedback
-        const updatedCourseData = generateCourseData(newPurchased, newMap);
-        setCourses(updatedCourseData);
-
-        // Clear cart
-        setCart([]);
-
-        // Redirect to Home or Courses
-        setActivePage('Ana Sayfa');
-        
-        // Update active course if currently empty
-        if (activeCourseId === '' && newPurchased.length > 0) {
-            const course = newPurchased[0];
-            setActiveCourseId(course.title);
-        }
-    };
+    }, [enrolledCourses, instructorsMap]);
 
     const handleCourseChange = (id: string) => {
         setActiveCourseId(id);
@@ -456,12 +356,9 @@ function StudentApp() {
 
     const navItems = [
         { id: 'Ana Sayfa', label: 'Ana Sayfa', icon: Home },
-        { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
         { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare, badgeCount: unreadMessages },
         { id: 'Sınıflarım', label: 'Sınıflarım', icon: Users },
-        // MVP'de Sepetim sayfası devre dışı
-        // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },
         { id: 'Profilim', label: 'Profilim', icon: User },
     ];
 
@@ -502,27 +399,6 @@ function StudentApp() {
                             isLiveSessionJoined={isLiveSessionJoined}
                             setIsLiveSessionJoined={setIsLiveSessionJoined}
                         />
-                    ) : activePage === 'Kurslar' ? (
-                        selectedCourseForDetail ? (
-                            <CourseDetailPage 
-                                courseId={selectedCourseForDetail}
-                                onBack={() => {
-                                    setSelectedCourseForDetail(null);
-                                }}
-                                isEnrolled={purchasedCourseIds.includes(selectedCourseForDetail)}
-                                onEnrollSuccess={() => {
-                                    refreshUserData();
-                                    setSelectedCourseForDetail(null);
-                                    setActivePage('Kurslarım');
-                                }}
-                            />
-                        ) : (
-                            <CoursesPage 
-                                onSelectCourse={(id) => setSelectedCourseForDetail(id)} 
-                                purchasedCourseIds={purchasedCourseIds}
-                                onGoToMyCourses={() => setActivePage('Kurslarım')}
-                            />
-                        )
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
                         <ProfilePage 
                             userData={userData} 
@@ -532,7 +408,7 @@ function StudentApp() {
                         />
                     ) : activePage === 'Kurslarım' ? (
                         <ContentPage 
-                            purchasedCourses={purchasedCourses} 
+                            enrolledCourses={enrolledCourses}
                             onOpenJoinModal={() => setActivePage('Sınıflarım')}
                             userData={userData}
                             onJoinLiveClass={(courseId) => {
@@ -551,15 +427,6 @@ function StudentApp() {
                                 window.location.href = '/student/my-classes';
                             }}
                         />
-                    /* MVP'de Sepetim/Ödeme sayfası devre dışı
-                    ) : activePage === 'Ödeme' || activePage === 'Sepetim' ? (
-                        <StudentPayment
-                            cart={cart}
-                            removeFromCart={removeFromCart}
-                            onBack={() => setActivePage('Kurslar')}
-                            onPurchaseComplete={completePurchase}
-                        />
-                    */
                     ) : (
                         <div className="p-8">
                             <h1 className="text-3xl font-bold text-gray-800">{activePage}</h1>

@@ -5,7 +5,6 @@ import ParentDashboard from './ParentDashboard';
 import ParentSkillTree from './ParentSkillTree';
 import ParentInstructors from './ParentInstructors';
 import ParentStudents from './ParentStudents';
-import ParentPayments from './ParentPayments';
 import ParentSettings from './ParentSettings';
 import ParentStudentDetail from './ParentStudentDetail';
 import ChatPanel, { type ChatTarget } from '../../messaging/ChatPanel';
@@ -142,7 +141,6 @@ const ParentApp: React.FC = () => {
                         onSelectStudent={setSelectedStudent} 
                     />
                 );
-            case 'Payments': return <ParentPayments />;
             case 'Profile': return <ParentSettings userData={userData} />;
             default: return <div className="p-8 text-center text-gray-500 font-bold">Sayfa bulunamadı</div>;
         }
