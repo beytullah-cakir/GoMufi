@@ -61,11 +61,15 @@ class Settings:
     #  -1 = sınırsız (dinamik), 0 = kapalı, >0 = üst sınır.
     GEMINI_THINKING_BUDGET: int = int(os.getenv("GEMINI_THINKING_BUDGET", "1024"))
 
-    # Jitsi JWT ayarları
-    JITSI_APP_ID: str = os.getenv("JITSI_APP_ID", "gomufi")
-    JITSI_APP_SECRET: str = os.getenv("JITSI_APP_SECRET", "")
-    JITSI_API_KEY: str = os.getenv("JITSI_API_KEY", "") # JaaS Konsolundaki Key ID
-    JITSI_DOMAIN: str = os.getenv("JITSI_DOMAIN", "8x8.vc")  # Jitsi sunucu domain'i
+    # E-posta (şifre sıfırlama, veli raporu, duyuru, ödev hatırlatma).
+    # RESEND_API_KEY varsa Resend, yoksa SMTP_HOST varsa SMTP kullanılır; ikisi de
+    # yoksa e-posta gönderilmez, yalnızca loga yazılır (lokal geliştirme).
+    EMAIL_FROM: str = os.getenv("EMAIL_FROM", "GoMufi <bildirim@gomufi.com>")
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "")
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "")
+    SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USER: str = os.getenv("SMTP_USER", "")
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "")
 
     # PostHog server-side analytics (opsiyonel). Anahtar yoksa no-op çalışır.
     # KVKK: host varsayılanı EU (veri AB'de tutulur).
@@ -133,8 +137,8 @@ class Settings:
                 "ADMIN_EMAIL/ADMIN_PASSWORD tanımlı değil — e-posta ile admin girişi devre dışı."
             )
 
-        if self.IS_PRODUCTION and not self.JITSI_APP_SECRET:
-            logger.warning("JITSI_APP_SECRET tanımlı değil — canlı ders token üretimi çalışmayacak.")
+        if self.IS_PRODUCTION and not (self.RESEND_API_KEY or self.SMTP_HOST):
+            logger.warning("RESEND_API_KEY/SMTP_HOST tanımlı değil — e-posta gönderilmeyecek (şifre sıfırlama çalışmaz).")
 
 
 settings = Settings()

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
-import { openVideoRoom } from '../../liveRoom';
+import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -443,6 +443,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
                 for (const course of courses) {
                     const res = await api.get(`/session-status/${course.id}`);
                     if (res.data.is_live) {
+                        rememberMeetingLink(course.id, res.data.meeting_url);
                         setIsClassActive(true);
                         setLiveCourseId(course.id);
                         setTimeLeftStr("");
@@ -538,8 +539,8 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
 
     const handleJoinLiveClick = async (courseId: string) => {
         try {
-            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts).
-            await openVideoRoom(courseId);
+            // Öğretmen görüşme linki eklediyse (Zoom, Meet…) yeni sekmede açılır.
+            openMeetingLink(courseId);
 
             // Student enters live session roadmap dashboard
             onJoinLiveClass(courseId);

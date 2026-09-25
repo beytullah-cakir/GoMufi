@@ -11,6 +11,8 @@ import {
   BarChart3,
   Bug,
   Microscope,
+  UserCheck,
+  Megaphone,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
 import { useUnreadMessages } from "../../messaging/useUnreadMessages";
@@ -49,6 +51,16 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "Sınıflarım",
       icon: Users,
       id: "Classes",
+    },
+    {
+      label: "Yoklama",
+      icon: UserCheck,
+      id: "Attendance",
+    },
+    {
+      label: "Duyurular",
+      icon: Megaphone,
+      id: "Announcements",
     },
     {
       label: "Profilim",

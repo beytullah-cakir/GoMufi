@@ -19,9 +19,10 @@ import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
 import posthog from "posthog-js";
 import api from "../../api";
-import { openVideoRoom } from "../../liveRoom";
+import { openMeetingLink } from "../../meetingLink";
 import CourseInfoModal from "../shared/CourseInfoModal";
 import CourseCopyModal from "./CourseCopyModal";
+import MeetingLinkModal from "./MeetingLinkModal";
 
 interface Course {
   id: number;
@@ -42,6 +43,7 @@ interface Course {
   schedule?: { day: string; time: string }[];
   instructor?: string;
   enrollment_code?: string;
+  meeting_url?: string | null;
 }
 
 interface InstructorCoursesProps {
@@ -55,6 +57,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
   const [copySource, setCopySource] = useState<Course | null>(null);
+  const [meetingCourse, setMeetingCourse] = useState<Course | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [infoCourseId, setInfoCourseId] = useState<number | string | null>(
@@ -104,6 +107,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           requirements: c.requirements || [],
           curriculum: finalCurriculum,
           enrollment_code: c.enrollment_code,
+          meeting_url: c.meeting_url || null,
           color:
             c.category === "coding"
               ? "blue"
@@ -323,14 +327,12 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   };
 
   const handleStartSession = async (courseId: number) => {
+    // Görüşme linki varsa (Zoom, Meet…) sekme await'ten önce açılmalı.
+    openMeetingLink(courseId, courses.find((c) => c.id === courseId)?.meeting_url);
     setStartingSessionId(courseId);
     try {
       await api.post(`/start-session/${courseId}`);
       setLiveSessionCourseIds(prev => new Set(prev).add(courseId));
-      
-      // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts): öğretmen dersi
-      // sınıfta ya da kendi seçtiği platformda yapıyor.
-      await openVideoRoom(courseId);
     } catch (err) {
       console.error('Ders başlatılamadı:', err);
       alert('Ders başlatılırken bir hata oluştu.');
@@ -571,6 +573,17 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              setMeetingCourse(course);
+                              setOpenMenuId(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-[10px] text-emerald-600 hover:bg-emerald-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Video size={14} />
+                            Görüşme Linki
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setCopySource(course);
                               setOpenMenuId(null);
                             }}
@@ -651,6 +664,16 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
         mode="instructor"
       />
 
+      {meetingCourse && (
+        <MeetingLinkModal
+          course={meetingCourse}
+          onClose={() => setMeetingCourse(null)}
+          onSaved={(url) => {
+            setCourses((prev) => prev.map((c) => (c.id === meetingCourse.id ? { ...c, meeting_url: url } : c)));
+            refreshData?.();
+          }}
+        />
+      )}
       {copySource && (
         <CourseCopyModal
           source={copySource}

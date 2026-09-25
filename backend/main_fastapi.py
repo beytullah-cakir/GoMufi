@@ -16,8 +16,9 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from connect_db import engine, Base, SessionLocal
 from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-from routers import quiz, ws, jitsi, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
+from routers import quiz, ws, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
 from routers import parent_reports, parent_portal
+from routers import password_reset, attendance, announcements
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -61,6 +62,7 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_title VARCHAR;"))
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS thoughts_tokens INTEGER DEFAULT 0;"))
                 await conn.execute(text("ALTER TABLE homework_submissions ADD COLUMN IF NOT EXISTS rubric_scores JSON;"))
+                await conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS meeting_url VARCHAR(500);"))
                 logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")
@@ -86,12 +88,20 @@ async def lifespan(app: FastAPI):
 
     await manager.initialize_redis()
 
+    # Otomatik e-postalar (ödev hatırlatma, öğretmene teslim özeti) — saatte bir
+    notifications_task = None
+    if os.getenv("NOTIFICATIONS_ENABLED", "true").lower() != "false":
+        from core import notifications
+        notifications_task = asyncio.create_task(notifications.loop())
+
     # Keep-alive ping: sadece production'da çalışır, local geliştirmeyi etkilemez
     if settings.IS_PRODUCTION:
         asyncio.create_task(_keep_alive_ping())
         logger.info("Keep-alive ping görevi planlandı (10 dk aralıklı).")
 
     yield
+    if notifications_task:
+        notifications_task.cancel()
     await manager.close_redis()
     logger.info("Uygulama kapatılıyor.")
 
@@ -168,7 +178,6 @@ app.include_router(payment.router)
 app.include_router(utils.router)
 app.include_router(quiz.router)
 app.include_router(ws.router)
-app.include_router(jitsi.router)
 app.include_router(admin.router)
 app.include_router(ai.router)
 # Dil bazlı kavram sözlüğü (kursa değil DİLE ait — bkz. concept_seeds.py)
@@ -187,6 +196,10 @@ app.include_router(gradebook.router)
 # Veli raporu (öğretmen onaylar) ve veli portalı (gerçek veri, yazım kaydı izni)
 app.include_router(parent_reports.router)
 app.include_router(parent_portal.router)
+# Okulun günlük işleri: şifremi unuttum, yoklama, duyurular
+app.include_router(password_reset.router)
+app.include_router(attendance.router)
+app.include_router(announcements.router)
 
 # Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
 # /generate_quiz -> /quiz/generate

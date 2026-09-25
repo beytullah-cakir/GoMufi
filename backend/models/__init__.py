@@ -15,3 +15,4 @@ from .teaching import (
     HelpRequest, TeacherNudge, TeacherAction, TeacherNote, ProvenanceReview,
     HomeworkSubmissionVersion, RubricTemplate, CourseSettings, ParentReport, RecordingConsent,
 )
+from .school import PasswordResetToken, AttendanceRecord, Announcement, NotificationLog

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Users, Calendar as CalendarIcon, LayoutGrid, LayoutList, Play, Loader2, X, Brain, Puzzle, Trophy, HelpCircle } from 'lucide-react';
 import api from '../../api';
-import { openVideoRoom } from '../../liveRoom';
+import { openMeetingLink } from '../../meetingLink';
 import LessonSlide from '../student-pages/LessonSlide';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import LiveLessonTeacher from './LiveLessonTeacher';
@@ -352,9 +352,12 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
 
     const monthlyEvents = generateMonthlyEvents();
 
-    // Execute Jitsi launching and slide preview opening directly for specific scheduled slot
+    // Planlanan ders saatinden canlı dersi başlatır ve slayt önizlemesini açar
     const handleStartClassEvent = async (event: any) => {
         const { courseId, courseTitle, className, section, lessonIndex } = event;
+
+        // Görüşme linki varsa (Zoom, Meet…) sekme await'ten önce açılmalı.
+        openMeetingLink(courseId, (coursesData as any[]).find((c) => String(c.id) === String(courseId))?.meeting_url);
         
         setStartingSessionId(courseId);
         setActiveLaunchCourseId(courseId);
@@ -370,9 +373,6 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         try {
             await api.post(`/start-session/${courseId}?title=${encodeURIComponent(titleParam)}`);
             
-            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts).
-            await openVideoRoom(courseId);
-
             // Open session manager to let the teacher view the roadmap first
             setShowSessionManager(true);
         } catch (err) {
