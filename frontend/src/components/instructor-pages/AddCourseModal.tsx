@@ -41,7 +41,6 @@ export interface CourseData {
   learningOutcomes: string[];
   requirements: string[];
   curriculum: Section[];
-  price: number;
   isLive?: boolean;
   liveSessions?: { date: string; time: string }[];
   schedule?: { day: string; time: string }[];
@@ -92,9 +91,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   );
   const [description, setDescription] = useState(
     initialData?.description || savedDraft?.description || "",
-  );
-  const [price, setPrice] = useState<number | string>(
-    initialData?.price ?? savedDraft?.price ?? 0,
   );
   const [startDate, setStartDate] = useState(
     initialData?.start_date || savedDraft?.startDate || "",
@@ -158,7 +154,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
         title,
         selectedCategory,
         description,
-        price,
         isLive,
         liveSessions,
         learningOutcomes,
@@ -174,7 +169,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
     title,
     selectedCategory,
     description,
-    price,
     isLive,
     liveSessions,
     learningOutcomes,
@@ -195,7 +189,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       setTitle("");
       setSelectedCategory("");
       setDescription("");
-      setPrice(0);
       setIsLive(false);
       setLiveSessions([{ date: "", time: "" }]);
       setLearningOutcomes([""]);
@@ -339,7 +332,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
       learningOutcomes: learningOutcomes.filter((i) => i.trim()),
       requirements: requirements.filter((i) => i.trim()),
       curriculum: sections,
-      price: Number(price) || 0,
       isLive,
       liveSessions: isLive ? liveSessions.filter((s) => s.date && s.time) : [],
       classes: classes,
@@ -483,25 +475,8 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                     />
                   </div>
 
-                  {/* Pricing and Start Date */}
+                  {/* Start Date */}
                   <div className="pt-6 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-2">
-                        Kurs Ücreti (TL)
-                      </label>
-                      <div className="relative">
-                        <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-gray-400">
-                          ₺
-                        </span>
-                        <input
-                          type="number"
-                          value={price}
-                          onChange={(e) => setPrice(Number(e.target.value))}
-                          placeholder="0"
-                          className="w-full pl-8 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
-                        />
-                      </div>
-                    </div>
                     <div>
                       <label className="block text-sm font-bold text-gray-700 mb-2">
                         Kurs Başlangıç Tarihi
@@ -513,9 +488,6 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
                         className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-850 focus:outline-none focus:ring-2 focus:ring-sky-200 focus:border-sky-400 transition-all text-lg"
                       />
                     </div>
-                    <p className="text-xs text-gray-400 mt-2 font-bold italic">
-                      * Ücretsiz yapmak için 0 bırakın.
-                    </p>
                   </div>
                 </div>
               </div>

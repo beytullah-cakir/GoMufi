@@ -25,9 +25,6 @@ class Settings:
     REFRESH_TOKEN_EXPIRE_DAYS: int = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
     GOOGLE_CLIENT_ID: str = os.getenv("GOOGLE_CLIENT_ID", "")
     GOOGLE_CLIENT_SECRET: str = os.getenv("GOOGLE_CLIENT_SECRET", "")
-    IYZICO_API_KEY: str = os.getenv("IYZICO_API_KEY", "")
-    IYZICO_SECRET_KEY: str = os.getenv("IYZICO_SECRET_KEY", "")
-    IYZICO_BASE_URL: str = os.getenv("IYZICO_BASE_URL", "https://sandbox-api.iyzipay.com")
     MY_API_KEY: str = os.getenv("MY_API_KEY", "")  # Gemini AI API key
     GEMINI_MODEL: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 

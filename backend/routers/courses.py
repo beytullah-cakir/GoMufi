@@ -98,7 +98,6 @@ class CourseResponse(BaseModel):
     category: Optional[str] = None
     created_at: Optional[datetime] = None
     progress: int
-    price: Optional[int] = 0
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[Any] = []
@@ -218,31 +217,6 @@ async def read_my_schedule(
     else:
         return []
 
-@router.post("/enroll/{course_id}")
-async def enroll_student(
-    course_id: int,
-    user_info: dict = Depends(get_current_user_info),
-    db: AsyncSession = Depends(get_db)
-):
-    if user_info["role"] not in ["student", "admin"]:
-        raise HTTPException(status_code=403, detail="Only students can enroll")
-
-    student_id = int(user_info["sub"])
-
-    existing = await db.execute(
-        select(Enrollment).where(
-            Enrollment.student_id == student_id,
-            Enrollment.course_id == course_id
-        )
-    )
-    if existing.scalars().first():
-        return {"message": "Already enrolled"}
-
-    enrollment = Enrollment(student_id=student_id, course_id=course_id)
-    db.add(enrollment)
-    await db.commit()
-    return {"message": "Enrolled successfully"}
-
 class EnrollByCodeRequest(BaseModel):
     code: str
 
@@ -278,16 +252,6 @@ async def enroll_by_code(
     db.add(enrollment)
     await db.commit()
     return {"message": "Kursa başarıyla katıldınız!", "course_id": course.id, "course_title": course.title}
-
-@router.get("/courses", response_model=List[CourseResponse])
-async def read_courses(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Course).options(joinedload(Course.teacher), joinedload(Course.enrollments))
-    )
-    courses = result.unique().scalars().all()
-    for course in courses:
-        course.students_count = len(course.enrollments)
-    return courses
 
 @router.get("/courses/{course_id}", response_model=CourseResponse)
 async def read_course(
@@ -342,7 +306,12 @@ async def read_course(
     user_id = int(user_info["sub"])
     role = user_info["role"]
     if role != "admin" and course.teacher_id != user_id:
+        # Katılım kodları yalnızca kursun öğretmenine görünür: kodu bilen kursa katılabilir.
         course_dict["enrollment_code"] = None
+        course_dict["classes"] = [
+            {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
+            for cls in course.classes or []
+        ]
 
     return course_dict
 
@@ -431,7 +400,6 @@ class CreateCourseRequest(BaseModel):
     title: str
     description: Optional[str] = ""
     category: str
-    price: int = 0
     learning_outcomes: Optional[List[str]] = []
     requirements: Optional[List[str]] = []
     curriculum: Optional[Any] = []
@@ -445,7 +413,6 @@ class UpdateCourseRequest(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     category: Optional[str] = None
-    price: Optional[int] = None
     learning_outcomes: Optional[List[str]] = None
     requirements: Optional[List[str]] = None
     curriculum: Optional[Any] = None
@@ -474,7 +441,6 @@ async def create_course(
             description=course_data.description,
             category=course_data.category,
             progress=0,
-            price=course_data.price,
             learning_outcomes=course_data.learning_outcomes,
             requirements=course_data.requirements,
             curriculum=course_data.curriculum,
@@ -528,8 +494,6 @@ async def update_course(
             course.description = course_data.description
         if course_data.category is not None:
             course.category = course_data.category
-        if course_data.price is not None:
-            course.price = course_data.price
         if course_data.learning_outcomes is not None:
             course.learning_outcomes = course_data.learning_outcomes
             flag_modified(course, "learning_outcomes")
@@ -1270,7 +1234,7 @@ async def duplicate_course(
     new = Course(
         teacher_id=teacher_id,
         title=(payload.title or "").strip()[:200] or f"{src.title} (kopya)",
-        description=src.description, category=src.category, progress=0, price=src.price,
+        description=src.description, category=src.category, progress=0,
         learning_outcomes=_copy.deepcopy(src.learning_outcomes or []),
         requirements=_copy.deepcopy(src.requirements or []),
         curriculum=_curriculum_without_dates(src.curriculum or []),

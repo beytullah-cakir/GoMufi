@@ -4,7 +4,6 @@ import {
   LineChart,
   Users,
   GraduationCap,
-  CreditCard,
   Settings,
   MessageSquare,
 } from "lucide-react";
@@ -49,11 +48,6 @@ const ParentSidebar: React.FC<ParentSidebarProps> = ({
       icon: MessageSquare,
       id: "Messages",
       badgeCount: unread,
-    },
-    {
-      label: "Ödemeler",
-      icon: CreditCard,
-      id: "Payments",
     },
     {
       label: "Profilim",

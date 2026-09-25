@@ -2,7 +2,7 @@
 Ortak test fixture'ları.
 
 Testler gerçek uygulamayı (main_fastapi.app) TestClient ile çalıştırır.
-Dış servislere (Gemini, Iyzico) gerçek çağrı YAPILMAZ — canlı doğrulama isteyen
+Dış servislere (Gemini) gerçek çağrı YAPILMAZ — canlı doğrulama isteyen
 testler `live` işaretiyle ayrılmıştır ve varsayılan olarak atlanır.
 """
 import os

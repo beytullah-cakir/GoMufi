@@ -76,7 +76,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
 
 async def get_current_user_info(request: Request, db: AsyncSession = Depends(get_db)) -> dict:
     """
-    courses.py, payment.py gibi router'ların kullandığı formatta payload döner.
+    courses.py gibi router'ların kullandığı formatta payload döner.
     {'sub': '...', 'role': '...', 'type': '...'} şeklinde raw JWT payload.
     """
     token = request.cookies.get("access_token")

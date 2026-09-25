@@ -42,7 +42,6 @@ interface CourseInfoModalProps {
     title: string;
     description?: string;
     category?: string;
-    price?: number;
     students?: number;
     rating?: number;
     learning_outcomes?: string[];
@@ -239,14 +238,6 @@ const CourseInfoModal: React.FC<CourseInfoModalProps> = ({
                   <p className="font-black text-gray-800 flex items-center gap-2">
                     <Users size={16} className="text-gray-400" />
                     {Number(course.students).toLocaleString()}
-                  </p>
-                </div>
-                <div className="flex flex-col ml-auto text-right">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1">
-                    Kurs Ücreti
-                  </span>
-                  <p className="text-3xl font-black text-sky-600 tracking-tighter">
-                    ₺{Number(course.price).toLocaleString()}
                   </p>
                 </div>
               </div>

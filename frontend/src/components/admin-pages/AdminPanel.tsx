@@ -42,7 +42,6 @@ interface CourseItem {
   title: string;
   description: string;
   category: string;
-  price: number;
   rating: number;
   status: string;
   curriculum: any[];
@@ -123,7 +122,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
     title: "",
     description: "",
     category: "Yazılım",
-    price: 0,
     curriculumText: "[]" // JSON representation
   });
 
@@ -319,7 +317,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       title: courseForm.title,
       description: courseForm.description,
       category: courseForm.category,
-      price: courseForm.price,
       curriculum: parsedCurriculum
     };
 
@@ -346,7 +343,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       title: c.title,
       description: c.description || "",
       category: c.category || "Yazılım",
-      price: c.price || 0,
       curriculumText: JSON.stringify(c.curriculum, null, 2)
     });
     setCourseModalOpen(true);
@@ -372,7 +368,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       title: "",
       description: "",
       category: "Yazılım",
-      price: 0,
       curriculumText: `[
   { "id": "sec1", "title": "Bölüm 1: Giriş" }
 ]`
@@ -688,7 +683,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                       <th className="p-5">Kurs Adı</th>
                       <th className="p-5">Kategori</th>
                       <th className="p-5">Eğitmen</th>
-                      <th className="p-5">Fiyat</th>
                       <th className="p-5">Üniteler</th>
                       <th className="p-5 text-right">İşlemler</th>
                     </tr>
@@ -702,7 +696,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                         </td>
                         <td className="p-5"><span className="bg-sky-50 text-sky-600 px-2 py-0.5 rounded text-xs font-bold">{c.category}</span></td>
                         <td className="p-5 text-gray-600">👨‍🏫 {c.teacher_name}</td>
-                        <td className="p-5 font-bold text-green-600">{c.price === 0 ? "Ücretsiz" : `₺${c.price}`}</td>
                         <td className="p-5">
                           <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded-lg">
                             {c.curriculum?.length || 0} Ünite
@@ -1035,16 +1028,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
                     required
                     value={courseForm.category}
                     onChange={(e) => setCourseForm({...courseForm, category: e.target.value})}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-400 font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-black uppercase text-gray-400 mb-1">Fiyat (₺)</label>
-                  <input
-                    type="number"
-                    required
-                    value={courseForm.price}
-                    onChange={(e) => setCourseForm({...courseForm, price: parseInt(e.target.value) || 0})}
                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-400 font-bold"
                   />
                 </div>

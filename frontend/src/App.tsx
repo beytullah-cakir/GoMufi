@@ -5,8 +5,6 @@ import AuthPage from './components/AuthPage';
 import StudentApp from './components/student-pages/StudentApp';
 import InstructorApp from './components/instructor-pages/InstructorApp';
 import ParentApp from './components/parent-pages/ParentApp';
-import PaymentSuccess from './components/student-pages/PaymentSuccess';
-import PaymentError from './components/student-pages/PaymentError';
 import AdminApp from './components/admin-pages/AdminApp';
 
 import CompleteProfile from './components/CompleteProfile';
@@ -74,9 +72,6 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin/*" element={<AdminApp />} />
 
-        {/* Payment Result Routes */}
-        <Route path="/payment-success" element={<PaymentSuccess />} />
-        <Route path="/payment-error" element={<PaymentError />} />
 
         {/* Redirect unknown routes to Landing */}
         <Route path="*" element={<Navigate to="/" replace />} />

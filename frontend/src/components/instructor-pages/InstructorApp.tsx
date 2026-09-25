@@ -4,7 +4,6 @@ import InstructorLayout from './InstructorLayout';
 import InstructorDashboard from './InstructorDashboard';
 import InstructorCourses from './InstructorCourses';
 import InstructorStudents from './InstructorStudents';
-// import InstructorRevenue from './InstructorRevenue';
 // import InstructorAIQuestions from './InstructorAIQuestions';
 import InstructorMessages from './InstructorMessages';
 import InstructorHomeworkSubmissions from './InstructorHomeworkSubmissions';

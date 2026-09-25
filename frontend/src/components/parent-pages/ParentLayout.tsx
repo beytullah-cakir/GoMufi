@@ -37,11 +37,9 @@ const ParentLayout: React.FC<ParentLayoutProps> = ({
                                         ? "Eğitmenler"
                                         : activePage === "Students"
                                             ? "Öğrencilerim"
-                                            : activePage === "Payments"
-                                                ? "Ödemeler"
-                                                : activePage === "Profile"
-                                                    ? "Profilim"
-                                                    : activePage}
+                                            : activePage === "Profile"
+                                                ? "Profilim"
+                                                : activePage}
                         </h1>
 
                     </div>

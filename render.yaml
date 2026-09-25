@@ -32,14 +32,6 @@ services:
       - key: GOOGLE_CLIENT_SECRET
         sync: false
 
-      # ── İyzico Ödeme ─────────────────────────────────────────────────────────
-      - key: IYZICO_API_KEY
-        sync: false
-      - key: IYZICO_SECRET_KEY
-        sync: false
-      - key: IYZICO_BASE_URL
-        value: https://sandbox-api.iyzipay.com   # Production'a geçince değiştir
-
       # ── Gemini AI ────────────────────────────────────────────────────────────
       - key: MY_API_KEY
         sync: false

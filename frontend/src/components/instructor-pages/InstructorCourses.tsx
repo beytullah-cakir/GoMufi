@@ -28,7 +28,6 @@ interface Course {
   id: number;
   title: string;
   description: string;
-  price: number;
   students: number;
   rating: number;
   progress: number;
@@ -98,7 +97,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           id: c.id,
           title: c.title,
           description: c.description || "",
-          price: c.price || 0,
           students: c.students_count || 0,
           rating: c.rating || 5,
           progress: c.progress !== undefined ? c.progress : 100,
@@ -196,7 +194,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           title: courseData.title,
           description: courseData.description,
           category: courseData.category,
-          price: courseData.price,
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
@@ -211,7 +208,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                   ...c,
                   title: courseData.title,
                   description: courseData.description,
-                  price: courseData.price,
                   learning_outcomes: courseData.learningOutcomes,
                   requirements: courseData.requirements,
                   curriculum: courseData.curriculum,
@@ -259,7 +255,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           title: courseData.title,
           description: courseData.description || "Yeni oluşturulan kurs dersi.",
           category: courseData.category,
-          price: courseData.price || 0,
           learning_outcomes: courseData.learningOutcomes,
           requirements: courseData.requirements,
           curriculum: curriculumPayload,
@@ -271,7 +266,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           id: response.data.id,
           title: response.data.title,
           description: response.data.description || "",
-          price: response.data.price || 0,
           learning_outcomes: response.data.learning_outcomes || [],
           requirements: response.data.requirements || [],
           curriculum: response.data.curriculum || [],
@@ -290,7 +284,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
         posthog?.capture("course_created", {
           course_id: response.data.id,
           category: courseData.category,
-          price: courseData.price || 0,
         });
       }
       setIsAddModalOpen(false);
@@ -499,15 +492,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                   {/* Metrics */}
                   <div className="flex items-center gap-4 w-full md:w-auto justify-center md:justify-end">
                     <div className="text-center bg-slate-50/50 border-2 border-b-4 border-slate-200 px-4 py-2 rounded-2xl min-w-[85px]">
-                      <div className="flex items-center justify-center gap-1 text-slate-800 font-black mb-0.5">
-                        <span className="text-sm">₺{course.price}</span>
-                      </div>
-                      <p className="text-[9px] uppercase font-black text-slate-400 tracking-wider">
-                        Ücret
-                      </p>
-                    </div>
-
-                    <div className="text-center bg-slate-50/50 border-2 border-b-4 border-slate-200 px-4 py-2 rounded-2xl min-w-[85px]">
                       <div className="flex items-center justify-center gap-1 text-slate-700 font-black mb-0.5">
                         <Users size={14} className="text-slate-500" />
                         <span className="text-sm">{course.students}</span>
@@ -632,7 +616,6 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
             ? {
                 title: editingCourse.title,
                 description: editingCourse.description,
-                price: editingCourse.price,
                 learningOutcomes: editingCourse.learning_outcomes,
                 requirements: editingCourse.requirements,
                 curriculum: editingCourse.curriculum,
