@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
+import { openVideoRoom } from '../../liveRoom';
+import MyConceptsModal from './MyConceptsModal';
 import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
@@ -8,6 +10,7 @@ import LessonSlide from './LessonSlide';
 import LiveLessonStudent from './LiveLessonStudent';
 import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
+import { trackLearningEvent } from '../../learningEvents';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -51,6 +54,8 @@ const HomePage: React.FC<HomePageProps> = ({
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    // "Kazanımlarım": öğrencinin kendi kazanım haritası (neyi öğrendim, neye çalışmalıyım).
+    const [showConcepts, setShowConcepts] = useState(false);
     const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
 
     // Refs for outside click detection
@@ -187,17 +192,9 @@ const HomePage: React.FC<HomePageProps> = ({
     const handleJoinLiveClass = async () => {
         const targetCourseId = liveCourseId || activeCourseId;
         try {
-            // Open Jitsi Room in new window
-            try {
-                const jitsiRes = await api.get(`/jitsi/token/${targetCourseId}`);
-                const { token, room, domain } = jitsiRes.data;
-                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                window.open(url, "_blank");
-            } catch (jitsiErr) {
-                console.warn('Jitsi token error, using freeFallback meet.jit.si', jitsiErr);
-                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${targetCourseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                window.open(fallbackUrl, "_blank");
-            }
+            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts): ders sınıfta ya da
+            // öğretmenin seçtiği platformda; burada yalnızca canlı derse bağlanılır.
+            await openVideoRoom(targetCourseId);
 
             // Student enters live session roadmap dashboard
             setIsLiveSessionJoined(true);
@@ -316,6 +313,10 @@ const HomePage: React.FC<HomePageProps> = ({
             const gameLevel = lessonLevel;
             const completedNode = currentCourse.nodes.find(n => n.id === gameLevel);
             const xpGain = completedNode?.xp ?? 500;
+            // Öğrenme kaydı: ilerleme artık yalnızca tarayıcıda değil, öğretmen de görüyor.
+            if (completedNode?.sectionId) {
+                trackLearningEvent(activeCourseId, { type: 'module_completed', node_id: completedNode.sectionId });
+            }
 
             // 1. Award XP and Gems in the backend (modül için roadmap builder'da ayarlanan XP)
             try {
@@ -367,6 +368,9 @@ const HomePage: React.FC<HomePageProps> = ({
         const finishedNodeId = lessonLevel;
         const finishedNode = currentCourse.nodes.find(n => n.id === finishedNodeId);
         const xpGain = finishedNode?.xp ?? 500;
+        if (finishedNode?.sectionId) {
+            trackLearningEvent(activeCourseId, { type: 'module_completed', node_id: finishedNode.sectionId });
+        }
 
         try {
             await api.post("/profile/student/stats", { xp_gain: xpGain });
@@ -510,6 +514,9 @@ const HomePage: React.FC<HomePageProps> = ({
 
     return (
         <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
+            {showConcepts && activeCourseId && (
+                <MyConceptsModal courseId={activeCourseId} onClose={() => setShowConcepts(false)} />
+            )}
 
             {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
             <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap justify-between items-center gap-4 z-30 relative">
@@ -570,6 +577,15 @@ const HomePage: React.FC<HomePageProps> = ({
                                 <span className="text-base">📖</span> REHBER
                             </button>
                         </div>
+
+                        <button
+                            onClick={() => setShowConcepts(true)}
+                            className="h-20 px-5 shrink-0 bg-white border-2 border-gray-200 border-b-4 rounded-2xl flex flex-col items-center justify-center gap-0.5 shadow-sm hover:-translate-y-0.5 hover:border-indigo-300 transition-all"
+                            title="Neyi öğrendin, neye çalışmalısın?"
+                        >
+                            <span className="text-2xl leading-none">🧠</span>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-600 font-display">Kazanımlarım</span>
+                        </button>
 
                         {/* Prominent Live Join Lesson Button */}
                         {isClassActive && (

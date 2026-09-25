@@ -8,11 +8,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
     BookCheck, Download, User, Calendar, FileText,
     RefreshCw, ChevronDown, ChevronUp, Loader2, BrainCircuit,
-    Inbox, Sparkles, AlertCircle, X, Search, CheckCircle2, Clock
+    Inbox, Sparkles, AlertCircle, X, Search, CheckCircle2, Clock, History
 } from 'lucide-react';
 import api from '../../api';
 import { evaluateHomework, type AIReviewResult } from '../student-pages/homeworkAIService';
 import HomeworkAIReview from '../student-pages/HomeworkAIReview';
+import RubricGrader from '../../rubric/RubricGrader';
+import { rubricGrade, type RubricScores } from '../../rubric/rubric';
+import type { Rubric } from '../lesson-builder/types';
 
 interface Submission {
     id: number;
@@ -32,14 +35,40 @@ interface Submission {
     feedback: string | null;
     graded_at: string | null;
     graded_source: string | null;
+    /** Son teslim tarihinden sonra geldi. */
+    late?: boolean;
+    /** Bu teslimden önceki sürüm sayısı (yeniden teslim / geri çekme). */
+    versions?: number;
+    rubric_scores?: RubricScores | null;
 }
 
-type StatusFilter = 'all' | 'pending' | 'graded';
+/** Düğüm başına teslim kuralları (sunucudan). */
+interface TaskRules {
+    title: string | null;
+    due_at: string | null;
+    allow_late: boolean;
+    rubric: Rubric | null;
+}
+
+interface SubmissionVersion {
+    version: number;
+    reason: 'resubmitted' | 'withdrawn';
+    file_name: string | null;
+    file_data: string | null;
+    student_note: string | null;
+    submitted_at: string | null;
+    grade: number | null;
+    feedback: string | null;
+    graded_at: string | null;
+}
+
+type StatusFilter = 'all' | 'pending' | 'graded' | 'late';
 
 /** Bir satırın kaydedilmemiş değerlendirme taslağı. */
 interface GradeDraft {
     grade: string;      // metin: boş bırakılabilsin diye number değil
     feedback: string;
+    rubric: RubricScores;
 }
 
 interface Course {
@@ -55,6 +84,9 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     const [courses, setCourses] = useState<Course[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
     const [submissions, setSubmissions] = useState<Submission[]>([]);
+    const [tasks, setTasks] = useState<Record<string, TaskRules>>({});
+    const [versions, setVersions] = useState<Record<number, SubmissionVersion[] | 'loading'>>({});
+    const [aiReasons, setAiReasons] = useState<Record<number, Record<string, string>>>({});
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [search, setSearch] = useState('');
@@ -96,6 +128,8 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         try {
             const res = await api.get(`/courses/${courseId}/homework/all-submissions`);
             setSubmissions(res.data?.submissions || []);
+            setTasks(res.data?.tasks || {});
+            setVersions({});
         } catch (e: any) {
             setError(e?.response?.data?.detail || 'Gönderiler yüklenemedi.');
         } finally {
@@ -135,16 +169,25 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
             const result = await evaluateHomework(
                 'Ödev değerlendirmesi: Dosyayı incele ve genel bir değerlendirme yap.',
                 file,
-                { courseId: selectedCourseId ?? undefined, nodeId: sub.node_id }
+                { courseId: selectedCourseId ?? undefined, nodeId: sub.node_id, submissionId: sub.id }
             );
             setAiResult(result);
             setReviewSub(sub);
 
             // AI sonucu doğrudan nota DÖNÜŞMEZ: öğretmenin taslağına yazılır,
             // hoca düzenleyip kaydeder. Kayıt `ai_assisted` olarak işaretlenir.
+            // Anahtar varsa YZ'nin ölçüt seviyeleri de taslağa gelir.
+            const rubricScores: RubricScores = {};
+            const reasons: Record<string, string> = {};
+            for (const item of result.rubricScores || []) {
+                rubricScores[item.criterionId] = item.level;
+                reasons[item.criterionId] = item.reason;
+            }
+            setAiReasons((prev) => ({ ...prev, [sub.id]: reasons }));
             patchDraft(sub, {
                 grade: String(Math.max(0, Math.min(100, Math.round(result.overallScore)))),
                 feedback: result.summary,
+                ...(Object.keys(rubricScores).length ? { rubric: rubricScores } : {}),
             });
             setExpandedId(sub.id);
         } catch (err: any) {
@@ -159,7 +202,22 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         drafts[sub.id] ?? {
             grade: sub.grade === null || sub.grade === undefined ? '' : String(sub.grade),
             feedback: sub.feedback ?? '',
+            rubric: sub.rubric_scores || {},
         };
+
+    const loadVersions = async (sub: Submission) => {
+        if (versions[sub.id] && versions[sub.id] !== 'loading') {
+            setVersions((v) => { const next = { ...v }; delete next[sub.id]; return next; });
+            return;
+        }
+        setVersions((v) => ({ ...v, [sub.id]: 'loading' }));
+        try {
+            const res = await api.get(`/courses/${selectedCourseId}/homework/submissions/${sub.id}/versions`);
+            setVersions((v) => ({ ...v, [sub.id]: res.data?.versions || [] }));
+        } catch {
+            setVersions((v) => ({ ...v, [sub.id]: [] }));
+        }
+    };
 
     const patchDraft = (sub: Submission, patch: Partial<GradeDraft>) =>
         setDrafts(d => ({ ...d, [sub.id]: { ...draftFor(sub), ...patch } }));
@@ -184,9 +242,10 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
 
         setSavingId(sub.id);
         try {
+            const rubric = tasks[sub.node_id]?.rubric;
             const res = await api.put(
                 `/courses/${selectedCourseId}/homework/submissions/${sub.id}/grade`,
-                { grade, feedback: feedback || null, source }
+                { grade, feedback: feedback || null, source, rubric_scores: rubric ? d.rubric : undefined }
             );
             const saved = res.data?.submission;
             setSubmissions(list => list.map(s => (s.id === sub.id ? { ...s, ...saved } : s)));
@@ -210,6 +269,7 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
         if (!matchesSearch) return false;
         if (statusFilter === 'pending') return !s.graded_at;
         if (statusFilter === 'graded') return !!s.graded_at;
+        if (statusFilter === 'late') return !!s.late;
         return true;
     });
 
@@ -325,6 +385,7 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                         { id: 'all', label: `Tümü (${submissions.length})` },
                         { id: 'pending', label: `Bekleyen (${pendingCount})` },
                         { id: 'graded', label: `Değerlendirilen (${submissions.length - pendingCount})` },
+                        { id: 'late', label: `Geç teslim (${submissions.filter(s => s.late).length})` },
                     ] as { id: StatusFilter; label: string }[]).map(tab => (
                         <button
                             key={tab.id}
@@ -399,6 +460,14 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                         <div className="flex items-center gap-1.5 text-gray-400 mt-0.5">
                                             <Calendar size={12} className="shrink-0" />
                                             <span className="text-[11px] font-bold">{formatDate(sub.submitted_at)}</span>
+                                            {sub.late && (
+                                                <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-1.5 py-0.5 rounded-md">GEÇ</span>
+                                            )}
+                                            {!!sub.versions && (
+                                                <span className="text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-md">
+                                                    {sub.versions + 1}. sürüm
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
 
@@ -467,6 +536,34 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                             </div>
                                         </div>
 
+                                        {/* Önceki sürümler: gelişim ve eski geri bildirimler */}
+                                        {!!sub.versions && (
+                                            <div className="bg-white rounded-xl border border-gray-200/60 p-3">
+                                                <button onClick={() => void loadVersions(sub)}
+                                                        className="flex items-center gap-1.5 text-[11px] font-black text-indigo-600">
+                                                    <History size={13} /> Önceki sürümler ({sub.versions})
+                                                    {versions[sub.id] === 'loading' && <Loader2 size={12} className="animate-spin" />}
+                                                </button>
+                                                {Array.isArray(versions[sub.id]) && (
+                                                    <div className="mt-2 space-y-2">
+                                                        {(versions[sub.id] as SubmissionVersion[]).map((v) => (
+                                                            <details key={v.version} className="rounded-lg border border-gray-100 bg-gray-50 p-2">
+                                                                <summary className="cursor-pointer text-[11px] font-bold text-gray-700">
+                                                                    {v.version}. sürüm · {formatDate(v.submitted_at)}
+                                                                    {v.grade !== null ? ` · ${v.grade}/100` : v.graded_at ? ' · yorumlandı' : ' · notlanmadı'}
+                                                                    {v.reason === 'withdrawn' && ' · öğrenci geri çekti'}
+                                                                </summary>
+                                                                {v.feedback && <p className="text-[11px] text-emerald-800 mt-1">Geri bildirimin: {v.feedback}</p>}
+                                                                <pre className="mt-1 max-h-48 overflow-auto text-[10.5px] font-mono bg-slate-900 text-emerald-300 rounded-lg p-2 whitespace-pre-wrap">
+                                                                    {getCodeContent(v.file_data || undefined)}
+                                                                </pre>
+                                                            </details>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+
                                         {/* Student Note */}
                                         {sub.student_note ? (
                                             <div className="bg-amber-50 border border-amber-100 rounded-xl px-4 py-3">
@@ -531,6 +628,21 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
                                                     >
                                                         Detaylı AI raporu
                                                     </button>
+                                                </div>
+                                            )}
+
+                                            {tasks[sub.node_id]?.rubric && (
+                                                <div className="bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                                    <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Puanlama anahtarı</p>
+                                                    <RubricGrader
+                                                        rubric={tasks[sub.node_id].rubric as Rubric}
+                                                        scores={draftFor(sub).rubric}
+                                                        reasons={aiReasons[sub.id]}
+                                                        onChange={(next) => {
+                                                            const computed = rubricGrade(tasks[sub.node_id].rubric, next);
+                                                            patchDraft(sub, { rubric: next, ...(computed !== null ? { grade: String(computed) } : {}) });
+                                                        }}
+                                                    />
                                                 </div>
                                             )}
 

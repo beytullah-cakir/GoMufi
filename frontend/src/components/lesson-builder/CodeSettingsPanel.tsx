@@ -1,6 +1,9 @@
 import React from 'react';
-import { Settings, Eye, MessageCircle, AlertCircle } from 'lucide-react';
+import {
+    Settings, Eye, MessageCircle, Code2, SquareTerminal, FileCode, Zap, Info,
+} from 'lucide-react';
 import type { SlideElement } from './types';
+import { LANGUAGE_GROUPS, findLanguage, isTerminalView } from './codeLanguages';
 
 interface CodeSettingsPanelProps {
     element: SlideElement;
@@ -13,17 +16,17 @@ const CodeSettingsPanel: React.FC<CodeSettingsPanelProps> = ({ element, updateEl
         updateElement(element.id, {
             codeConfig: {
                 ...element.codeConfig,
-                [key]: value
-            }
+                [key]: value,
+                // Dil değişince görünüm kilidi açılır: Bash seçen öğretmen
+                // terminali, Python seçen editörü görmeli. Elle seçim yaptıysa
+                // (mode) o seçim yalnızca o dil için geçerliydi.
+                ...(key === 'language' ? { mode: undefined } : {}),
+            },
         });
     };
 
-    // Styling constants matching the previous dark theme default or light
-    // We'll stick to a clean sidebar look, usually light in builder context?
-    // User's sidebar (slide strip) is white. Let's make this white too.
-    const inputBg = '#ffffff';
-    const inputBorder = '#e5e7eb';
-    const inputText = '#374151';
+    const lang = findLanguage(element.codeConfig?.language);
+    const terminal = isTerminalView(element.codeConfig?.language, element.codeConfig?.mode);
 
     return (
         <div className="flex flex-col gap-5 p-4">
@@ -40,19 +43,72 @@ const CodeSettingsPanel: React.FC<CodeSettingsPanelProps> = ({ element, updateEl
             {/* Language Selector */}
             <div className="flex flex-col gap-1.5">
                 <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                    <AlertCircle className="w-3 h-3 text-emerald-500" />
+                    <Code2 className="w-3 h-3 text-emerald-500" />
                     Dil (Language)
                 </label>
                 <select
                     className="w-full rounded-md p-2 text-xs outline-none border border-gray-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all bg-gray-50/50 hover:bg-white"
-                    value={element.codeConfig?.language || 'python'}
+                    value={lang.id}
                     onChange={(e) => handleConfigUpdate('language', e.target.value)}
                 >
-                    <option value="python">Python 3</option>
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="cpp">C++</option>
+                    {LANGUAGE_GROUPS.map((g) => (
+                        <optgroup key={g.group} label={g.group}>
+                            {g.items.map((l) => (
+                                <option key={l.id} value={l.id}>{l.label}</option>
+                            ))}
+                        </optgroup>
+                    ))}
                 </select>
+
+                {/* Dosya uzantısı ve çalıştırılabilirlik: öğretmen slaydı
+                    kurarken "bu blok VS Code'da ne olacak" sorusunun cevabını
+                    görmeli. Çalıştırılamayan diller yine editörde açılır. */}
+                <div className="flex items-center gap-1.5 text-[10px] font-medium text-gray-400">
+                    <span className="font-mono bg-gray-100 text-gray-600 rounded px-1.5 py-0.5">
+                        .{lang.ext}
+                    </span>
+                    {lang.runsInVSCode ? (
+                        <span className="flex items-center gap-1 text-emerald-600">
+                            <Zap className="w-3 h-3" /> VS Code'da çalıştırılabilir
+                        </span>
+                    ) : (
+                        <span className="flex items-center gap-1">
+                            <Info className="w-3 h-3" /> VS Code'da yalnızca açılır
+                        </span>
+                    )}
+                </div>
+            </div>
+
+            {/* View mode: editör mü, terminal mi */}
+            <div className="flex flex-col gap-1.5">
+                <label className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-500">
+                    <SquareTerminal className="w-3 h-3 text-sky-500" />
+                    Görünüm
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                    {([
+                        { key: 'editor', label: 'Editör', icon: FileCode },
+                        { key: 'terminal', label: 'Terminal', icon: SquareTerminal },
+                    ] as const).map(({ key, label, icon: Icon }) => {
+                        const on = terminal === (key === 'terminal');
+                        return (
+                            <button
+                                key={key}
+                                onClick={() => handleConfigUpdate('mode', key)}
+                                className={`flex items-center justify-center gap-1.5 rounded-md border py-1.5 text-[11px] font-bold transition-all ${
+                                    on ? 'bg-indigo-50 border-indigo-300 text-indigo-700'
+                                       : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'}`}
+                            >
+                                <Icon className="w-3.5 h-3.5" /> {label}
+                            </button>
+                        );
+                    })}
+                </div>
+                <p className="text-[10px] text-gray-400 leading-snug">
+                    Terminal görünümü komut satırı içindir: her satır komut istemiyle
+                    (<span className="font-mono">{findLanguage(lang.id).prompt || '$'}</span>) gösterilir,
+                    öğrenci komutu kopyalayabilir. Örn. <span className="font-mono">pip install pandas</span>
+                </p>
             </div>
 
             {/* Expected Output */}

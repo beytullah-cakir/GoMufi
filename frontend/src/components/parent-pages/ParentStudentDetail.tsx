@@ -1,300 +1,231 @@
-import React from 'react';
-import api from '../../api';
-import { 
-    ChevronLeft, 
-    BookOpen, 
-    Trophy, 
-    Clock, 
-    Target, 
-    TrendingUp, 
-    Zap, 
-    Calendar,
-    Star,
-    Award,
-    MessageSquare,
-    Brain,
-    Loader2
+import React, { useEffect, useState } from 'react';
+import {
+    BookOpen, CalendarCheck, ChevronLeft, ClipboardList, FileText, Flame, Loader2, MessageSquare, ShieldCheck, Target, Trophy,
 } from 'lucide-react';
+import {
+    parentApi, shortDate, type ChildOverview, type ConsentState, type ParentReportView,
+} from './parentApi';
+
+/**
+ * Velinin çocuğuna ait detay sayfası.
+ *
+ * Eskiden bu sayfa uydurma sayılarla doluydu ("42 saat çalışma", "%95 katılım",
+ * "#452 sıralama", örnek ders geçmişi ve sabit bir "eğitmen notu"). Artık:
+ * kurs başına gerçek ilerleme ve ödev durumu, öğretmenin GÖNDERDİĞİ raporlar
+ * ve velinin yazım kaydı kararı.
+ */
 
 interface StudentDetailProps {
     student: any;
     onBack: () => void;
+    onMessage?: () => void;
 }
 
-const ParentStudentDetail: React.FC<StudentDetailProps> = ({ student: initialStudent, onBack }) => {
-    const [student, setStudent] = React.useState(initialStudent);
-    const [isLoading, setIsLoading] = React.useState(true);
+const ParentStudentDetail: React.FC<StudentDetailProps> = ({ student: initialStudent, onBack, onMessage }) => {
+    const id: number = initialStudent?.id;
+    const [overview, setOverview] = useState<ChildOverview | null>(null);
+    const [reports, setReports] = useState<ParentReportView[] | null>(null);
+    const [consent, setConsent] = useState<ConsentState | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [savingConsent, setSavingConsent] = useState(false);
 
-    React.useEffect(() => {
-        const fetchStudentDetail = async () => {
-            try {
-                setIsLoading(true);
-                const response = await api.get(`/profile/parent/student/${initialStudent.id}`);
-                setStudent(response.data);
-            } catch (error) {
-                console.error("Öğrenci detayları yüklenemedi:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
+    useEffect(() => {
+        let alive = true;
+        Promise.all([parentApi.overview(id), parentApi.reports(id), parentApi.consent(id)])
+            .then(([o, r, c]) => { if (alive) { setOverview(o); setReports(r); setConsent(c); } })
+            .catch((err) => { if (alive) setError(err?.response?.data?.detail || 'Bilgiler yüklenemedi.'); });
+        return () => { alive = false; };
+    }, [id]);
 
-        if (initialStudent?.id) {
-            fetchStudentDetail();
+    const decide = async (status: 'granted' | 'denied') => {
+        setSavingConsent(true);
+        try {
+            await parentApi.setConsent(id, status);
+            setConsent((c) => (c ? { ...c, status, decided_at: new Date().toISOString() } : c));
+        } finally {
+            setSavingConsent(false);
         }
-    }, [initialStudent?.id]);
-
-    const getColorByCategory = (category: string) => {
-        const colors: any = {
-            'Matematik': 'bg-blue-500',
-            'Fen Bilimleri': 'bg-green-500',
-            'Türkçe': 'bg-orange-500',
-            'İngilizce': 'bg-purple-500',
-            'Sosyal Bilgiler': 'bg-red-500'
-        };
-        return colors[category] || 'bg-indigo-500';
     };
 
-    const getIconByCategory = (category: string) => {
-        if (category === 'Matematik') return <Brain className="w-4 h-4" />;
-        if (category === 'İngilizce') return <Languages className="w-4 h-4" />;
-        return <BookOpen className="w-4 h-4" />;
-    };
-
-    // Mapping dynamic courses to UI subjects
-    const subjects = (student.courses || []).map((course: any) => ({
-        name: course.title,
-        progress: course.progress || 0,
-        color: getColorByCategory(course.category || course.title),
-        icon: getIconByCategory(course.category || course.title)
-    }));
-
-    // Fallback for mock-like appearance if no courses found
-    const displaySubjects = subjects.length > 0 ? subjects : [
-        { name: "Matematik", progress: 0, color: "bg-blue-500", icon: <Brain className="w-4 h-4" /> },
-        { name: "Türkçe", progress: 0, color: "bg-orange-500", icon: <BookOpen className="w-4 h-4" /> }
-    ];
-
-    const stats = {
-        totalStudyTime: "42 Saat",
-        lessonAttendance: "95%",
-        currentStreak: `${student.streak || 0} Gün`,
-        globalRank: "#452",
-        recentLessons: [
-            { date: "12 Şubat", subject: "Matematik", topic: "Üslü Sayılar", performance: "Harika", score: 92 },
-            { date: "10 Şubat", subject: "Fen Bilimleri", topic: "Hücre Bölünmesi", performance: "İyi", score: 85 },
-            { date: "09 Şubat", subject: "Türkçe", topic: "Paragraf Anlamı", performance: "Mükemmel", score: 98 },
-        ]
-    };
-
-    if (isLoading) {
+    if (error) return <p className="p-8 text-center text-rose-600 font-bold">{error}</p>;
+    if (!overview) {
         return (
             <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
                 <Loader2 className="w-12 h-12 text-purple-500 animate-spin" />
-                <p className="text-gray-500 font-bold uppercase tracking-widest animate-pulse">Öğrenci Verileri Güncelleniyor...</p>
+                <p className="text-gray-500 font-bold uppercase tracking-widest">Öğrenci verileri yükleniyor…</p>
             </div>
         );
     }
 
+    const s = overview.student;
     return (
         <div className="space-y-8 animate-fade-in pb-12">
-            {/* Navigation Header */}
             <div className="flex items-center gap-4">
-                <button 
-                    onClick={onBack}
-                    className="p-3 bg-white rounded-2xl border-2 border-gray-100 text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm"
-                >
+                <button onClick={onBack} className="p-3 bg-white rounded-2xl border-2 border-gray-100 text-gray-400 hover:text-purple-600 hover:border-purple-200 transition-all shadow-sm">
                     <ChevronLeft className="w-6 h-6" />
                 </button>
                 <div>
-                    <h2 className="text-3xl font-black text-gray-800">{student.first_name}'nın Gelişimi</h2>
-                    <p className="text-gray-500 font-medium">Detaylı öğrenci analiz raporu ve başarı takibi.</p>
+                    <h2 className="text-3xl font-black text-gray-800">{s.first_name} — gelişim</h2>
+                    <p className="text-gray-500 font-medium">Kurslar, ödevler ve öğretmenin raporları</p>
                 </div>
             </div>
 
-            {/* Profile Header Card */}
-            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-purple-100 relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
-                    <div className="relative">
-                        <div className="w-32 h-32 bg-white/20 backdrop-blur-md rounded-[2rem] p-1 border-2 border-white/30">
-                            <img 
-                                src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${student.nickname || student.id}`} 
-                                className="w-full h-full rounded-[1.8rem] bg-white"
-                                alt={student.first_name}
-                            />
-                        </div>
-                        <div className="absolute -bottom-2 -right-2 bg-yellow-400 p-2 rounded-xl shadow-lg border-4 border-purple-600">
-                            <Trophy className="w-5 h-5 text-purple-700" />
-                        </div>
+            <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-purple-100 flex flex-col md:flex-row items-center gap-8">
+                <img
+                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.nickname || s.id}`}
+                    className="w-28 h-28 rounded-[2rem] bg-white border-4 border-white/30"
+                    alt={s.first_name}
+                />
+                <div className="flex-1 text-center md:text-left">
+                    {s.grade_level && (
+                        <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20">
+                            {s.grade_level}
+                        </span>
+                    )}
+                    <h3 className="text-4xl font-black mt-2">{s.first_name} {s.last_name}</h3>
+                    <p className="text-purple-100 font-medium">Öğrenci kodu: {s.student_code}</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center">
+                        <Trophy className="w-5 h-5 mx-auto mb-1 text-yellow-300" />
+                        <div className="text-2xl font-black">{s.xp}</div>
+                        <div className="text-[10px] font-bold text-purple-200 uppercase tracking-widest">Toplam XP</div>
                     </div>
-
-                    <div className="text-center md:text-left flex-1">
-                        <div className="flex flex-wrap justify-center md:justify-start gap-2 mb-3">
-                            <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20">
-                                {student.grade_level || "8. Sınıf"}
-                            </span>
-                            <span className="px-3 py-1 bg-yellow-400 text-purple-800 rounded-full text-[10px] font-black uppercase tracking-widest">
-                                Elit Lig
-                            </span>
-                        </div>
-                        <h3 className="text-4xl font-black mb-1">{student.first_name} {student.last_name}</h3>
-                        <p className="text-purple-100 font-medium text-lg">"{student.nickname}" • Öğrenci Kodu: {student.student_code}</p>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 w-full md:w-auto">
-                        <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-center">
-                            <div className="text-2xl font-black mb-1">{student.xp || student.points || 0}</div>
-                            <div className="text-[10px] font-bold text-purple-200 uppercase tracking-widest">Toplam XP</div>
-                        </div>
-                        <div className="bg-white/10 backdrop-blur-sm p-4 rounded-2xl border border-white/10 text-center">
-                            <div className="text-2xl font-black mb-1">{stats.currentStreak}</div>
-                            <div className="text-[10px] font-bold text-purple-200 uppercase tracking-widest">Günlük Seri</div>
-                        </div>
+                    <div className="bg-white/10 p-4 rounded-2xl border border-white/10 text-center">
+                        <Flame className="w-5 h-5 mx-auto mb-1 text-orange-300" />
+                        <div className="text-2xl font-black">{s.streak} gün</div>
+                        <div className="text-[10px] font-bold text-purple-200 uppercase tracking-widest">Günlük seri</div>
                     </div>
                 </div>
-
-                {/* Decorative Elements */}
-                <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -mr-32 -mt-32"></div>
-                <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full blur-3xl -ml-20 -mb-20"></div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Left Column: Progress & Subjects */}
                 <div className="lg:col-span-2 space-y-8">
-                    {/* Subject Progress Cards */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
-                        <div className="flex justify-between items-center mb-8">
-                            <h3 className="text-xl font-black text-gray-800 flex items-center gap-3">
-                                <Target className="w-6 h-6 text-purple-500" />
-                                Ders Bazlı İlerleme
-                            </h3>
-                            <button className="text-sm font-bold text-purple-600 hover:underline">Tümünü Gör</button>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {displaySubjects.map((sub: any, idx: number) => (
-                                <div key={idx} className="p-5 rounded-3xl bg-gray-50 border border-gray-100 group hover:border-purple-200 transition-all">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className={`w-10 h-10 ${sub.color} text-white rounded-xl flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform`}>
-                                                {sub.icon}
-                                            </div>
-                                            <span className="font-bold text-gray-700">{sub.name}</span>
+                    <section className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
+                        <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
+                            <Target className="w-6 h-6 text-purple-500" /> Kurslar
+                        </h3>
+                        {overview.courses.length === 0 && <p className="text-gray-400 font-bold">Kayıtlı olduğu bir kurs yok.</p>}
+                        <div className="space-y-6">
+                            {overview.courses.map((c) => (
+                                <div key={c.id} className="p-5 rounded-3xl bg-gray-50 border border-gray-100 space-y-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                        <div>
+                                            <p className="font-black text-gray-800 flex items-center gap-2"><BookOpen className="w-4 h-4 text-indigo-500" /> {c.title}</p>
+                                            <p className="text-xs font-bold text-gray-400">Öğretmen: {c.teacher}</p>
                                         </div>
-                                        <span className="text-lg font-black text-gray-800">%{sub.progress}</span>
+                                        <span className="text-lg font-black text-gray-800">%{c.progress}</span>
                                     </div>
                                     <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full ${sub.color} rounded-full transition-all duration-1000 ease-out shadow-sm`}
-                                            style={{ width: `${sub.progress}%` }}
-                                        />
+                                        <div className="h-full bg-indigo-500 rounded-full" style={{ width: `${c.progress}%` }} />
                                     </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Recent Lesson History */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
-                        <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
-                            <Calendar className="w-6 h-6 text-orange-500" />
-                            Son Ders Performansı
-                        </h3>
-                        <div className="space-y-4">
-                            {stats.recentLessons.map((lesson, idx) => (
-                                <div key={idx} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-2xl transition-colors border border-transparent hover:border-gray-100">
-                                    <div className="flex items-center gap-4">
-                                        <div className="w-14 h-14 bg-orange-50 text-orange-600 rounded-xl flex flex-col items-center justify-center border border-orange-100">
-                                            <span className="text-xs font-black leading-none">{lesson.date.split(' ')[0]}</span>
-                                            <span className="text-[10px] font-bold uppercase">{lesson.date.split(' ')[1]}</span>
-                                        </div>
-                                        <div>
-                                            <div className="font-black text-gray-800">{lesson.topic}</div>
-                                            <div className="text-xs text-gray-400 font-bold uppercase tracking-wider">{lesson.subject}</div>
-                                        </div>
+                                    <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs font-bold text-gray-500">
+                                        <span>{c.modules_done}/{c.modules_total} modül</span>
+                                        <span>{c.tasks_solved} görev tamamlandı</span>
+                                        <span className="flex items-center gap-1"><CalendarCheck className="w-3.5 h-3.5" /> Son 14 günde {c.active_days_14} gün çalıştı</span>
+                                        <span>Son çalışma: {shortDate(c.last_activity_at)}</span>
                                     </div>
-                                    <div className="text-right">
-                                        <div className={`text-sm font-black ${lesson.score > 90 ? 'text-green-500' : 'text-blue-500'}`}>
-                                            {lesson.performance} ({lesson.score}/100)
-                                        </div>
-                                        <div className="flex gap-0.5 justify-end mt-1">
-                                            {[1,2,3,4,5].map(s => (
-                                                <Star key={s} className={`w-3 h-3 ${s <= (lesson.score / 20) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-200'}`} />
+                                    {c.homework.length > 0 && (
+                                        <div className="space-y-1.5">
+                                            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                                <ClipboardList className="w-3.5 h-3.5" /> Ödevler
+                                            </p>
+                                            {c.homework.map((h) => (
+                                                <div key={h.title} className="flex items-center justify-between gap-2 bg-white rounded-xl px-3 py-2 border border-gray-100">
+                                                    <span className="text-sm font-bold text-gray-700">{h.title}</span>
+                                                    <span className={`text-xs font-black ${
+                                                        h.grade !== null ? 'text-emerald-600' : h.submitted ? 'text-sky-600' : h.overdue ? 'text-rose-600' : 'text-gray-400'}`}>
+                                                        {h.grade !== null ? `${h.grade}/100`
+                                                            : h.submitted ? 'Teslim edildi, değerlendiriliyor'
+                                                            : h.overdue ? 'Teslim edilmedi (süre doldu)'
+                                                            : h.due_at ? `Son teslim ${shortDate(h.due_at)}` : 'Henüz teslim edilmedi'}
+                                                        {h.late && ' · geç'}
+                                                    </span>
+                                                </div>
                                             ))}
                                         </div>
-                                    </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
-                    </div>
+                    </section>
+
+                    <section className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
+                        <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
+                            <FileText className="w-6 h-6 text-orange-500" /> Öğretmen raporları
+                        </h3>
+                        {reports && reports.length === 0 && (
+                            <p className="text-gray-400 font-bold">Öğretmen henüz bir rapor göndermedi.</p>
+                        )}
+                        <div className="space-y-4">
+                            {reports?.map((r, i) => (
+                                <details key={r.id} open={i === 0} className="rounded-3xl border border-gray-100 bg-gray-50 p-5">
+                                    <summary className="cursor-pointer font-black text-gray-800">
+                                        {r.course} · {shortDate(r.period_start)} – {shortDate(r.period_end)}
+                                    </summary>
+                                    <div className="mt-3 space-y-3 text-sm text-gray-700">
+                                        <p className="leading-relaxed">{r.content.summary}</p>
+                                        {r.content.learned.length > 0 && (
+                                            <div>
+                                                <p className="text-xs font-black text-emerald-700 uppercase tracking-widest mb-1">Öğrendikleri</p>
+                                                <ul className="list-disc pl-5 space-y-0.5">{r.content.learned.map((t) => <li key={t}>{t}</li>)}</ul>
+                                            </div>
+                                        )}
+                                        {r.content.focus.length > 0 && (
+                                            <div>
+                                                <p className="text-xs font-black text-amber-700 uppercase tracking-widest mb-1">Üzerinde çalışıyoruz</p>
+                                                <ul className="list-disc pl-5 space-y-0.5">{r.content.focus.map((t) => <li key={t}>{t}</li>)}</ul>
+                                            </div>
+                                        )}
+                                        {r.content.homework && <p><b>Ödevler:</b> {r.content.homework}</p>}
+                                        {r.content.teacher_note && (
+                                            <p className="bg-indigo-50 border border-indigo-100 rounded-2xl p-3 italic text-indigo-900">“{r.content.teacher_note}”</p>
+                                        )}
+                                    </div>
+                                </details>
+                            ))}
+                        </div>
+                    </section>
                 </div>
 
-                {/* Right Column: Badges & Teacher Notes */}
                 <div className="space-y-8">
-                    {/* Achievement Badges */}
-                    <div className="bg-white p-8 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
-                        <h3 className="text-xl font-black text-gray-800 mb-6 flex items-center gap-3">
-                            <Award className="w-6 h-6 text-yellow-500" />
-                            Başarı Rozetleri
+                    <section className="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-lg shadow-indigo-100">
+                        <h3 className="text-xl font-black mb-3 flex items-center gap-3">
+                            <MessageSquare className="w-6 h-6 text-indigo-300" /> Öğretmene yaz
                         </h3>
-                        <div className="grid grid-cols-3 gap-4">
-                            {[
-                                { emoji: "🚀", label: "Hızlı", color: "bg-blue-50" },
-                                { emoji: "🔥", label: "Seri", color: "bg-orange-50" },
-                                { emoji: "🧠", label: "Zeki", color: "bg-purple-50" },
-                                { emoji: "🎯", label: "Odak", color: "bg-green-50" },
-                                { emoji: "⭐", label: "Yıldız", color: "bg-yellow-50" },
-                                { emoji: "📚", label: "Kitap", color: "bg-indigo-50" },
-                            ].map((badge, idx) => (
-                                <div key={idx} className="flex flex-col items-center gap-2 group cursor-pointer">
-                                    <div className={`w-14 h-14 ${badge.color} rounded-2xl flex items-center justify-center text-2xl shadow-sm border border-white group-hover:scale-110 transition-transform group-hover:shadow-md`}>
-                                        {badge.emoji}
-                                    </div>
-                                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{badge.label}</span>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Teacher Feedback / Quick Actions */}
-                    <div className="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-lg shadow-indigo-100">
-                        <h3 className="text-xl font-black mb-4 flex items-center gap-3">
-                            <MessageSquare className="w-6 h-6 text-indigo-300" />
-                            Eğitmen Notu
-                        </h3>
-                        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 mb-6 border border-white/20 italic text-sm leading-relaxed text-indigo-50 font-medium">
-                            " {student.first_name} bu hafta özellikle denklemler konusundaki mantığı çok iyi kavradı. Ev ödevlerini zamanında teslim etti. Haftaya geometriye başlıyoruz."
-                        </div>
-                        <button className="w-full py-4 bg-white text-indigo-600 font-black rounded-xl hover:bg-indigo-50 transition-colors shadow-sm flex items-center justify-center gap-2">
+                        <p className="text-sm text-indigo-100 mb-5">Sorularınızı çocuğunuzun öğretmenine doğrudan iletebilirsiniz.</p>
+                        <button onClick={onMessage} className="w-full py-4 bg-white text-indigo-600 font-black rounded-xl hover:bg-indigo-50 transition-colors shadow-sm">
                             Eğitmene Mesaj Gönder
                         </button>
-                    </div>
+                    </section>
 
-                    {/* Time Stats */}
-                    <div className="bg-white p-6 rounded-[2.5rem] border-2 border-gray-100 shadow-sm">
-                        <div className="flex items-center gap-4 mb-4">
-                            <div className="w-12 h-12 bg-gray-50 rounded-2xl flex items-center justify-center">
-                                <Clock className="w-6 h-6 text-gray-400" />
+                    {consent && (
+                        <section className="bg-white p-6 rounded-[2.5rem] border-2 border-gray-100 shadow-sm space-y-3">
+                            <h3 className="text-lg font-black text-gray-800 flex items-center gap-2">
+                                <ShieldCheck className="w-5 h-5 text-emerald-500" /> {consent.notice.title}
+                            </h3>
+                            {consent.notice.paragraphs.map((p) => (
+                                <p key={p.slice(0, 24)} className="text-xs text-gray-600 leading-relaxed">{p}</p>
+                            ))}
+                            <p className="text-xs font-black text-gray-700">
+                                Şu anki durum: {consent.status === 'denied' ? 'Kapalı' : consent.status === 'granted' ? 'Açık (onay verdiniz)' : 'Açık (henüz karar vermediniz)'}
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={() => void decide('granted')} disabled={savingConsent || consent.status === 'granted'}
+                                        className="flex-1 py-2.5 rounded-xl text-xs font-black bg-emerald-600 text-white disabled:opacity-50">
+                                    Onaylıyorum
+                                </button>
+                                <button onClick={() => void decide('denied')} disabled={savingConsent || consent.status === 'denied'}
+                                        className="flex-1 py-2.5 rounded-xl text-xs font-black bg-white border-2 border-gray-200 text-gray-700 disabled:opacity-50">
+                                    Kapat
+                                </button>
                             </div>
-                            <div>
-                                <div className="text-2xl font-black text-gray-800">{stats.totalStudyTime}</div>
-                                <div className="text-xs font-bold text-gray-400 uppercase tracking-widest">Toplam Çalışma</div>
-                            </div>
-                        </div>
-                        <div className="h-2 bg-gray-100 rounded-full">
-                            <div className="h-full w-3/4 bg-purple-500 rounded-full" />
-                        </div>
-                        <p className="text-[10px] font-bold text-gray-400 mt-2">Haftalık hedef: 50 Saat</p>
-                    </div>
+                        </section>
+                    )}
                 </div>
             </div>
         </div>
     );
 };
-
-const Languages = ({ className }: { className: string }) => (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
-    </svg>
-);
 
 export default ParentStudentDetail;

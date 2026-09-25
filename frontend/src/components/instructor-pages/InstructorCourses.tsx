@@ -19,7 +19,9 @@ import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
 import posthog from "posthog-js";
 import api from "../../api";
+import { openVideoRoom } from "../../liveRoom";
 import CourseInfoModal from "../shared/CourseInfoModal";
+import CourseCopyModal from "./CourseCopyModal";
 
 interface Course {
   id: number;
@@ -52,6 +54,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+  const [copySource, setCopySource] = useState<Course | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [infoCourseId, setInfoCourseId] = useState<number | string | null>(
@@ -325,17 +328,9 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
       await api.post(`/start-session/${courseId}`);
       setLiveSessionCourseIds(prev => new Set(prev).add(courseId));
       
-      // Dersi başlattıktan sonra otomatik olarak Jitsi toplantısını aç
-      try {
-        const jitsiRes = await api.get(`/jitsi/token/${courseId}`);
-        const { token, room, domain } = jitsiRes.data;
-        const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-        window.open(url, "_blank");
-      } catch (jitsiErr) {
-        console.warn('Jitsi JWT hatası, public odaya yönlendiriliyor:', jitsiErr);
-        const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-        window.open(fallbackUrl, "_blank");
-      }
+      // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts): öğretmen dersi
+      // sınıfta ya da kendi seçtiği platformda yapıyor.
+      await openVideoRoom(courseId);
     } catch (err) {
       console.error('Ders başlatılamadı:', err);
       alert('Ders başlatılırken bir hata oluştu.');
@@ -576,6 +571,17 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              setCopySource(course);
+                              setOpenMenuId(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-[10px] text-sky-600 hover:bg-sky-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Copy size={14} />
+                            Kopyala / Modül Aktar
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleDeleteCourse(course.id);
                             }}
                             className="w-full text-left px-3 py-2 text-[10px] text-red-500 hover:bg-red-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
@@ -644,6 +650,15 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
         }}
         mode="instructor"
       />
+
+      {copySource && (
+        <CourseCopyModal
+          source={copySource}
+          courses={courses}
+          onClose={() => setCopySource(null)}
+          onDone={() => refreshData?.()}
+        />
+      )}
     </div>
   );
 };

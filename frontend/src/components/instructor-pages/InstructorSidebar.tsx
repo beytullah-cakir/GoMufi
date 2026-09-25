@@ -10,8 +10,10 @@ import {
   MessageCircle,
   BarChart3,
   Bug,
+  Microscope,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { useUnreadMessages } from "../../messaging/useUnreadMessages";
 
 interface InstructorSidebarProps {
   activePage: string;
@@ -25,6 +27,7 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   userData,
 }) => {
   const isAdmin = userData?.role === "admin" || localStorage.getItem("role") === "admin";
+  const unread = useUnreadMessages();
 
   const navItems = [
     {
@@ -61,11 +64,17 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
       label: "Mesajlar",
       icon: MessageCircle,
       id: "Messages",
+      badgeCount: unread,
     },
     {
       label: "Ödev Gönderileri",
       icon: BookOpen,
       id: "HomeworkSubmissions",
+    },
+    {
+      label: "Öğrenme Analizi",
+      icon: Microscope,
+      id: "Learning",
     },
     ...(isAdmin
       ? [

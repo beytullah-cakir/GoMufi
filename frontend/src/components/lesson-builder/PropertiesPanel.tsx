@@ -26,7 +26,12 @@ const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
     if (!element || element.type !== 'code') return null;
 
     return (
-        <div className="absolute right-0 top-0 h-full w-72 bg-white border-l border-gray-200 shadow-2xl z-[50] animate-slide-in-right">
+        <div
+            data-ui-panel
+            onDoubleClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.stopPropagation()}
+            className="absolute right-0 top-0 h-full w-72 bg-white border-l border-gray-200 shadow-2xl z-[50] animate-slide-in-right"
+        >
             {/* Header */}
             <div className="h-12 border-b border-gray-100 flex items-center justify-between px-4 bg-white">
                 <span className="font-bold text-gray-800 text-xs uppercase tracking-wider">

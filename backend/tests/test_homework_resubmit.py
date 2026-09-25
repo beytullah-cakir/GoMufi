@@ -12,7 +12,27 @@ from types import SimpleNamespace
 import pytest
 from fastapi import HTTPException, UploadFile
 
+import routers.courses as courses_router
 from routers.courses import submit_homework
+
+ARSIV = []
+KURAL = {"due": None, "allow_late": True, "rubric": None, "title": "Ödev"}
+
+
+@pytest.fixture(autouse=True)
+def kurallar_ve_arsiv(monkeypatch):
+    """Teslim kuralları ve sürüm arşivi ayrı sorgular; bu testler yalnızca teslimin kendisine bakıyor."""
+    ARSIV.clear()
+    KURAL.update(due=None, allow_late=True)
+
+    async def kurallar(_db, _course_id, _node_id):
+        return dict(KURAL)
+
+    async def arsivle(_db, sub, reason):
+        ARSIV.append((sub.file_name, sub.grade, reason))
+
+    monkeypatch.setattr(courses_router, "homework_rules_for", kurallar)
+    monkeypatch.setattr(courses_router, "_archive_submission", arsivle)
 
 
 def yukleme(icerik: bytes = b"print('yeni cevap')", ad: str = "cevap.py") -> UploadFile:
@@ -110,3 +130,35 @@ def test_buyuk_dosya_reddedilir():
             student_note=None, user={"sub": "5", "role": "student"}, db=db,
         ))
     assert e.value.status_code == 413
+
+
+def test_yeniden_teslimde_eski_hal_gecmise_yazilir():
+    """Eski dosya ve not kaybolmaz: öğretmen "55'ten 80'e" gelişimi görebilsin."""
+    g = notlu_gonderi()
+    teslim_et(g)
+    assert ARSIV == [("eski.py", 95, "resubmitted")]
+
+
+def test_yeniden_teslim_zamani_guncellenir():
+    """Eskiden yeni cevap ilk teslimin tarihini taşıyordu — geç teslim yanlış hesaplanırdı."""
+    g = notlu_gonderi()
+    g.submitted_at = datetime(2026, 1, 1)
+    teslim_et(g)
+    assert g.submitted_at > datetime(2026, 1, 2)
+
+
+def test_son_tarih_gecince_izin_yoksa_reddedilir():
+    KURAL.update(due=datetime(2020, 1, 1), allow_late=False)
+    with pytest.raises(HTTPException) as e:
+        teslim_et(None)
+    assert e.value.status_code == 403
+
+
+def test_son_tarih_gecince_izin_varsa_gec_isaretlenir():
+    KURAL.update(due=datetime(2020, 1, 1), allow_late=True)
+    db = SahteDB(SimpleNamespace(id=1), None)
+    sonuc = asyncio.run(submit_homework(
+        course_id=1, node_id="n1", file=yukleme(), student_note=None,
+        user={"sub": "5", "role": "student"}, db=db,
+    ))
+    assert sonuc["late"] is True

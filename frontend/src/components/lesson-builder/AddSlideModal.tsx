@@ -4,12 +4,15 @@ import SlideThumbnail from './SlideThumbnail';
 import type { Slide } from './types';
 import type { SlideLayout } from './grid';
 import { GRID_PRESETS, emptyBlocksFor } from './gridPresets';
+import { defaultChallengeConfig } from './ChallengeSlideBuilder';
+import { defaultConnectConfig } from './ConnectSlideBuilder';
+import { defaultProduceConfig } from './ProduceSlideBuilder';
 import api from '../../api';
 
 interface AddSlideModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework' | 'challenge', config?: { gameType?: string; elements?: any[]; background?: string; challengeConfig?: any; layout?: SlideLayout }) => void;
+    onAddSlide: (type: 'normal' | 'game' | 'notebook' | 'coding' | 'template' | 'homework' | 'challenge' | 'connect' | 'produce', config?: { gameType?: string; elements?: any[]; background?: string; challengeConfig?: any; connectConfig?: any; produceConfig?: any; layout?: SlideLayout }) => void;
     activeStage: 'ANLA' | 'UYGULA' | 'BİRLEŞTİR' | 'ÜRET' | 'QUIZ' | 'ÖDEV' | (string & {});
     stageColor: string;
     isAdmin?: boolean;
@@ -59,6 +62,13 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
     }, [isOpen]);
 
     if (!isOpen) return null;
+
+    // Özel slayt şablonları (Uygula/Birleştir/Üret görevleri) YZ üretimi için
+    // listede duruyor; tuval elemanları yok. Buradan eklenince boş bir slayt
+    // oluşuyordu — onların yukarıda kendi düğmeleri var.
+    const stageTemplates = customTemplates.filter(
+        (t) => !t.slideType && t.category?.toUpperCase() === activeStage.toUpperCase(),
+    );
 
     return (
         <div className="absolute inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
@@ -342,7 +352,7 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                     <>
                                         {/* UYGULA'ya özel tam slayt — tuval widget'ı değil (bkz. ChallengeSlideBuilder) */}
                                         <button
-                                            onClick={() => onAddSlide('challenge')}
+                                            onClick={() => onAddSlide('challenge', { challengeConfig: defaultChallengeConfig('UYGULA') })}
                                             className="text-left group"
                                         >
                                             <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-cyan-500 group-hover:shadow-md transition-all relative flex gap-1.5 p-3">
@@ -467,6 +477,42 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 {/* BİRLEŞTİR ŞABLONLARI */}
                                 {activeStage === 'BİRLEŞTİR' && (
                                     <>
+                                        {/* BİRLEŞTİR'e özel tam slayt — Birleştirme Görevi (bkz. ConnectSlideBuilder) */}
+                                        <button
+                                            onClick={() => onAddSlide('connect', { connectConfig: defaultConnectConfig() })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-emerald-500 group-hover:shadow-md transition-all relative flex gap-1.5 p-3">
+                                                <div className="w-[38%] bg-white border-2 border-slate-200 border-b-4 rounded-lg p-2 flex flex-col gap-1.5">
+                                                    <div className="w-14 h-2 bg-emerald-200 rounded-full" />
+                                                    <div className="w-full h-1 bg-slate-200 rounded-full" />
+                                                    <div className="w-2/3 h-1 bg-slate-200 rounded-full" />
+                                                    <div className="mt-auto w-12 h-2 bg-amber-200 rounded-full" />
+                                                </div>
+                                                <div className="flex-1 flex flex-col gap-1.5">
+                                                    <div className="flex-1 bg-[#1e1e1e] rounded-lg p-2 flex flex-col gap-1">
+                                                        <div className="w-10 h-1 bg-emerald-800 rounded-full" />
+                                                        <div className="w-16 h-1 bg-zinc-700 rounded-full" />
+                                                        <div className="w-12 h-1 bg-zinc-700 rounded-full" />
+                                                    </div>
+                                                    <div className="h-1/3 bg-white border-2 border-slate-200 rounded-lg p-1.5 flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="w-10 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                                                            <span className="w-8 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-emerald-600 transition-colors">Birleştirme Görevi Slaytı</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Önceki ve şimdiki konuyu birleştiren tam görev slaytı.</p>
+                                            </div>
+                                        </button>
+
                                         <button
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
@@ -510,6 +556,41 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                 {/* ÜRET ŞABLONLARI */}
                                 {activeStage === 'ÜRET' && (
                                     <>
+                                        {/* ÜRET'e özel tam slayt — Proje Görevi (bkz. ProduceSlideBuilder) */}
+                                        <button
+                                            onClick={() => onAddSlide('produce', { produceConfig: defaultProduceConfig() })}
+                                            className="text-left group"
+                                        >
+                                            <div className="w-full aspect-video bg-gray-50 border-2 border-gray-100 rounded-2xl mb-3 overflow-hidden group-hover:border-amber-500 group-hover:shadow-md transition-all relative flex gap-1.5 p-3">
+                                                <div className="w-[38%] bg-white border-2 border-slate-200 border-b-4 rounded-lg p-2 flex flex-col gap-1.5">
+                                                    <div className="w-14 h-2 bg-amber-200 rounded-full" />
+                                                    <div className="w-full h-1 bg-slate-200 rounded-full" />
+                                                    <div className="w-2/3 h-1 bg-slate-200 rounded-full" />
+                                                    <div className="mt-auto w-12 h-2 bg-amber-300 rounded-full" />
+                                                </div>
+                                                <div className="flex-1 flex flex-col gap-1.5">
+                                                    <div className="flex-1 bg-[#1e1e1e] rounded-lg p-2 flex flex-col gap-1">
+                                                        <div className="w-10 h-1 bg-amber-600 rounded-full" />
+                                                        <div className="w-16 h-1 bg-zinc-700 rounded-full" />
+                                                        <div className="w-12 h-1 bg-zinc-700 rounded-full" />
+                                                    </div>
+                                                    <div className="h-1/3 bg-white border-2 border-slate-200 rounded-lg p-1.5 flex flex-col gap-1">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                                            <span className="w-10 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="w-2 h-2 rounded-full bg-amber-500" />
+                                                            <span className="w-8 h-1 bg-slate-200 rounded-full" />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="px-1">
+                                                <h4 className="font-bold text-gray-700 group-hover:text-amber-600 transition-colors">Proje Görevi Slaytı (ÜRET)</h4>
+                                                <p className="text-xs text-gray-400 mt-1">Öğrencinin özgün bir proje geliştireceği tam görev slaytı.</p>
+                                            </div>
+                                        </button>
                                         <button
                                             onClick={() => onAddSlide('template', {
                                                 elements: [
@@ -682,15 +763,14 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                         {/* CUSTOM AI PERSISTED TEMPLATES TAB */}
                         {activeTab === 'custom_ai' && (
                             <>
-                                {customTemplates.filter(t => t.category?.toUpperCase() === activeStage.toUpperCase()).length === 0 ? (
+                                {stageTemplates.length === 0 ? (
                                     <div className="col-span-3 py-16 flex flex-col items-center justify-center text-gray-400 bg-gray-50 rounded-2xl border-2 border-dashed border-gray-200">
                                         <Sparkles className="w-12 h-12 text-gray-300 animate-pulse mb-3" />
                                         <p className="font-bold text-sm">Henüz bu kategori için özel AI şablonu oluşturulmamış.</p>
                                         <p className="text-xs text-gray-400 mt-1 font-medium">Ders oluştururken slaytı tasarlayıp sağ üstteki "Şablon Kaydet" butonu ile ekleyebilirsiniz.</p>
                                     </div>
                                 ) : (
-                                    customTemplates
-                                        .filter(t => t.category?.toUpperCase() === activeStage.toUpperCase())
+                                    stageTemplates
                                         .map((t) => (
                                             <div key={t.id} className="relative group/card">
                                                 <button

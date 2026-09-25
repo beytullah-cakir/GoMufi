@@ -2,8 +2,8 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { BookOpen, ChevronRight, Loader2, PlugZap, RefreshCw } from 'lucide-react';
 import api, { setBearerToken } from '../api';
 import {
-    connectToVSCode, onDeviceToken, openLessonInVSCode,
-    requestSignInFromVSCode, setVSCodeStage,
+    connectToVSCode, onDeviceToken, onOpenTarget, openLessonInVSCode,
+    requestSignInFromVSCode, setVSCodeStage, type LessonTarget,
 } from '../vscodeBridge';
 import GamifiedRoadmapPath, { type RoadmapModule } from './student-pages/GamifiedRoadmapPath';
 import LessonSlide from './student-pages/LessonSlide';
@@ -98,6 +98,18 @@ const VSCodeLessonPage: React.FC = () => {
     const [courses, setCourses] = useState<CourseView[]>([]);
     const [userData, setUserData] = useState<any>(null);
     const [active, setActive] = useState<{ course: CourseView; module: Module } | null>(null);
+    // Tarayıcıdan "VS Code'a Geç" ile gelen slayt adresi. Panel kapalıyken
+    // iframe'in URL'inde, açıkken postMessage ile gelir; ikisi de burada birleşir.
+    const [target, setTarget] = useState<LessonTarget | null>(() => {
+        const q = new URLSearchParams(window.location.search);
+        if (!q.get('course') && !q.get('module')) return null;
+        return {
+            course: q.get('course') ?? undefined,
+            module: q.get('module') ?? undefined,
+            slide: Number(q.get('slide')) || 0,
+        };
+    });
+    const [startSlide, setStartSlide] = useState(0);
 
     const load = useCallback(async () => {
         setPhase('loading');
@@ -161,6 +173,42 @@ const VSCodeLessonPage: React.FC = () => {
         setVSCodeStage(active?.module.stage ?? 'HARITA');
     }, [active, phase]);
 
+    // Panel zaten açıkken gelen adres (öğrenci tarayıcıya dönüp yeniden geçmiş).
+    useEffect(() => onOpenTarget(setTarget), []);
+
+    /**
+     * Adresi gerçek bir modüle çevirir ve açar.
+     *
+     * Eşleştirme BAŞLIKLA yapılıyor, id ile değil: sitedeki yol haritası düğümü
+     * ile paneldeki modül aynı bölümden türüyor ama iki tarafın anahtarları
+     * farklı biçimde kuruluyor (`course:section` ve roadmap düğüm id'si).
+     * Başlık ikisinde de aynı ve öğretmenin yazdığı şey.
+     *
+     * Bulamazsak yol haritasında kalıyoruz — yanlış dersi açmaktansa öğrencinin
+     * seçmesi iyidir.
+     */
+    useEffect(() => {
+        if (!target || phase !== 'ready' || courses.length === 0) return;
+
+        const pool = target.course
+            ? courses.filter((c) => String(c.id) === String(target.course))
+            : courses;
+        const wanted = (target.module || '').trim().toLocaleLowerCase('tr');
+
+        for (const course of pool.length > 0 ? pool : courses) {
+            const mod = wanted
+                ? course.modules.find((m) => m.title.trim().toLocaleLowerCase('tr') === wanted)
+                : undefined;
+            if (mod) {
+                openLessonInVSCode(course.title, mod.title);
+                setStartSlide(target.slide || 0);
+                setActive({ course, module: mod });
+                break;
+            }
+        }
+        setTarget(null);
+    }, [target, phase, courses]);
+
     const totalModules = useMemo(
         () => courses.reduce((sum, c) => sum + c.modules.length, 0),
         [courses],
@@ -210,8 +258,10 @@ const VSCodeLessonPage: React.FC = () => {
                 userData={userData}
                 moduleStage={active.module.stage}
                 moduleXp={active.module.xp}
-                onClose={() => setActive(null)}
-                onComplete={() => setActive(null)}
+                // Tarayıcıdan gelen öğrenci kaldığı slaytta devam eder.
+                initialSlideIndex={startSlide}
+                onClose={() => { setStartSlide(0); setActive(null); }}
+                onComplete={() => { setStartSlide(0); setActive(null); }}
             />
         );
     }

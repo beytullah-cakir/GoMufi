@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Star, Calendar, MessageSquare, MoreVertical, Loader2 } from 'lucide-react';
+import { Mail, Star, Calendar, MessageSquare, Loader2 } from 'lucide-react';
 import api from '../../api';
 
 interface Instructor {
@@ -9,21 +9,21 @@ interface Instructor {
     email: string;
     expertises: string;
     bio: string;
-    rating: number;
     nextLesson: string;
     avatar: string;
 }
 
 interface ParentInstructorsProps {
     teachersData?: any[];
+    /** Mesajlar sayfasını açar (öğretmen seçimi orada, çocuğun kursuna göre). */
+    onMessage?: () => void;
 }
 
-const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) => {
+const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData, onMessage }) => {
     const [instructors, setInstructors] = useState<Instructor[]>(() => {
         if (!teachersData) return [];
         return teachersData.map((t: any) => ({
             ...t,
-            rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
             nextLesson: "-",
             avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
         }));
@@ -34,8 +34,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) =
         if (teachersData) {
             const enrichedData = teachersData.map((t: any) => ({
                 ...t,
-                rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
-                nextLesson: "-",
+                    nextLesson: "-",
                 avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
             }));
             setInstructors(enrichedData);
@@ -46,8 +45,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) =
                     const response = await api.get("/profile/parent/teachers");
                     const enrichedData = response.data.map((t: any) => ({
                         ...t,
-                        rating: parseFloat((4.5 + Math.random() * 0.5).toFixed(1)),
-                        nextLesson: "-", // This could be fetched from live sessions in the future
+                                    nextLesson: "-", // This could be fetched from live sessions in the future
                         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
                     }));
                     setInstructors(enrichedData);
@@ -100,10 +98,6 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) =
                                 <div className="relative">
                                     <div className="absolute inset-0 bg-purple-500 rounded-3xl rotate-6 group-hover:rotate-12 transition-transform opacity-10" />
                                     <img src={instructor.avatar} alt={instructor.first_name} className="w-24 h-24 rounded-3xl bg-gray-50 relative z-10 border-2 border-white shadow-sm" />
-                                    <div className="absolute -bottom-2 -right-2 bg-white px-3 py-1.5 rounded-xl text-sm font-black shadow-lg flex items-center gap-1.5 z-20 border border-gray-50">
-                                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                                        {instructor.rating}
-                                    </div>
                                 </div>
 
                                 <div className="flex-1">
@@ -117,9 +111,6 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) =
                                                 <span className="text-green-600 font-black text-xs uppercase tracking-widest">Aktif</span>
                                             </div>
                                         </div>
-                                        <button className="p-2 text-gray-400 hover:bg-gray-100 rounded-xl transition-colors">
-                                            <MoreVertical className="w-5 h-5" />
-                                        </button>
                                     </div>
 
                                     <p className="text-gray-500 text-sm font-medium line-clamp-2 mb-4 leading-relaxed">
@@ -151,12 +142,22 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData }) =
                                 </div>
 
                                 <div className="flex gap-2">
-                                    <button className="p-3 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-600 hover:text-white transition-all transform hover:-translate-y-1 shadow-sm">
+                                    <button
+                                        onClick={() => onMessage?.()}
+                                        title="Mesaj gönder"
+                                        className="p-3 bg-purple-50 text-purple-600 rounded-2xl hover:bg-purple-600 hover:text-white transition-all transform hover:-translate-y-1 shadow-sm"
+                                    >
                                         <MessageSquare className="w-5 h-5" />
                                     </button>
-                                    <button className="p-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-gray-900 hover:text-white transition-all transform hover:-translate-y-1 shadow-sm">
-                                        <Mail className="w-5 h-5" />
-                                    </button>
+                                    {instructor.email && (
+                                        <a
+                                            href={`mailto:${instructor.email}`}
+                                            title="E-posta gönder"
+                                            className="p-3 bg-gray-50 text-gray-600 rounded-2xl hover:bg-gray-900 hover:text-white transition-all transform hover:-translate-y-1 shadow-sm"
+                                        >
+                                            <Mail className="w-5 h-5" />
+                                        </a>
+                                    )}
                                 </div>
                             </div>
                         </div>

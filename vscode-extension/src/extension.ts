@@ -7,6 +7,7 @@ import { SubmissionItem, TeacherTree } from './teacherView';
 import type { Assignment } from './types';
 import { LocalRunner } from './localRunner';
 import { LessonPanel } from './lessonPanel';
+import { EditRecorder } from './editRecorder';
 import * as hints from './hints';
 import * as layout from './layout';
 import { applyTheme, offerOnce } from './theme';
@@ -18,6 +19,7 @@ let studentTree: StudentTree;
 let teacherTree: TeacherTree;
 let runner: LocalRunner;
 let lessons: LessonPanel;
+let recorder: EditRecorder;
 let pairTimer: NodeJS.Timeout | null = null;
 let status: vscode.StatusBarItem;
 
@@ -50,6 +52,44 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
         vscode.commands.registerCommand('gomufi.triggerHint', () => {
             lessons.postMessage({ type: 'gomufi:requestHintFromVSCode' });
         }),
+        // Tarayıcıdaki "VS Code'u Aç" butonunun karşılığı.
+        //
+        // NEDEN AYRI BİR YOL: yerel sunucu görev dosyasını yazıp editörde
+        // açabiliyor ama VS Code PENCERESİNİ öne getiremez — işletim sistemi
+        // odağı, isteği alan sürecin değil, kullanıcının tıkladığı bağlantının
+        // sahibine verir. `vscode://` bağlantısı tam olarak bunu yapıyor:
+        // tıklama tarayıcıda, odak VS Code'da.
+        vscode.window.registerUriHandler({
+            handleUri: async (uri) => {
+                const q = new URLSearchParams(uri.query);
+
+                // UYGULA görevi: görev dosyasını öne getir.
+                if (uri.path.startsWith('/task')) {
+                    try {
+                        await runner.revealLine(1, q.get('language') || 'python', 'student');
+                    } catch {
+                        // Dosya henüz hazırlanmamış olabilir (site /task'ten önce
+                        // bağlantıyı açtıysa). Pencere zaten öne geldi; sessiz geç.
+                    }
+                    return;
+                }
+
+                // "VS Code'a Geç": ders panelini aç ve öğrencinin tarayıcıda
+                // kaldığı slayda git. Adres olmadan da çalışır — o zaman panel
+                // yol haritasında açılır ve öğrenci dersi kendi seçer.
+                if (uri.path.startsWith('/lesson')) {
+                    if (!auth.current) {
+                        await signIn();
+                        if (!auth.current) return;
+                    }
+                    lessons.show(auth.current.token, {
+                        course: q.get('course') ?? undefined,
+                        module: q.get('module') ?? undefined,
+                        slide: Number(q.get('slide')) || 0,
+                    });
+                }
+            },
+        }),
         auth.onDidChange((session) => {
             refreshAll();
             void syncPairing();
@@ -68,6 +108,10 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
 
     runner = new LocalRunner();
     lessons = new LessonPanel(ctx, runner);
+    // Görev dosyalarının yazım kaydı (bkz. editRecorder.ts). Yalnızca sitenin
+    // öğrenci için hazırladığı görev klasörlerini izler.
+    recorder = new EditRecorder(ctx, api, runner);
+    ctx.subscriptions.push(recorder);
     status = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
     status.command = 'gomufi.signIn';
     ctx.subscriptions.push(status, { dispose: () => stopPairing() });
@@ -133,6 +177,8 @@ function stopPairing(): void {
 }
 
 export function deactivate(): void {
+    // Bekleyen yazım kaydı: kapanışta son bir kez göndermeyi dene.
+    void recorder?.flush();
     stopPairing();
     // Eslesmeyi hemen birak ki site "bagli" sanip beklemesin.
     void api.unpairRunner().catch(() => undefined);

@@ -6,8 +6,10 @@ import {
   GraduationCap,
   CreditCard,
   Settings,
+  MessageSquare,
 } from "lucide-react";
 import Sidebar from "../Sidebar";
+import { useUnreadMessages } from "../../messaging/useUnreadMessages";
 
 interface ParentSidebarProps {
   activePage: string;
@@ -20,6 +22,7 @@ const ParentSidebar: React.FC<ParentSidebarProps> = ({
   onNavigate,
   userData,
 }) => {
+  const unread = useUnreadMessages();
   const navItems = [
     {
       label: "Panel",
@@ -40,6 +43,12 @@ const ParentSidebar: React.FC<ParentSidebarProps> = ({
       label: "Öğrencilerim",
       icon: GraduationCap,
       id: "Students",
+    },
+    {
+      label: "Mesajlar",
+      icon: MessageSquare,
+      id: "Messages",
+      badgeCount: unread,
     },
     {
       label: "Ödemeler",

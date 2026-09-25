@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useRef, useState } from 'react';
 import { WebSocketContext } from '../context/WebSocketContext';
 import type { WebSocketMessage } from '../context/WebSocketContext';
 
@@ -31,4 +31,25 @@ export const useWebSocket = (eventType?: string) => {
     eventData,       // Filtrelenmiş veya son gelen olay verisi
     lastMessage      // Ayrım yapmadan gelen son mesaj
   };
+};
+
+/**
+ * Belirli türdeki HER mesajı dinler (hiçbirini atlamadan). İşleyici her
+ * çizimde değişebilir; abonelik yalnızca türler değişince yenilenir.
+ */
+export const useWebSocketEvent = (types: string | string[], handler: (message: WebSocketMessage) => void) => {
+  const context = useContext(WebSocketContext);
+  if (context === undefined) {
+    throw new Error('useWebSocketEvent hook must be used within a WebSocketProvider');
+  }
+  const handlerRef = useRef(handler);
+  useEffect(() => { handlerRef.current = handler; });
+  const key = Array.isArray(types) ? types.join('|') : types;
+  const { subscribe } = context;
+  useEffect(() => {
+    const wanted = new Set(key.split('|'));
+    return subscribe((message) => {
+      if (wanted.has(message.type)) handlerRef.current(message);
+    });
+  }, [subscribe, key]);
 };

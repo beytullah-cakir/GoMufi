@@ -20,6 +20,8 @@ export interface AIReviewResult {
     overallScore: number;
     summary: string;
     weaknesses: AIWeakness[];
+    /** Ödevin puanlama anahtarı varsa: ölçüt başına YZ'nin önerdiği seviye. */
+    rubricScores?: Array<{ criterionId: string; level: number; reason: string }>;
     rawResponse: string;
 }
 
@@ -27,6 +29,8 @@ export interface AIReviewResult {
 export interface HomeworkContext {
     courseId?: string | number;
     nodeId?: string | number;
+    /** Öğretmen belirli bir teslimi değerlendiriyorsa: sonuç o öğrencinin öğrenme kaydına yazılır. */
+    submissionId?: number;
 }
 
 /**
@@ -63,6 +67,9 @@ export async function evaluateHomeworkByType(
     if (courseId !== undefined && courseId !== null && String(courseId) !== 'preview') {
         formData.append('course_id', String(courseId));
     }
+    if (context?.submissionId !== undefined) {
+        formData.append('submission_id', String(context.submissionId));
+    }
     if (context?.nodeId !== undefined && context?.nodeId !== null) {
         formData.append('node_id', String(context.nodeId));
     }
@@ -76,6 +83,7 @@ export async function evaluateHomeworkByType(
             overallScore: Math.min(100, Math.max(0, Number(data.overallScore) || 0)),
             summary: data.summary || '',
             weaknesses: Array.isArray(data.weaknesses) ? data.weaknesses : [],
+            rubricScores: Array.isArray(data.rubricScores) ? data.rubricScores : [],
             rawResponse: data.rawResponse || '',
         };
     } catch (err: any) {

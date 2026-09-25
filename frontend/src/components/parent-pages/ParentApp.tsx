@@ -8,6 +8,7 @@ import ParentStudents from './ParentStudents';
 import ParentPayments from './ParentPayments';
 import ParentSettings from './ParentSettings';
 import ParentStudentDetail from './ParentStudentDetail';
+import ChatPanel, { type ChatTarget } from '../../messaging/ChatPanel';
 import { Loader2 } from 'lucide-react';
 
 const ParentApp: React.FC = () => {
@@ -17,6 +18,12 @@ const ParentApp: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [selectedStudent, setSelectedStudent] = useState<any>(null);
+    // Mesajlar sayfası belirli bir çocuk için açıldıysa (öğrenci detayından).
+    const [messageTarget, setMessageTarget] = useState<ChatTarget | null>(null);
+    const openMessages = (target?: ChatTarget) => {
+        setMessageTarget(target ?? null);
+        setActivePage('Messages');
+    };
 
     useEffect(() => {
         // Handle browser back button
@@ -99,14 +106,35 @@ const ParentApp: React.FC = () => {
 
     const renderPage = () => {
         switch (activePage) {
-            case 'Dashboard': return <ParentDashboard userData={userData} teachersData={teachersData} />;
-            case 'Progress': return <ParentSkillTree />;
-            case 'Instructors': return <ParentInstructors teachersData={teachersData} />;
+            case 'Dashboard':
+                return (
+                    <ParentDashboard
+                        userData={userData}
+                        teachersData={teachersData}
+                        onNavigate={(page) => (page === 'Messages' ? openMessages() : setActivePage(page))}
+                        onOpenStudent={(s) => { setActivePage('Students'); setSelectedStudent(s); }}
+                    />
+                );
+            case 'Progress': return <ParentSkillTree children={userData?.students || []} />;
+            case 'Instructors': return <ParentInstructors teachersData={teachersData} onMessage={() => openMessages()} />;
+            case 'Messages':
+                return (
+                    <div className="h-[calc(100vh-140px)] min-h-[560px]">
+                        <ChatPanel
+                            key={messageTarget?.studentId ?? 'all'}
+                            role="parent"
+                            heading="Mesajlar"
+                            subheading="Çocuklarınızın öğretmenleriyle yazışmalar"
+                            target={messageTarget ?? undefined}
+                        />
+                    </div>
+                );
             case 'Students': 
                 return selectedStudent ? (
-                    <ParentStudentDetail 
-                        student={selectedStudent} 
-                        onBack={() => setSelectedStudent(null)} 
+                    <ParentStudentDetail
+                        student={selectedStudent}
+                        onBack={() => setSelectedStudent(null)}
+                        onMessage={() => openMessages({ studentId: selectedStudent.id })}
                     />
                 ) : (
                     <ParentStudents 

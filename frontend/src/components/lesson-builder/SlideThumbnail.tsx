@@ -114,11 +114,17 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                             </div>
                         </div>
                     </div>
-                ) : slide.type === 'challenge' ? (
+                ) : (slide.type === 'challenge' || slide.type === 'connect' || slide.type === 'produce') ? (
                     <div className="w-full h-full flex gap-3 p-6 bg-slate-50">
                         {/* Sol: görev kartı */}
                         <div className="w-[38%] bg-white border-2 border-slate-200 border-b-[6px] rounded-2xl p-4 flex flex-col gap-2">
-                            <div className="w-28 h-4 bg-cyan-200 rounded-full" />
+                            <div className={`w-28 h-4 rounded-full ${
+                                slide.type === 'produce' || ((slide.challengeConfig?.stage || '').toUpperCase().includes('ÜRET') || (slide.challengeConfig?.stage || '').toUpperCase().includes('URET'))
+                                    ? 'bg-amber-300'
+                                    : slide.type === 'connect' || ((slide.challengeConfig?.stage || '').toUpperCase().includes('BİRLEŞTİR') || (slide.challengeConfig?.stage || '').toUpperCase().includes('BIRLESTIR'))
+                                    ? 'bg-emerald-200'
+                                    : 'bg-cyan-200'
+                            }`} />
                             <div className="w-full h-3 bg-slate-800/80 rounded-full mt-1" />
                             <div className="w-full h-2 bg-slate-200 rounded-full" />
                             <div className="w-4/5 h-2 bg-slate-200 rounded-full" />

@@ -68,12 +68,13 @@ const InstructorClasses: React.FC = () => {
         }
     };
 
-    // Fetch Students enrolled in the selected course
-    const fetchCourseStudents = async (courseTitle: string) => {
+    // Seçili kursa kayıtlı öğrenciler. Kurs ADI ile değil KİMLİĞİ ile eşlenir:
+    // aynı adlı iki kursun (ör. iki dönemin "Python 101"i) öğrencileri karışıyordu.
+    const fetchCourseStudents = async (courseId: number | string) => {
         try {
             const res = await api.get("/teacher/students");
             const students = res.data
-                .filter((row: any) => row.course_title === courseTitle)
+                .filter((row: any) => String(row.course_id) === String(courseId))
                 .map((row: any) => ({
                     id: row.student_id,
                     first_name: row.first_name,
@@ -93,7 +94,7 @@ const InstructorClasses: React.FC = () => {
     useEffect(() => {
         const actCourse = courses.find(c => c.id === selectedCourseId);
         if (actCourse) {
-            fetchCourseStudents(actCourse.title);
+            fetchCourseStudents(actCourse.id);
         }
     }, [selectedCourseId, courses]);
 

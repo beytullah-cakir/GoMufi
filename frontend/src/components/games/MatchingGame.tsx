@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api";
 import { Check, X, RefreshCw, AlertCircle, PenTool, FileText } from "lucide-react";
 import { useWebSocket } from "../../hooks/useWebSocket";
+import { trackLearningEvent } from "../../learningEvents";
 
 interface MatchingGameProps {
   level: number;
@@ -286,6 +287,16 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     setIsCorrect(correct);
     setPhase("result");
 
+    // Öğrenme kaydı: yalnızca veritabanındaki quiz soruları (sayısal kimlik)
+    // modülün kavramlarına bağlanabiliyor; öğretmenin slayta elle yazdığı oyun
+    // sorularının kalıcı bir kimliği yok. Süre dolması da yanlış cevap sayılır.
+    const question = questions[currentQuestionIndex];
+    if (!isPreviewMode && sectionId && typeof question?.id === 'number') {
+      trackLearningEvent(courseId, {
+        type: 'quiz_answer', node_id: sectionId, question_id: question.id, correct,
+      });
+    }
+
     const qScore = correct ? Math.round(50 + timeRemaining / 2) : 0;
     
     if (correct) {
@@ -329,7 +340,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         }
       };
     });
-  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate]);
+  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate, questions, sectionId]);
 
   // Phase Management
   useEffect(() => {

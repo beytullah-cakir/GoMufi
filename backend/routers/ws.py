@@ -1,5 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from core.ws_manager import manager
+from core import live_routes
 from core.security import decode_access_token
 import json
 import logging
@@ -57,8 +58,16 @@ async def _run_session(websocket: WebSocket, user_id: str):
 
             # Gönderen kimliği daima sunucu tarafında, doğrulanmış token'dan yazılır —
             # istemcinin gönderdiği sender_id/target_user değerlerine güvenilmez.
+            # Alıcıları da sunucu belirler: yalnızca kursun öğretmeni/öğrencileri
+            # (bkz. core/live_routes.py). Eskiden her mesaj herkese yayınlanıyordu.
+            message_data.pop("target_user", None)
             message_data["sender_id"] = user_id
-            await manager.publish(message_data)
+            targets = await live_routes.targets_for(user_id, message_data)
+            if not targets:
+                logger.debug("%s adlı kullanıcının %r mesajı yönlendirilemedi, düştü.",
+                             user_id, message_data.get("type"))
+            for target in targets:
+                await manager.publish({**message_data, "target_user": target})
 
     except WebSocketDisconnect:
         await manager.disconnect(user_id)

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2, Pencil, Play, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { usePyodide } from '../../hooks/usePyodide';
+import { runPythonProgram } from '../../hooks/usePyodide';
 import { checkTaskInVSCode, isEmbeddedInVSCode, prepareTaskInVSCode } from '../../vscodeBridge';
+import { challengeFiles, entryFile } from './challengeFiles';
 import type { ChallengeConfig, ChallengeCriterion, CriterionKind } from './types';
 
 /**
@@ -28,10 +29,10 @@ const ExpectedOutputVerifier: React.FC<Props> = ({ cfg, patch }) => {
     const [running, setRunning] = useState(false);
     const [failure, setFailure] = useState<string | null>(null);
     const [manualEdit, setManualEdit] = useState(false);
-    const { runAndCapture } = usePyodide();
 
     const solution = cfg.solutionCode || '';
     const verified = !!cfg.outputVerified;
+    const language = cfg.language || 'python';
 
     const verify = async () => {
         if (!solution.trim()) {
@@ -41,23 +42,36 @@ const ExpectedOutputVerifier: React.FC<Props> = ({ cfg, patch }) => {
         setRunning(true);
         setFailure(null);
 
+        // Çözüm, görevin DİĞER dosyalarıyla birlikte çalıştırılıyor: çok
+        // dosyalı bir görevde referans çözüm `odev.py`yi içe aktarıyor olabilir,
+        // tek başına çalıştırılırsa ImportError ile patlar ve öğretmen bunu
+        // kendi çözümünün hatası sanar.
+        const files = challengeFiles(cfg, '').map((f) => (
+            f.entry ? { ...f, content: solution } : f
+        ));
+        // Çözüm `input()` kullanıyorsa ÖRNEKLER tablosu onu besler;
+        // beslemezsek öğretmenin doğru çözümü EOFError ile patlar.
+        const stdin = (cfg.samples || [])
+            .map((s) => (s.input || '').trim()).filter(Boolean).join('\n');
+
         try {
             if (isEmbeddedInVSCode()) {
                 // Öğretmen paneli VS Code'da açtıysa çözümü öğrencinin ortamında
                 // doğrula — kurulu paketler ve gerçek sürüm burada belirleyici.
-                await prepareTaskInVSCode(solution, 'python', 'solution');
-                // Çözüm `input()` kullanıyorsa ÖRNEKLER tablosu onu besler;
-                // beslemezsek öğretmenin doğru çözümü EOFError ile patlar.
-                const stdin = (cfg.samples || [])
-                    .map((s) => (s.input || '').trim()).filter(Boolean).join('\n');
+                await prepareTaskInVSCode(files, language, 'solution');
                 // Gizli çalıştırma: öğretmen etkileşim değil ölçüm istiyor.
-                const res = await checkTaskInVSCode('python', 'solution', stdin, false);
+                const res = await checkTaskInVSCode(
+                    language, 'solution', stdin, false, entryFile(files).name,
+                );
                 if (!res?.ok) throw new Error(res?.error || 'VS Code yanıt vermedi.');
                 if (res.timedOut) throw new Error('Çözüm 10 saniyede bitmedi.');
                 if (res.stderr.trim()) throw new Error(res.stderr.trim());
                 patch({ expectedOutput: res.stdout.trimEnd(), outputVerified: true });
             } else {
-                const { stdout, error } = await runAndCapture(solution);
+                if (language !== 'python') {
+                    throw new Error('Tarayıcıda yalnızca Python çalıştırılabilir. Bu dili VS Code panelinden doğrula.');
+                }
+                const { stdout, error } = await runPythonProgram(files, entryFile(files).name, stdin);
                 if (error) throw new Error(error);
                 patch({ expectedOutput: (stdout || '').trimEnd(), outputVerified: true });
             }

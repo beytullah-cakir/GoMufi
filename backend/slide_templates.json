@@ -425,6 +425,24 @@
     "elements": []
   },
   {
+    "id": "c7e2b5a9-4d18-4f6b-8a3e-2b9d61f0c4d7",
+    "title": "Birleştirme Görevi (Özel Slayt)",
+    "description": "BİRLEŞTİR'e özel tam slayt: önceki konuların şimdiki konuyla birlikte kullanıldığı tek görev. Kavram köprüsü (önceki konular → şimdiki konu) ve çözümde kullanılması zorunlu yapılar; zorunlu yapılar öğrencinin kodunda otomatik aranır.",
+    "category": "BİRLEŞTİR",
+    "background": "default",
+    "slideType": "connect",
+    "elements": []
+  },
+  {
+    "id": "e4a8d1c6-9b27-4e5f-b3c0-7f1a2d6e9b58",
+    "title": "Proje Görevi (Özel Slayt)",
+    "description": "ÜRET'e özel tam slayt: öğrencinin öğrendikleriyle kendi mini projesini yazdığı görev. Proje adı, tahmini süre ve gözlemlenebilir gereksinimler; gereksinimler kontrol sırasında madde madde değerlendirilir.",
+    "category": "ÜRET",
+    "background": "default",
+    "slideType": "produce",
+    "elements": []
+  },
+  {
     "id": "49f0fbb8-a3bc-45cc-bfc5-e912ee46517d",
     "category": "UYGULA",
     "title": "Metin Şablonu",

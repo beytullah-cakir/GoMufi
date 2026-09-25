@@ -21,6 +21,8 @@ from __future__ import annotations
 import random
 from typing import Any, Dict, List, Optional
 
+from code_languages import build_code_config
+
 # grid.ts ile aynı sabitler.
 GAP = 24
 PADDING = 48
@@ -188,7 +190,7 @@ def build_grid_slide(
             element["imageUrl"] = content
             element["src"] = content
         if btype in ("code", "code_editor"):
-            element["codeConfig"] = {"language": block.get("language") or "python", "runnable": True}
+            element["codeConfig"] = build_code_config(block)
 
         elements.append(element)
 

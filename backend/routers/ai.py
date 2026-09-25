@@ -1,6 +1,7 @@
 """
 GoMufi — Gemini Yapay Zeka (AI) İçerik Üretim Router'ı.
 """
+import html
 import json
 import os
 import random
@@ -8,7 +9,7 @@ import re
 import copy
 import io
 import logging
-from typing import List, Optional, Any, Dict
+from typing import List, Optional, Any, Dict, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, BackgroundTasks
 from pydantic import BaseModel
 from google import genai
@@ -25,7 +26,14 @@ from sqlalchemy.future import select
 from sqlalchemy import delete
 from models.ai_usage_log import AIUsageLog
 from models.course import Course
+from models.homework_submission import HomeworkSubmission
 from grid_layouts import DEFAULT_LAYOUT, build_grid_slide, layout_menu
+from code_languages import (
+    describe_code_languages, language_ext, normalize_language, safe_file_name,
+)
+import concept_registry
+import homework_rules
+import learning_store
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +96,37 @@ def _visible_len(text: str) -> int:
     return len(_TAG_RE.sub("", text or "").replace("&nbsp;", " "))
 
 
+_BR_TAG_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+_CODE_TYPES = {"code", "code_editor"}
+_CODE_BULLET_RE = re.compile(r"^[ \t]*[•·▪]\s?", re.MULTILINE)
+
+
+def _normalize_code_content(text: str) -> str:
+    """
+    Kod bloğunun içeriğini KOD haline getirir.
+
+    NEDEN GEREKLİ: prompt, gövde metinlerinde satır sonu olarak `<br>` etiketi
+    istiyor (içerik ham HTML olarak basılıyor). Model bu kuralı kod bloklarına
+    da uyguluyor ve ekrana `print("Merhaba")<br>mesaj = "..."` çıkıyor —
+    öğrenci bunu kopyalayıp çalıştırdığında SyntaxError alır.
+
+    Kod bloğu HTML olarak basılmıyor; renklendirici içeriği kaçırarak yazıyor
+    (bkz. codeLanguages.ts `highlightCode`). Yani burada `<br>` gerçek satır
+    sonuna, `&lt;`/`&amp;` gibi kaçışlar da gerçek karaktere çevrilmeli —
+    aksi halde `if (a &lt; b)` ekranda aynen öyle görünür.
+
+    `<br>` DIŞINDAKİ etiketler silinmiyor: `List<int>` ya da `vector<string>`
+    geçerli koddur, etiket sanıp atmak dersi bozar.
+    """
+    if not text:
+        return text
+    out = _BR_TAG_RE.sub("\n", text)
+    out = html.unescape(out)
+    # Madde imi kodun içinde hiçbir zaman doğru değil; model satır başlarına
+    # bunu da koyuyor (aynı biçimlendirme refleksi).
+    return _CODE_BULLET_RE.sub("", out)
+
+
 def _fit_text(el: dict, raw: str, pending: list) -> None:
     """
     Metni elemana yazar; sığmıyorsa KESMEZ, yeniden yazdırılmak üzere kuyruğa alır.
@@ -98,6 +137,14 @@ def _fit_text(el: dict, raw: str, pending: list) -> None:
     (bkz. _shrink_overflowing); kesme yalnızca o da başarısız olursa devreye
     girer.
     """
+    # Kod, gövde metni DEĞİL: madde yapısı ve <br> düzeltmeleri onun için
+    # yıkıcı. Kendi normalleştirmesinden geçip olduğu gibi kalır — uzunluk
+    # kuyruğuna da alınmaz, çünkü "yeniden yazdırma" bir kaynak kodu kısaltmaya
+    # çalışırken çalışmayan bir örnek üretir.
+    if el.get("type") in _CODE_TYPES:
+        el["content"] = _normalize_code_content(raw)
+        return
+
     text = _enforce_slide_bullets(el, _format_list_breaks(raw))
     el["content"] = text
     limit = _effective_max_chars(el)
@@ -161,26 +208,73 @@ def _normalize_criteria(raw: Any, expected_output: Any, check_mode: str) -> List
     return [{"id": "k1", "kind": "template", "value": fallback}]
 
 
-def _build_challenge_slide(raw: str) -> dict:
+def _normalize_challenge_files(
+    raw: Any, starter: str, language: str,
+) -> List[Dict[str, Any]]:
     """
-    UYGULA'ya özel "Uygulama Görevi" slaydını kurar (tuval elemanı değil, kendi tipi).
+    UYGULA görevinin dosya listesini kurar.
+
+    ÇOK DOSYA NEDEN: gerçek programlama tek dosyada olmuyor — `main.py`
+    `odev.py`den içe aktarır. Model iki dosya verdiğinde ikisi de öğrencinin
+    VS Code'unda aynı klasöre yazılır ve `entry` olanı çalıştırılır.
+
+    Model hiç dosya vermediyse tek dosyalı bir liste dönüyor: aşağıdaki her şey
+    (ve arayüzün tamamı) tek bir yoldan yürüsün, "çok dosyalı" ayrı bir kod dalı
+    olmasın.
+    """
+    files: List[Dict[str, Any]] = []
+    for item in raw or []:
+        if not isinstance(item, dict):
+            continue
+        name = safe_file_name(item.get("name"))
+        # Adı kurtarılamayan ya da tekrarlayan dosya ATILIR; uydurma bir adla
+        # yazmak, `import` eden görevi kendi dosyasını bulamaz hale getirirdi.
+        if not name or any(f["name"] == name for f in files):
+            continue
+        files.append({
+            "name": name,
+            "content": str(item.get("content") or ""),
+            "entry": item.get("entry") is True,
+        })
+        if len(files) >= 8:
+            break
+
+    if not files:
+        files = [{"name": f"gorev.{language_ext(language)}", "content": starter, "entry": True}]
+    # TAM OLARAK BİR giriş dosyası. Model hiç işaretlemezse ya da birden fazla
+    # işaretlerse ilki kazanır: "hangi dosya çalışıyor" sorusunun tek cevabı
+    # olmalı, yoksa arayüz bir dosyayı, eklenti başka bir dosyayı çalıştırır.
+    entry_index = next((i for i, f in enumerate(files) if f["entry"]), 0)
+    for i, f in enumerate(files):
+        f["entry"] = i == entry_index
+    return files
+
+
+def _normalize_task_config(raw: Any, defaults: dict) -> Tuple[dict, dict]:
+    """
+    Görev slaytlarının (UYGULA / BİRLEŞTİR / ÜRET) ORTAK yapılandırmasını kurar.
 
     Görev kod olmak ZORUNDA DEĞİL: metin, ekran görüntüsü veya dosya da
     istenebilir. Kod görevlerinde de doğruluk iki şekilde ölçülebilir —
     ekran çıktısı ("adını yazdır") ya da fonksiyon dönüşü.
 
-    AI, yapılandırmayı `elementContents` içinde "challenge" anahtarıyla JSON
-    metni olarak verir — connection_task/production_task ile aynı desen.
+    AI, yapılandırmayı `elementContents` içinde JSON metni olarak verir.
     Bozuk/eksik JSON gelirse varsayılanlarla güvenli bir görev döner; slayt
     hiçbir koşulda boş kalmaz.
+
+    Dönüş: (ortak yapılandırma, modelin ham sözlüğü). İkincisi aşamaya özel
+    alanlar (önceki konular, gereksinimler) için çağırana veriliyor.
     """
-    cfg = dict(_DEFAULT_CHALLENGE)
+    cfg = dict(defaults)
+    extra: dict = {}
     try:
-        parsed = json.loads(raw) if raw else {}
+        # Model JSON'u bazen metin yerine doğrudan nesne olarak veriyor.
+        parsed = raw if isinstance(raw, dict) else (json.loads(raw) if raw else {})
         if isinstance(parsed, dict):
+            extra = parsed
             cfg.update({k: v for k, v in parsed.items() if v not in (None, "")})
     except Exception:
-        logger.warning("Challenge yapılandırması çözümlenemedi, varsayılan kullanıldı")
+        logger.warning("Görev yapılandırması çözümlenemedi, varsayılan kullanıldı")
 
     sub_type = str(cfg.get("submissionType") or "code")
     if sub_type not in _SUBMISSION_TYPES:
@@ -211,34 +305,158 @@ def _build_challenge_slide(raw: str) -> dict:
     criteria = _normalize_criteria(cfg.get("criteria"), cfg.get("expectedOutput"), check_mode)
 
     try:
-        xp = int(cfg.get("xp") or 100)
+        xp = int(cfg.get("xp") or defaults["xp"])
     except (TypeError, ValueError):
-        xp = 100
+        xp = defaults["xp"]
 
     starter = (
         f"# Kodunu buraya yaz 👇\ndef {fn}():\n    pass\n"
         if check_mode == "tests" else "# Kodunu buraya yaz 👇\n"
     )
 
-    return {
-        "id": int(random.random() * 1000000000),
-        "type": "challenge",
-        "elements": [],
-        "challengeConfig": {
-            "title": str(cfg.get("title") or "Uygulama Görevi"),
-            "prompt": str(cfg.get("prompt") or ""),
-            "submissionType": sub_type,
-            "checkMode": check_mode,
-            "expectedOutput": str(cfg.get("expectedOutput") or ""),
-            "criteria": criteria,
-            "functionName": fn,
-            "starterCode": starter,
-            "hint": str(cfg.get("hint") or ""),
-            "xp": xp,
-            "samples": samples,
-            "tests": tests,
-        },
+    language = normalize_language(cfg.get("language"))
+    files = _normalize_challenge_files(cfg.get("files"), starter, language)
+    # Tek dosyalı görevlerde `starterCode` hâlâ tek kaynak: eski slaytlarla aynı
+    # yoldan yürüsünler. Çok dosyalıda giriş dosyasının içeriğini yansıtıyor ki
+    # `files` alanını tanımayan eski bir istemci de boş editör açmasın.
+    entry = next((f for f in files if f.get("entry")), None)
+
+    config = {
+        "title": str(cfg.get("title") or defaults["title"]),
+        "prompt": str(cfg.get("prompt") or ""),
+        "submissionType": sub_type,
+        "checkMode": check_mode,
+        "expectedOutput": str(cfg.get("expectedOutput") or ""),
+        "criteria": criteria,
+        "functionName": fn,
+        "language": language,
+        "files": files,
+        "starterCode": (entry or {}).get("content") or starter,
+        "hint": str(cfg.get("hint") or ""),
+        "xp": xp,
+        "samples": samples,
+        "tests": tests,
     }
+    return config, extra
+
+
+def _str_list(value: Any, limit: int) -> List[str]:
+    """Modelin liste alanını temizler. Liste yerine virgüllü metin de kabul edilir."""
+    if isinstance(value, str):
+        value = value.split(",")
+    if not isinstance(value, list):
+        return []
+    out: List[str] = []
+    for item in value:
+        text = str(item or "").strip()
+        if text and text not in out:
+            out.append(text)
+    return out[:limit]
+
+
+def _task_slide_id() -> int:
+    return int(random.random() * 1000000000)
+
+
+def _build_challenge_slide(raw: str) -> dict:
+    """UYGULA'ya özel "Uygulama Görevi" slaydını kurar (tuval elemanı değil, kendi tipi)."""
+    config, _ = _normalize_task_config(raw, _DEFAULT_CHALLENGE)
+    return {"id": _task_slide_id(), "type": "challenge", "elements": [], "challengeConfig": config}
+
+
+_DEFAULT_CONNECT = {**_DEFAULT_CHALLENGE, "title": "Birleştirme Görevi", "xp": 150}
+
+_DEFAULT_PRODUCE = {**_DEFAULT_CHALLENGE, "title": "Proje Görevi", "xp": 200}
+
+# Modelin gereksinim vermediği projede bile değerlendirilecek bir şey kalsın.
+_DEFAULT_REQUIREMENTS = [
+    "Program çalıştığında anlamlı bir sonucu ekrana yazdırıyor",
+    "Derste öğrenilen yapıları doğru kullanıyor",
+    "Kod okunabilir: değişken adları ne tuttuğunu anlatıyor",
+]
+
+
+def _build_connect_slide(raw: str) -> dict:
+    """
+    BİRLEŞTİR'e özel "Birleştirme Görevi" slaydını kurar.
+
+    Uygula'nın tüm alanlarına ek olarak kavram köprüsü taşır: hangi önceki
+    konular birleştiriliyor ve çözümde hangi yapılar ZORUNLU. Zorunlu yapılar
+    istemcide `code` ölçütüne dönüşür — birleştirmenin tek deterministik kanıtı.
+    """
+    config, extra = _normalize_task_config(raw, _DEFAULT_CONNECT)
+    topics = _str_list(extra.get("previousTopics") or extra.get("previousTopic"), 4)
+    config.update({
+        "stage": "BİRLEŞTİR",
+        "previousTopics": topics,
+        "currentTopic": str(extra.get("currentTopic") or "").strip(),
+        # Kod dışı teslimde aranacak bir kod yok.
+        "requiredConstructs": (
+            _str_list(extra.get("requiredConstructs"), 5) if config["submissionType"] == "code" else []
+        ),
+    })
+    return {"id": _task_slide_id(), "type": "connect", "elements": [], "connectConfig": config}
+
+
+def _build_produce_slide(raw: str) -> dict:
+    """
+    ÜRET'e özel "Proje Görevi" slaydını kurar.
+
+    Projede tek doğru çıktı yok; değerlendirme gereksinimlerle yapılır. Bu
+    yüzden model ölçüt vermediyse `expectedOutput`tan ölçüt TÜRETİLMİYOR ve
+    alan boşaltılıyor: istemci, ölçütsüz bir görevde beklenen çıktıyı şablon
+    ölçütüne çeviriyor ve her öğrencinin farklı projesi "yanlış" çıkıyordu.
+    """
+    config, extra = _normalize_task_config(raw, _DEFAULT_PRODUCE)
+    if not _normalize_criteria(extra.get("criteria"), None, config["checkMode"]):
+        config["criteria"] = []
+        config["expectedOutput"] = ""
+    config.update({
+        "stage": "ÜRET",
+        "projectTitle": str(extra.get("projectTitle") or "").strip(),
+        "estimatedTime": str(extra.get("estimatedTime") or "").strip(),
+        "requirements": _str_list(extra.get("requirements"), 6) or list(_DEFAULT_REQUIREMENTS),
+    })
+    return {"id": _task_slide_id(), "type": "produce", "elements": [], "produceConfig": config}
+
+
+_SPECIAL_SLIDE_BUILDERS = {
+    "challenge": _build_challenge_slide,
+    "connect": _build_connect_slide,
+    "produce": _build_produce_slide,
+}
+
+_LEGACY_TASK_WIDGETS = {"connection_task", "production_task"}
+
+
+def _is_legacy_task_template(template: dict) -> bool:
+    """Eski tuval widget'lı Birleştir/Üret şablonu mu? Yerini özel slaytlar aldı.
+
+    Şablon dosyada duruyor (eski dersler ve öğretmenin elle seçimi için) ama
+    YZ'ye sunulmuyor: aynı iş için iki yol görmek modeli kararsız bırakıyordu.
+    """
+    return any(
+        isinstance(el, dict) and el.get("type") in _LEGACY_TASK_WIDGETS
+        for el in template.get("elements") or []
+    )
+
+
+def _build_special_slide(template: Optional[dict], elem_contents: dict) -> Optional[dict]:
+    """
+    Şablon özel bir görev slaydıysa (tuval elemanı yok) onu kurar; değilse None.
+
+    Model yapılandırmayı şablonun kendi anahtarıyla ("connect") vermeli; başka
+    bir anahtarla verdiyse (ör. alışkanlıkla "challenge") elimizdeki tek JSON
+    o olduğu için yine kullanılıyor — slaytı varsayılana düşürmekten iyidir.
+    """
+    kind = (template or {}).get("slideType")
+    builder = _SPECIAL_SLIDE_BUILDERS.get(kind)
+    if not builder:
+        return None
+    raw = elem_contents.get(kind)
+    if not raw and len(elem_contents) == 1:
+        raw = next(iter(elem_contents.values()))
+    return builder(raw or "")
 
 
 def _clear_unfilled_placeholder(el: dict) -> None:
@@ -519,19 +737,23 @@ def gen_config(
 
 # Her içerik üretim prompt'unun başına konan sabit platform bağlamı.
 #
-# NEDEN: Model, konudan bağımsız olarak "ortam kurulumu" reflekslerini getiriyordu
-# (ölçüldü: Python kurulumu, IDE indirme/karşılaştırması, PATH ayarı, terminal
-# komutları). Bunların hiçbiri GoMufi'de OLMUYOR — öğrenci tarayıcıdaki gömülü
-# editörde çalışıyor, kuracak bir şey yok. Yani üretilen dersin bir kısmı
-# öğrencinin asla göremeyeceği bir dünyayı anlatıyordu.
+# NEDEN: Model, ortamı bilmeden ders yazınca öğrencinin görmediği bir dünyayı
+# anlatıyor. Eskiden ders tarayıcıdaki gömülü editörde işleniyordu ve bu metin
+# "kurulum/terminal YOK" diyordu. ARTIK ÖYLE DEĞİL: ders VS Code eklentisi
+# içinde açılıyor, kod öğrencinin kendi makinesinde gerçek dosya olarak
+# çalışıyor, gerçek bir terminal var. Yani `pip install`, dosya uzantısı,
+# terminal komutu artık ÖĞRETİLEBİLİR — yasaklı kalırsa ders eksik kalır.
+# Yasak yalnızca öğrencinin zaten hallettiği kısımda sürüyor: VS Code'u kurmak,
+# editör seçmek/karşılaştırmak.
 #
 # Prompt'un EN BAŞINA konur: hem tüm çağrılarda aynı kaldığı için Gemini'nin
 # implicit prefix cache'ini bozmaz, hem de müfredat kararları alınmadan önce
 # okunur.
 PLATFORM_CONTEXT = """Platform Context (ALWAYS TRUE, applies to every topic):
-This content will be used inside the GoMufi platform. The student works in a browser, in a code editor embedded in the platform. There is nothing to install, download or configure: no local setup, no IDE installation or comparison, no terminal or command line, no PATH or environment variables, no operating system differences. None of that is ever visible to the student.
-Therefore you MUST NOT include these as topics, lessons, modules, slides or tasks: installing a language or runtime, downloading or choosing an IDE/editor, comparing editors, setting PATH or environment variables, running terminal/shell commands, creating or saving files on disk, file extensions and folder structure, or verifying an installation.
-The student starts by writing code immediately. Begin the curriculum at the first real concept of the subject itself, and spend the freed lesson time on that subject instead.
+This content is delivered by the GoMufi VS Code extension. The lesson opens in a panel inside the student's own VS Code, and code blocks are opened as REAL files in the editor and executed with the REAL toolchain on the student's own machine (e.g. `python file.py`). VS Code has a real integrated terminal, a real file system, real file extensions and real error output — all of it is visible to the student and all of it is fair game to teach.
+Therefore command-line work IS part of the subject when the subject needs it: package installation (`pip install pandas`, `npm install`), running a program from the terminal, version checks, virtual environments, git commands, file and folder structure. Teach these WHERE THEY NATURALLY BELONG — the lesson that first needs a library is the lesson that teaches installing it.
+The ONE thing that is already handled and MUST NOT be taught: setting up the environment itself — downloading or installing VS Code, choosing or comparing IDEs/editors, installing the GoMufi extension. The student already has a working VS Code with the extension running; a slide about that wastes their time.
+Do not open a course with an environment-setup module. Begin at the first real concept of the subject itself.
 """
 
 
@@ -548,10 +770,11 @@ def format_templates_summary(cat_list: List[Dict[str, Any]]) -> str:
     lines = []
     for t in cat_list:
         # Özel slayt şablonu: tuval elemanı yok, kendi yapılandırması var.
-        if t.get("slideType") == "challenge":
+        kind = t.get("slideType")
+        if kind in _SPECIAL_SLIDE_BUILDERS:
             lines.append(
-                f"- Template ID: \"{t['id']}\" | Title: \"{t['title']}\" | SPECIAL SLIDE (challenge) | "
-                "Elements: [challenge (single JSON element, elementId MUST be \"challenge\")]"
+                f"- Template ID: \"{t['id']}\" | Title: \"{t['title']}\" | SPECIAL SLIDE ({kind}) | "
+                f"Elements: [{kind} (single JSON element, elementId MUST be \"{kind}\")]"
             )
             continue
         els = []
@@ -987,6 +1210,10 @@ async def generate_roadmap_api(
         }
         for t in templates:
             cat = t.get("category", "").upper()
+            # Eski tuval widget'lı Birleştir/Üret şablonlarının yerini özel
+            # slaytlar aldı; modele iki farklı yol sunmak çelişkili talimat olurdu.
+            if _is_legacy_task_template(t):
+                continue
             if cat in templates_by_category:
                 elements_info = []
                 for el in t.get("elements", []):
@@ -1115,16 +1342,32 @@ Requirements:
   * A slide is CHEAP; student attention is not. When in doubt between one dense slide and two clear ones, ALWAYS produce two.
   * Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
-- For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
-  * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
-    {{"previousTopic": "Name of previous topic (e.g. Değişken Tanımlama)", "currentTopic": "Name of current topic (e.g. Koşullu İfadeler)", "taskText": "Detailed connection coding challenge instructions asking the student to combine both topics."}}
-- For CREATE (ÜRET): This module is for building a small mini-project.
-  * In the Produce Task template, the `production_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the production task widget:
-    {{"projectTitle": "Title of the project (e.g. Hesap Makinesi)", "taskText": "Detailed instructions on what to build", "expectedOutput": "Example console output showing what the running code should display", "estimatedTime": "Estimated completion time (e.g. 15 Dakika)", "hints": "Useful coding hint or tip"}}
-  * Note: The JSON string for `connection_task` or `production_task` must be escaped properly so that it is a valid JSON string inside the outer JSON response. Escape double quotes with `\"` and use `\n` for line breaks. Do not write raw newlines inside the string values.
+- For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single task.
+  * Generate EXACTLY ONE slide for a CONNECT module, using the template marked `SPECIAL SLIDE (connect)`. Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "connect" and `content` set to a JSON-serialized string. That JSON has EVERY field of the challenge JSON described below (title, prompt, submissionType, checkMode, language, files, criteria, functionName, tests, hint, xp, samples) PLUS these three:
+    {{"previousTopics": ["Döngüler", "Koşullar"], "currentTopic": "Fonksiyonlar", "requiredConstructs": ["for", "if", "def"]}}
+  * `previousTopics` — 1 to 3 EARLIER topics of this course (previous lessons, or earlier modules of this lesson) that the task combines. Use their real names from the curriculum.
+  * `currentTopic` — the topic this lesson just taught.
+  * `requiredConstructs` — for code tasks, 2 to 4 keywords or function names the solution MUST contain: at least one from a previous topic and one from the current topic ("for", "if", "def", "append"). Each is searched in the student's code as a whole word, so write the bare keyword, never a statement. This is the ONLY proof that the student actually combined the topics — never leave it empty for a code task.
+  * Design the task so the previous topics are genuinely NEEDED to solve it, not decorative. A task solvable with the current topic alone is invalid output.
+- For CREATE (ÜRET): This module is a small mini-project: the student builds something of their own with everything learned so far.
+  * Generate EXACTLY ONE slide for a CREATE module, using the template marked `SPECIAL SLIDE (produce)`. Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "produce" and `content` set to a JSON-serialized string. That JSON has the fields of the challenge JSON described below PLUS these three:
+    {{"projectTitle": "Not Hesaplayıcı", "estimatedTime": "20 dk", "requirements": ["Kullanıcıdan en az üç not alıyor", "Ortalamayı hesaplayıp ekrana yazdırıyor", "Ortalamaya göre geçti/kaldı mesajı veriyor"]}}
+  * `requirements` — 3 to 5 OBSERVABLE requirements. THEY ARE THE GRADING: a model checks each one against the student's code and output. Each must be verifiable from code and output ("Kullanıcıdan en az iki sayı alıyor", "Sonucu bir fonksiyonla hesaplıyor"), never vague ("iyi bir program yaz", "yaratıcı ol").
+  * A project's output differs per student, so do NOT set `expectedOutput` and do NOT write `exact` or `template` criteria for the output. Use `checkMode` "output" with NO criteria (the requirements do the checking), or at most one "contains" criterion for a word the program must print.
+  * If the program uses `input()`, provide `samples` whose `input` values answer it during the automatic check, one sample per line of input the program asks for — otherwise the check crashes with EOFError.
+  * `prompt` describes the scenario in 2 to 4 sentences; do not repeat the requirements list in it.
+  * Escape the `connect` and `produce` JSON exactly like the challenge JSON: it must be a valid JSON string inside the outer JSON response.
 - UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
   * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
-    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "language": "python", "files": [{{"name": "main.py", "content": "import odev\n\nprint(odev.selamla(\\"Can\\"))", "entry": true}}, {{"name": "odev.py", "content": "# selamla fonksiyonunu burada yaz\n"}}], "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+  * `files` — THE TASK'S STARTER FILES, written into the student's own VS Code and opened as real files. Each entry is {{"name": "main.py", "content": "starter code", "entry": true}}. Exactly ONE file has `entry: true`: that is the file that gets RUN.
+    - ONE file is the normal case. Omit `files` entirely and the task becomes a single file.
+    - USE TWO OR MORE FILES when the task is ABOUT working across files: importing a module the student writes (`odev.py` next to `main.py`), filling in a function that a given driver file already calls, reading a data file (`veriler.txt`, `notlar.csv`) the task ships with, or separating a class from the script that uses it. This is a real skill and it cannot be taught in one file.
+    - Do NOT split a task into files just to look sophisticated. If everything happens in one script, ship one file.
+    - The files land in the SAME folder and the program runs there, so plain `import odev` / `open("veriler.txt")` work. Use those plain forms; never write a path with folders in it.
+    - Names must be plain file names with an extension (`main.py`, `odev.py`, `veriler.txt`) — no folders, no slashes, no spaces.
+    - Say in `prompt` which file the student writes in. A student staring at two tabs with no instruction is lost.
+  * `language` — the language of the task's code files (`python` unless the course is about another one). It decides the file extension and the command used to run the entry file.
   * `submissionType` — HOW the student answers. Choose from what the task actually needs:
     - "code"  : student writes Python (default for programming topics)
     - "text"  : a written answer (explain, compare, interpret)
@@ -1177,6 +1420,9 @@ Requirements:
   * Length is a CEILING, NOT A GOAL: at most 12 words per bullet (prose sentences may be longer, but stay within the 2-4 sentence limit). Use all 12 words if that is what specificity costs. NEVER delete the concrete detail to make a bullet shorter — a specific 12-word bullet is always better than a vague 5-word one. Empty short bullets are exactly as bad as a dense paragraph; they are the same failure.
   * Cut ceremony, never content: drop "bulunmaktadır", "olarak adlandırılmaktadır", "-dır" chains, and restatements of the slide title. Keep the technical term, the command, the number.
   * WHEN USING BULLETS, format the element content EXACTLY as: `• first bullet<br>• second bullet<br>• third bullet` — the literal `•` character, separated by the HTML tag `<br>`. Do NOT use `-` or `*` as bullet markers, and do NOT emit `<ul>` or `<li>` tags. WHEN USING PROSE, write plain sentences with NO `•` marker and NO `<br>` between them.
+  * THIS `<br>` RULE APPLIES TO PROSE AND BULLETS ONLY — NEVER TO A `code` ELEMENT OR BLOCK. A code block is raw source code: separate its lines with the newline escape `
+`, never with `<br>`, never with `•`, and never with HTML escapes (`&lt;`, `&gt;`, `&amp;`, `&quot;`). Write `print("Merhaba")
+mesaj = "Python"` — a block containing `print("Merhaba")<br>mesaj = "Python"` is INVALID OUTPUT: the student copies it, runs it, and gets a SyntaxError.
   * Ordered step-by-step instructions are the ONE exception: keep them numbered (`1. ...<br>2. ...`) and still obey the 4-item and 12-word limits.
   * Concrete examples and syntax still belong on the slide, in whichever format you chose.
   * A server-side safety net only catches the extreme failure: a paragraph longer than 4 sentences is force-split into bullets and everything past the 4th is DISCARDED. Prose of 2-4 sentences is left exactly as you wrote it, so you are responsible for choosing the right format yourself.
@@ -1316,9 +1562,10 @@ Expected JSON Structure:
                         if not selected_t and cat_templates:
                             selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
                             
-                        if selected_t and selected_t.get("slideType") == "challenge":
-                            # Ozel slayt: tuval elemani yok, kendi yapilandirmasi var.
-                            slides_to_add.append(_build_challenge_slide(elem_contents.get("challenge", "")))
+                        special_slide = _build_special_slide(selected_t, elem_contents)
+                        if special_slide:
+                            # Ozel slayt (Uygula/Birlestir/Uret): tuval elemani yok, kendi yapilandirmasi var.
+                            slides_to_add.append(special_slide)
                         elif selected_t:
                             copied_elements = []
                             for el in selected_t.get("elements", []):
@@ -1443,7 +1690,7 @@ Role: You are an expert computer science curriculum architect and educational pl
 Your task is to analyze the course topic, difficulty, audience, and optional PDF content, and suggest:
 - A flat sequence of substantive, practical coding topics (subject headings) that must be covered in this course (typically between 5 and 15 topics).
 - **Strictly Ban Trivial/Fluff Headings**: Do not generate separate topics for history (e.g., Python history, versions 2.x vs 3.x), compiler/interpreter definitions, syntax trivia (like comment `#` character), or individual data types (like string, integer, float as separate topics).
-- **Strictly Ban Setup/Environment Headings** (see Platform Context above): Do not generate topics such as installing the language, downloading or choosing an IDE, comparing editors, PATH or environment variables, terminal/command line usage, or verifying an installation. On this platform none of that exists — the student is already in a working code editor. The very first topic must be a real concept of the subject.
+- **Ban Editor-Setup Headings, NOT Tooling** (see Platform Context above): Do not generate topics about installing/choosing/comparing VS Code or any IDE, or about installing the GoMufi extension — the student already has a working VS Code. The very first topic must be a real concept of the subject. Command-line tooling (package installation, running the file from the terminal, virtual environments, git) is NOT banned, but it never gets a heading of its own: fold it into the substantive topic that actually needs it (e.g. "Pandas ile Veri Okuma (pip install, DataFrame)").
 - **Cluster Into Substantive Headings**: Group minor details and syntax trivia together into comprehensive, high-density practical headers (each representing a significant coding outcome and at least 20-30 minutes of real teaching time).
   - *Incorrect (Do NOT suggest)*: ["Python Tarihçesi", "Python Kurulumu", "print() kullanımı", "Yorum satırları"]
   - *Correct (Instead suggest)*: ["Python Kurulumu, İlk Programı Çalıştırma (print, yorumlar)"]
@@ -1621,6 +1868,169 @@ Expected JSON Structure:
     except Exception as e:
         print(f"Error expanding topics: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class EnrichTopicsRequest(BaseModel):
+    topics: List[str]
+    course_topic: str
+    difficulty: Optional[str] = "Beginner"
+    audience: Optional[str] = ""
+    # Verilmezse kurs konusundan tespit edilir. Öğretmen sihirbazda başka bir
+    # dilin sözlüğünü seçtiyse o seçim buradan gelir.
+    language: Optional[str] = None
+
+
+class TopicConceptItem(BaseModel):
+    concept_id: str
+    primary: bool
+
+
+class EnrichedTopicItem(BaseModel):
+    topic_index: int
+    outcomes: List[str]
+    concepts: List[TopicConceptItem]
+
+
+class EnrichTopicsResponse(BaseModel):
+    topics: List[EnrichedTopicItem]
+
+
+@router.post("/courses/enrich_topics")
+async def enrich_topics_api(
+    req: EnrichTopicsRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Konu başlıklarına KAZANIM ve KAVRAM bağlar.
+
+    Bu, müfredat hattının sonuna eklenen adımdır:
+        kurs konusu -> dersler -> konular -> (kazanımlar + kavramlar)
+
+    Kavramlar UYDURULMAZ. Dilin sözlüğü prompt'a yazılır ve model yalnızca o
+    listeden seçer; seçemediği şeyler `unmatched_concepts` tablosuna loglanır.
+    Sözlük yoksa bu uç HİÇBİR ŞEY üretmez, `dictionary_missing` döndürür ve
+    öğretmenden sözlüğü onaylaması istenir (bkz. routers/concepts.py).
+    """
+    topics = [t for t in (req.topics or []) if (t or "").strip()]
+    if not topics:
+        raise HTTPException(status_code=400, detail="Zenginleştirilecek konu yok.")
+
+    language = (req.language or "").strip().lower() or concept_registry.detect_language(
+        req.course_topic, req.audience
+    )
+    if not language:
+        return {
+            "success": True,
+            "language": None,
+            "dictionary_missing": True,
+            "topics": [],
+        }
+
+    dictionary = await concept_registry.get_dictionary(db, language)
+    if not dictionary:
+        return {
+            "success": True,
+            "language": language,
+            "language_label": concept_registry.language_label(language),
+            "dictionary_missing": True,
+            "topics": [],
+        }
+
+    known = {c.concept_id: c for c in dictionary}
+    numbered = "\n".join(f"{i}. {t}" for i, t in enumerate(topics))
+    dictionary_block = concept_registry.dictionary_prompt_block(dictionary)
+
+    prompt = f"""
+{PLATFORM_CONTEXT}
+Role: You are a curriculum measurement designer. Türkçe cevap ver.
+
+You are given (a) a fixed CONCEPT DICTIONARY for {concept_registry.language_label(language)} and
+(b) the topic headings of one course. For EVERY topic, produce:
+
+1. `outcomes` — 2 to 4 items, each completing the sentence "Bu konuyu bitiren öğrenci ...".
+   Plain Turkish a parent could read. Observable actions, not feelings.
+   Correct: "Değişken tanımlayıp değer atayabilir"
+   Wrong: "Değişkenleri kavrar", "Veri tiplerinin önemini anlar"
+2. `concepts` — pick from the dictionary below. HARD RULES:
+   - Use ONLY `concept_id` values that appear in the dictionary. Never invent one.
+   - AT MOST 4 concepts per topic. If a topic honestly needs more, it is too broad —
+     still return only the 4 most central ones.
+   - EXACTLY ONE concept must have `primary: true`: the one this topic is really about.
+   - Order them by importance, primary first.
+   - If nothing in the dictionary fits, return an empty list. Do NOT force a match.
+
+CONCEPT DICTIONARY (the only valid concept_id values):
+{dictionary_block}
+
+Course context: {req.course_topic} | Seviye: {req.difficulty} | Hedef kitle: {req.audience or '-'}
+
+TOPICS (answer with the same topic_index):
+{numbered}
+
+Return ONLY valid JSON. No markdown.
+"""
+
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=prompt,
+            config=gen_config(EnrichTopicsResponse, thinking_budget=512, model=settings.GEMINI_MODEL),
+        )
+        await record_ai_usage(
+            db, teacher_id, "enrich_topics", settings.GEMINI_MODEL, response,
+            details=f"Kurs: '{req.course_topic}' | Dil: {language} | {len(topics)} konu",
+            prompt_chars=len(prompt),
+        )
+        data = json.loads(response.text.strip())
+    except Exception as e:
+        logger.error("Konu zenginleştirme başarısız: %s", e)
+        raise HTTPException(status_code=500, detail=f"Kazanım/kavram üretilemedi: {e}")
+
+    by_index = {}
+    for item in data.get("topics", []):
+        try:
+            by_index[int(item.get("topic_index"))] = item
+        except (TypeError, ValueError):
+            continue
+
+    enriched = []
+    all_unmatched: List[str] = []
+    for idx, topic in enumerate(topics):
+        raw = by_index.get(idx, {})
+        raw_concepts = raw.get("concepts") or []
+        accepted, unmatched = concept_registry.normalize_topic_concepts(raw_concepts, known)
+        all_unmatched.extend(unmatched)
+
+        outcomes = [
+            str(o).strip() for o in (raw.get("outcomes") or []) if str(o).strip()
+        ][:4]
+
+        enriched.append({
+            "topic": topic,
+            "topic_index": idx,
+            "outcomes": outcomes,
+            "concepts": accepted,
+            # Model 4'ten fazla kavram istediyse konu fazla geniştir: arayüz
+            # öğretmene "bu konuyu ikiye böl" uyarısını bu bayrakla gösterir.
+            "too_broad": len(raw_concepts) > concept_registry.MAX_CONCEPTS_PER_TOPIC,
+            "unmatched": unmatched,
+        })
+
+    if all_unmatched:
+        await concept_registry.log_unmatched(
+            db, language, all_unmatched,
+            course_topic=req.course_topic, teacher_id=teacher_id,
+        )
+
+    return {
+        "success": True,
+        "language": language,
+        "language_label": concept_registry.language_label(language),
+        "dictionary_missing": False,
+        "topics": enriched,
+    }
 
 
 @router.post("/courses/generate_roadmap_structure")
@@ -1937,6 +2347,10 @@ async def generate_lesson_slides_api(
         }
         for t in templates:
             cat = t.get("category", "").upper()
+            # Eski tuval widget'lı Birleştir/Üret şablonlarının yerini özel
+            # slaytlar aldı; modele iki farklı yol sunmak çelişkili talimat olurdu.
+            if _is_legacy_task_template(t):
+                continue
             if cat in templates_by_category:
                 elements_info = []
                 for el in t.get("elements", []):
@@ -2001,6 +2415,7 @@ HARD RULES:
         # Düzen menüsü sabit bir metin — prompt'un önbelleklenen önekinde kalması
         # için burada, değişken bloklardan ÖNCE hesaplanıyor.
         grid_menu = layout_menu()
+        code_language_menu = describe_code_languages()
 
         # PROMPT SIRALAMASI BİLİNÇLİDİR — DEĞİŞTİRMEDEN ÖNCE OKUYUN:
         # Bir kursun dersleri arka arkaya üretilirken bu prompt'un başındaki her şey
@@ -2039,20 +2454,36 @@ Requirements:
   * A slide is CHEAP; student attention is not. When in doubt between one dense slide and two clear ones, ALWAYS produce two.
   * Crucially, EVERY single concept, formula, syntax, method, command, tool, function, or technique that will be required or practiced in the subsequent APPLY module MUST be explicitly taught, explained, and demonstrated with a concrete example (code block, text example, or formula breakdown) in these UNDERSTAND slides. Never explain theory without showing a concrete working example.
   * For APPLY (UYGULA): Generate 1 to 2 slides with task instructions or challenges. The student MUST ONLY be asked to apply or solve what was explicitly demonstrated and taught in the immediately preceding UNDERSTAND slides. It is STRICTLY FORBIDDEN to introduce or ask for any new concept, syntax, method, function, or formula in APPLY that was not explicitly shown in UNDERSTAND.
-- For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single coding challenge. 
-  * In the Connection Task template, the `connection_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the connection task widget:
-    {{"previousTopic": "Name of previous topic (e.g. Değişken Tanımlama)", "currentTopic": "Name of current topic (e.g. Koşullu İfadeler)", "taskText": "Detailed connection coding challenge instructions asking the student to combine both topics."}}
-- For CREATE (ÜRET): This module is for building a small mini-project.
-  * In the Produce Task template, the `production_task` element content MUST be a JSON-serialized string formatted exactly like this to populate the production task widget:
-    {{"projectTitle": "Title of the project (e.g. Hesap Makinesi)", "taskText": "Detailed instructions on what to build", "expectedOutput": "Example console output showing what the running code should display", "estimatedTime": "Estimated completion time (e.g. 15 Dakika)", "hints": "Useful coding hint or tip"}}
-  * Note: The JSON string for `connection_task` or `production_task` must be escaped properly so that it is a valid JSON string inside the outer JSON response. Escape double quotes with `\"` and use `\n` for line breaks. Do not write raw newlines inside the string values.
+- For CONNECT (BİRLEŞTİR): This module MUST NOT teach new theory, MUST NOT use daily life analogies, and MUST NOT provide concept definitions. Its ONLY goal is to make the student combine and use two or more previously learned concepts together in a single task.
+  * Generate EXACTLY ONE slide for a CONNECT module, using the template marked `SPECIAL SLIDE (connect)`. Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "connect" and `content` set to a JSON-serialized string. That JSON has EVERY field of the challenge JSON described below (title, prompt, submissionType, checkMode, language, files, criteria, functionName, tests, hint, xp, samples) PLUS these three:
+    {{"previousTopics": ["Döngüler", "Koşullar"], "currentTopic": "Fonksiyonlar", "requiredConstructs": ["for", "if", "def"]}}
+  * `previousTopics` — 1 to 3 EARLIER topics of this course (previous lessons, or earlier modules of this lesson) that the task combines. Use their real names from the curriculum.
+  * `currentTopic` — the topic this lesson just taught.
+  * `requiredConstructs` — for code tasks, 2 to 4 keywords or function names the solution MUST contain: at least one from a previous topic and one from the current topic ("for", "if", "def", "append"). Each is searched in the student's code as a whole word, so write the bare keyword, never a statement. This is the ONLY proof that the student actually combined the topics — never leave it empty for a code task.
+  * Design the task so the previous topics are genuinely NEEDED to solve it, not decorative. A task solvable with the current topic alone is invalid output.
+- For CREATE (ÜRET): This module is a small mini-project: the student builds something of their own with everything learned so far.
+  * Generate EXACTLY ONE slide for a CREATE module, using the template marked `SPECIAL SLIDE (produce)`. Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "produce" and `content` set to a JSON-serialized string. That JSON has the fields of the challenge JSON described below PLUS these three:
+    {{"projectTitle": "Not Hesaplayıcı", "estimatedTime": "20 dk", "requirements": ["Kullanıcıdan en az üç not alıyor", "Ortalamayı hesaplayıp ekrana yazdırıyor", "Ortalamaya göre geçti/kaldı mesajı veriyor"]}}
+  * `requirements` — 3 to 5 OBSERVABLE requirements. THEY ARE THE GRADING: a model checks each one against the student's code and output. Each must be verifiable from code and output ("Kullanıcıdan en az iki sayı alıyor", "Sonucu bir fonksiyonla hesaplıyor"), never vague ("iyi bir program yaz", "yaratıcı ol").
+  * A project's output differs per student, so do NOT set `expectedOutput` and do NOT write `exact` or `template` criteria for the output. Use `checkMode` "output" with NO criteria (the requirements do the checking), or at most one "contains" criterion for a word the program must print.
+  * If the program uses `input()`, provide `samples` whose `input` values answer it during the automatic check, one sample per line of input the program asks for — otherwise the check crashes with EOFError.
+  * `prompt` describes the scenario in 2 to 4 sentences; do not repeat the requirements list in it.
+  * Escape the `connect` and `produce` JSON exactly like the challenge JSON: it must be a valid JSON string inside the outer JSON response.
 - For QUIZ: generate 3 multiple-choice questions about the lesson topic. Each question must have 1 correct option and 3 incorrect options.
 - For HOMEWORK: generate 1 practical homework task. Decide if the student should submit code, text, image, or file.
   * For programming topics, use "code" submissionType. For conceptual tasks, use "text".
   * For "code" type: provide a small starterCode template.
 - UYGULAMA GÖREVİ (CHALLENGE) SPECIAL SLIDE — APPLY ONLY: One UYGULA template is marked `SPECIAL SLIDE (challenge)`. It is not a canvas layout; it renders a full task screen (brief + answer area + optional automatic check). Its PURPOSE is to make the student APPLY what the preceding UNDERSTAND module just taught. PREFER it for APPLY modules.
   * Its `elementContents` MUST contain EXACTLY ONE entry with `elementId` set to the literal string "challenge", and `content` set to a JSON-serialized string with this shape:
-    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+    {{"title": "Kısa görev başlığı", "prompt": "Ne yapılacağı, 1-2 cümle", "submissionType": "code", "checkMode": "output", "language": "python", "files": [{{"name": "main.py", "content": "import odev\n\nprint(odev.selamla(\\"Can\\"))", "entry": true}}, {{"name": "odev.py", "content": "# selamla fonksiyonunu burada yaz\n"}}], "expectedOutput": "Merhaba Dünya!", "criteria": [{{"kind": "template", "value": "Adım: {{ad}}, Soyadım: {{soyad}}!"}}], "functionName": "", "tests": [], "hint": "Tek cümlelik ipucu", "xp": 100, "samples": [{{"input": "7", "output": "True"}}]}}
+  * `files` — THE TASK'S STARTER FILES, written into the student's own VS Code and opened as real files. Each entry is {{"name": "main.py", "content": "starter code", "entry": true}}. Exactly ONE file has `entry: true`: that is the file that gets RUN.
+    - ONE file is the normal case. Omit `files` entirely and the task becomes a single file.
+    - USE TWO OR MORE FILES when the task is ABOUT working across files: importing a module the student writes (`odev.py` next to `main.py`), filling in a function that a given driver file already calls, reading a data file (`veriler.txt`, `notlar.csv`) the task ships with, or separating a class from the script that uses it. This is a real skill and it cannot be taught in one file.
+    - Do NOT split a task into files just to look sophisticated. If everything happens in one script, ship one file.
+    - The files land in the SAME folder and the program runs there, so plain `import odev` / `open("veriler.txt")` work. Use those plain forms; never write a path with folders in it.
+    - Names must be plain file names with an extension (`main.py`, `odev.py`, `veriler.txt`) — no folders, no slashes, no spaces.
+    - Say in `prompt` which file the student writes in. A student staring at two tabs with no instruction is lost.
+  * `language` — the language of the task's code files (`python` unless the course is about another one). It decides the file extension and the command used to run the entry file.
   * `submissionType` — HOW the student answers. Choose from what the task actually needs:
     - "code"  : student writes Python (default for programming topics)
     - "text"  : a written answer (explain, compare, interpret)
@@ -2105,6 +2536,9 @@ Requirements:
   * Length is a CEILING, NOT A GOAL: at most 12 words per bullet (prose sentences may be longer, but stay within the 2-4 sentence limit). Use all 12 words if that is what specificity costs. NEVER delete the concrete detail to make a bullet shorter — a specific 12-word bullet is always better than a vague 5-word one. Empty short bullets are exactly as bad as a dense paragraph; they are the same failure.
   * Cut ceremony, never content: drop "bulunmaktadır", "olarak adlandırılmaktadır", "-dır" chains, and restatements of the slide title. Keep the technical term, the command, the number.
   * WHEN USING BULLETS, format the element content EXACTLY as: `• first bullet<br>• second bullet<br>• third bullet` — the literal `•` character, separated by the HTML tag `<br>`. Do NOT use `-` or `*` as bullet markers, and do NOT emit `<ul>` or `<li>` tags. WHEN USING PROSE, write plain sentences with NO `•` marker and NO `<br>` between them.
+  * THIS `<br>` RULE APPLIES TO PROSE AND BULLETS ONLY — NEVER TO A `code` ELEMENT OR BLOCK. A code block is raw source code: separate its lines with the newline escape `
+`, never with `<br>`, never with `•`, and never with HTML escapes (`&lt;`, `&gt;`, `&amp;`, `&quot;`). Write `print("Merhaba")
+mesaj = "Python"` — a block containing `print("Merhaba")<br>mesaj = "Python"` is INVALID OUTPUT: the student copies it, runs it, and gets a SyntaxError.
   * Ordered step-by-step instructions are the ONE exception: keep them numbered (`1. ...<br>2. ...`) and still obey the 4-item and 12-word limits.
   * Concrete examples and syntax still belong on the slide, in whichever format you chose.
   * A server-side safety net only catches the extreme failure: a paragraph longer than 4 sentences is force-split into bullets and everything past the 4th is DISCARDED. Prose of 2-4 sentences is left exactly as you wrote it, so you are responsible for choosing the right format yourself.
@@ -2122,6 +2556,21 @@ Available layouts (pick the `layout` key that fits the content):
 
 - `blocks[].cell` is the 0-based index of the cell, counted left-to-right then top-to-bottom.
 - `blocks[].type` is one of: text, code, sticky, image.
+- `blocks[].language` — REQUIRED on every `code` block. It decides syntax highlighting, the
+  file extension the block gets when it opens in the student's VS Code, and whether it can be
+  run. Pick from: {code_language_menu}
+- `blocks[].mode` — `"editor"` (a source file the student edits and runs) or `"terminal"`
+  (a command line: each line is rendered with a shell prompt and can be copied into VS Code's
+  integrated terminal). If you omit it, shell languages default to terminal and the rest to editor.
+  USE A TERMINAL BLOCK, NEVER AN EDITOR BLOCK, FOR COMMANDS. A line like `pip install pandas`,
+  `npm install express`, `python main.py`, `git commit -m "..."` or `dotnet --version` is a
+  command, not source code: it belongs in a block with `"language": "bash"` (or `"powershell"`
+  for Windows-only PowerShell commands, `"cmd"` for CMD). Putting `pip install pandas` in a
+  `python` block is INVALID OUTPUT — it teaches the student to paste it into a `.py` file,
+  where it raises SyntaxError.
+  Keep the two kinds SEPARATE: the install command and the code that uses the library are two
+  blocks, never one. Write commands bare, with NO `$`/`>` prompt character — the prompt is drawn
+  by the UI, so a leading `$` shows up twice.
 - `blocks[].weight` (optional, default 1) is that block's share of its cell's height.
   Use a small weight for a heading and a larger one for the body (e.g. heading 1, body 3).
 - Multiple blocks MAY share one cell; they stack vertically in the order you list them.
@@ -2147,7 +2596,10 @@ Expected JSON Structure:
           "blocks": [
              {{ "cell": 0, "type": "text", "weight": 1, "content": "<b>Başlık</b>" }},
              {{ "cell": 0, "type": "text", "weight": 3, "content": "• madde bir<br>• madde iki" }},
-             {{ "cell": 1, "type": "code", "content": "mesaj = \\"Merhaba\\"\\nprint(mesaj)" }}
+             {{ "cell": 1, "type": "code", "language": "python", "mode": "editor",
+                "content": "mesaj = \\"Merhaba\\"\\nprint(mesaj)" }},
+             {{ "cell": 1, "type": "code", "language": "bash", "mode": "terminal",
+                "content": "pip install pandas" }}
           ]
           // OR the legacy form, only when a template fits far better:
           // "selectedTemplateId": "template_id_here",
@@ -2319,9 +2771,10 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                     if not selected_t and cat_templates:
                         selected_t = next((t for t in templates if t.get("id") == cat_templates[0]["id"]), None)
                         
-                    if selected_t and selected_t.get("slideType") == "challenge":
-                        # Ozel slayt: tuval elemani yok, kendi yapilandirmasi var.
-                        slides_to_add.append(_build_challenge_slide(elem_contents.get("challenge", "")))
+                    special_slide = _build_special_slide(selected_t, elem_contents)
+                    if special_slide:
+                        # Ozel slayt (Uygula/Birlestir/Uret): tuval elemani yok, kendi yapilandirmasi var.
+                        slides_to_add.append(special_slide)
                     elif selected_t:
                         copied_elements = []
                         for el in selected_t.get("elements", []):
@@ -3016,18 +3469,71 @@ class CoachResponse(BaseModel):
     # İpucunun ilgili olduğu satır (1'den başlar). Editörde tam o satırın
     # altına çizilebilmesi için; emin olunamıyorsa 0.
     line: int = 0
+    # Öğretmen analizi: hatanın kavramı ve öğrencinin yanlış fikri (bkz.
+    # CONCEPT_TAGGING_RULES). Öğrenciye gösterilmez; koç hatayı zaten analiz
+    # ediyor, bunu yapılandırılmış yazması ek bir çağrıya mal olmuyor.
+    conceptId: str = ""
+    misconception: str = ""
 
 
 class AIWeaknessResponse(BaseModel):
     explanation: str
     studentCode: Optional[str] = None
     improvedCode: Optional[str] = None
+    # Öğrenme analitiği: zayıflığın ait olduğu kavram (sözlükten) ve öğrencinin
+    # yanlış fikri. Öğretmenin "sınıf nerede zorlanıyor" sayfası bunlarla dolar.
+    conceptId: Optional[str] = None
+    misconception: Optional[str] = None
+
+
+async def _concept_candidates(
+    db: AsyncSession, course_id: Optional[int], task_key: Optional[str],
+) -> Tuple[Optional[Any], List[str], str]:
+    """Modelin seçebileceği kavramlar: önce görevin modülününkiler, sonra dilin sözlüğü.
+
+    Dönüş: (kurs bağlamı, geçerli kimlikler, prompt bloğu). Bağlam kurulamazsa
+    boş blok döner — değerlendirme kavramsız da çalışmalı.
+    """
+    if not course_id:
+        return None, [], ""
+    try:
+        ctx = await learning_store.course_context(db, course_id)
+    except Exception as exc:  # noqa: BLE001 — kavram bağlamı yan bilgi, asıl işi durdurmasın
+        logger.warning("Kavram bağlamı kurulamadı: %s", exc)
+        return None, [], ""
+    if not ctx or not ctx.concepts:
+        return ctx, [], ""
+    task = ctx.resolve_task(task_key) if task_key else None
+    node_concepts, _ = ctx.node_concepts(task["node_id"] if task else None)
+    ordered = node_concepts + [c for c in ctx.concepts if c not in node_concepts]
+    lines = [
+        f"- {c} | {ctx.concepts[c]['label']}" + (" (bu modülün kavramı)" if c in node_concepts else "")
+        for c in ordered[:40]
+    ]
+    return ctx, ordered, "\n".join(lines)
+
+
+CONCEPT_TAGGING_RULES = """KAVRAM ETİKETİ (öğretmen analizi için; öğrenciye gösterilmez):
+- `conceptId`: hatanın ait olduğu kavramın kimliği — YALNIZCA aşağıdaki listeden.
+  Önce "bu modülün kavramı" olanlara bak. Emin değilsen boş bırak; uydurma.
+- `misconception`: öğrencinin kafasındaki yanlış fikir, 3-10 kelime, Türkçe.
+  Örnek: "range(5)'in 5'i de ürettiğini sanıyor", "input()'un sayı döndürdüğünü sanıyor".
+  Yanlış fikir yoksa (yalnızca dikkatsizlik ya da doğru çözüm) boş bırak.
+KAVRAM LİSTESİ:"""
+
+
+class RubricScoreItem(BaseModel):
+    criterionId: str
+    level: int
+    reason: str
 
 
 class HomeworkEvaluationResponse(BaseModel):
     overallScore: int
     summary: str
     weaknesses: List[AIWeaknessResponse]
+    # Yalnızca ödevin dereceli puanlama anahtarı varsa doldurulur.
+    rubricScores: Optional[List[RubricScoreItem]] = None
 
 
 def _homework_parts(
@@ -3037,10 +3543,15 @@ def _homework_parts(
     file_bytes: Optional[bytes],
     file_name: Optional[str],
     file_mime: Optional[str],
+    concept_block: str = "",
 ) -> List[Any]:
     """Teslim türüne göre Gemini'ye gönderilecek parçaları hazırlar."""
     question_block = f"EĞİTMENİN SORUSU:\n{question}"
     header = f"{HOMEWORK_SYSTEM_PROMPT}\n\n{question_block}"
+    if concept_block:
+        # Her zayıflık için conceptId/misconception: öğretmenin ödev analizi
+        # "sınıfın 9'u döngü sınırında yanıldı" diyebilsin diye.
+        header += f"\n\n{CONCEPT_TAGGING_RULES}\n{concept_block}"
 
     if submission_type == "text":
         return [types.Part.from_text(
@@ -3181,15 +3692,171 @@ async def challenge_check(
     return {"passed": bool(parsed.get("passed")), "reason": (parsed.get("reason") or "").strip()}
 
 
+# ─────────────────────────────────────────────────────────────────────────────
+# ÜRET — proje gereksinimi değerlendirmesi
+#
+# Mini projede tek doğru çıktı yok: her öğrenci kendi hesap makinesini, kendi
+# menüsünü yazıyor. Beklenen çıktıyla karşılaştırmak burada yanlış ölçü; doğru
+# ölçü öğretmenin yazdığı gereksinimler. Hepsi TEK çağrıda değerlendiriliyor —
+# madde başına ayrı çağrı beş maddelik bir projede her "Kontrol Et"i beş model
+# çağrısına çeviriyordu.
+# ─────────────────────────────────────────────────────────────────────────────
+
+MAX_PROJECT_REQUIREMENTS = 10
+
+
+class RequirementVerdict(BaseModel):
+    index: int
+    passed: bool
+    reason: str
+
+
+class ProjectReviewResponse(BaseModel):
+    results: List[RequirementVerdict]
+
+
+class ProjectReviewRequest(BaseModel):
+    course_id: int
+    task: str
+    requirements: List[str]
+    student_code: str
+    stdout: Optional[str] = None
+
+
+PROJECT_REVIEW_PROMPT = """Sen bir programlama öğretmenisin. Öğrenci bir MİNİ PROJE yazdı.
+
+Sana projenin GÖREVİ, numaralı GEREKSİNİMLER, öğrencinin KODU ve kodun ÇIKTISI verilecek.
+Her gereksinim için ayrı karar ver: karşılanıyorsa passed=true.
+
+KURALLAR:
+- Her gereksinim için TAM OLARAK bir sonuç döndür; `index` gereksinimin numarası.
+- Yalnızca gereksinimin kendisine bak. Kod stili, verimlilik, değişken adları
+  gereksinim bunları açıkça istemiyorsa karar DEĞİŞTİRMEZ.
+- Projenin konusu ve verileri öğrenciye aittir: senin aklındaki örnekten farklı
+  olması bir gereksinimi DÜŞÜRMEZ.
+- Kısmen karşılanan gereksinim passed=false.
+- reason: Türkçe, tek cümle, öğrencinin okuyacağı dilde. passed=false ise NEYİN
+  eksik olduğunu söyle, NASIL yapılacağını değil.
+- reason içinde KOD VERME — öğrenci hâlâ çalışıyor.
+"""
+
+
+@router.post("/ai/project-review")
+async def project_review(
+    payload: ProjectReviewRequest,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """ÜRET projesinin gereksinimlerini tek çağrıda madde madde değerlendirir.
+
+    Karar istemcide (gereksinimler, kod, çıktı) üçlüsüne göre önbelleklenir;
+    düşünme kapalı — aynı proje her kontrolde aynı sonucu almalı.
+    """
+    requirements = [r.strip() for r in payload.requirements if r and r.strip()][:MAX_PROJECT_REQUIREMENTS]
+    if not requirements:
+        raise HTTPException(status_code=400, detail="Gereksinim listesi boş olamaz.")
+    if not payload.student_code.strip():
+        raise HTTPException(status_code=400, detail="Kod boş olamaz.")
+
+    course = await ensure_course_access(db, payload.course_id, user_info)
+
+    numbered = "\n".join(f"{i}. {r}" for i, r in enumerate(requirements, 1))
+    prompt = "\n\n".join([
+        PROJECT_REVIEW_PROMPT,
+        f"GÖREV:\n{payload.task[:4000]}",
+        f"GEREKSİNİMLER:\n{numbered}",
+        f"ÖĞRENCİNİN KODU:\n{payload.student_code[:6000]}",
+        f"ÇIKTI:\n{(payload.stdout or '(boş)')[:2000]}",
+    ])
+
+    try:
+        client = genai.Client(api_key=settings.MY_API_KEY)
+        response = client.models.generate_content(
+            model=settings.GEMINI_MODEL,
+            contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
+            config=gen_config(ProjectReviewResponse, thinking_budget=0, model=settings.GEMINI_MODEL),
+        )
+        parsed = json.loads((response.text or "").strip())
+    except Exception as e:
+        logger.exception("Proje değerlendirmesi başarısız: %s", e)
+        raise HTTPException(status_code=502, detail="Değerlendirme servisi yanıt vermiyor.")
+
+    await record_ai_usage(
+        db, None, "project_review", settings.GEMINI_MODEL, response,
+        details=f"ÜRET gereksinim değerlendirmesi ({len(requirements)} madde)",
+        course_id=payload.course_id, course_title=course.title,
+    )
+
+    return {"results": normalize_requirement_verdicts(parsed, len(requirements))}
+
+
+def normalize_requirement_verdicts(parsed: Any, count: int) -> List[dict]:
+    """Modelin cevabını gereksinim listesine hizalar.
+
+    Model bir maddeyi atlayabilir, iki kez yazabilir ya da olmayan bir numara
+    uydurabilir. Aralık dışı ve tekrarlanan numaralar atılır; eksik madde
+    listede YOKTUR — istemci onu "değerlendirilemedi" gösterir, "düştü" değil.
+    """
+    out: List[dict] = []
+    seen = set()
+    items = parsed.get("results") if isinstance(parsed, dict) else None
+    for item in items or []:
+        if not isinstance(item, dict):
+            continue
+        try:
+            index = int(item.get("index"))
+        except (TypeError, ValueError):
+            continue
+        if not 1 <= index <= count or index in seen:
+            continue
+        seen.add(index)
+        out.append({
+            "index": index,
+            "passed": item.get("passed") is True,
+            "reason": str(item.get("reason") or "").strip(),
+        })
+    return sorted(out, key=lambda r: r["index"])
+
+
 class ChallengeCoachRequest(BaseModel):
     course_id: int
     phase: str                      # 'error' | 'diff' | 'quality'
-    task: str                       # görev metni
+    task: str                       # görev metni (aşama bağlamıyla birlikte)
     student_code: str
     attempt: int = 1
     stdout: Optional[str] = None
     stderr: Optional[str] = None
     expected_output: Optional[str] = None
+    # Görev slaytının türü: 'challenge' (Uygula) | 'connect' (Birleştir) | 'produce' (Üret).
+    # Eski istemciler göndermez — o zaman Uygula varsayılır.
+    stage: Optional[str] = None
+    # Görevin teslim anahtarı ("connect:<slayt>"): koçun tespiti öğrencinin
+    # kaydına bu görevle yazılır. Eski istemciler göndermez — kayıt atlanır.
+    task_key: Optional[str] = None
+
+
+# Aşamanın koça söylediği şey. Koçun hatayı açıklama biçimi aynı; değişen,
+# öğrencinin o aşamada NEYİ öğrenmesi gerektiği. Birleştir'de iyi bir ipucu
+# "önceki konuyu nerede kullanabilirsin?", Üret'te "hangi gereksinim eksik?"
+# sorusudur — Uygula'nın tek kavramlık bakışı orada yetersiz kalıyordu.
+COACH_STAGE_FOCUS = {
+    "challenge": ("UYGULA", ""),
+    "connect": (
+        "BİRLEŞTİR",
+        "AŞAMA: BİRLEŞTİR. Görevin amacı ÖNCEKİ konuları şimdiki konuyla BİRLİKTE\n"
+        "kullanmak. Görev metnindeki 'Birleştirilecek önceki konular' ve 'Kodda\n"
+        "kullanılması gereken yapılar' satırlarına bak. Öğrenci önceki konuyu hiç\n"
+        "kullanmıyorsa ipucun bunu hatırlatsın: hangi adımda o yapıya ihtiyaç\n"
+        "olduğunu düşündür — yapının kendisini yazma.",
+    ),
+    "produce": (
+        "ÜRET",
+        "AŞAMA: ÜRET (mini proje). Öğrenci kendi projesini yazıyor; tek doğru\n"
+        "çıktı yok. Görev metnindeki 'Gereksinimler' listesine göre konuş: hangi\n"
+        "gereksinimin henüz karşılanmadığını söyle, nasıl karşılanacağını değil.\n"
+        "Öğrencinin tasarım tercihlerini (değişken adları, menü metni) düzeltme.",
+    ),
+}
 
 
 @router.post("/ai/challenge-coach")
@@ -3234,15 +3901,20 @@ async def challenge_coach(
             "Önerecek anlamlı bir şey yoksa sadece neyi iyi yaptığını söyle."
         )
 
-    prompt = "\n\n".join([
+    stage_name, stage_focus = COACH_STAGE_FOCUS.get(payload.stage or "challenge", COACH_STAGE_FOCUS["challenge"])
+    _, valid_concepts, concept_block = await _concept_candidates(db, payload.course_id, payload.task_key)
+
+    prompt = "\n\n".join(part for part in [
         COACH_BASE_RULES,
+        stage_focus,
         focus,
-        f"GÖREV:\n{payload.task}",
+        f"GÖREV:\n{payload.task[:4000]}",
         f"ÖĞRENCİNİN KODU:\n{payload.student_code[:4000]}",
         f"ÇALIŞTIRMA ÇIKTISI:\n{(payload.stdout or '(boş)')[:2000]}",
         f"HATA ÇIKTISI:\n{(payload.stderr or '(yok)')[:2000]}",
-        f"BEKLENEN ÇIKTI:\n{payload.expected_output or '(tanımsız)'}",
-    ])
+        f"BEKLENEN / DÜŞEN KONTROL:\n{payload.expected_output or '(tanımsız)'}",
+        f"{CONCEPT_TAGGING_RULES}\n{concept_block}" if concept_block else "",
+    ] if part)
 
     async def ask() -> Any:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -3269,6 +3941,7 @@ async def challenge_coach(
             retry_parsed = json.loads((retry.text or "").strip())
             message = (retry_parsed.get("message") or "").strip()
             line = int(retry_parsed.get("line") or 0)
+            parsed = retry_parsed
             if _leaks_code(message, payload.expected_output):
                 # İkinci kez de ihlal: cevabı hiç göstermiyoruz. Kötü bir ipucu
                 # yoktan iyidir sanılabilir ama burada tam tersi — kodu görmek
@@ -3287,10 +3960,33 @@ async def challenge_coach(
 
     await record_ai_usage(
         db, None, "challenge_coach", settings.GEMINI_MODEL, response,
-        details=f"UYGULA Koçu ({payload.phase}, deneme {payload.attempt})",
+        details=f"{stage_name} Koçu ({payload.phase}, deneme {payload.attempt})",
         course_id=payload.course_id,
         course_title=course.title,
     )
+
+    # Koçun tespiti öğretmenin analiz sayfasına: hangi öğrenci, hangi görevde,
+    # hangi kavramda, hangi yanlış fikirle takıldı. Kavram sözlükte yoksa
+    # atılır — modelin uydurduğu bir kimlik haritada hayalet sütun açardı.
+    concept_id = str(parsed.get("conceptId") or "").strip()
+    if concept_id not in valid_concepts:
+        concept_id = ""
+    misconception = str(parsed.get("misconception") or "").strip()[:200]
+    if user_info.get("role") == "student" and payload.task_key:
+        await learning_store.safe_record_event(payload.course_id, int(user_info["sub"]), {
+            "type": "coach",
+            "task_key": payload.task_key,
+            "attempt": payload.attempt,
+            "client": "server",
+            "concept_id": concept_id or None,
+            "misconception": misconception or None,
+            "details": {
+                "phase": payload.phase,
+                "message": message[:1000],
+                "concept_id": concept_id or None,
+                "misconception": misconception or None,
+            },
+        })
 
     return {"message": message, "phase": payload.phase, "line": max(0, line)}
 
@@ -3302,6 +3998,9 @@ async def evaluate_homework_api(
     text_answer: Optional[str] = Form(None),
     course_id: Optional[int] = Form(None),
     node_id: Optional[str] = Form(None),
+    # Öğretmen belirli bir teslimi değerlendiriyorsa: sonuç o öğrencinin
+    # öğrenme kaydına yazılır (öğretmenin kendi kaydına değil).
+    submission_id: Optional[int] = Form(None),
     file: Optional[UploadFile] = File(None),
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
@@ -3330,6 +4029,26 @@ async def evaluate_homework_api(
         if len(file_bytes) > HOMEWORK_MAX_FILE_BYTES:
             raise HTTPException(status_code=413, detail="Dosya boyutu 10 MB'ı aşamaz.")
 
+    # Ödevin kendisi sunucudan: eskiden öğretmen tarafı modele gerçek yönerge
+    # yerine "Dosyayı incele ve genel bir değerlendirme yap" gönderiyordu —
+    # model neyi değerlendirdiğini bilmeden puan veriyordu.
+    rubric = None
+    if course_id is not None and node_id:
+        ctx = await learning_store.course_context(db, course_id)
+        task = ctx.resolve_task(str(node_id)) if ctx else None
+        if task:
+            slide = task["slide"]
+            parts_text = [slide.get("title") or "", slide.get("instructions") or ""]
+            if slide.get("requirements"):
+                parts_text.append("Gereksinimler:\n" + "\n".join(f"- {r}" for r in slide["requirements"]))
+            server_question = "\n\n".join(t for t in parts_text if t.strip())
+            if server_question.strip():
+                question = server_question
+            rubric = slide.get("rubric")
+    if rubric:
+        question = f"{question}\n\n{homework_rules.rubric_prompt(rubric)}"
+
+    _, valid_concepts, concept_block = await _concept_candidates(db, course_id, node_id)
     parts = _homework_parts(
         question=question,
         submission_type=submission_type,
@@ -3337,6 +4056,7 @@ async def evaluate_homework_api(
         file_bytes=file_bytes,
         file_name=file.filename if file else None,
         file_mime=file.content_type if file else None,
+        concept_block=concept_block,
     )
 
     try:
@@ -3368,11 +4088,78 @@ async def evaluate_homework_api(
         raise HTTPException(status_code=502, detail="Değerlendirme yanıtı çözümlenemedi.")
 
     weaknesses = parsed.get("weaknesses")
+    weaknesses = weaknesses if isinstance(weaknesses, list) else []
+    for w in weaknesses:
+        # Sözlükte olmayan kavram atılır; yanılgı metni öğretmen içindir, kısaltılır.
+        if isinstance(w, dict):
+            if w.get("conceptId") not in valid_concepts:
+                w["conceptId"] = None
+            w["misconception"] = (str(w.get("misconception") or "").strip()[:200]) or None
+    score = max(0, min(100, int(parsed.get("overallScore") or 0)))
+
+    # Anahtar varsa not seviyelerden hesaplanır: model "genel izlenim" puanı
+    # uydurmasın, öğretmenin tanımladığı ölçütlerle tutarlı olsun.
+    rubric_scores: List[Dict[str, Any]] = []
+    if rubric:
+        levels, reasons = homework_rules.ai_rubric_scores(rubric, parsed.get("rubricScores"))
+        computed, clean = homework_rules.rubric_grade(rubric, levels)
+        if computed is not None:
+            score = computed
+        rubric_scores = [{"criterionId": cid, "level": lvl, "reason": reasons.get(cid, "")} for cid, lvl in clean.items()]
+
+    await _record_homework_review(
+        db, role, user_info, course_id, node_id, submission_id,
+        score, parsed.get("summary") or "", weaknesses,
+    )
+
     return {
-        "overallScore": max(0, min(100, int(parsed.get("overallScore") or 0))),
+        "overallScore": score,
         "summary": parsed.get("summary") or "",
-        "weaknesses": weaknesses if isinstance(weaknesses, list) else [],
+        "weaknesses": weaknesses,
+        "rubricScores": rubric_scores,
+        "rubric": rubric,
         "rawResponse": raw_text,
     }
+
+
+async def _record_homework_review(
+    db: AsyncSession, role: Optional[str], user_info: dict,
+    course_id: Optional[int], node_id: Optional[str], submission_id: Optional[int],
+    score: int, summary: str, weaknesses: List[Any],
+) -> None:
+    """Ödev YZ değerlendirmesini öğrencinin öğrenme kaydına yazar.
+
+    Öğrenci kendi ödevini kontrol ettiyse kendi kaydına ("student" kaynağı —
+    öğretmen öğrencinin teslimden önce kaç kez kontrol ettiğini de görür).
+    Öğretmen bir teslimi değerlendirdiyse o teslimin sahibine ("teacher").
+    """
+    if not course_id or not node_id:
+        return
+    student_id: Optional[int] = None
+    source = "student"
+    if role == "student":
+        student_id = int(user_info["sub"])
+    elif submission_id is not None:
+        sub = (await db.execute(
+            select(HomeworkSubmission).where(
+                HomeworkSubmission.id == submission_id, HomeworkSubmission.course_id == course_id)
+        )).scalar_one_or_none()
+        if sub:
+            student_id, node_id, source = sub.student_id, sub.node_id, "teacher"
+    if student_id is None:
+        return
+    compact = [{
+        "explanation": str(w.get("explanation") or "")[:300],
+        "conceptId": w.get("conceptId"),
+        "misconception": w.get("misconception"),
+    } for w in weaknesses if isinstance(w, dict)]
+    await learning_store.safe_record_event(course_id, student_id, {
+        "type": "homework_review",
+        "task_key": str(node_id),
+        "client": "server",
+        "score": score,
+        "weaknesses": compact,
+        "details": {"source": source, "score": score, "summary": summary[:500], "weaknesses": compact},
+    })
 
 

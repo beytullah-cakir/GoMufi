@@ -24,7 +24,7 @@ import type { ChallengeConfig, ChallengeCriterion, CriterionKind } from './types
  * biçim zaten görevin konusuydu. Doğrusu ikisinin arası: cevabı kabul et, farkı
  * söyle. `near` tam olarak bu.
  */
-export type CriterionStatus = 'pass' | 'near' | 'fail';
+export type CriterionStatus = 'pass' | 'near' | 'fail' | 'pending';
 
 export interface CriterionResult {
     id: string;
@@ -37,8 +37,11 @@ export interface CriterionResult {
     source?: ChallengeCriterion;
 }
 
-/** Görev geçildi mi? `near` geçer — kabul edilir, not düşülür. */
-export const isAccepted = (r: CriterionResult) => r.status !== 'fail';
+/**
+ * Görev geçildi mi? `near` geçer — kabul edilir, not düşülür.
+ * `pending` (henüz bakılmadı) geçmez: bakılmamış bir madde onaylanmış sayılamaz.
+ */
+export const isAccepted = (r: CriterionResult) => r.status === 'pass' || r.status === 'near';
 
 export interface CheckOutcome {
     passed: boolean;
@@ -49,6 +52,7 @@ export interface CheckOutcome {
 
 /** Ölçütün öğrenciye gösterilen adı. */
 export const criterionLabel = (c: ChallengeCriterion): string => {
+    if (c.label) return c.label;
     switch (c.kind) {
         case 'exact': return 'Çıktı birebir doğru';
         case 'template': return 'Çıktı istenen biçimde';
@@ -71,6 +75,11 @@ export const criterionLabel = (c: ChallengeCriterion): string => {
  * aynı görev üretim yolundan geçtiğine göre farklı davranırdı.
  */
 export const criteriaOf = (cfg: ChallengeConfig): ChallengeCriterion[] => {
+    // Çıktı ölçütleri yalnızca "Ekran çıktısı" kipinde anlamlı. Öğretmen kipi
+    // değiştirdiğinde eski ölçütler yapılandırmada kalıyor; uygulansalardı
+    // fonksiyon testi görevinde ekran çıktısı da aranırdı. Sunucudaki
+    // `_normalize_criteria` da aynı kuralı uyguluyor.
+    if (cfg.checkMode && cfg.checkMode !== 'output') return [];
     if (cfg.criteria?.length) return cfg.criteria;
     const expected = (cfg.expectedOutput || '').trim();
     if (!expected) return [];
@@ -81,6 +90,31 @@ const normalize = (text: string) =>
     text.replace(/\r\n/g, '\n').split('\n').map((l) => l.trimEnd()).join('\n').trim();
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** Satır yorumu `#` ile başlayan diller; ötekiler `//` kullanıyor. */
+const HASH_COMMENT = new Set(['python', 'bash', 'powershell', 'ruby', 'yaml', 'docker']);
+
+/**
+ * Kod bu yapıyı kullanıyor mu?
+ *
+ * Düz `includes` yanıltıyordu: "for" ölçütü `format(...)` ya da
+ * `# for kullanmadım` yorumuyla geçiyordu. Kelime benzeri ifadelerde (for,
+ * while, def, append) kelime sınırı aranır; yorum satırları sayılmaz.
+ * Kelime olmayan ifadeler (`+=`, `[i]`) olduğu gibi aranır.
+ */
+export const codeUses = (code: string, construct: string, language = 'python'): boolean => {
+    const needle = construct.trim();
+    if (!needle) return true;
+    const marker = HASH_COMMENT.has(language) ? '#' : '//';
+    const body = code
+        .split('\n')
+        .filter((line) => !line.trimStart().startsWith(marker))
+        .join('\n');
+    if (/^[\p{L}_][\p{L}\p{N}_]*$/u.test(needle)) {
+        return new RegExp(`(?<![\\p{L}\\p{N}_])${escapeRegExp(needle)}(?![\\p{L}\\p{N}_])`, 'u').test(body);
+    }
+    return body.includes(needle);
+};
 
 /**
  * "Ruhen aynı mı" karşılaştırması için metni sadeleştirir.
@@ -187,6 +221,7 @@ const arbitrationCriterion = (expected: string) => [
  */
 export const evaluate = async (
     criteria: ChallengeCriterion[], code: string, stdout: string, judge?: AIJudge,
+    language = 'python',
 ): Promise<CheckOutcome> => {
     const results: CriterionResult[] = [];
     const deterministic = criteria.filter((c) => c.kind !== 'ai');
@@ -227,7 +262,7 @@ export const evaluate = async (
         } else if (c.kind === 'code') {
             // Kod ölçütünde gevşetme YOK: "for kullan" dendiyse `for` ya vardır
             // ya yoktur, arada bir hâli yok.
-            status = code.includes(c.value.trim()) ? 'pass' : 'fail';
+            status = codeUses(code, c.value, language) ? 'pass' : 'fail';
             if (status === 'fail') detail = `Kodda "${c.value.trim()}" kullanılmamış.`;
         }
 
@@ -265,7 +300,7 @@ export const evaluate = async (
             // Değerlendirilmedi: geçmiş gibi göstermek yanlış olurdu, düşmüş
             // gibi göstermek de — bu yüzden ayrı bir "henüz bakılmadı" hali.
             results.push({
-                id: c.id, kind: 'ai', label: criterionLabel(c), status: 'fail',
+                id: c.id, kind: 'ai', label: criterionLabel(c), status: 'pending',
                 detail: deterministicOk ? 'Değerlendirilemedi.' : 'Önceki ölçütler geçince bakılacak.',
             });
             continue;
@@ -317,6 +352,53 @@ export const makeAIJudge = (
         };
         verdictCache.set(key, verdict);
         return verdict;
+    } catch {
+        return null;
+    }
+};
+
+/**
+ * ÜRET projesinin gereksinimlerini TEK çağrıda değerlendirir.
+ *
+ * NEDEN AYRI UÇ: her gereksinimi ayrı bir `ai` ölçütü yapmak, beş maddelik
+ * bir projede her "Kontrol Et"te beş model çağrısı demekti — hem yavaş hem
+ * pahalı. Proje bir bütün; model maddeleri birlikte görünce de daha tutarlı
+ * karar veriyor.
+ *
+ * `null` = değerlendirilemedi (ağ/servis hatası). Çağıran bunu "düştü" değil
+ * "bakılamadı" olarak göstermeli.
+ */
+const reviewCache = new Map<string, Array<{ passed: boolean; reason: string }>>();
+
+export const reviewRequirements = async (
+    courseId: number | string | undefined, task: string, requirements: string[],
+    code: string, stdout: string,
+): Promise<Array<{ passed: boolean; reason: string }> | null> => {
+    if (!courseId || !requirements.length) return null;
+    const key = JSON.stringify([requirements, code, stdout]);
+    const cached = reviewCache.get(key);
+    if (cached) return cached;
+
+    try {
+        const res = await api.post('/ai/project-review', {
+            course_id: Number(courseId),
+            task,
+            requirements,
+            student_code: code,
+            stdout,
+        });
+        const raw: any[] = Array.isArray(res.data?.results) ? res.data.results : [];
+        // Model maddeleri atlayabilir ya da sırayı bozabilir; sonucu ÖĞRETMENİN
+        // listesine göre diziyoruz, eksik madde "bakılamadı" kalır.
+        const byIndex = new Map(raw.map((r) => [Number(r?.index), r]));
+        const verdicts = requirements.map((_, i) => {
+            const r = byIndex.get(i + 1);
+            return r
+                ? { passed: !!r.passed, reason: String(r.reason || '') }
+                : { passed: false, reason: '' };
+        });
+        if (raw.length) reviewCache.set(key, verdicts);
+        return raw.length ? verdicts : null;
     } catch {
         return null;
     }

@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2, Send } from 'lucide-react';
+import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2, Send, ExternalLink, Users } from 'lucide-react';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import { layoutElements, modeForWidth } from '../lesson-builder/grid';
 import CodeInEditorStrip from '../lesson-builder/CodeInEditorStrip';
-import { isEmbeddedInVSCode, runInVSCode } from '../../vscodeBridge';
+import { isEmbeddedInVSCode } from '../../vscodeBridge';
+import { switchToVSCode, VSCodeTargetProvider } from '../../vscodeTarget';
+import { useLocalRunner } from '../../hooks/useLocalRunner';
 import GameBuilder from '../lesson-builder/GameBuilder';
 import ChallengeSlideBuilder from '../lesson-builder/ChallengeSlideBuilder';
+import ConnectSlideBuilder from '../lesson-builder/ConnectSlideBuilder';
+import ProduceSlideBuilder from '../lesson-builder/ProduceSlideBuilder';
 import StudentHomeworkView from './StudentHomeworkView';
+import { LiveTaskBoard } from '../instructor-pages/learning/LiveTask';
+import { learningApi } from '../instructor-pages/learning/learningApi';
+import { LiveLessonContext, type LiveTaskTimer } from '../lesson-builder/liveLessonContext';
+import LiveBoardOverlay, { type BoardView } from './LiveBoardOverlay';
+import { useWebSocketEvent } from '../../hooks/useWebSocket';
 import { useWebSocket } from '../../hooks/useWebSocket';
 
 interface LessonSlideProps {
@@ -53,8 +62,11 @@ const getStageColor = (title: string) => {
 const getSlideStage = (slide: any): string => {
     if (!slide) return 'ANLA';
 
+    if (slide.type === 'connect') return 'BİRLEŞTİR';
+    if (slide.type === 'produce') return 'ÜRET';
+
     // 1. Explicit stage / bubbleTitle on slide object
-    const raw = slide.bubbleTitle || slide.bubble_title || slide.stage || slide.stageId || slide.category || slide.templateCategory;
+    const raw = slide.bubbleTitle || slide.bubble_title || slide.stage || slide.stageId || slide.category || slide.templateCategory || slide.challengeConfig?.stage || slide.connectConfig?.stage || slide.produceConfig?.stage;
     if (raw && typeof raw === 'string') {
         const upper = raw.toUpperCase().trim();
         if (upper.includes('ANLA')) return 'ANLA';
@@ -109,6 +121,19 @@ const toStageLabel = (stage: string) => {
     return `${stage}'${suffix} GEÇ`;
 };
 
+/**
+ * Görev süresi mesajı. Kalan süre gönderilir (bitiş anı değil): öğrencinin
+ * saati öğretmeninkinden farklı olabilir.
+ */
+const timerMessage = (courseId: string | number | undefined, next: LiveTaskTimer | null) => ({
+    type: 'task_timer',
+    courseId,
+    taskKey: next?.taskKey ?? null,
+    remainingMs: next ? Math.max(0, next.endsAt - Date.now()) : 0,
+    closed: !!next?.closed,
+    active: !!next,
+});
+
 const LessonSlide: React.FC<LessonSlideProps> = ({
     isOpen,
     onClose,
@@ -138,6 +163,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     // ANLA modülünün içindeki kod örneği slaydı UYGULA sanılıp bar renk değiştiriyordu.
     const hasFixedStage = isModuleMode || !!moduleStage;
     const [currentSlide, setCurrentSlide] = useState(0);
+    // Kodu VS Code'a taşıyan kanal: panelde postMessage, tarayıcıda öğrencinin
+    // makinesindeki yerel sunucu. Çağıran hangisi olduğunu bilmek zorunda değil.
+    const { run: sendCodeToVSCode } = useLocalRunner();
     const [localSlides, setLocalSlides] = useState<any[]>([]);
     const containerRef = useRef<HTMLDivElement>(null);
     // Ölçek doğrudan tutulmuyor: hangi tabana göre ölçekleneceği slaydın grid'i
@@ -182,6 +210,34 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
     // Real-time WebSocket hook
     const { sendMessage, lastMessage } = useWebSocket();
+
+    // Canlı ders: görev süresi (öğretmen koyar, öğrencilere yayınlanır), tahtaya
+    // alınan isimsiz çözüm ve bu çözüm öğrencilerin ekranına da gitsin mi.
+    const [taskTimer, setTaskTimer] = useState<LiveTaskTimer | null>(null);
+    const [board, setBoard] = useState<BoardView | null>(null);
+    const [boardToStudents, setBoardToStudents] = useState(false);
+    const broadcastTimer = (next: LiveTaskTimer | null) => sendMessage(timerMessage(courseId, next));
+    const updateTimer = (next: LiveTaskTimer | null) => {
+        setTaskTimer(next);
+        broadcastTimer(next);
+    };
+    const summonAll = () => {
+        sendMessage({ type: 'slide_status', courseId, lessonIndex, mode: followMode, currentSlide, summon: true });
+    };
+
+    useWebSocketEvent(['task_timer', 'board_share', 'board_clear'], (msg) => {
+        if (!isLiveStudent || !isOpen) return;
+        if (msg.courseId && courseId && String(msg.courseId) !== String(courseId)) return;
+        if (msg.type === 'task_timer') {
+            setTaskTimer(msg.active && msg.taskKey
+                ? { taskKey: msg.taskKey, endsAt: Date.now() + Number(msg.remainingMs || 0), closed: !!msg.closed }
+                : null);
+        } else if (msg.type === 'board_share') {
+            setBoard({ task: msg.task, code: msg.code, failed: msg.failed || [], note: msg.note ?? null });
+        } else {
+            setBoard(null);
+        }
+    });
 
     // Fullscreen state & auto-fullscreen on open/close
     const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -350,9 +406,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     // Student sync status on mount/mount event (yalnızca canlı derste hocanın konumunu iste)
     useEffect(() => {
         if (isOpen && isLiveStudent) {
-            sendMessage({ type: 'request_slide_status' });
+            // Kurs kimliği şart: sunucu isteği yalnızca bu kursun öğretmenine iletir.
+            sendMessage({ type: 'request_slide_status', courseId });
         }
-    }, [isLiveStudent, isOpen]);
+    }, [isLiveStudent, isOpen, courseId]);
 
     // Listen for incoming slide sync requests and updates
     useEffect(() => {
@@ -368,6 +425,13 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 const { mode, currentSlide: tSlide } = lastMessage;
                 setFollowMode(mode);
                 setTeacherCurrentSlide(tSlide);
+                if (lastMessage.summon) {
+                    setIsFollowingTeacher(true);
+                    setShowCatchUpAlert(false);
+                    setCurrentSlide(tSlide);
+                    setIsReady(false);
+                    return;
+                }
 
                 // Force follow mode settings
                 if (mode === 'follow') {
@@ -394,6 +458,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     mode: followMode,
                     currentSlide: currentSlide
                 });
+                if (taskTimer) broadcastTimer(taskTimer);
             }
         } else if (lastMessage.type === 'student_status') {
             // Teacher aggregates student pings and status
@@ -452,7 +517,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 });
             }
         }
-    }, [lastMessage, previewRole, isLiveStudent, isOpen, isFollowingTeacher, courseId, lessonIndex, currentSlide, followMode]);
+    }, [lastMessage, previewRole, isLiveStudent, isOpen, isFollowingTeacher, courseId, lessonIndex, currentSlide, followMode, taskTimer]);
 
     // Force follow update when toggling check state
     useEffect(() => {
@@ -643,13 +708,48 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         updateSlide={(updates) => {
                             setLocalSlides(prev => prev.map((s, i) => i === currentSlide ? { ...s, ...updates } : s));
                         }}
-                        // Öğretmen bu ekranda görevi kurmaz, teslimleri izler.
-                        role={previewRole === 'teacher' ? 'review' : 'student'}
+                        // Öğretmen ekranı tahtaya yansıyor: görev + İSİMSİZ sınıf durumu.
+                        // Kimin takıldığı öğretmenin kendi çekmecesinde (Canlı Görev Panosu).
+                        role={previewRole === 'teacher' ? 'present' : 'student'}
                         courseId={courseId}
                         // Slayt id'si kurs içinde benzersiz ve İKİ TARAFTA DA aynı
                         // (course.notes içinde saklanır) — öğretmenin gördüğü teslim
                         // anahtarıyla öğrencininki bu sayede eşleşir.
                         submissionNodeId={`challenge:${slide.id}`}
+                        onSolved={() => setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }))}
+                    />
+                </div>
+            );
+        }
+
+        if (slide.type === 'connect') {
+            return (
+                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                    <ConnectSlideBuilder
+                        slide={slide}
+                        updateSlide={(updates) => {
+                            setLocalSlides(prev => prev.map((s, i) => i === currentSlide ? { ...s, ...updates } : s));
+                        }}
+                        role={previewRole === 'teacher' ? 'present' : 'student'}
+                        courseId={courseId}
+                        submissionNodeId={`connect:${slide.id}`}
+                        onSolved={() => setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }))}
+                    />
+                </div>
+            );
+        }
+
+        if (slide.type === 'produce') {
+            return (
+                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                    <ProduceSlideBuilder
+                        slide={slide}
+                        updateSlide={(updates) => {
+                            setLocalSlides(prev => prev.map((s, i) => i === currentSlide ? { ...s, ...updates } : s));
+                        }}
+                        role={previewRole === 'teacher' ? 'present' : 'student'}
+                        courseId={courseId}
+                        submissionNodeId={`produce:${slide.id}`}
                         onSolved={() => setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }))}
                     />
                 </div>
@@ -840,22 +940,42 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         : displayStages.indexOf(currentBubbleTitle);
 
     // CTA ekranın türüne göre değişir ("Devam Et" her yerde olmasın)
-    const isChallengeSlide = slide?.type === 'challenge' || !!slide?.elements?.some((el: any) => el.type === 'challenge');
+    // Tam ekran görev slaytları (UYGULA / BİRLEŞTİR / ÜRET): çözülmeden ya da
+    // teslim edilmeden geçilmez. Eskiden yalnızca UYGULA kilitliydi ve alttaki
+    // "Görevi Gönder" hiçbir şey göndermeden slaydı çözülmüş sayıyordu — öğrenci
+    // iki tıkla her görevi atlayabiliyordu. Çözme/teslim slaydın içinde; bu düğme
+    // yalnızca sonucu bekliyor. Öğretmen önizlemesi kilitlenmez.
+    const isTaskSlide = slide?.type === 'challenge' || slide?.type === 'connect' || slide?.type === 'produce';
+    // Eski tuval widget'ı: kendi çözüm bildirimi yok, düğme hâlâ onu tamamlar.
+    const isLegacyChallenge = !isTaskSlide && !!slide?.elements?.some((el: any) => el.type === 'challenge');
+    const isChallengeSlide = isTaskSlide || isLegacyChallenge;
     const hasCodeEl = !!slide?.elements?.some((el: any) => el.type === 'code' || el.type === 'code_editor');
     const willAdvanceToNextModule = isModuleMode && previewRole === 'student' && !isLive && nextModuleNodeId != null;
 
     const isTaskSolved = !!solvedSlides[currentSlide];
-    let isTaskPending = isChallengeSlide && !isTaskSolved;
+    let isTaskPending = isChallengeSlide && !isTaskSolved && (isLegacyChallenge || previewRole === 'student');
+    const isTaskLocked = isTaskPending && isTaskSlide;
     // Kod bir kez çalıştırıldıysa buton "Devam Et"e döner — aksi halde öğrenci
     // aynı kodu tekrar tekrar çalıştırıp slayttan çıkamıyordu.
     let isTryCodeSlide = !isChallengeSlide && hasCodeEl && !isTaskSolved;
 
+    // Tarayıcıda kod ÇALIŞTIRILMAZ, VS Code'a devredilir. Buton bunu söylemeli:
+    // "Kodu Dene" tarayıcıda bir şey olacağı sözü verirdi. VS Code panelinde ise
+    // öğrenci zaten oradadır — orada söz gerçek, etiket de öyle kalır.
+    const handsOffToVSCode = isTryCodeSlide && !isEmbeddedInVSCode();
+
     let ctaLabel = 'Devam Et';
     let CtaIcon = ChevronRight;
 
-    if (isTaskPending) {
+    if (isTaskLocked) {
+        ctaLabel = 'Önce Görevi Tamamla';
+        CtaIcon = Send;
+    } else if (isTaskPending) {
         ctaLabel = 'Görevi Gönder';
         CtaIcon = Send;
+    } else if (handsOffToVSCode) {
+        ctaLabel = "VS Code'a Geç";
+        CtaIcon = ExternalLink;
     } else if (isTryCodeSlide) {
         ctaLabel = 'Kodu Dene';
         CtaIcon = Play;
@@ -868,6 +988,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     }
 
     const handleCtaAction = () => {
+        if (isTaskLocked) return;
         if (isTaskPending) {
             setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }));
             return;
@@ -876,9 +997,16 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             const codeEl = slide?.elements?.find((el: any) => el.type === 'code' || el.type === 'code_editor');
             const codeContent = codeEl?.content || codeEl?.code || '';
             const lang = codeEl?.codeConfig?.language || 'python';
-            if (codeContent) {
-                runInVSCode(codeContent, lang, slide?.title || 'Kod Örneği');
-            }
+
+            // Kod ÖNCE gider, pencere SONRA öne gelir: sıra tersine dönseydi
+            // öğrenci VS Code'a geçtiğinde dosya bir an boş görünürdü.
+            void (async () => {
+                if (codeContent) await sendCodeToVSCode(codeContent, lang, slide?.title || 'Kod Örneği');
+                if (handsOffToVSCode) {
+                    switchToVSCode({ courseId, module: lessonTitle, slide: currentSlide });
+                }
+            })();
+
             setSolvedSlides(prev => ({ ...prev, [currentSlide]: true }));
             return;
         }
@@ -886,6 +1014,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     };
 
     return (
+        // Slaydın adresi: kod bloğundaki "VS Code'a Geç" bununla eklentiye
+        // hangi dersin hangi slaydını açacağını söyler.
+        <VSCodeTargetProvider value={{ courseId, module: lessonTitle, slide: currentSlide }}>
         <div
             className="fixed inset-0 z-[150] flex flex-col items-center justify-center animate-in fade-in duration-300 select-none overflow-hidden font-display"
             style={{
@@ -980,6 +1111,18 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         </span>
                     )}
 
+                    {previewRole === 'teacher' && (
+                        <button
+                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                            className={`h-8 md:h-10 px-2.5 md:px-3 border-2 border-b-4 flex items-center gap-1.5 rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer text-[10px] md:text-xs font-black ${
+                                isSettingsOpen ? 'bg-indigo-600 border-indigo-800 text-white' : 'bg-white border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600'}`}
+                            title="Ders Kontrol Paneli ve Canlı Görev Panosu (yalnızca senin ekranında)"
+                        >
+                            <Settings className="w-4 h-4" />
+                            <span className="hidden md:inline">{isTaskSlide ? 'Canlı Pano' : 'Kontrol'}</span>
+                        </button>
+                    )}
+
                     {!isEmbeddedInVSCode() && (
                         <button
                             onClick={toggleFullscreen}
@@ -1002,8 +1145,23 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
             {/* Full Screen Slide Content */}
             <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4 md:px-10 pt-14 md:pt-20 pb-16 md:pb-24 z-10">
-                {renderSlideContent()}
+                <LiveLessonContext.Provider value={{ timer: taskTimer, live: isLive }}>
+                    {renderSlideContent()}
+                </LiveLessonContext.Provider>
             </div>
+
+            {board && (
+                <LiveBoardOverlay
+                    board={board}
+                    audience={previewRole === 'teacher' ? 'teacher' : 'student'}
+                    onClose={() => {
+                        if (previewRole === 'teacher' && boardToStudents && courseId) {
+                            void learningApi.clearBoard(Number(courseId)).catch(() => undefined);
+                        }
+                        setBoard(null);
+                    }}
+                />
+            )}
 
             {/* Small Floating Bottom Navigation Overlay (Floating Island) */}
             {!isGameSlide && !isHwSlide && (
@@ -1036,9 +1194,12 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     {/* Bağlama duyarlı CTA (Görevi Gönder / Dersi Bitir / Devam Et) */}
                     <button
                         onClick={handleCtaAction}
-                        disabled={isNextDisabled}
+                        disabled={isNextDisabled || isTaskLocked}
+                        title={isTaskLocked ? 'Görevi kontrol edip çöz ya da slayttaki düğmeyle gönder.' : undefined}
                         className={`group flex items-center gap-1.5 px-3 md:px-5 py-1.5 md:py-2 text-white rounded-xl font-black text-[11px] md:text-xs uppercase tracking-wider transition-all duration-75 shadow-md border-2 border-b-4 active:border-b-2 active:translate-y-[2px] ${
-                            isNextDisabled ? 'opacity-30 pointer-events-none bg-gray-300 border-gray-400' : 'cursor-pointer'
+                            isNextDisabled ? 'opacity-30 pointer-events-none bg-gray-300 border-gray-400'
+                                : isTaskLocked ? 'opacity-60 cursor-not-allowed'
+                                : 'cursor-pointer'
                         } ${
                             isTaskPending
                                 ? 'bg-gradient-to-r from-cyan-500 to-sky-600 border-cyan-700 hover:from-cyan-400 hover:to-sky-500 shadow-cyan-200'
@@ -1078,6 +1239,72 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
                     {/* Body */}
                     <div className="p-6 flex-1 space-y-6 overflow-y-auto">
+                        <button
+                            onClick={summonAll}
+                            className="w-full flex items-center justify-center gap-2 text-xs font-black py-2.5 rounded-xl border-2 border-b-4 border-sky-300 bg-sky-50 text-sky-700 hover:bg-sky-100"
+                            title="Kendi başına gezinen öğrenciler de bu slayta gelir"
+                        >
+                            <Users className="w-4 h-4" /> Herkesi bu slayta çağır
+                        </button>
+                        {isTaskSlide && slide && (() => {
+                            const key = `${slide.type}:${slide.id}`;
+                            const running = taskTimer && taskTimer.taskKey === key ? taskTimer : null;
+                            const start = (minutes: number) => updateTimer({ taskKey: key, endsAt: Date.now() + minutes * 60_000, closed: false });
+                            return (
+                                <div className="space-y-2">
+                                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Görev süresi</h4>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {[3, 5, 10, 15].map((m) => (
+                                            <button key={m} onClick={() => start(m)}
+                                                    className="text-[11px] font-black px-2.5 py-1.5 rounded-lg border-2 border-gray-100 hover:border-indigo-300 text-gray-700">
+                                                {m} dk
+                                            </button>
+                                        ))}
+                                        {running && !running.closed && (
+                                            <button onClick={() => updateTimer({ ...running, endsAt: Math.max(Date.now(), running.endsAt) + 2 * 60_000 })}
+                                                    className="text-[11px] font-black px-2.5 py-1.5 rounded-lg border-2 border-gray-100 hover:border-indigo-300 text-indigo-700">
+                                                +2 dk
+                                            </button>
+                                        )}
+                                    </div>
+                                    {running && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {!running.closed && (
+                                                <button onClick={() => updateTimer({ ...running, closed: true })}
+                                                        className="text-[11px] font-black px-2.5 py-1.5 rounded-lg bg-rose-500 text-white">
+                                                    Görevi kapat
+                                                </button>
+                                            )}
+                                            <button onClick={() => updateTimer(null)}
+                                                    className="text-[11px] font-black px-2.5 py-1.5 rounded-lg border-2 border-gray-100 text-gray-500">
+                                                Süreyi kaldır
+                                            </button>
+                                        </div>
+                                    )}
+                                    <p className="text-[10px] text-gray-400 font-bold">
+                                        Süre tahtada ve öğrencilerin görev ekranında görünür. "Görevi kapat" kimseyi kilitlemez, durmalarını söyler.
+                                    </p>
+                                </div>
+                            );
+                        })()}
+                        {isTaskSlide && slide && (
+                            <div>
+                                <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Canlı Görev Panosu</h4>
+                                <label className="flex items-center gap-2 text-[10.5px] font-bold text-gray-500 mb-3 cursor-pointer">
+                                    <input type="checkbox" checked={boardToStudents} onChange={(e) => setBoardToStudents(e.target.checked)} />
+                                    "Tahtada göster" öğrencilerin ekranına da gitsin (çevrimiçi ders)
+                                </label>
+                                <LiveTaskBoard
+                                    courseId={courseId}
+                                    taskKey={`${slide.type}:${slide.id}`}
+                                    broadcastBoard={boardToStudents}
+                                    onShowOnBoard={(payload) => {
+                                        setBoard({ task: payload.task, code: payload.code, failed: payload.failed, note: payload.note });
+                                        setIsSettingsOpen(false);
+                                    }}
+                                />
+                            </div>
+                        )}
                         <div>
                             <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Öğrenci Kontrol Modu</h4>
                             <div className="space-y-3">
@@ -1220,6 +1447,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 );
             })()}
         </div>
+        </VSCodeTargetProvider>
     );
 };
 

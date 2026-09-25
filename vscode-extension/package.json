@@ -2,7 +2,7 @@
   "name": "gomufi",
   "displayName": "GoMufi",
   "description": "GoMufi ödevlerini VS Code içinde aç, kendi bilgisayarında çalıştır, teslim et.",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "publisher": "gomufi",
   "engines": {
     "vscode": "^1.125.0"
@@ -14,7 +14,8 @@
   ],
   "main": "./out/extension.js",
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onUri"
   ],
   "contributes": {
     "themes": [

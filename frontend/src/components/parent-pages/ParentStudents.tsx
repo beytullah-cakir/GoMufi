@@ -9,11 +9,9 @@ interface Student {
     nickname: string;
     grade_level: string;
     education_level: string;
-    // Calculated or additional stats can be added here
-    completedLessons?: number;
-    totalLessons?: number;
-    badges?: number;
     points?: number;
+    streak?: number;
+    courses?: Array<{ id: number; title: string }>;
 }
 
 interface ParentStudentsProps {
@@ -29,15 +27,9 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStude
     const [studentCode, setStudentCode] = useState("");
     const [linkError, setLinkError] = useState("");
 
-    const enrichStudentList = (studentList: any[]) => {
-        return studentList.map((s: any) => ({
-            ...s,
-            completedLessons: Math.floor(Math.random() * 10), // Mock stats for UI
-            totalLessons: 20,
-            badges: Math.floor(Math.random() * 5),
-            points: s.xp || Math.floor(Math.random() * 2000),
-        }));
-    };
+    // Eskiden ilerleme ve rozet sayıları rastgele üretiliyordu (her açılışta
+    // farklı). Kartta yalnızca gerçek XP ve seri kalıyor; ayrıntı detay sayfasında.
+    const enrichStudentList = (studentList: any[]) => studentList.map((s: any) => ({ ...s, points: s.xp || 0 }));
 
     useEffect(() => {
         if (userData && userData.students) {
@@ -149,18 +141,18 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStude
                             <div className="grid grid-cols-2 gap-4 mb-6">
                                 <div className="p-3 bg-blue-50 rounded-xl border border-blue-100">
                                     <div className="text-[10px] text-blue-400 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
-                                        <BookOpen className="w-3 h-3" /> İlerleme
+                                        <BookOpen className="w-3 h-3" /> Kurslar
                                     </div>
                                     <div className="text-lg font-black text-blue-600">
-                                        %{Math.floor((student.completedLessons! / student.totalLessons!) * 100)}
+                                        {(student.courses || []).length}
                                     </div>
                                 </div>
-                                <div className="p-3 bg-green-50 rounded-xl border border-green-100">
-                                    <div className="text-[10px] text-green-500 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
-                                        <Trophy className="w-3 h-3" /> Rozetler
+                                <div className="p-3 bg-orange-50 rounded-xl border border-orange-100">
+                                    <div className="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
+                                        🔥 Seri
                                     </div>
-                                    <div className="text-lg font-black text-green-600">
-                                        {student.badges}
+                                    <div className="text-lg font-black text-orange-600">
+                                        {student.streak || 0} gün
                                     </div>
                                 </div>
                             </div>

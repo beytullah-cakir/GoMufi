@@ -8,6 +8,8 @@ import ConnectorRenderer from './lesson-builder/ConnectorRenderer';
 import GameBuilder from './lesson-builder/GameBuilder';
 import CodingSlideBuilder from './lesson-builder/CodingSlideBuilder';
 import ChallengeSlideBuilder, { defaultChallengeConfig } from './lesson-builder/ChallengeSlideBuilder';
+import ConnectSlideBuilder, { defaultConnectConfig } from './lesson-builder/ConnectSlideBuilder';
+import ProduceSlideBuilder, { defaultProduceConfig } from './lesson-builder/ProduceSlideBuilder';
 import HomeworkBuilder from './lesson-builder/HomeworkBuilder';
 import StudentHomeworkView from './student-pages/StudentHomeworkView';
 
@@ -1951,6 +1953,23 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
         };
     };
 
+    // BİRLEŞTİR slaytının "önceki konu" önerileri: bu modülden ÖNCEKİ düğümlerin
+    // konuları, en yakını başta. Öğretmen serbest metin uydurmak yerine yol
+    // haritasındaki gerçek konulardan seçebilsin.
+    const previousTopicSuggestions = (() => {
+        const idx = allLessons.findIndex((n: any) => String(n.id) === String(noteId));
+        const before = idx === -1 ? allLessons : allLessons.slice(0, idx);
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const n of [...before].reverse()) {
+            for (const raw of [n?.aiModuleTopic, n?.lessonTopic, n?.title]) {
+                const t = typeof raw === 'string' ? raw.trim() : '';
+                if (t && !seen.has(t)) { seen.add(t); out.push(t); }
+            }
+        }
+        return out.slice(0, 20);
+    })();
+
     // AI, dersi ilk oluştururken bu modülün konusunu zaten biliyordu (aiModuleTopic) —
     // aynı konuyu kullanarak SADECE bu modülün slaytlarını (mevcut deste yerine) yeniden üretir.
     const handleRegenerateWithAI = async () => {
@@ -2115,6 +2134,10 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 }
             }}
             onMouseDown={(e) => {
+                // Sağdaki panel/UI katmanlarına yapılan tıklamalar canvas tıklaması değildir.
+                // Buradan geçerse seçim temizlenir ve panel kendini kapatır.
+                if ((e.target as HTMLElement).closest('[data-ui-panel]')) return;
+
                 // Focus container on background click
                 if (containerRef.current) {
                     const target = e.target as HTMLElement;
@@ -2296,6 +2319,31 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             courseId={courseId || undefined}
                             // Öğrenci tarafıyla AYNI anahtar (bkz. LessonSlide.tsx)
                             submissionNodeId={`challenge:${currentSlide.id}`}
+                        />
+                    </div>
+                ) : currentSlide.type === 'connect' ? (
+                    <div className="flex-1 min-h-0 w-full h-full overflow-hidden relative">
+                        <ConnectSlideBuilder
+                            slide={currentSlide}
+                            updateSlide={(updates) => {
+                                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
+                            }}
+                            role={!isPreview ? 'edit' : previewRole === 'student' ? 'student' : 'review'}
+                            courseId={courseId || undefined}
+                            submissionNodeId={`connect:${currentSlide.id}`}
+                            topicSuggestions={previousTopicSuggestions}
+                        />
+                    </div>
+                ) : currentSlide.type === 'produce' ? (
+                    <div className="flex-1 min-h-0 w-full h-full overflow-hidden relative">
+                        <ProduceSlideBuilder
+                            slide={currentSlide}
+                            updateSlide={(updates) => {
+                                setSlides(prev => prev.map(s => s.id === currentSlideId ? { ...s, ...updates } : s));
+                            }}
+                            role={!isPreview ? 'edit' : previewRole === 'student' ? 'student' : 'review'}
+                            courseId={courseId || undefined}
+                            submissionNodeId={`produce:${currentSlide.id}`}
                         />
                     </div>
                 ) : currentSlide.type === 'coding' ? (
@@ -2602,7 +2650,13 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                             gameType: type === 'game' ? (config?.gameType as 'matching' | 'monster' || 'matching') : undefined,
                             gameConfig: type === 'game' ? { timeLimit: 100, questions: [] } : undefined,
                             challengeConfig: type === 'challenge'
-                                ? (config?.challengeConfig || defaultChallengeConfig())
+                                ? (config?.challengeConfig || defaultChallengeConfig(activeStage))
+                                : undefined,
+                            connectConfig: type === 'connect'
+                                ? (config?.connectConfig || defaultConnectConfig())
+                                : undefined,
+                            produceConfig: type === 'produce'
+                                ? (config?.produceConfig || defaultProduceConfig())
                                 : undefined,
                             homeworkConfig: type === 'homework' ? {
                                 title: 'Yeni Ödev Görevi',

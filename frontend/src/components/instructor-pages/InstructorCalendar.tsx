@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronLeft, ChevronRight, Clock, Users, Calendar as CalendarIcon, LayoutGrid, LayoutList, Play, Loader2, X, Brain, Puzzle, Trophy, HelpCircle } from 'lucide-react';
 import api from '../../api';
+import { openVideoRoom } from '../../liveRoom';
 import LessonSlide from '../student-pages/LessonSlide';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import LiveLessonTeacher from './LiveLessonTeacher';
@@ -369,17 +370,8 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
         try {
             await api.post(`/start-session/${courseId}?title=${encodeURIComponent(titleParam)}`);
             
-            // Automatically open Jitsi video classroom
-            try {
-                const jitsiRes = await api.get(`/jitsi/token/${courseId}`);
-                const { token, room, domain } = jitsiRes.data;
-                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-                window.open(url, "_blank");
-            } catch (jitsiErr) {
-                console.warn('Jitsi JWT token failed, falling back to public Jitsi Meet:', jitsiErr);
-                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=false&config.startWithVideoMuted=false`;
-                window.open(fallbackUrl, "_blank");
-            }
+            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts).
+            await openVideoRoom(courseId);
 
             // Open session manager to let the teacher view the roadmap first
             setShowSessionManager(true);

@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, func
+from sqlalchemy import Column, Integer, String, ForeignKey, Text, DateTime, JSON, func
 from sqlalchemy.orm import relationship
 from connect_db import Base
 
@@ -28,6 +28,9 @@ class HomeworkSubmission(Base):
     # İleride free/paid ayrımında (free'de AI yok) hangi yolun kullanıldığını
     # geriye dönük ayırt edebilmek için tutulur.
     graded_source = Column(String(20), nullable=True)
+    # Dereceli puanlama anahtarıyla verilen notta ölçüt başına seçilen seviye:
+    # {"<ölçüt id>": <seviye sırası>}. Anahtar slaytın yapılandırmasında.
+    rubric_scores = Column(JSON, nullable=True)
 
     # Relationships
     student = relationship("Student", foreign_keys=[student_id])

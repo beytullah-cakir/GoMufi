@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
+import { openVideoRoom } from '../../liveRoom';
 import {
     Calendar as CalendarIcon,
     Clock,
@@ -537,17 +538,8 @@ const ContentPage: React.FC<ContentPageProps> = ({ purchasedCourses, onOpenJoinM
 
     const handleJoinLiveClick = async (courseId: string) => {
         try {
-            // Open Jitsi Room in new window
-            try {
-                const jitsiRes = await api.get(`/jitsi/token/${courseId}`);
-                const { token, room, domain } = jitsiRes.data;
-                const url = `https://${domain}/${room}?jwt=${token}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                window.open(url, "_blank");
-            } catch (jitsiErr) {
-                console.warn('Jitsi token error, using freeFallback meet.jit.si', jitsiErr);
-                const fallbackUrl = `https://meet.jit.si/GoMufi-Room-${courseId}#config.prejoinPageEnabled=false&config.startWithAudioMuted=true&config.startWithVideoMuted=true`;
-                window.open(fallbackUrl, "_blank");
-            }
+            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts).
+            await openVideoRoom(courseId);
 
             // Student enters live session roadmap dashboard
             onJoinLiveClass(courseId);
