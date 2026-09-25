@@ -62,6 +62,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
     isCanvasSelected, slideBackgroundColor, onUpdateSlideBackground
 }) => {
     const [showImageFitDropdown, setShowImageFitDropdown] = useState(false);
+    // Menus — erken return'lerden önce olmalı (hook sırası sabit kalmalı)
+    const [isBorderMenuOpen, setIsBorderMenuOpen] = useState(false);
+    const [isAlignMenuOpen, setIsAlignMenuOpen] = useState(false);
 
     if (!canvasRect || (elements.length === 0 && !isCanvasSelected)) return null;
 
@@ -149,10 +152,6 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
 
     // Representative Element (for default values)
     const firstEl = elements[0];
-
-    // Menus
-    const [isBorderMenuOpen, setIsBorderMenuOpen] = useState(false);
-    const [isAlignMenuOpen, setIsAlignMenuOpen] = useState(false);
 
     return (
         <div

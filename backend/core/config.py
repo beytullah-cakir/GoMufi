@@ -73,8 +73,18 @@ class Settings:
     POSTHOG_HOST: str = os.getenv("POSTHOG_HOST", "https://eu.i.posthog.com")
 
     DATABASE_URL: str = os.getenv("DATABASE_URL")
-    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    BACKEND_URL: str = os.getenv("BACKEND_URL", "http://localhost:8000")
+
+    # Redis opsiyonel — Render.com'da kullanılmıyorsa None bırakılabilir.
+    # Eğer REDIS_URL tanımlı değilse WebSocket manager local fallback kullanır.
+    REDIS_URL: str | None = os.getenv("REDIS_URL", None)
+
+    # Render.com RENDER_EXTERNAL_URL'yi otomatik inject eder.
+    # Manuel BACKEND_URL yoksa bunu kullan; ikisi de yoksa localhost.
+    BACKEND_URL: str = (
+        os.getenv("RENDER_EXTERNAL_URL")
+        or os.getenv("BACKEND_URL", "http://localhost:8000")
+    )
+
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
     @property

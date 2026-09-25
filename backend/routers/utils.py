@@ -16,3 +16,12 @@ async def get_server_time():
         "datetime": istanbul_now.isoformat(),
         "timestamp": int(istanbul_now.timestamp() * 1000)
     }
+
+
+@router.get("/health", tags=["health"])
+async def health_check():
+    """
+    Basit sağlık kontrolü endpoint'i.
+    Render.com health check ve keep-alive ping için kullanılır.
+    """
+    return {"status": "ok"}
