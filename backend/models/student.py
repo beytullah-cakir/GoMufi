@@ -19,8 +19,6 @@ class Student(Base):
     parent_id = Column(Integer, ForeignKey("parents.id"), nullable=True)
     
     # Gamification fields
-    gems = Column(Integer, default=0)
-    hearts = Column(Integer, default=5)
     streak = Column(Integer, default=0)
     xp = Column(Integer, default=0) # Adding XP too as it's common
 

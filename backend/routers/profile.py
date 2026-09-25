@@ -54,8 +54,6 @@ async def get_profile(
             "student_code": student.student_code if student else "ADMIN",
             "grade_level": "Yönetici",
             "education_level": "Yönetici",
-            "gems": student.gems if student else 9999,
-            "hearts": student.hearts if student else 5,
             "streak": student.streak if student else 99,
             "xp": student.xp if student else 99999,
             "expertises": teacher.expertises if teacher else "Tümü",
@@ -101,8 +99,6 @@ async def get_profile(
             "student_code": student.student_code,
             "grade_level": student.grade_level,
             "education_level": student.education_level,
-            "gems": student.gems,
-            "hearts": student.hearts,
             "streak": student.streak,
             "xp": student.xp,
             # Level ve lig, XP'den TÜRETİLİR (core/gamification.py) — tek kaynak
@@ -326,8 +322,6 @@ async def get_parent_student_detail(
         "grade_level": student.grade_level,
         "education_level": student.education_level,
         "xp": student.xp,
-        "gems": student.gems,
-        "hearts": student.hearts,
         "streak": student.streak,
         "courses": [
             {
@@ -339,10 +333,15 @@ async def get_parent_student_detail(
         ]
     }
 
+# Oyun içi (eşleştirme, canavar savaşı) XP'si istemciden gelir; tek istekte
+# verilebilecek XP sınırlı — yoksa öğrenci tarayıcıdan istediği XP'yi yazıp
+# liderlik tablosunun başına geçebilirdi. Modül XP'si sunucuda verilir
+# (bkz. /progress/courses/{id}/complete).
+MAX_GAME_XP_PER_CALL = 50
+
+
 class StatsUpdate(BaseModel):
     xp_gain: int = 0
-    gems_gain: int = 0
-    hearts_change: int = 0
 
 @router.post("/profile/student/stats")
 async def update_student_stats(
@@ -362,20 +361,13 @@ async def update_student_stats(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
-    student.xp += stats.xp_gain
-    student.gems += stats.gems_gain
-    
-    # Update hearts and ensure it's within 0-5
-    new_hearts = (student.hearts or 0) + stats.hearts_change
-    student.hearts = max(0, min(5, new_hearts))
+    student.xp = (student.xp or 0) + max(0, min(MAX_GAME_XP_PER_CALL, stats.xp_gain))
     
     await db.commit()
     await db.refresh(student)
 
     return {
         "xp": student.xp,
-        "gems": student.gems,
-        "hearts": student.hearts,
         "progression": gamification.level_progress(student.xp),
     }
 

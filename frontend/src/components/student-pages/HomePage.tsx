@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
+import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
@@ -109,6 +110,7 @@ const HomePage: React.FC<HomePageProps> = ({
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
     const { sendMessage, lastMessage } = useWebSocket();
+    const navigate = useNavigate();
 
     const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
         class_name: null,
@@ -322,7 +324,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
             // 1. Award XP and Gems in the backend (modül için roadmap builder'da ayarlanan XP)
             try {
-                await api.post("/profile/student/stats", { xp_gain: xpGain, gems_gain: 2 });
+                await api.post("/profile/student/stats", { xp_gain: xpGain });
             } catch (err) {
                 console.error("Failed to update student stats:", err);
             }
@@ -472,17 +474,17 @@ const HomePage: React.FC<HomePageProps> = ({
         return (
             <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-64 h-64 bg-gray-50 rounded-full flex items-center justify-center mb-8">
-                    <span className="text-8xl animate-bounce">🛒</span>
+                    <span className="text-8xl animate-bounce">🔑</span>
                 </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz Bir Kursun Yok!</h2>
+                <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz bir sınıfa katılmadın</h2>
                 <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Maceraya başlamak için Market'ten harika kurslarimizi keşfedebilir ve ilk adimini atabilirsin.
+                    Öğretmeninin verdiği katılım kodunu girerek sınıfına katıl; dersler burada açılacak.
                 </p>
                 <button 
-                    onClick={() => (window as any).setActivePage ? (window as any).setActivePage('Kurslar') : window.location.reload()}
+                    onClick={() => navigate('/student/my-classes')}
                     className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
                 >
-                    Kurslari Keşfet
+                    Katılım kodu gir
                 </button>
             </div>
         );

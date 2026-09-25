@@ -41,7 +41,6 @@ export interface CourseStats {
     league: string;
     xp: string;
     streak: number;
-    gems: number;
 }
 
 export interface CourseData {

@@ -301,12 +301,6 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     
     if (correct) {
       setScore((prev) => prev + qScore);
-    } else {
-      if (!isPreviewMode) {
-        api.post("/profile/student/stats", { hearts_change: -1 })
-          .then(() => onStatsUpdate?.())
-          .catch(console.error);
-      }
     }
 
     const userName = userData?.first_name 
@@ -416,10 +410,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     if (phase === "score" && !isPreviewMode) {
       const stars = getStars();
       if (stars > 0) {
-        api.post("/profile/student/stats", { 
-          xp_gain: stars * 15, 
-          gems_gain: stars 
-        })
+        api.post("/profile/student/stats", { xp_gain: stars * 15 })
         .then(() => onStatsUpdate?.())
         .catch(console.error);
       }

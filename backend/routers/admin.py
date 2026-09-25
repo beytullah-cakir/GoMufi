@@ -43,8 +43,6 @@ class UpdateUserRequest(BaseModel):
     education_level: Optional[str] = None
     expertises: Optional[str] = None
     bio: Optional[str] = None
-    gems: Optional[int] = None
-    hearts: Optional[int] = None
     streak: Optional[int] = None
     xp: Optional[int] = None
 
@@ -138,8 +136,6 @@ async def get_users(
             "role": "admin" if is_admin else "student",
             "grade_level": s.grade_level,
             "education_level": s.education_level,
-            "gems": s.gems,
-            "hearts": s.hearts,
             "streak": s.streak,
             "xp": s.xp,
             "enrolled_courses": enrolled_courses,
@@ -185,8 +181,6 @@ async def create_user(
             password=hashed_pwd,
             grade_level=user_data.grade_level or "Unknown",
             education_level=user_data.education_level or "Unknown",
-            gems=0,
-            hearts=5,
             streak=0,
             xp=0
         )
@@ -238,8 +232,6 @@ async def update_user(
         if user_data.nickname is not None: student.nickname = user_data.nickname
         if user_data.grade_level is not None: student.grade_level = user_data.grade_level
         if user_data.education_level is not None: student.education_level = user_data.education_level
-        if user_data.gems is not None: student.gems = user_data.gems
-        if user_data.hearts is not None: student.hearts = user_data.hearts
         if user_data.streak is not None: student.streak = user_data.streak
         if user_data.xp is not None: student.xp = user_data.xp
         if user_data.password is not None and user_data.password != "":
