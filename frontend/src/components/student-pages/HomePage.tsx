@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import GrassIcon from '../../assets/sprites/grass.png';
 import api from '../../api';
-import { openVideoRoom } from '../../liveRoom';
+import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
+import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
 import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -146,6 +147,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 for (const course of coursesList) {
                     const res = await api.get(`/session-status/${course.id}`);
                     if (res.data.is_live) {
+                        rememberMeetingLink(course.id, res.data.meeting_url);
                         setIsClassActive(true);
                         setLiveCourseId(course.id);
                         anyActive = true;
@@ -192,9 +194,9 @@ const HomePage: React.FC<HomePageProps> = ({
     const handleJoinLiveClass = async () => {
         const targetCourseId = liveCourseId || activeCourseId;
         try {
-            // Görüntülü oda şimdilik kapalı (bkz. liveRoom.ts): ders sınıfta ya da
-            // öğretmenin seçtiği platformda; burada yalnızca canlı derse bağlanılır.
-            await openVideoRoom(targetCourseId);
+            // Öğretmen görüşme linki eklediyse (Zoom, Meet…) yeni sekmede açılır;
+            // ders sınıftaysa link yoktur ve yalnızca canlı derse bağlanılır.
+            openMeetingLink(targetCourseId);
 
             // Student enters live session roadmap dashboard
             setIsLiveSessionJoined(true);
@@ -723,6 +725,10 @@ const HomePage: React.FC<HomePageProps> = ({
 
                         {/* Right Sidebar Widgets */}
                         <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64">
+                            {/* Öğretmenden gelenler: duyurular ve devam durumu */}
+                            <AnnouncementFeed />
+                            <AttendanceCard courseId={activeCourseId} />
+
                             {/* Daily Quest Widget */}
                             <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all group">
                                 <div 
@@ -816,6 +822,9 @@ const HomePage: React.FC<HomePageProps> = ({
                         </div>
                     </div>
                 </div>
+
+            {/* Küçük ekranda sağ sütun görünmediği için en yeni duyuru burada */}
+            <LatestAnnouncementBanner className="xl:hidden mx-4 mt-4 relative z-30" />
 
             {/* Middle Section: Horizontal Path */}
             <div className="w-full flex-1 flex items-center justify-center relative z-20">

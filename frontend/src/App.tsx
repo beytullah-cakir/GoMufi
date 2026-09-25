@@ -10,6 +10,7 @@ import PaymentError from './components/student-pages/PaymentError';
 import AdminApp from './components/admin-pages/AdminApp';
 
 import CompleteProfile from './components/CompleteProfile';
+import { ForgotPasswordPage, ResetPasswordPage } from './components/PasswordResetPage';
 import Animation from './components/Animation';
 import { WebSocketProvider } from './context/WebSocketContext';
 import VSCodeConnectPage from './components/VSCodeConnectPage';
@@ -58,6 +59,8 @@ function App() {
           path="/auth"
           element={<AuthPage onLogin={() => { }} />}
         />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
 
         {/* Student Routes */}
         <Route path="/student/*" element={<StudentApp />} />

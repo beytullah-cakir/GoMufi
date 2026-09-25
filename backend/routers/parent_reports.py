@@ -19,7 +19,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -27,10 +27,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import learning_insights
 import learning_store
 from auth.dependencies import get_current_user_info
+from core import mailer
+from core.config import settings
 from connect_db import get_db
 from core.permissions import ensure_course_owner
 from learning_analytics import is_stuck, mastery_status
+from models.course import Course
 from models.enrollment import Enrollment
+from models.parent import Parent
 from models.homework_submission import HomeworkSubmission
 from models.learning import ConceptMastery, LearningEvent, TaskProgress
 from models.student import Student
@@ -243,9 +247,28 @@ async def update_report(
     return {"report": _out(row)}
 
 
+def report_email(report: ParentReport, student: Student, course_title: str):
+    content = report.content or {}
+    child = f"{student.first_name or ''} {student.last_name or ''}".strip() or "Öğrenciniz"
+    paragraphs = [f"{child} için {course_title} kursunun dönem raporu hazır."]
+    if content.get("summary"):
+        paragraphs.append(str(content["summary"]))
+    for label, key in (("Öğrendikleri", "learned"), ("Odaklanılacaklar", "focus")):
+        items = [str(x) for x in content.get(key) or [] if x]
+        if items:
+            paragraphs.append(f"{label}:\n" + "\n".join(f"• {x}" for x in items))
+    if content.get("homework"):
+        paragraphs.append(f"Ödevler: {content['homework']}")
+    if content.get("teacher_note"):
+        paragraphs.append(f"Öğretmenin notu: {content['teacher_note']}")
+    return mailer.render(f"{child} · dönem raporu", paragraphs,
+                         ("Raporu veli panelinde aç", f"{settings.FRONTEND_URL.rstrip('/')}/parent"))
+
+
 @router.post("/parent-reports/{report_id}/send")
 async def send_report(
     report_id: int,
+    background: BackgroundTasks,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
 ):
@@ -263,6 +286,12 @@ async def send_report(
                                "target_user": f"parent:{student.parent_id}"})
     except Exception:  # noqa: BLE001
         pass
+    # Veli uygulamayı açmasa da raporu görsün.
+    parent_email = (await db.execute(select(Parent.email).where(Parent.id == student.parent_id))).scalar()
+    if parent_email:
+        course_title = (await db.execute(select(Course.title).where(Course.id == row.course_id))).scalar() or "GoMufi"
+        text, html_body = report_email(row, student, course_title)
+        background.add_task(mailer.send_email, parent_email, f"GoMufi dönem raporu · {course_title}", text, html_body)
     return {"report": _out(row)}
 
 

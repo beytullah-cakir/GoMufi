@@ -5,6 +5,7 @@ import {
 import {
     parentApi, shortDate, type ChildOverview, type ConsentState, type ParentReportView,
 } from './parentApi';
+import { AnnouncementFeed, AttendanceCard } from '../shared/SchoolNotices';
 
 /**
  * Velinin çocuğuna ait detay sayfası.
@@ -189,6 +190,9 @@ const ParentStudentDetail: React.FC<StudentDetailProps> = ({ student: initialStu
                 </div>
 
                 <div className="space-y-8">
+                    <AttendanceCard studentId={id} />
+                    <AnnouncementFeed courseIds={overview.courses.map((c) => c.id)} />
+
                     <section className="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-lg shadow-indigo-100">
                         <h3 className="text-xl font-black mb-3 flex items-center gap-3">
                             <MessageSquare className="w-6 h-6 text-indigo-300" /> Öğretmene yaz

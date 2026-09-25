@@ -44,15 +44,12 @@ services:
       - key: MY_API_KEY
         sync: false
 
-      # ── Jitsi JaaS ───────────────────────────────────────────────────────────
-      - key: JITSI_APP_ID
+      # ── E-posta (şifre sıfırlama, duyuru, veli raporu, ödev hatırlatma) ──────
+      # Resend'de alan adını doğrula; EMAIL_FROM o alan adından olmalı.
+      - key: RESEND_API_KEY
         sync: false
-      - key: JITSI_API_KEY
-        sync: false
-      - key: JITSI_APP_SECRET
-        sync: false
-      - key: JITSI_DOMAIN
-        value: 8x8.vc
+      - key: EMAIL_FROM
+        value: GoMufi <bildirim@gomufi.com>
 
       # ── Token Süreleri ────────────────────────────────────────────────────────
       - key: ACCESS_TOKEN_EXPIRE_MINUTES

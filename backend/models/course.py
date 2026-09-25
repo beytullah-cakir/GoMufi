@@ -23,6 +23,9 @@ class Course(Base):
     enrollment_code = Column(String(12), unique=True, index=True, nullable=True)
     classes = Column(JSON, default=[])
     start_date = Column(String(50), nullable=True)
+    # Canlı dersin görüntülü görüşme linki (Zoom, Meet, okulun sistemi…).
+    # GoMufi görüşme açmıyor; öğretmen kendi linkini girer, öğrenci katılırken açılır.
+    meeting_url = Column(String(500), nullable=True)
 
 
     teacher = relationship("Teacher", back_populates="courses")

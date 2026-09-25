@@ -115,8 +115,9 @@ class CourseResponse(BaseModel):
         from_attributes = True
 
 class TeacherCourseResponse(CourseResponse):
-    """CourseResponse + enrollment_code — sadece eğitmene ait endpoint'lerde kullanılır."""
+    """CourseResponse + enrollment_code ve görüşme linki — sadece eğitmene ait endpoint'lerde kullanılır."""
     enrollment_code: Optional[str] = None
+    meeting_url: Optional[str] = None
 
 class LiveSessionResponse(BaseModel):
     id: int
@@ -651,6 +652,7 @@ async def start_session(
 @router.get("/session-status/{course_id}")
 async def get_session_status(
     course_id: int,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
@@ -658,7 +660,14 @@ async def get_session_status(
     session = result.scalars().first()
     
     if session:
-        return {"is_live": True, "session_id": session.id, "title": session.title}
+        # Görüşme linki yalnızca kursun öğretmenine ve kayıtlı öğrencisine gider.
+        # Link burada önceden gelir ki "Derse katıl" tıklamasında sekme hemen
+        # açılabilsin (await sonrası açılan sekmeyi tarayıcı engelliyor).
+        from core.security import decode_access_token
+        payload = decode_access_token(request.cookies.get("access_token") or _bearer(request))
+        course = (await db.execute(select(Course).where(Course.id == course_id))).scalar_one_or_none()
+        meeting_url = course.meeting_url if course and payload and await _can_see_meeting_link(db, course, payload) else None
+        return {"is_live": True, "session_id": session.id, "title": session.title, "meeting_url": meeting_url}
     return {"is_live": False}
 
 @router.post("/stop-session/{course_id}")
@@ -686,6 +695,79 @@ async def stop_session(
     session.status = 'completed'
     await db.commit()
     return {"message": "Session stopped", "session_id": session.id}
+
+
+# --- Canlı ders görüşme linki ---
+# Görüşmeyi öğretmen kendi seçtiği platformda açar (Zoom, Meet, okulun sistemi…);
+# GoMufi yalnızca linki saklar ve kursa kayıtlı öğrenciye gösterir.
+
+class MeetingLinkRequest(BaseModel):
+    url: Optional[str] = None
+
+
+def normalize_meeting_url(raw: Optional[str]) -> Optional[str]:
+    from urllib.parse import urlparse
+
+    url = (raw or "").strip()
+    if not url:
+        return None
+    if "://" not in url:
+        url = f"https://{url}"
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https") or "." not in (parsed.hostname or "") or len(url) > 500:
+        raise HTTPException(status_code=400, detail="Geçerli bir görüşme linki girin (ör. https://zoom.us/j/...).")
+    return url
+
+
+@router.put("/courses/{course_id}/meeting-link")
+async def set_meeting_link(
+    course_id: int,
+    body: MeetingLinkRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db)
+):
+    course = (await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )).scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    course.meeting_url = normalize_meeting_url(body.url)
+    await db.commit()
+    return {"url": course.meeting_url}
+
+
+def _bearer(request: Request) -> Optional[str]:
+    header = request.headers.get("Authorization") or ""
+    return header[7:] if header.startswith("Bearer ") else None
+
+
+async def _can_see_meeting_link(db: AsyncSession, course: Course, user_info: dict) -> bool:
+    role = user_info.get("role")
+    try:
+        user_id = int(user_info.get("sub"))
+    except (TypeError, ValueError):
+        return role == "admin"
+    if role == "teacher":
+        return course.teacher_id == user_id
+    if role == "student":
+        return (await db.execute(
+            select(Enrollment.id).where(Enrollment.course_id == course.id, Enrollment.student_id == user_id)
+        )).first() is not None
+    return role == "admin"
+
+
+@router.get("/courses/{course_id}/meeting-link")
+async def get_meeting_link(
+    course_id: int,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db)
+):
+    course = (await db.execute(select(Course).where(Course.id == course_id))).scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    if not await _can_see_meeting_link(db, course, user_info):
+        raise HTTPException(status_code=403, detail="Bu kursun görüşme linkini göremezsiniz.")
+    return {"url": course.meeting_url}
 
 
 class LessonContentResponse(BaseModel):

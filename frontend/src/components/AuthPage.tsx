@@ -469,6 +469,18 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     />
                   </div>
 
+                  {isLogin && role !== "parent" && (
+                    <div className="text-right -mt-1">
+                      <button
+                        type="button"
+                        onClick={() => navigate("/forgot-password", { state: { email } })}
+                        className={`text-sm font-bold hover:underline ${role === "student" ? "text-green-600" : "text-cyan-600"}`}
+                      >
+                        Şifremi unuttum
+                      </button>
+                    </div>
+                  )}
+
                   <div className="pt-2">
                     <button
                       type="submit"

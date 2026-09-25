@@ -9,6 +9,8 @@ import InstructorStudents from './InstructorStudents';
 import InstructorMessages from './InstructorMessages';
 import InstructorHomeworkSubmissions from './InstructorHomeworkSubmissions';
 import InstructorLearning from './learning/InstructorLearning';
+import InstructorAttendance from './InstructorAttendance';
+import InstructorAnnouncements from './InstructorAnnouncements';
 import LessonBuilderPage from '../LessonBuilderPage';
 import InstructorProfile from './InstructorProfile';
 import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
@@ -34,6 +36,8 @@ const InstructorApp: React.FC = () => {
             'courses': 'Courses',
             'calendar': 'Calendar',
             'classes': 'Classes',
+            'attendance': 'Attendance',
+            'announcements': 'Announcements',
             'students': 'Students',
             'messages': 'Messages',
             'metrics': 'Metrics',
@@ -94,6 +98,8 @@ const InstructorApp: React.FC = () => {
             'Courses': '/instructor/courses',
             'Calendar': '/instructor/calendar',
             'Classes': '/instructor/classes',
+            'Attendance': '/instructor/attendance',
+            'Announcements': '/instructor/announcements',
             'Students': '/instructor/students',
             'Messages': '/instructor/messages',
             'Metrics': '/instructor/metrics',
@@ -154,6 +160,8 @@ const InstructorApp: React.FC = () => {
                 <Route path="courses" element={<InstructorCourses coursesData={coursesData} refreshData={fetchUserData} />} />
                 <Route path="calendar" element={<InstructorCalendar coursesData={coursesData} />} />
                 <Route path="classes" element={<InstructorClasses />} />
+                <Route path="attendance" element={<InstructorAttendance coursesData={coursesData} />} />
+                <Route path="announcements" element={<InstructorAnnouncements coursesData={coursesData} />} />
                 <Route path="students" element={<InstructorStudents studentsData={studentsData} />} />
                 <Route path="messages" element={<InstructorMessages />} />
                 <Route path="metrics" element={<InstructorMetrics />} />
