@@ -17,7 +17,10 @@ class ConnectionManager:
         self.channel_name = "gomufi_realtime"
 
     async def initialize_redis(self):
-        """Uygulama başlarken Redis bağlantısını kurar."""
+        """Uygulama başlarken Redis bağlantısını kurar. REDIS_URL tanımlı değilse local mod kullanılır."""
+        if not settings.REDIS_URL:
+            logger.info("REDIS_URL tanımlı değil — WebSocket local mod (single-instance) ile çalışıyor.")
+            return
         try:
             self.redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
             self.pubsub = self.redis.pubsub()
@@ -28,6 +31,10 @@ class ConnectionManager:
             logger.info("Redis Pub/Sub bağlantısı başarıyla kuruldu.")
         except Exception as e:
             logger.error(f"Redis bağlantı hatası: {e}")
+            self.redis = None
+            self.pubsub = None
+            logger.warning("Redis bağlantısı kurulamadı — WebSocket local mod ile devam ediliyor.")
+
 
     async def close_redis(self):
         """Uygulama kapanırken Redis bağlantısını sonlandırır."""

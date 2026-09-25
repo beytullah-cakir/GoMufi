@@ -2,6 +2,7 @@
 GoMufi — FastAPI ana uygulama dosyası.
 """
 import os
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -22,6 +23,27 @@ from core.ws_manager import manager
 # Logging seviyesi env'den kontrol edilebilir
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+async def _keep_alive_ping():
+    """
+    Render.com free tier'ın 15 dakikalık uyku modunu engellemek için
+    10 dakikada bir kendi /utils/health endpoint'ine istek atar.
+    Sadece IS_PRODUCTION=True olduğunda çalışır.
+    """
+    import httpx
+    # İlk ping'den önce uygulama tam olarak ayağa kalksın diye kısa bekleme
+    await asyncio.sleep(30)
+    ping_url = f"{settings.BACKEND_URL}/utils/health"
+    logger.info(f"Keep-alive ping görevi başladı → {ping_url} (10 dk'da bir)")
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(ping_url)
+                logger.debug(f"Keep-alive ping: {resp.status_code}")
+        except Exception as e:
+            logger.warning(f"Keep-alive ping başarısız: {e}")
+        await asyncio.sleep(600)  # 10 dakika
 
 
 @asynccontextmanager
@@ -63,6 +85,12 @@ async def lifespan(app: FastAPI):
         logger.warning(f"Öğrenme verisi temizliği atlandı: {purge_err}")
 
     await manager.initialize_redis()
+
+    # Keep-alive ping: sadece production'da çalışır, local geliştirmeyi etkilemez
+    if settings.IS_PRODUCTION:
+        asyncio.create_task(_keep_alive_ping())
+        logger.info("Keep-alive ping görevi planlandı (10 dk aralıklı).")
+
     yield
     await manager.close_redis()
     logger.info("Uygulama kapatılıyor.")
@@ -83,7 +111,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=settings.SECRET_KEY,
     session_cookie="gomufi_session",
-    same_site="lax",
+    same_site="none" if settings.IS_PRODUCTION else "lax",
     https_only=settings.IS_PRODUCTION,
     max_age=3600,
 )
@@ -97,6 +125,18 @@ _allowed_origins = [
     "http://127.0.0.1:5173",
     "http://0.0.0.0:5173",
 ]
+
+# FRONTEND_URL production'da tanımlıysa ve listede yoksa ekle
+_frontend_url = settings.FRONTEND_URL
+if _frontend_url and _frontend_url not in _allowed_origins:
+    _allowed_origins.append(_frontend_url)
+
+# Render.com backend URL'si de CORS listesine ekle (SSR/proxy senaryoları için)
+_render_url = os.getenv("RENDER_EXTERNAL_URL")
+if _render_url and _render_url not in _allowed_origins:
+    _allowed_origins.append(_render_url)
+
+logger.info(f"CORS allowed origins: {_allowed_origins}")
 
 app.add_middleware(
     CORSMiddleware,

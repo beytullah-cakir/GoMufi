@@ -2122,9 +2122,6 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   onSpawnCodeEditor,
   allLessons = [],
 }) => {
-  if (isPreview && el.type === 'speaking_note') {
-      return null;
-  }
   const contentRef = useRef<HTMLDivElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isInteractive, setIsInteractive] = useState(false);
@@ -2175,6 +2172,11 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
       }) as React.CSSProperties,
     [el.style],
   );
+
+  // Hook'lardan sonra olmalı: önizleme açılıp kapandığında hook sayısı değişmesin
+  if (isPreview && el.type === 'speaking_note') {
+    return null;
+  }
 
   const getYoutubeId = (url: string) => {
     const regExp =
