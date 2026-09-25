@@ -12,6 +12,7 @@ import StudentPayment from './StudentPayment';
 import CourseDetailPage from './CourseDetailPage';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
 import StudentClassesPage from './StudentClassesPage';
+import { useUnreadMessages } from '../../messaging/useUnreadMessages';
 
 
 // Import Types
@@ -234,6 +235,8 @@ function StudentApp() {
     const location = useLocation();
 
     const [activePage, setActivePage] = useState('Ana Sayfa');
+    // "Soru Sor!" rozeti: öğretmenden gelen okunmamış cevaplar.
+    const unreadMessages = useUnreadMessages();
     const [activeCourseId, setActiveCourseId] = useState<string>('');
     const [userData, setUserData] = useState<any>(null);
     const [isUserDataLoading, setIsUserDataLoading] = useState(true);
@@ -455,7 +458,7 @@ function StudentApp() {
         { id: 'Ana Sayfa', label: 'Ana Sayfa', icon: Home },
         { id: 'Kurslar', label: 'Kurslar', icon: Search },
         { id: 'Kurslarım', label: 'Kurslarım', icon: BookOpen },
-        { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare },
+        { id: 'Soru Sor!', label: 'Soru Sor!', icon: MessageSquare, badgeCount: unreadMessages },
         { id: 'Sınıflarım', label: 'Sınıflarım', icon: Users },
         // MVP'de Sepetim sayfası devre dışı
         // { id: 'Sepetim', label: 'Sepetim', icon: ShoppingCart, badgeCount: cart.length },

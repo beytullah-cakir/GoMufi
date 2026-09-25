@@ -1,9 +1,10 @@
 import React, { useMemo, useState } from 'react';
 import {
     PenTool, Code2, FileText, Image as ImageIcon, File as FileIcon,
-    Lightbulb, Star, Send, Eye, ClipboardCheck,
+    Lightbulb, Star, Send, Eye, ClipboardCheck, CalendarClock,
 } from 'lucide-react';
 import type { Slide, HomeworkConfig } from './types';
+import RubricEditor from '../../rubric/RubricEditor';
 
 /**
  * ÖDEV slaydı editörü — UYGULA'daki "Uygulama Görevi" özel slaydıyla AYNI
@@ -169,6 +170,46 @@ const HomeworkBuilder: React.FC<HomeworkBuilderProps> = ({ slide, updateSlide })
                                 })}
                             </div>
                         </div>
+
+                        {/* Son teslim — öğrenci ekranında geri sayım, öğretmen listesinde "geç" rozeti */}
+                        <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4 space-y-2">
+                            <span className="flex items-center gap-1.5 text-[10px] font-black tracking-widest text-slate-500">
+                                <CalendarClock size={13} /> SON TESLİM
+                            </span>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="datetime-local"
+                                    value={cfg.dueDate || ''}
+                                    onChange={(e) => patch({ dueDate: e.target.value || undefined })}
+                                    className="flex-1 rounded-xl border-2 border-slate-200 bg-slate-50 px-3 py-2 text-sm font-bold text-slate-700 outline-none focus:border-blue-400"
+                                />
+                                {cfg.dueDate && (
+                                    <button onClick={() => patch({ dueDate: undefined })} className="text-[11px] font-black text-slate-400 hover:text-rose-500">
+                                        Kaldır
+                                    </button>
+                                )}
+                            </div>
+                            {cfg.dueDate && (
+                                <label className="flex items-start gap-2 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={cfg.allowLate !== false}
+                                        onChange={(e) => patch({ allowLate: e.target.checked })}
+                                        className="mt-0.5"
+                                    />
+                                    <span className="text-[11px] font-bold text-slate-600 leading-snug">
+                                        Süre dolduktan sonra da teslim edilebilsin
+                                        <span className="block font-medium text-slate-400">Geç teslimler listede "geç" olarak işaretlenir. Kapalıysa teslim kabul edilmez.</span>
+                                    </span>
+                                </label>
+                            )}
+                        </div>
+
+                        <RubricEditor
+                            rubric={cfg.rubric}
+                            onChange={(rubric) => patch({ rubric })}
+                            submissionType={cfg.submissionType}
+                        />
 
                         {cfg.submissionType === 'code' && (
                             <div className="rounded-2xl border-2 border-b-[5px] border-slate-200 bg-white p-4">

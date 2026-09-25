@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BookOpen, Star, X, BrainCircuit, FileText, Code2, Image as ImageIcon, File as FileIcon, Send, Clock, Award, Loader2, Lightbulb, ClipboardList } from 'lucide-react';
+import { BookOpen, Star, X, BrainCircuit, FileText, Code2, Image as ImageIcon, File as FileIcon, Send, Clock, Award, Loader2, Lightbulb, ClipboardList, CalendarClock, History } from 'lucide-react';
 import HomeworkAIReview from './HomeworkAIReview';
 import { evaluateHomeworkByType, type AIReviewResult } from './homeworkAIService';
 import api from '../../api';
+import RubricGrader from '../../rubric/RubricGrader';
+import type { RubricScores } from '../../rubric/rubric';
+import type { Rubric } from '../lesson-builder/types';
 
 /** Teslim türü rozetleri — ödev editöründeki (HomeworkBuilder) ile aynı sözlük. */
 const SUBMISSION_BADGE: Record<string, { label: string; icon: React.ElementType }> = {
@@ -42,7 +45,28 @@ interface MySubmission {
     grade: number | null;
     feedback: string | null;
     graded_at: string | null;
+    rubric_scores?: RubricScores | null;
+    late?: boolean;
 }
+
+/** Teslimin kuralları ve önceki sürümler (sunucudan). */
+interface HomeworkRules {
+    due_at: string | null;
+    allow_late: boolean;
+    rubric: Rubric | null;
+    history: Array<{ version: number; reason: string; submitted_at: string | null; grade: number | null; feedback: string | null }>;
+}
+
+/** "3 gün 4 saat kaldı" / "2 saat önce doldu". */
+const dueText = (dueIso: string, now: number) => {
+    const diff = new Date(dueIso).getTime() - now;
+    const abs = Math.abs(diff);
+    const days = Math.floor(abs / 86_400_000);
+    const hours = Math.floor((abs % 86_400_000) / 3_600_000);
+    const minutes = Math.max(1, Math.floor((abs % 3_600_000) / 60_000));
+    const span = days > 0 ? `${days} gün ${hours} saat` : hours > 0 ? `${hours} saat` : `${minutes} dakika`;
+    return diff >= 0 ? `${span} kaldı` : `${span} önce doldu`;
+};
 
 interface StudentHomeworkViewProps {
     slide: any;
@@ -82,6 +106,8 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     // Sunucudaki gerçek kayıt. localStorage yalnızca ilk boyama için hızlı bir
     // tahmindi; teslimin gerçekten ulaşıp ulaşmadığını ve notu ancak sunucu bilir.
     const [mySubmission, setMySubmission] = useState<MySubmission | null>(null);
+    const [rules, setRules] = useState<HomeworkRules | null>(null);
+    const [now] = useState(() => Date.now());
     const [isLoadingSubmission, setIsLoadingSubmission] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
@@ -91,6 +117,12 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
         setIsLoadingSubmission(true);
         try {
             const res = await api.get(`/courses/${courseId}/homework/${slide.id}/submission`);
+            setRules({
+                due_at: res.data?.due_at ?? null,
+                allow_late: res.data?.allow_late !== false,
+                rubric: res.data?.rubric ?? null,
+                history: res.data?.history ?? [],
+            });
             if (res.data?.submitted && res.data.submission) {
                 setMySubmission(res.data.submission);
                 setIsSubmitted(true);
@@ -201,6 +233,9 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     const canEvaluate = (submissionType === 'text' || submissionType === 'code')
         ? answerText.trim().length > 0
         : uploadedFile !== null;
+    // Süre dolduysa ve öğretmen geç teslime izin vermiyorsa teslim kapalı.
+    const pastDue = !!rules?.due_at && new Date(rules.due_at).getTime() < now;
+    const closed = pastDue && rules?.allow_late === false;
 
     // ── Show AI review overlay ────────────────────────────────────
     if (showReview && aiResult) {
@@ -334,9 +369,17 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                             )}
 
                             {/* Basılabilir buton — sistemdeki border-b-4 / active:translate deseni */}
+                            {rules?.due_at && (
+                                <p className={`mt-3 flex items-center gap-1.5 text-[12px] font-black ${pastDue ? 'text-rose-600' : 'text-slate-600'}`}>
+                                    <CalendarClock size={14} />
+                                    Son teslim: {new Date(rules.due_at).toLocaleString('tr-TR', { dateStyle: 'medium', timeStyle: 'short' })}
+                                    <span className="font-bold">· {dueText(rules.due_at, now)}</span>
+                                    {pastDue && !closed && <span className="font-bold">· geç teslim olarak işaretlenir</span>}
+                                </p>
+                            )}
                             <button
                                 onClick={handleSubmit}
-                                disabled={!canEvaluate || isSubmitting}
+                                disabled={!canEvaluate || isSubmitting || closed}
                                 className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 font-display text-[13px] font-black uppercase tracking-widest transition-all ${
                                     canEvaluate && !isSubmitting
                                         ? 'border-b-4 border-indigo-800 bg-indigo-600 text-white shadow-lg shadow-indigo-200 hover:bg-indigo-700 active:translate-y-[3px] active:border-b-0'
@@ -345,6 +388,8 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                             >
                                 {isSubmitting ? (
                                     <><Loader2 size={16} className="animate-spin" /> Gönderiliyor…</>
+                                ) : closed ? (
+                                    <><Clock size={16} /> Teslim süresi doldu</>
                                 ) : isSubmitted ? (
                                     <><Send size={16} /> Cevabı Güncelle</>
                                 ) : (
@@ -384,8 +429,13 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                                         {mySubmission.feedback}
                                     </p>
                                 )}
+                                {rules?.rubric && mySubmission.rubric_scores && (
+                                    <div className="mt-3">
+                                        <RubricGrader rubric={rules.rubric} scores={mySubmission.rubric_scores} readOnly />
+                                    </div>
+                                )}
                                 <p className="mt-2.5 text-[11px] font-bold leading-relaxed text-emerald-600">
-                                    Cevabını güncellersen bu not silinir, öğretmenin tekrar bakması gerekir.
+                                    Cevabını güncellersen öğretmenin yeni cevabı tekrar değerlendirir; bu not “önceki teslimlerin” arasında kalır.
                                 </p>
                             </section>
                         ) : isSubmitted ? (
@@ -407,6 +457,39 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
                                     Cevabını teslim ettikten sonra <b className="text-slate-800">öğretmenin</b> inceleyip
                                     not ve geri bildirim yazar. Sonuç bu panelde çıkar.
                                 </p>
+                            </section>
+                        )}
+
+                        {/* Değerlendirme ölçütleri: öğrenci teslimden ÖNCE neye bakılacağını bilir */}
+                        {rules?.rubric && !mySubmission?.graded_at && (
+                            <section className="rounded-3xl border-2 border-b-4 border-indigo-200 bg-white p-5 shadow-sm">
+                                <h2 className="flex items-center gap-1.5 font-display text-[11px] font-black uppercase tracking-widest text-indigo-600">
+                                    <ClipboardList size={14} /> Değerlendirme ölçütleri
+                                </h2>
+                                <div className="mt-2.5">
+                                    <RubricGrader rubric={rules.rubric} scores={{}} readOnly />
+                                </div>
+                            </section>
+                        )}
+
+                        {/* Önceki sürümler: eski not ve geri bildirimler kaybolmaz */}
+                        {rules && rules.history.length > 0 && (
+                            <section className="rounded-3xl border-2 border-b-4 border-gray-200 bg-white p-5 shadow-sm">
+                                <h2 className="flex items-center gap-1.5 font-display text-[11px] font-black uppercase tracking-widest text-slate-500">
+                                    <History size={14} /> Önceki teslimlerin
+                                </h2>
+                                <div className="mt-2.5 space-y-2">
+                                    {rules.history.map((h) => (
+                                        <div key={h.version} className="rounded-2xl border border-gray-100 bg-slate-50 px-3 py-2">
+                                            <p className="text-[11.5px] font-black text-slate-700">
+                                                {h.version}. sürüm
+                                                {h.grade !== null && <span className="text-emerald-700"> · {h.grade}/100</span>}
+                                                {h.reason === 'withdrawn' && <span className="text-slate-400"> · geri çekildi</span>}
+                                            </p>
+                                            {h.feedback && <p className="text-[11.5px] text-slate-600 mt-0.5">{h.feedback}</p>}
+                                        </div>
+                                    ))}
+                                </div>
                             </section>
                         )}
 

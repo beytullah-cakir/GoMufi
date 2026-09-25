@@ -40,23 +40,23 @@ export default function Animation() {
     if (activeAction !== 'idle') return;
 
     // Reset components to standard idle layout with explicit transformOrigin in GSAP
-    gsap.set([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, scaleX: 1, y: 0, scale: 1, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px') });
-    gsap.set(leftEarRef.current, { rotation: -15, y: 0, transformOrigin: '145px 190px' });
-    gsap.set(rightEarRef.current, { rotation: 15, y: 0, transformOrigin: '255px 190px' });
+    gsap.set([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, scaleX: 1, y: 0, scale: 1, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px') });
+    gsap.set(leftEarRef.current, { rotation: 0, y: 0, transformOrigin: '120px 127px' });
+    gsap.set(rightEarRef.current, { rotation: 0, y: 0, transformOrigin: '280px 127px' });
     gsap.set(catRef.current, { y: 0, x: 0 });
-    gsap.set(headRef.current, { y: 0, rotation: 0, transformOrigin: '200px 270px' });
-    gsap.set(bodyRef.current, { scaleY: 1, scaleX: 1, rotation: 0, transformOrigin: '200px 420px' });
-    gsap.set(tailRef.current, { rotation: 0, scaleY: 1, transformOrigin: '240px 430px' });
-    gsap.set([leftLegRef.current, rightLegRef.current], { y: 0, transformOrigin: (i) => (i === 0 ? '150px 420px' : '250px 420px') });
+    gsap.set(headRef.current, { y: 0, rotation: 0, transformOrigin: '200px 276px' });
+    gsap.set(bodyRef.current, { scaleY: 1, scaleX: 1, rotation: 0, transformOrigin: '200px 430px' });
+    gsap.set(tailRef.current, { rotation: 0, scaleY: 1, transformOrigin: '150px 404px' });
+    gsap.set([leftLegRef.current, rightLegRef.current], { y: 0, transformOrigin: (i) => (i === 0 ? '170px 410px' : '230px 410px') });
 
     // 1. Idle Timeline
     idleTimeline.current = gsap.timeline({ repeat: -1, yoyo: true })
       // Tail Wag
-      .to(tailRef.current, { rotation: -8, transformOrigin: '240px 430px', duration: 1.8, ease: 'sine.inOut' }, 0)
+      .to(tailRef.current, { rotation: -8, transformOrigin: '150px 404px', duration: 1.8, ease: 'sine.inOut' }, 0)
       // Head Bob
-      .to(headRef.current, { y: 3, rotation: 0.5, transformOrigin: '200px 270px', duration: 2, ease: 'sine.inOut' }, 0)
+      .to(headRef.current, { y: 3, rotation: 0.5, transformOrigin: '200px 276px', duration: 2, ease: 'sine.inOut' }, 0)
       // Breathing Body
-      .to(bodyRef.current, { scaleY: 1.02, scaleX: 0.99, transformOrigin: '200px 420px', duration: 2, ease: 'sine.inOut' }, 0);
+      .to(bodyRef.current, { scaleY: 1.02, scaleX: 0.99, transformOrigin: '200px 430px', duration: 2, ease: 'sine.inOut' }, 0);
 
     // 2. Random Blink Timeline
     const blink = () => {
@@ -65,8 +65,8 @@ export default function Animation() {
         // Schedule next random blink (between 2 to 5 seconds)
         gsap.delayedCall(gsap.utils.random(2, 5), blink);
       }})
-      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0.05, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.12, ease: 'power2.inOut' })
-      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.12, ease: 'power2.inOut' });
+      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0.05, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.12, ease: 'power2.inOut' })
+      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.12, ease: 'power2.inOut' });
     };
     
     // Start blinking loop
@@ -77,8 +77,8 @@ export default function Animation() {
       if (activeAction !== 'idle') return;
       const targetEar = Math.random() > 0.5 ? leftEarRef.current : rightEarRef.current;
       const rotAmount = targetEar === leftEarRef.current ? -25 : 25;
-      const origRot = targetEar === leftEarRef.current ? -15 : 15;
-      const tOrigin = targetEar === leftEarRef.current ? '145px 190px' : '255px 190px';
+      const origRot = 0;
+      const tOrigin = targetEar === leftEarRef.current ? '120px 127px' : '280px 127px';
 
       gsap.timeline({ onComplete: () => gsap.delayedCall(gsap.utils.random(3, 6), twitchEars) })
         .to(targetEar, { rotation: rotAmount, transformOrigin: tOrigin, duration: 0.08, yoyo: true, repeat: 3, ease: 'power1.inOut' })
@@ -156,13 +156,13 @@ export default function Animation() {
         setCatMood('Mutlu 😺');
       }
     })
-    .to(headRef.current, { rotation: 8, y: 5, transformOrigin: '200px 270px', duration: 0.4, ease: 'sine.inOut' })
-    .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0.2, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.3 }, 0)
+    .to(headRef.current, { rotation: 8, y: 5, transformOrigin: '200px 276px', duration: 0.4, ease: 'sine.inOut' })
+    .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0.2, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.3 }, 0)
     // 2. Fast tail wagging
-    .to(tailRef.current, { rotation: -22, transformOrigin: '240px 430px', duration: 0.15, yoyo: true, repeat: 7 }, 0)
+    .to(tailRef.current, { rotation: -22, transformOrigin: '150px 404px', duration: 0.15, yoyo: true, repeat: 7 }, 0)
     // 3. Relax back
-    .to(headRef.current, { rotation: 0, y: 0, transformOrigin: '200px 270px', duration: 0.4 })
-    .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.3 }, '+=0.1');
+    .to(headRef.current, { rotation: 0, y: 0, transformOrigin: '200px 276px', duration: 0.4 })
+    .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.3 }, '+=0.1');
   };
 
   const handleScare = () => {
@@ -179,25 +179,25 @@ export default function Animation() {
     });
 
     // 1. Jumps & Shakes
-    mainTl.to(catRef.current, { y: -80, rotation: -2, transformOrigin: '200px 450px', duration: 0.2, ease: 'power2.out' })
-      .to(catRef.current, { y: 0, rotation: 0, transformOrigin: '200px 450px', duration: 0.25, ease: 'bounce.out' })
+    mainTl.to(catRef.current, { y: -80, rotation: -2, transformOrigin: '150px 470px', duration: 0.2, ease: 'power2.out' })
+      .to(catRef.current, { y: 0, rotation: 0, transformOrigin: '150px 470px', duration: 0.25, ease: 'bounce.out' })
       .to(catRef.current, { x: '+=4', duration: 0.05, yoyo: true, repeat: 10 }, 0.45);
 
     // 2. Eyes wide and high
-    mainTl.to([leftEyeRef.current, rightEyeRef.current], { scale: 1.35, y: -4, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.15, ease: 'power2.out' }, 0);
+    mainTl.to([leftEyeRef.current, rightEyeRef.current], { scale: 1.35, y: -4, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.15, ease: 'power2.out' }, 0);
 
     // 3. Ears flat to the side
-    mainTl.to(leftEarRef.current, { rotation: -60, y: 6, transformOrigin: '145px 190px', duration: 0.15 }, 0)
-      .to(rightEarRef.current, { rotation: 60, y: 6, transformOrigin: '255px 190px', duration: 0.15 }, 0);
+    mainTl.to(leftEarRef.current, { rotation: -60, y: 6, transformOrigin: '120px 127px', duration: 0.15 }, 0)
+      .to(rightEarRef.current, { rotation: 60, y: 6, transformOrigin: '280px 127px', duration: 0.15 }, 0);
 
     // 4. Tail gets thin/stiff
-    mainTl.to(tailRef.current, { rotation: 35, scaleY: 1.4, transformOrigin: '240px 430px', duration: 0.15 }, 0);
+    mainTl.to(tailRef.current, { rotation: 35, scaleY: 1.4, transformOrigin: '150px 404px', duration: 0.15 }, 0);
 
     // 5. Restore layouts slowly
-    mainTl.to([leftEyeRef.current, rightEyeRef.current], { scale: 1, y: 0, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.6, ease: 'power1.inOut' }, 1.2)
-      .to(leftEarRef.current, { rotation: -15, y: 0, transformOrigin: '145px 190px', duration: 0.5 }, 1.2)
-      .to(rightEarRef.current, { rotation: 15, y: 0, transformOrigin: '255px 190px', duration: 0.5 }, 1.2)
-      .to(tailRef.current, { rotation: 0, scaleY: 1, transformOrigin: '240px 430px', duration: 0.5 }, 1.2);
+    mainTl.to([leftEyeRef.current, rightEyeRef.current], { scale: 1, y: 0, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.6, ease: 'power1.inOut' }, 1.2)
+      .to(leftEarRef.current, { rotation: 0, y: 0, transformOrigin: '120px 127px', duration: 0.5 }, 1.2)
+      .to(rightEarRef.current, { rotation: 0, y: 0, transformOrigin: '280px 127px', duration: 0.5 }, 1.2)
+      .to(tailRef.current, { rotation: 0, scaleY: 1, transformOrigin: '150px 404px', duration: 0.5 }, 1.2);
   };
 
   const handleDance = () => {
@@ -213,36 +213,36 @@ export default function Animation() {
     });
 
     // Sway 1
-    danceTl.to(bodyRef.current, { rotation: -8, scaleX: 1.03, transformOrigin: '200px 420px', duration: 0.3, ease: 'sine.inOut' })
-      .to(headRef.current, { rotation: 5, x: 8, transformOrigin: '200px 270px', duration: 0.3, ease: 'sine.inOut' }, 0)
-      .to(leftLegRef.current, { y: -10, transformOrigin: '150px 420px', duration: 0.15, yoyo: true, repeat: 1 }, 0)
-      .to(tailRef.current, { rotation: -24, transformOrigin: '240px 430px', duration: 0.3 }, 0);
+    danceTl.to(bodyRef.current, { rotation: -8, scaleX: 1.03, transformOrigin: '200px 430px', duration: 0.3, ease: 'sine.inOut' })
+      .to(headRef.current, { rotation: 5, x: 8, transformOrigin: '200px 276px', duration: 0.3, ease: 'sine.inOut' }, 0)
+      .to(leftLegRef.current, { y: -10, transformOrigin: '170px 410px', duration: 0.15, yoyo: true, repeat: 1 }, 0)
+      .to(tailRef.current, { rotation: -24, transformOrigin: '150px 404px', duration: 0.3 }, 0);
 
     // Sway 2
-    danceTl.to(bodyRef.current, { rotation: 8, scaleX: 1.03, transformOrigin: '200px 420px', duration: 0.6, yoyo: true, repeat: 3, ease: 'sine.inOut' })
-      .to(headRef.current, { rotation: -5, x: -8, transformOrigin: '200px 270px', duration: 0.6, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 0.3)
-      .to(rightLegRef.current, { y: -10, transformOrigin: '250px 420px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.15 }, 0.3)
-      .to(leftLegRef.current, { y: -10, transformOrigin: '150px 420px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.45 }, 0.3)
-      .to(rightLegRef.current, { y: -10, transformOrigin: '250px 420px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.75 }, 0.3)
-      .to(tailRef.current, { rotation: 24, transformOrigin: '240px 430px', duration: 0.6, yoyo: true, repeat: 3 }, 0.3);
+    danceTl.to(bodyRef.current, { rotation: 8, scaleX: 1.03, transformOrigin: '200px 430px', duration: 0.6, yoyo: true, repeat: 3, ease: 'sine.inOut' })
+      .to(headRef.current, { rotation: -5, x: -8, transformOrigin: '200px 276px', duration: 0.6, yoyo: true, repeat: 3, ease: 'sine.inOut' }, 0.3)
+      .to(rightLegRef.current, { y: -10, transformOrigin: '230px 410px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.15 }, 0.3)
+      .to(leftLegRef.current, { y: -10, transformOrigin: '170px 410px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.45 }, 0.3)
+      .to(rightLegRef.current, { y: -10, transformOrigin: '230px 410px', duration: 0.15, yoyo: true, repeat: 1, delay: 0.75 }, 0.3)
+      .to(tailRef.current, { rotation: 24, transformOrigin: '150px 404px', duration: 0.6, yoyo: true, repeat: 3 }, 0.3);
 
     // Centering back
-    danceTl.to(bodyRef.current, { x: 0, rotation: 0, scaleX: 1, transformOrigin: '200px 420px', duration: 0.4 })
-      .to(headRef.current, { x: 0, rotation: 0, transformOrigin: '200px 270px', duration: 0.4 }, 0)
-      .to(tailRef.current, { x: 0, rotation: 0, transformOrigin: '240px 430px', duration: 0.4 }, 0);
+    danceTl.to(bodyRef.current, { x: 0, rotation: 0, scaleX: 1, transformOrigin: '200px 430px', duration: 0.4 })
+      .to(headRef.current, { x: 0, rotation: 0, transformOrigin: '200px 276px', duration: 0.4 }, 0)
+      .to(tailRef.current, { x: 0, rotation: 0, transformOrigin: '150px 404px', duration: 0.4 }, 0);
   };
 
   const handleSleep = () => {
     setActiveAction('sleep');
     setCatMood('Uyuyor... 😴💤');
 
-    gsap.to(headRef.current, { y: 14, rotation: -3, transformOrigin: '200px 270px', duration: 1.8, ease: 'power1.inOut' });
-    gsap.to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 1.2, ease: 'power1.inOut' });
+    gsap.to(headRef.current, { y: 14, rotation: -3, transformOrigin: '200px 276px', duration: 1.8, ease: 'power1.inOut' });
+    gsap.to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 1.2, ease: 'power1.inOut' });
     // NOT: position parametresi (3. argüman) yalnızca timeline'larda geçerlidir,
     // tekil gsap.to() çağrılarında değil — bu yüzden kaldırıldı.
-    gsap.to(leftEarRef.current, { rotation: -25, transformOrigin: '145px 190px', duration: 1.5 });
-    gsap.to(rightEarRef.current, { rotation: 25, transformOrigin: '255px 190px', duration: 1.5 });
-    gsap.to(tailRef.current, { rotation: 6, transformOrigin: '240px 430px', duration: 2 });
+    gsap.to(leftEarRef.current, { rotation: -25, transformOrigin: '120px 127px', duration: 1.5 });
+    gsap.to(rightEarRef.current, { rotation: 25, transformOrigin: '280px 127px', duration: 1.5 });
+    gsap.to(tailRef.current, { rotation: 6, transformOrigin: '150px 404px', duration: 2 });
   };
 
   const handleWakeUp = () => {
@@ -251,10 +251,10 @@ export default function Animation() {
     triggerParticle('exclamation');
 
     gsap.timeline()
-      .to(headRef.current, { y: 0, rotation: 0, transformOrigin: '200px 270px', duration: 0.6, ease: 'back.out(1.5)' })
-      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 225px' : '250px 225px'), duration: 0.4 }, 0)
-      .to(leftEarRef.current, { rotation: -15, transformOrigin: '145px 190px', duration: 0.5 }, 0)
-      .to(rightEarRef.current, { rotation: 15, transformOrigin: '255px 190px', duration: 0.5 }, 0);
+      .to(headRef.current, { y: 0, rotation: 0, transformOrigin: '200px 276px', duration: 0.6, ease: 'back.out(1.5)' })
+      .to([leftEyeRef.current, rightEyeRef.current], { scaleY: 1, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 0.4 }, 0)
+      .to(leftEarRef.current, { rotation: 0, transformOrigin: '120px 127px', duration: 0.5 }, 0)
+      .to(rightEarRef.current, { rotation: 0, transformOrigin: '280px 127px', duration: 0.5 }, 0);
   };
 
   return (
@@ -315,120 +315,88 @@ export default function Animation() {
               </div>
 
               {/* Cat Wrapper - High-Fidelity SVG Implementation */}
-              <div ref={catRef} className="cat-character relative w-[300px] h-[480px] flex items-center justify-center select-none">
+              <div ref={catRef} className="cat-character relative w-[336px] h-[420px] flex items-center justify-center select-none">
                 
                 <svg viewBox="0 0 400 500" className="w-full h-full drop-shadow-2xl">
-                  {/* Ground Shadow */}
-                  <ellipse cx="200" cy="465" rx="85" ry="7" fill="#202737" opacity="0.35" />
+                  {/* Zemin: koyu lacivert duz platform */}
+                  <rect x="119" y="459" width="162" height="17" rx="8.5" fill="#3c4a63" />
 
-                  {/* Curved Tail (Cream with Peach Tip) */}
-                  <g ref={tailRef} className="cat-tail origin-[240px_430px]">
-                    <path 
-                      d="M 230,425 C 170,445 90,435 80,390 C 70,345 105,310 160,330 C 180,338 190,346 195,352" 
-                      fill="none" 
-                      stroke="#fffcf4" 
-                      strokeWidth="24" 
-                      strokeLinecap="round" 
-                    />
-                    <path 
-                      d="M 160,330 C 180,338 190,346 195,352" 
-                      fill="none" 
-                      stroke="#fcae96" 
-                      strokeWidth="24" 
-                      strokeLinecap="round" 
-                    />
+                  {/* Kuyruk: govdenin arkasindan sola uzanir, dis yarisi somon */}
+                  <g ref={tailRef} className="cat-tail origin-[150px_404px]">
+                    <path d="M 152,404 C 130,413 112,411 100,403" fill="none" stroke="#fdfaf0" strokeWidth="34" strokeLinecap="round" />
+                    <path d="M 100,403 C 82,394 60,379 46,362" fill="none" stroke="#f4a189" strokeWidth="34" strokeLinecap="butt" />
+                    <circle cx="46" cy="362" r="17" fill="#f4a189" />
                   </g>
 
-                  {/* Legs & Feet */}
+                  {/* Bacaklar + somon patiler (ustleri govdenin arkasinda) */}
                   <g id="legs">
-                    {/* Left Leg */}
-                    <g ref={leftLegRef} className="cat-leg-left origin-[150px_420px]">
-                      <path d="M 142,420 L 142,450 C 142,455 158,455 158,450 L 158,420 Z" fill="#fffcf4" />
-                      <rect x="126" y="445" width="46" height="18" rx="9" fill="#fcae96" />
+                    <g ref={leftLegRef} className="cat-leg-left origin-[170px_410px]">
+                      <rect x="150" y="392" width="44" height="52" rx="18" fill="#fdfaf0" />
+                      <ellipse cx="168" cy="449" rx="28" ry="13.5" fill="#f4a189" />
                     </g>
-
-                    {/* Right Leg */}
-                    <g ref={rightLegRef} className="cat-leg-right origin-[250px_420px]">
-                      <path d="M 242,420 L 242,450 C 242,455 258,455 258,450 L 258,420 Z" fill="#fffcf4" />
-                      <rect x="228" y="445" width="46" height="18" rx="9" fill="#fcae96" />
+                    <g ref={rightLegRef} className="cat-leg-right origin-[230px_410px]">
+                      <rect x="206" y="392" width="44" height="52" rx="18" fill="#fdfaf0" />
+                      <ellipse cx="232" cy="449" rx="28" ry="13.5" fill="#f4a189" />
                     </g>
                   </g>
 
-                  {/* Body Group */}
-                  <g ref={bodyRef} className="cat-body origin-[200px_420px]">
-                    {/* Torso */}
-                    <path d="M 140,290 C 115,325 125,420 160,430 L 240,430 C 275,420 285,325 260,290 Z" fill="#fffcf4" />
-                    
-                    {/* Left Arm Curve */}
-                    <path d="M 145,315 C 122,325 118,368 138,390" fill="none" stroke="#fffcf4" strokeWidth="26" strokeLinecap="round" />
-                    <path d="M 145,315 C 122,325 118,368 138,390" fill="none" stroke="#e1ded4" strokeWidth="2" strokeLinecap="round" />
-
-                    {/* Right Arm Curve */}
-                    <path d="M 255,315 C 278,325 282,368 262,390" fill="none" stroke="#fffcf4" strokeWidth="26" strokeLinecap="round" />
-                    <path d="M 255,315 C 278,325 282,368 262,390" fill="none" stroke="#e1ded4" strokeWidth="2" strokeLinecap="round" />
+                  {/* Govde + yanlarda yuvarlak kol loblari */}
+                  <g ref={bodyRef} className="cat-body origin-[200px_430px]">
+                    <path
+                      d="M 152,270 C 139,292 135,326 137,362 C 139,392 145,416 155,428 C 161,434 188,436 194,434 C 195,426 197,416 200,408 C 203,416 205,426 206,434 C 212,436 239,434 245,428 C 255,416 261,392 263,362 C 265,326 261,292 248,270 Z"
+                      fill="#fdfaf0"
+                    />
+                    <path d="M 132,310 C 125,332 125,354 134,374" fill="none" stroke="#fdfaf0" strokeWidth="32" strokeLinecap="round" />
+                    <path d="M 268,310 C 275,332 275,354 266,374" fill="none" stroke="#fdfaf0" strokeWidth="32" strokeLinecap="round" />
+                    <path d="M 147,314 C 141,334 141,354 148,372" fill="none" stroke="#e8e0cc" strokeWidth="2.8" strokeLinecap="round" />
+                    <path d="M 253,314 C 259,334 259,354 252,372" fill="none" stroke="#e8e0cc" strokeWidth="2.8" strokeLinecap="round" />
                   </g>
 
-                  {/* Head Group */}
-                  <g ref={headRef} className="cat-head origin-[200px_270px]">
-                    
-                    {/* Ears */}
-                    {/* Left Ear */}
-                    <g ref={leftEarRef} className="cat-ear-left origin-[145px_190px]">
-                      <path d="M 120,190 C 115,140 125,75 168,90 C 175,93 178,115 174,130 C 170,145 165,160 162,175 Z" fill="#fffcf4" />
-                      <path d="M 132,180 C 128,145 136,92 162,102 C 167,105 170,118 167,128 Z" fill="#fcae96" />
+                  {/* Bas grubu */}
+                  <g ref={headRef} className="cat-head origin-[200px_276px]">
+
+                    {/* Kulaklar: genis ucgen, ucu hafif yuvarlak */}
+                    <g ref={leftEarRef} className="cat-ear-left origin-[120px_127px]">
+                      <path d="M 85,145 C 80,110 88,58 97,38 C 100,32 106,34 110,42 C 122,66 142,92 155,110 Z" fill="#fdfaf0" />
+                      <path d="M 96,133 C 92,108 98,70 104,55 C 107,50 111,52 114,58 C 124,78 139,98 148,112 Z" fill="#f4a189" />
+                    </g>
+                    <g ref={rightEarRef} className="cat-ear-right origin-[280px_127px]">
+                      <path d="M 315,145 C 320,110 312,58 303,38 C 300,32 294,34 290,42 C 278,66 258,92 245,110 Z" fill="#fdfaf0" />
+                      <path d="M 304,133 C 308,108 302,70 296,55 C 293,50 289,52 286,58 C 276,78 261,98 252,112 Z" fill="#f4a189" />
                     </g>
 
-                    {/* Right Ear */}
-                    <g ref={rightEarRef} className="cat-ear-right origin-[255px_190px]">
-                      <path d="M 280,190 C 285,140 275,75 232,90 C 225,93 222,115 226,130 C 230,145 235,160 238,175 Z" fill="#fffcf4" />
-                      <path d="M 268,180 C 272,145 264,92 238,102 C 233,105 230,118 233,128 Z" fill="#fcae96" />
+                    {/* Yanak tuyleri */}
+                    <path d="M 88,178 C 78,183 67,190 60,197 C 70,201 80,201 90,200 C 79,207 69,216 63,225 C 75,228 88,222 97,213 Z" fill="#fdfaf0" />
+                    <path d="M 312,178 C 322,183 333,190 340,197 C 330,201 320,201 310,200 C 321,207 331,216 337,225 C 325,228 312,222 303,213 Z" fill="#fdfaf0" />
+
+                    {/* Ana bas formu: enli, yuvarlak kare */}
+                    <path d="M 75,150 C 75,106 126,85 200,85 C 274,85 325,106 325,150 C 325,194 324,238 300,260 C 278,280 242,282 200,282 C 158,282 122,280 100,260 C 76,238 75,194 75,150 Z" fill="#fdfaf0" />
+
+                    {/* Kulak diplerindeki tuy kabarciklari */}
+                    <path d="M 140,100 C 146,88 155,85 161,96 C 167,85 177,86 183,99 Z" fill="#fdfaf0" />
+                    <path d="M 260,100 C 254,88 245,85 239,96 C 233,85 223,86 217,99 Z" fill="#fdfaf0" />
+
+                    {/* Gozler: iris gozu neredeyse doldurur, ustte beyaz hilal */}
+                    <g ref={leftEyeRef} className="cat-eye-left origin-[150px_189px]">
+                      <ellipse cx="150" cy="189" rx="33" ry="38.5" fill="#ffffff" stroke="#efe9d9" strokeWidth="1.5" />
+                      <circle cx="154" cy="194" r="25" fill="#1f6cb0" />
+                      <circle cx="146" cy="184" r="9" fill="#ffffff" />
+                      <circle cx="166" cy="208" r="5" fill="#ffffff" />
+                    </g>
+                    <g ref={rightEyeRef} className="cat-eye-right origin-[250px_189px]">
+                      <ellipse cx="250" cy="189" rx="33" ry="38.5" fill="#ffffff" stroke="#efe9d9" strokeWidth="1.5" />
+                      <circle cx="246" cy="194" r="25" fill="#2b2b2b" />
+                      <circle cx="238" cy="184" r="9" fill="#ffffff" />
+                      <circle cx="258" cy="208" r="5" fill="#ffffff" />
                     </g>
 
-                    {/* Pointy Cheek Tufts (Face Spikes) */}
-                    {/* Left Tufts */}
-                    <path d="M 115,220 C 95,225 80,240 75,245 C 85,250 100,250 110,252 C 90,258 80,272 75,278 C 88,280 105,274 115,266 Z" fill="#fffcf4" />
-                    {/* Right Tufts */}
-                    <path d="M 285,220 C 305,225 320,240 325,245 C 315,250 300,250 290,252 C 310,258 320,272 325,278 C 312,280 295,274 285,266 Z" fill="#fffcf4" />
+                    {/* Burun */}
+                    <path d="M 190,202 C 189,199 191,197 194,197 L 206,197 C 209,197 211,199 210,202 C 208,209 203,215 200,215 C 197,215 192,209 190,202 Z" fill="#f4a189" />
 
-                    {/* Main Head Shape - Wider at the bottom for chubby cheeks */}
-                    <path d="M 110,240 C 110,165 290,165 290,240 C 290,310 270,320 200,320 C 130,320 110,310 110,240 Z" fill="#fffcf4" />
-
-                    {/* Eyes */}
-                    {/* Left Eye */}
-                    <g ref={leftEyeRef} className="cat-eye-left origin-[150px_225px]">
-                      <ellipse cx="150" cy="225" rx="28" ry="36" fill="#ffffff" stroke="#e9e7dc" strokeWidth="1" />
-                      {/* Iris */}
-                      <circle cx="156" cy="229" r="19" fill="#2c9cf0" />
-                      {/* Pupil */}
-                      <circle cx="159" cy="231" r="13" fill="#212121" />
-                      {/* Dual Highlights */}
-                      <circle cx="163" cy="235" r="5.5" fill="#ffffff" />
-                      <circle cx="155" cy="226" r="2.5" fill="#ffffff" />
-                    </g>
-
-                    {/* Right Eye */}
-                    <g ref={rightEyeRef} className="cat-eye-right origin-[250px_225px]">
-                      <ellipse cx="250" cy="225" rx="28" ry="36" fill="#ffffff" stroke="#e9e7dc" strokeWidth="1" />
-                      {/* Iris */}
-                      <circle cx="244" cy="229" r="19" fill="#3d3d3d" />
-                      {/* Pupil */}
-                      <circle cx="241" cy="231" r="13" fill="#212121" />
-                      {/* Dual Highlights */}
-                      <circle cx="245" cy="235" r="5.5" fill="#ffffff" />
-                      <circle cx="237" cy="226" r="2.5" fill="#ffffff" />
-                    </g>
-
-                    {/* Nose */}
-                    <path d="M 194,244 L 206,244 C 208,244 201,252 200,253 C 199,252 192,244 194,244 Z" fill="#fcae96" />
-
-                    {/* Open Mouth with Tongue and Smile Folds */}
+                    {/* Acik agiz + dil */}
                     <g id="mouth" className="cat-mouth">
-                      {/* Cavity */}
-                      <path d="M 188,256 C 188,256 188,285 200,285 C 212,285 212,256 212,256 Z" fill="#7d1a21" />
-                      {/* Tongue */}
-                      <path d="M 191,273 C 191,273 194,285 200,285 C 206,285 209,273 209,273 Z" fill="#f03d4c" />
-                      {/* Cheek Folds / Smile Overlay */}
-                      <path d="M 184,255 C 192,258 198,258 200,256 C 202,258 208,258 216,255" fill="none" stroke="#fffcf4" strokeWidth="4.5" strokeLinecap="round" />
+                      <path d="M 180,224 C 186,218 195,223 200,230 C 205,223 214,218 220,224 C 224,244 213,260 200,260 C 187,260 176,244 180,224 Z" fill="#a3132c" />
+                      <path d="M 186,243 C 189,257 211,257 214,243 C 206,237 194,237 186,243 Z" fill="#ea2440" />
                     </g>
 
                   </g>

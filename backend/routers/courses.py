@@ -18,9 +18,12 @@ from models.homework_submission import HomeworkSubmission
 from connect_db import get_db
 from sqlalchemy import delete
 from pydantic import BaseModel
-from typing import List, Optional, Any
+from typing import Any, Dict, List, Optional
 from auth.dependencies import get_current_user_info, get_current_teacher_id
 from core.config import settings
+import homework_rules
+import learning_store
+from models.teaching import HomeworkSubmissionVersion
 
 router = APIRouter()
 
@@ -134,9 +137,22 @@ class TeacherStudentResponse(BaseModel):
     last_name: str
     email: str
     course_title: str
+    course_id: Optional[int] = None
+    # Bitirilen modül / toplam modül (öğrenme kaydındaki module_completed olayları).
     progress: int = 0
+    modules_done: int = 0
+    modules_total: int = 0
     enrolled_at: Optional[datetime] = None
+    # active | struggling | completed | inactive (bkz. teacher_summary.StudentSignal.status)
     status: str = "active"
+    class_id: Optional[str] = None
+    class_name: Optional[str] = None
+    last_activity_at: Optional[datetime] = None
+    struggling_concepts: int = 0
+    stuck_now: int = 0
+    tasks_solved: int = 0
+    tasks_started: int = 0
+    has_parent: bool = False
 
 
 
@@ -363,29 +379,49 @@ async def read_teacher_students(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    from models.student import Student
-    
+    """Öğretmenin kurslarına kayıtlı öğrenciler — kurs başına bir satır.
+
+    Durum ve ilerleme öğrenme kaydından hesaplanır; eskiden herkes "Aktif",
+    ilerleme 0 dönüyordu.
+    """
+    import teacher_summary
+
+    courses = (await db.execute(select(Course).where(Course.teacher_id == teacher_id))).scalars().all()
+    by_id = {c.id: c for c in courses}
+    signals = await teacher_summary.student_signals(db, courses)
+    now = datetime.utcnow()
+
     stmt = (
-        select(Enrollment, Student, Course)
-        .join(Course, Course.id == Enrollment.course_id)
+        select(Enrollment, Student)
         .join(Student, Student.id == Enrollment.student_id)
-        .where(Course.teacher_id == teacher_id)
+        .where(Enrollment.course_id.in_(list(by_id) or [-1]))
     )
-    result = await db.execute(stmt)
-    rows = result.all()
-    
     response = []
-    for enrollment, student, course in rows:
+    for enrollment, student in (await db.execute(stmt)).all():
+        course = by_id[enrollment.course_id]
+        sig = signals.get((course.id, student.id)) or teacher_summary.StudentSignal()
+        cls = teacher_summary.class_of(course, student.id)
         response.append(
             TeacherStudentResponse(
                 student_id=student.id,
-                first_name=student.first_name,
-                last_name=student.last_name,
-                email=student.email,
+                first_name=student.first_name or "",
+                last_name=student.last_name or "",
+                email=student.email or "",
                 course_title=course.title,
-                progress=0, # İleride gerçek progress hesaplanabilir
+                course_id=course.id,
+                progress=sig.progress,
+                modules_done=sig.modules_done,
+                modules_total=sig.modules_total,
                 enrolled_at=enrollment.enrolled_at,
-                status="active"
+                status=sig.status(now),
+                class_id=str(cls["id"]) if cls and cls.get("id") is not None else None,
+                class_name=cls.get("name") if cls else None,
+                last_activity_at=sig.last_activity,
+                struggling_concepts=len(sig.struggling),
+                stuck_now=sig.stuck_now,
+                tasks_solved=sig.tasks_solved,
+                tasks_started=sig.tasks_started,
+                has_parent=student.parent_id is not None,
             )
         )
     return response
@@ -470,7 +506,9 @@ async def update_course(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"DEBUG: update_course data: {course_data.dict()}")
+    # NOT: Tüm payload'ı loglamak müfredat JSON'u büyüdükçe (slayt içerikleri)
+    # isteği saniyelerce yavaşlatıyordu; sadece özet bilgi logluyoruz.
+    print(f"DEBUG: update_course {course_id} (curriculum items: {len(course_data.curriculum) if course_data.curriculum is not None else 0})")
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
@@ -832,6 +870,10 @@ DEFAULT_STYLE = {
 
 DEFAULT_CODE_CONFIG = {
     "language": None,
+    # Görünüm kipi (editor/terminal). Bu anahtar listede yoksa
+    # normalize_code_config onu SESSİZCE düşürür: öğretmenin terminal seçimi
+    # kaydedince kaybolur ve blok yeniden kod editörü olarak açılır.
+    "mode": None,
     "expectedOutput": None,
     "hint": None,
     "runnable": None,
@@ -876,6 +918,14 @@ DEFAULT_SLIDE = {
     "type": "normal",
     "gameType": None,
     "gameConfig": None,
+    # Bunlar listede olmadan dışa aktarılan bir yol haritası UYGULA/BİRLEŞTİR/ÜRET
+    # görevlerini, ödevleri ve grid yerleşimlerini KAYBEDİYORDU: normalize_slide
+    # yalnızca buradaki anahtarları kopyalıyor, gerisini sessizce düşürüyor.
+    "challengeConfig": None,
+    "connectConfig": None,
+    "produceConfig": None,
+    "homeworkConfig": None,
+    "layout": None,
     "elements": [],
     "connections": None,
     "background": "default",
@@ -999,6 +1049,14 @@ async def export_roadmap(
     for q in quizzes:
         quizzes_data.append(q.to_dict())
 
+    # Ders içerikleri (UYGULA/BİRLEŞTİR/ÜRET görevleri dahil). Bu liste eskiden hiç
+    # oluşturulmuyordu; uç her çağrıda tanımsız değişken hatasıyla düşüyordu.
+    lesson_contents_data = [{
+        "node_id": l.node_id,
+        "title": l.title or "",
+        "slides": [normalize_slide(s) for s in (l.slides or [])],
+    } for l in lessons]
+
     return {
         "success": True,
         "course_title": course.title,
@@ -1079,6 +1137,158 @@ async def import_roadmap(
         await db.rollback()
         print(f"ERROR in import_roadmap: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Yol haritası yüklenemedi: {str(e)}")
+
+
+# --- kopyalama: yeni dönem / ikinci şube için kursu ya da modülleri yeniden kurmamak ----------
+
+def _fresh_slide_ids(slides: List[Any]) -> List[Any]:
+    """Kopyalanan slaytlara yeni kimlik: aynı kursta iki slayt aynı görev anahtarını paylaşmasın."""
+    import copy as _copy
+    out = []
+    for slide in slides or []:
+        if isinstance(slide, dict):
+            slide = _copy.deepcopy(slide)
+            slide["id"] = random.randint(10**12, 10**13 - 1)
+        out.append(slide)
+    return out
+
+
+def _curriculum_without_dates(curriculum: List[Any]) -> List[Any]:
+    """Yeni dönemin takvimi eskisinden taşınmaz: canlı ders tarihleri boşaltılır."""
+    import copy as _copy
+    out = []
+    for node in curriculum or []:
+        node = _copy.deepcopy(node)
+        if isinstance(node, dict) and node.get("type") == "live_sessions_config":
+            node["sessions"] = []
+        out.append(node)
+    return out
+
+
+class DuplicateCourseRequest(BaseModel):
+    title: Optional[str] = None
+
+
+@router.post("/courses/{course_id}/duplicate", response_model=TeacherCourseResponse)
+async def duplicate_course(
+    course_id: int,
+    payload: DuplicateCourseRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Kursun kopyası: müfredat, ders içerikleri ve quizler. Öğrenciler, şubeler,
+    teslimler ve canlı ders tarihleri KOPYALANMAZ — yeni dönem temiz başlar."""
+    import copy as _copy
+    src = (await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )).scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz.")
+
+    new = Course(
+        teacher_id=teacher_id,
+        title=(payload.title or "").strip()[:200] or f"{src.title} (kopya)",
+        description=src.description, category=src.category, progress=0, price=src.price,
+        learning_outcomes=_copy.deepcopy(src.learning_outcomes or []),
+        requirements=_copy.deepcopy(src.requirements or []),
+        curriculum=_curriculum_without_dates(src.curriculum or []),
+        notes=_copy.deepcopy(src.notes or []),
+        rating=src.rating, status="active", schedule=[],
+        enrollment_code=await generate_enrollment_code(db),
+        classes=[], start_date=None,
+    )
+    db.add(new)
+    await db.flush()
+    for content in (await db.execute(
+        select(LessonContent).where(LessonContent.course_id == course_id)
+    )).scalars().all():
+        db.add(LessonContent(course_id=new.id, node_id=content.node_id, title=content.title,
+                             slides=_copy.deepcopy(content.slides or [])))
+    for q in (await db.execute(select(Quiz).where(Quiz.course_id == course_id))).scalars().all():
+        db.add(Quiz(course_id=new.id, section_id=q.section_id, node_id=q.node_id, topic=q.topic,
+                    difficulty=q.difficulty, question_text=q.question_text, options=_copy.deepcopy(q.options),
+                    correct_answer=q.correct_answer, explanation=q.explanation, question_type=q.question_type))
+    await db.commit()
+    result = await db.execute(select(Course).where(Course.id == new.id).options(joinedload(Course.teacher)))
+    new = result.scalar_one()
+    new.students_count = 0
+    return new
+
+
+class CopyModulesRequest(BaseModel):
+    target_course_id: int
+    node_ids: List[str]
+
+
+@router.post("/courses/{course_id}/copy-modules")
+async def copy_modules(
+    course_id: int,
+    payload: CopyModulesRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Seçilen modülleri (slaytları ve quizleriyle) başka bir kursun sonuna ekler.
+
+    Hedefte aynı kimlikte modül varsa yeni kimlik verilir; slaytlar her zaman
+    yeni kimlik alır — görev anahtarları kurs içinde benzersiz kalsın.
+    """
+    import copy as _copy
+    src = (await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )).scalar_one_or_none()
+    target = (await db.execute(
+        select(Course).where(Course.id == payload.target_course_id, Course.teacher_id == teacher_id)
+    )).scalar_one_or_none()
+    if not src or not target:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz.")
+    wanted = [str(n) for n in payload.node_ids]
+    nodes = [n for n in (src.curriculum or []) if isinstance(n, dict) and str(n.get("id")) in wanted
+             and n.get("type") != "live_sessions_config"]
+    if not nodes:
+        raise HTTPException(status_code=400, detail="Kopyalanacak modül seçilmedi.")
+
+    target_curriculum = list(target.curriculum or [])
+    taken = {str(n.get("id")) for n in target_curriculum if isinstance(n, dict)}
+    contents = {c.node_id: c for c in (await db.execute(
+        select(LessonContent).where(LessonContent.course_id == course_id)
+    )).scalars().all()}
+    legacy_notes = {str(n.get("id")): n for n in (src.notes or []) if isinstance(n, dict)}
+    target_notes = list(target.notes or [])
+    quizzes = (await db.execute(select(Quiz).where(Quiz.course_id == course_id))).scalars().all()
+
+    copied = []
+    for node in nodes:
+        old_id = str(node.get("id"))
+        new_id = old_id if old_id not in taken else f"{old_id}_k{random.randint(1000, 9999)}"
+        taken.add(new_id)
+        new_node = _copy.deepcopy(node)
+        new_node["id"] = node["id"] if new_id == old_id else new_id
+        target_curriculum.append(new_node)
+        if old_id in contents:
+            c = contents[old_id]
+            db.add(LessonContent(course_id=target.id, node_id=new_id, title=c.title,
+                                 slides=_fresh_slide_ids(c.slides or [])))
+        elif old_id in legacy_notes:
+            note = _copy.deepcopy(legacy_notes[old_id])
+            note["id"] = new_id
+            note["slides"] = _fresh_slide_ids(note.get("slides") or [])
+            target_notes.append(note)
+        for q in quizzes:
+            if str(q.section_id) == old_id:
+                db.add(Quiz(course_id=target.id, section_id=new_id, node_id=q.node_id, topic=q.topic,
+                            difficulty=q.difficulty, question_text=q.question_text,
+                            options=_copy.deepcopy(q.options), correct_answer=q.correct_answer,
+                            explanation=q.explanation, question_type=q.question_type))
+        copied.append({"from": old_id, "to": new_id, "title": node.get("title")})
+
+    target.curriculum = target_curriculum
+    flag_modified(target, "curriculum")
+    if target_notes != list(target.notes or []):
+        target.notes = target_notes
+        flag_modified(target, "notes")
+    await db.commit()
+    learning_store._CONTEXT_CACHE.pop(target.id, None)
+    return {"copied": copied, "target_course_id": target.id}
 
 
 class JoinClassRequest(BaseModel):
@@ -1228,6 +1438,63 @@ async def get_student_class(
 # HOMEWORK SUBMISSION ENDPOINTS
 # ─────────────────────────────────────────────────────────────────────────────
 
+async def homework_rules_for(db: AsyncSession, course_id: int, node_id: str) -> Dict[str, Any]:
+    """Teslimin kuralları (bkz. homework_rules): son tarih, geç teslim, puanlama anahtarı."""
+    ctx = await learning_store.course_context(db, course_id)
+    task = ctx.resolve_task(str(node_id)) if ctx else None
+    slide = task["slide"] if task else {}
+    return {
+        "due": slide.get("due"),
+        "allow_late": slide.get("allow_late", True),
+        "rubric": slide.get("rubric"),
+        "title": slide.get("title"),
+    }
+
+
+async def _archive_submission(db: AsyncSession, sub: HomeworkSubmission, reason: str) -> None:
+    """Teslimin o anki hâlini (dosya + not + geri bildirim) geçmişe yazar.
+
+    Yeniden teslimde ve silmede çağrılır: "ilk sürüm 55, düzeltilmiş hâli 80"
+    gelişimi ve öğretmenin eski geri bildirimi kaybolmasın.
+    """
+    count = (await db.execute(
+        select(func.count(HomeworkSubmissionVersion.id)).where(
+            HomeworkSubmissionVersion.course_id == sub.course_id,
+            HomeworkSubmissionVersion.node_id == sub.node_id,
+            HomeworkSubmissionVersion.student_id == sub.student_id,
+        )
+    )).scalar() or 0
+    db.add(HomeworkSubmissionVersion(
+        course_id=sub.course_id, node_id=sub.node_id, student_id=sub.student_id,
+        version=int(count) + 1, file_name=sub.file_name, file_data=sub.file_data,
+        file_mime=sub.file_mime, student_note=sub.student_note, submitted_at=sub.submitted_at,
+        grade=sub.grade, feedback=sub.feedback, graded_at=sub.graded_at,
+        graded_source=sub.graded_source, rubric_scores=getattr(sub, "rubric_scores", None),
+        reason=reason,
+    ))
+
+
+async def _version_counts(db: AsyncSession, course_id: int, node_id: Optional[str] = None) -> Dict[tuple, int]:
+    query = select(
+        HomeworkSubmissionVersion.node_id, HomeworkSubmissionVersion.student_id,
+        func.count(HomeworkSubmissionVersion.id),
+    ).where(HomeworkSubmissionVersion.course_id == course_id)
+    if node_id is not None:
+        query = query.where(HomeworkSubmissionVersion.node_id == node_id)
+    rows = (await db.execute(query.group_by(
+        HomeworkSubmissionVersion.node_id, HomeworkSubmissionVersion.student_id))).all()
+    return {(n, sid): int(c) for n, sid, c in rows}
+
+
+def _rules_out(rules: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "title": rules.get("title"),
+        "due_at": homework_rules.due_iso(rules.get("due")),
+        "allow_late": rules.get("allow_late", True),
+        "rubric": rules.get("rubric"),
+    }
+
+
 @router.post("/courses/{course_id}/homework/{node_id}/submit")
 async def submit_homework(
     course_id: int,
@@ -1260,6 +1527,14 @@ async def submit_homework(
 
     file_data_b64 = base64.b64encode(contents).decode("utf-8")
 
+    # Son teslim tarihi: öğretmen geç teslime izin vermediyse reddedilir,
+    # izin verdiyse teslim "geç" işaretlenir.
+    rules = await homework_rules_for(db, course_id, node_id)
+    now = datetime.utcnow()
+    late = homework_rules.is_late(now, rules["due"])
+    if late and not rules["allow_late"]:
+        raise HTTPException(status_code=403, detail="Son teslim tarihi geçti; öğretmenin geç teslime izin vermiyor.")
+
     # Daha önce gönderilmişse güncelle
     existing = await db.execute(
         select(HomeworkSubmission).where(
@@ -1270,10 +1545,15 @@ async def submit_homework(
     )
     sub = existing.scalar_one_or_none()
     if sub:
+        # Eski hâl geçmişe: öğretmenin önceki notu ve geri bildirimi kaybolmasın.
+        await _archive_submission(db, sub, "resubmitted")
         sub.file_name = file.filename or "dosya"
         sub.file_data = file_data_b64
         sub.file_mime = file.content_type
         sub.student_note = student_note
+        # Teslim zamanı yeni cevabın zamanı (eskiden ilk teslimde kalıyordu).
+        sub.submitted_at = now
+        sub.rubric_scores = None
         # İçerik değişti: eski değerlendirme ARTIK BU CEVABA AİT DEĞİL.
         # Silinmezse öğrenci yeni cevabına eski notu görür, öğretmen listesinde de
         # "değerlendirildi" görünüp yeniden bakılması gerektiği kaçar.
@@ -1291,11 +1571,21 @@ async def submit_homework(
             file_data=file_data_b64,
             file_mime=file.content_type,
             student_note=student_note,
+            submitted_at=now,
         )
         db.add(sub)
 
     await db.commit()
-    return {"success": True, "message": "Ödev başarıyla gönderildi."}
+    # Öğrenme kaydı: görev/ödev teslim edildi (kavram kanıtı değil, ilerleme).
+    await learning_store.safe_record_event(course_id, int(student_id), {
+        "type": "submitted", "task_key": node_id, "client": "server",
+    })
+    return {
+        "success": True,
+        "message": "Ödev geç teslim edildi." if late else "Ödev başarıyla gönderildi.",
+        "late": late,
+        "due_at": homework_rules.due_iso(rules["due"]),
+    }
 
 
 @router.get("/courses/{course_id}/homework/{node_id}/submissions")
@@ -1328,11 +1618,16 @@ async def get_homework_submissions(
         .order_by(HomeworkSubmission.submitted_at.desc())
     )
     rows = result.all()
+    rules = await homework_rules_for(db, course_id, node_id)
+    versions = await _version_counts(db, course_id, node_id)
 
     submissions = []
     for sub, first, last, email in rows:
         submissions.append({
             "id": sub.id,
+            "late": homework_rules.is_late(sub.submitted_at, rules["due"]),
+            "versions": versions.get((sub.node_id, sub.student_id), 0),
+            "rubric_scores": sub.rubric_scores,
             "student_id": sub.student_id,
             "student_name": f"{first} {last or ''}".strip(),
             "student_email": email,
@@ -1349,7 +1644,39 @@ async def get_homework_submissions(
             "graded_source": sub.graded_source,
         })
 
-    return {"submissions": submissions, "count": len(submissions)}
+    return {"submissions": submissions, "count": len(submissions), **_rules_out(rules)}
+
+
+# Görev slaytlarının teslim anahtarı "<tip>:<slayt id>" (bkz. LessonSlide.tsx).
+# Tip → (aşama adı, yapılandırma alanı).
+_TASK_SLIDE_KINDS = {
+    "challenge": ("Uygula", "challengeConfig"),
+    "connect": ("Birleştir", "connectConfig"),
+    "produce": ("Üret", "produceConfig"),
+}
+
+
+def task_slide_titles(lessons: List[tuple]) -> Dict[str, str]:
+    """Görev slaytlarının teslim anahtarını okunur başlığa çevirir.
+
+    Eğitmenin teslim listesinde "challenge:83749121" gibi ham bir kimlik
+    görünüyordu; hangi dersin hangi görevi olduğu anlaşılmıyordu. `lessons`,
+    (ders başlığı, slayt listesi) çiftleri.
+    """
+    titles: Dict[str, str] = {}
+    for lesson_title, slides in lessons:
+        for slide in slides or []:
+            if not isinstance(slide, dict):
+                continue
+            kind = slide.get("type")
+            if kind not in _TASK_SLIDE_KINDS:
+                continue
+            stage, cfg_key = _TASK_SLIDE_KINDS[kind]
+            cfg = slide.get(cfg_key) or slide.get("challengeConfig") or {}
+            task = (cfg.get("projectTitle") if kind == "produce" else None) or cfg.get("title") or "Görev"
+            prefix = f"{lesson_title} · " if lesson_title else ""
+            titles[f"{kind}:{slide.get('id')}"] = f"{prefix}{stage}: {task}"
+    return titles
 
 
 @router.get("/courses/{course_id}/homework/all-submissions")
@@ -1373,6 +1700,7 @@ async def get_all_homework_submissions(
 
     # Notes alanından ders/node başlıklarını haritalandır
     node_titles = {}
+    lesson_slides: List[tuple] = []
     if course.notes:
         try:
             notes_list = course.notes
@@ -1382,8 +1710,16 @@ async def get_all_homework_submissions(
                 n_id = str(note.get("id"))
                 n_title = note.get("lessonTopic") or note.get("title") or f"Ders {n_id}"
                 node_titles[n_id] = n_title
+                lesson_slides.append((note.get("noteTitle") or n_title, note.get("slides")))
         except Exception as e:
             print("Error parsing course notes:", e)
+
+    # Görev slaytları (Uygula/Birleştir/Üret) dersin kendi tablosunda duruyor.
+    contents = await db.execute(
+        select(LessonContent.title, LessonContent.slides).where(LessonContent.course_id == course_id)
+    )
+    lesson_slides.extend((title, slides) for title, slides in contents.all())
+    node_titles.update(task_slide_titles(lesson_slides))
 
     result = await db.execute(
         select(HomeworkSubmission, Student.first_name, Student.last_name, Student.email)
@@ -1392,6 +1728,11 @@ async def get_all_homework_submissions(
         .order_by(HomeworkSubmission.submitted_at.desc())
     )
     rows = result.all()
+
+    versions = await _version_counts(db, course_id)
+    rules_by_node: Dict[str, Dict[str, Any]] = {}
+    for node in {str(sub.node_id) for sub, *_ in rows}:
+        rules_by_node[node] = await homework_rules_for(db, course_id, node)
 
     seen = set()
     submissions = []
@@ -1404,8 +1745,12 @@ async def get_all_homework_submissions(
 
         node_title = node_titles.get(str(sub.node_id)) or f"Ödev (Ders ID: {sub.node_id})"
 
+        rules = rules_by_node.get(str(sub.node_id), {})
         submissions.append({
             "id": sub.id,
+            "late": homework_rules.is_late(sub.submitted_at, rules.get("due")),
+            "versions": versions.get((sub.node_id, sub.student_id), 0),
+            "rubric_scores": sub.rubric_scores,
             "node_id": sub.node_id,
             "node_title": node_title,
             "student_id": sub.student_id,
@@ -1424,7 +1769,51 @@ async def get_all_homework_submissions(
             "graded_source": sub.graded_source,
         })
 
-    return {"submissions": submissions, "count": len(submissions)}
+    return {
+        "submissions": submissions,
+        "count": len(submissions),
+        # Düğüm başına kurallar: son tarih ve puanlama anahtarı (değerlendirme ekranı kullanır).
+        "tasks": {node: _rules_out(rules) for node, rules in rules_by_node.items()},
+    }
+
+
+@router.get("/courses/{course_id}/homework/submissions/{submission_id}/versions")
+async def homework_submission_versions(
+    course_id: int,
+    submission_id: int,
+    user=Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Bir teslimin önceki sürümleri (en yeni önce) — öğretmen gelişimi görür."""
+    if user.get("role") not in ("teacher", "admin"):
+        raise HTTPException(status_code=403, detail="Sadece eğitmenler görebilir.")
+    course_res = await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == int(user["sub"]))
+    )
+    if not course_res.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+    sub = (await db.execute(
+        select(HomeworkSubmission).where(
+            HomeworkSubmission.id == submission_id, HomeworkSubmission.course_id == course_id)
+    )).scalar_one_or_none()
+    if not sub:
+        raise HTTPException(status_code=404, detail="Gönderi bulunamadı.")
+    rows = (await db.execute(
+        select(HomeworkSubmissionVersion).where(
+            HomeworkSubmissionVersion.course_id == course_id,
+            HomeworkSubmissionVersion.node_id == sub.node_id,
+            HomeworkSubmissionVersion.student_id == sub.student_id,
+        ).order_by(HomeworkSubmissionVersion.version.desc())
+    )).scalars().all()
+    return {"versions": [{
+        "version": v.version, "reason": v.reason,
+        "file_name": v.file_name, "file_mime": v.file_mime, "file_data": v.file_data,
+        "student_note": v.student_note,
+        "submitted_at": v.submitted_at.isoformat() if v.submitted_at else None,
+        "grade": v.grade, "feedback": v.feedback,
+        "graded_at": v.graded_at.isoformat() if v.graded_at else None,
+        "rubric_scores": v.rubric_scores,
+    } for v in rows]}
 
 
 class GradeHomeworkRequest(BaseModel):
@@ -1433,6 +1822,8 @@ class GradeHomeworkRequest(BaseModel):
     # "teacher" (hoca kendi yazdı) veya "ai_assisted" (AI taslağını hoca onayladı).
     # İleride free/paid ayrımında hangi yolun kullanıldığı geriye dönük görülebilsin.
     source: str = "teacher"
+    # Dereceli puanlama anahtarıyla: {"<ölçüt id>": <seviye sırası>}. Not boşsa bundan hesaplanır.
+    rubric_scores: Optional[Dict[str, Any]] = None
 
 
 @router.put("/courses/{course_id}/homework/submissions/{submission_id}/grade")
@@ -1468,15 +1859,26 @@ async def grade_homework_submission(
     if payload.grade is not None and not (0 <= payload.grade <= 100):
         raise HTTPException(status_code=400, detail="Not 0 ile 100 arasında olmalıdır.")
 
+    grade = payload.grade
+    rubric_scores = None
+    if payload.rubric_scores is not None:
+        rules = await homework_rules_for(db, course_id, str(getattr(sub, "node_id", "")))
+        if rules["rubric"]:
+            computed, rubric_scores = homework_rules.rubric_grade(rules["rubric"], payload.rubric_scores)
+            if grade is None:
+                grade = computed
+
     feedback = (payload.feedback or "").strip()
-    if payload.grade is None and not feedback:
+    if grade is None and not feedback:
         raise HTTPException(
             status_code=400,
             detail="Değerlendirme için en az bir not veya geri bildirim girin.",
         )
 
-    sub.grade = payload.grade
+    sub.grade = grade
     sub.feedback = feedback or None
+    if payload.rubric_scores is not None:
+        sub.rubric_scores = rubric_scores or None
     sub.graded_at = datetime.utcnow()
     sub.graded_by = int(user["sub"])
     sub.graded_source = payload.source if payload.source in ("teacher", "ai_assisted") else "teacher"
@@ -1484,6 +1886,17 @@ async def grade_homework_submission(
     db.add(sub)
     await db.commit()
     await db.refresh(sub)
+
+    # Öğretmen notu en güçlü kavram kanıtı: modülün kavramlarına işlenir.
+    # Analitik not vermeyi ASLA bozmamalı: eksik bilgi varsa kayıt atlanır.
+    student_of_sub = getattr(sub, "student_id", None)
+    node_of_sub = getattr(sub, "node_id", None)
+    if sub.grade is not None and student_of_sub is not None and node_of_sub:
+        await learning_store.safe_record_event(course_id, student_of_sub, {
+            "type": "homework_graded", "task_key": node_of_sub, "client": "server",
+            "grade": sub.grade,
+            "details": {"grade": sub.grade, "source": sub.graded_source},
+        })
 
     return {
         "success": True,
@@ -1493,6 +1906,7 @@ async def grade_homework_submission(
             "feedback": sub.feedback,
             "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
             "graded_source": sub.graded_source,
+            "rubric_scores": getattr(sub, "rubric_scores", None),
         },
     }
 
@@ -1504,20 +1918,41 @@ async def get_my_homework_submission(
     user=Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
 ):
-    """Öğrencinin kendi gönderdiği ödevi görmesi."""
-    student_id = user["sub"]
-    stmt = select(HomeworkSubmission).where(
-        HomeworkSubmission.course_id == course_id,
-        HomeworkSubmission.node_id == node_id,
-        HomeworkSubmission.student_id == int(student_id),
-    )
-    result = await db.execute(stmt)
-    sub = result.scalar_one_or_none()
-    
-    if not sub:
+    """Öğrencinin kendi gönderdiği ödevi görmesi — son tarih, anahtar ve önceki sürümlerle."""
+    # Öğretmen ve öğrenci kimlikleri ayrı tablolardan geliyor ve çakışabilir:
+    # rol bakılmazsa öğrenci önizlemesindeki öğretmen (id=5), aynı id'li
+    # öğrencinin teslimini "kendi teslimi" olarak görürdü.
+    if user.get("role") not in ("student", "admin"):
         return {"submitted": False, "submission": None}
-        
+    student_id = int(user["sub"])
+    sub = (await db.execute(
+        select(HomeworkSubmission).where(
+            HomeworkSubmission.course_id == course_id,
+            HomeworkSubmission.node_id == node_id,
+            HomeworkSubmission.student_id == student_id,
+        )
+    )).scalar_one_or_none()
+    rules = await homework_rules_for(db, course_id, node_id)
+    # Önceki sürümler: öğrenci eski notunu ve geri bildirimini de görür (dosya içeriği hariç).
+    history = [{
+        "version": v.version, "reason": v.reason,
+        "submitted_at": v.submitted_at.isoformat() if v.submitted_at else None,
+        "grade": v.grade, "feedback": v.feedback,
+        "graded_at": v.graded_at.isoformat() if v.graded_at else None,
+    } for v in (await db.execute(
+        select(HomeworkSubmissionVersion).where(
+            HomeworkSubmissionVersion.course_id == course_id,
+            HomeworkSubmissionVersion.node_id == node_id,
+            HomeworkSubmissionVersion.student_id == student_id,
+        ).order_by(HomeworkSubmissionVersion.version.desc())
+    )).scalars().all()]
+    extra = {**_rules_out(rules), "history": history}
+
+    if not sub:
+        return {"submitted": False, "submission": None, **extra}
+
     return {
+        **extra,
         "submitted": True,
         "submission": {
             "id": sub.id,
@@ -1531,6 +1966,8 @@ async def get_my_homework_submission(
             "grade": sub.grade,
             "feedback": sub.feedback,
             "graded_at": sub.graded_at.isoformat() if sub.graded_at else None,
+            "rubric_scores": sub.rubric_scores,
+            "late": homework_rules.is_late(sub.submitted_at, rules["due"]),
         }
     }
 
@@ -1559,6 +1996,8 @@ async def delete_homework(
     if not sub:
         raise HTTPException(status_code=404, detail="Gönderilmiş ödev bulunamadı.")
         
+    # Silinen teslim geçmişte kalır: öğretmenin verdiği not "teslimi silerek" kaybolmasın.
+    await _archive_submission(db, sub, "withdrawn")
     await db.delete(sub)
     await db.commit()
     return {"success": True, "message": "Ödev başarıyla silindi."}

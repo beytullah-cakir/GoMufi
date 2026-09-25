@@ -50,5 +50,20 @@ def test_sender_id_istemciden_degil_tokendan_gelir(client):
     """Yoldaki user_id ve istemcinin gönderdiği sender_id yok sayılmalı."""
     client.cookies.set("access_token", create_access_token("42", role="student"))
     with client.websocket_connect("/ws/admin:1") as ws:
-        ws.send_json({"type": "probe", "sender_id": "admin:1"})
+        # "notification" gönderene geri döner (test bildirimi) — başka kimseye gitmez.
+        ws.send_json({"type": "notification", "sender_id": "admin:1"})
         assert ws.receive_json()["sender_id"] == "student:42"
+
+
+def test_tanimsiz_mesaj_ve_sahte_hedef_yayinlanmaz(client):
+    """İstemci `target_user` yazarak başkasına mesaj iletemez; tanınmayan tür düşer.
+
+    Eskiden her mesaj herkese yayınlanıyordu (öğrencinin adı dahil).
+    """
+    client.cookies.set("access_token", create_access_token("42", role="student"))
+    with client.websocket_connect("/ws") as ws:
+        ws.send_json({"type": "probe", "target_user": "student:42"})
+        ws.send_json({"type": "chat_message", "content": "herkese?"})
+        ws.send_json({"type": "ping"})
+        # Önceki iki mesaj düştüyse ilk gelen cevap pong olmalı.
+        assert ws.receive_json() == {"type": "pong"}

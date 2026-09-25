@@ -29,6 +29,10 @@ import {
 } from "lucide-react";
 import posthog from "posthog-js";
 import api from "../../api";
+import TopicConceptTags from "./TopicConceptTags";
+import ConceptDictionaryModal from "./ConceptDictionaryModal";
+import type { ConceptEntry, TopicMeta } from "./concepts";
+import { enrichTopics, fetchDictionary } from "./concepts";
 
 // Sprites matching the student view
 import GrassIcon from "../../assets/sprites/grass.png";
@@ -69,6 +73,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const [dragOverItem, setDragOverItem] = useState<{ type: "level" | "divider" | "connector" | "plus_connector" | "plus_divider"; index: number } | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Sunucuya en son gönderilen (veya sunucudan gelen) müfredat anlık görüntüsü
+  const savedSnapshotRef = useRef<string>("");
 
   // AI Roadmap Generator States
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
@@ -91,6 +97,17 @@ const InstructorRoadmapBuilder: React.FC = () => {
     topics: string[];
   }
   const [suggestedLessons, setSuggestedLessons] = useState<SuggestedLesson[]>([]);
+
+  // --- Kavram (ölçülecek beceri) katmanı --------------------------------
+  // Zenginleştirme konu METNİYLE anahtarlanır: konular sihirbazda sürüklenip
+  // dersler arasında taşınıyor, sabit bir kimlikleri yok. Metin değişince
+  // anahtar da taşınır (bkz. handleEditTopicTitle).
+  const [topicMeta, setTopicMeta] = useState<Record<string, TopicMeta>>({});
+  const [conceptDictionary, setConceptDictionary] = useState<ConceptEntry[]>([]);
+  const [conceptLanguage, setConceptLanguage] = useState<string | null>(null);
+  const [conceptLanguageLabel, setConceptLanguageLabel] = useState<string>("");
+  const [isEnrichingTopics, setIsEnrichingTopics] = useState(false);
+  const [showConceptDictionaryModal, setShowConceptDictionaryModal] = useState(false);
   const [aiLessonDuration, setAiLessonDuration] = useState<number>(60);
   const [isSuggestingParameters, setIsSuggestingParameters] = useState<boolean>(false);
   const [hasDraftAIContent, setHasDraftAIContent] = useState(false);
@@ -495,11 +512,27 @@ const InstructorRoadmapBuilder: React.FC = () => {
   };
 
   const handleEditTopicTitle = (lIdx: number, tIdx: number, topicVal: string) => {
+    const previousTopic = suggestedLessons[lIdx]?.topics[tIdx];
+
     setSuggestedLessons(prev => prev.map((l, idx) => {
       if (idx !== lIdx) return l;
       const updatedTopics = l.topics.map((t, tIdx2) => tIdx2 === tIdx ? topicVal : t);
       return { ...l, topics: updatedTopics };
     }));
+
+    // Zenginleştirme konu metniyle anahtarlı: başlık düzenlenince kazanım ve
+    // beceriler kaybolmasın diye anahtar da taşınır. Öğretmen konuyu tamamen
+    // değiştirdiyse şeridi kendisi düzeltir — sessizce silmek, yaptığı
+    // etiketlemeyi çöpe atmak olurdu.
+    if (previousTopic && previousTopic !== topicVal) {
+      setTopicMeta(prev => {
+        const meta = prev[previousTopic];
+        if (!meta) return prev;
+        const next = { ...prev, [topicVal]: meta };
+        delete next[previousTopic];
+        return next;
+      });
+    }
   };
 
   const handleDeleteTopic = (lIdx: number, tIdx: number) => {
@@ -711,6 +744,10 @@ const InstructorRoadmapBuilder: React.FC = () => {
         setSuggestedLessons(formatted);
         setAiLessonsCount(response.data.suggested_lessons_count || 6);
         setAiStep("topics_edit");
+        // Konular derslere dağıldı; şimdi her konuya kazanım ve ölçülecek
+        // beceriler bağlanır. Beklemiyoruz: liste hemen görünsün, şerit
+        // hazır olunca dolsun.
+        void runTopicEnrichment(formatted.flatMap((l: SuggestedLesson) => l.topics));
       } else {
         alert("Konular derslere bölüştürülemedi.");
       }
@@ -720,6 +757,85 @@ const InstructorRoadmapBuilder: React.FC = () => {
     } finally {
       setIsDistributingTopics(false);
     }
+  };
+
+  /**
+   * Konulara kazanım ve ölçülecek beceri bağlar.
+   *
+   * Beceriler UYDURULMAZ: sunucu, dilin sözlüğünü modele verir ve yalnızca o
+   * listeden seçtirir. Sözlük yoksa hiçbir şey üretilmez — öğretmene taslak
+   * onayı gösterilir (bkz. ConceptDictionaryModal). Sözlük dile aittir, kursa
+   * değil: bir kez onaylanır, o dilin bütün kurslarında kullanılır.
+   */
+  const runTopicEnrichment = async (topics: string[], languageOverride?: string | null) => {
+    const unique = Array.from(new Set(topics.map((t) => (t || "").trim()).filter(Boolean)));
+    if (unique.length === 0) return;
+
+    setIsEnrichingTopics(true);
+    try {
+      const result = await enrichTopics({
+        topics: unique,
+        courseTopic: aiTopic,
+        difficulty: aiDifficulty,
+        audience: aiAudience,
+        language: languageOverride ?? conceptLanguage,
+      });
+
+      setConceptLanguage(result.language);
+      setConceptLanguageLabel(result.languageLabel || "");
+
+      if (result.dictionaryMissing) {
+        setTopicMeta({});
+        // Dil tespit edilebildiyse taslak onayına düşülür; edilemediyse sessiz
+        // kalınır — kurs bir programlama diline ait olmayabilir.
+        if (result.language) setShowConceptDictionaryModal(true);
+        return;
+      }
+
+      setTopicMeta(result.byTopic);
+      if (result.language) {
+        try {
+          setConceptDictionary(await fetchDictionary(result.language));
+        } catch {
+          // Sözlük listesi yalnızca "Ekle" menüsü için gerekli; alınamazsa
+          // şerit yine de görünür ve düzenlenebilir kalır.
+        }
+      }
+    } catch (error: any) {
+      console.error("Kazanım/beceri üretilemedi:", error);
+      alert(error.response?.data?.detail || "Kazanım ve beceriler üretilemedi.");
+    } finally {
+      setIsEnrichingTopics(false);
+    }
+  };
+
+  /**
+   * Yol haritası modülünün konusunu, sihirbazda etiketlenen konuyla eşler.
+   *
+   * Yapı üretimi konu başlıklarını yeniden yazabildiği için birebir eşleşme
+   * garanti değil; birebir tutmazsa kapsayan/kapsanan metne bakılır. Hiçbiri
+   * tutmazsa boş bırakılır — yanlış beceri bağlamak, hiç bağlamamaktan kötüdür.
+   */
+  const findTopicMeta = (moduleTopic: string): TopicMeta | null => {
+    const needle = (moduleTopic || "").trim().toLocaleLowerCase("tr");
+    if (!needle) return null;
+
+    const entries = Object.entries(topicMeta);
+    const exact = entries.find(([topic]) => topic.trim().toLocaleLowerCase("tr") === needle);
+    if (exact) return exact[1];
+
+    const partial = entries.find(([topic]) => {
+      const key = topic.trim().toLocaleLowerCase("tr");
+      return key.includes(needle) || needle.includes(key);
+    });
+    return partial ? partial[1] : null;
+  };
+
+  /** Öğretmen taslak sözlüğü onayladı: artık kalıcı, zenginleştirme tekrarlanır. */
+  const handleConceptDictionaryApproved = async (concepts: ConceptEntry[]) => {
+    setConceptDictionary(concepts);
+    setShowConceptDictionaryModal(false);
+    await runTopicEnrichment(suggestedLessons.flatMap((l) => l.topics), conceptLanguage);
   };
 
   const handleSuggestRoadmap = async () => {
@@ -777,6 +893,18 @@ const InstructorRoadmapBuilder: React.FC = () => {
               aiLessonObjective: lesson.objective || `Bu derste ${lesson.title} konusu öğrenilecektir.`,
               xp: 500
             };
+
+            // Ölçüm katmanını düğüme taşı: müfredat JSON'u ile birlikte kalıcı
+            // olur, böylece ders içeriği üretilirken ve öğrenci ilerlemesi
+            // ölçülürken "bu düğüm neyi ölçüyor" sorusunun cevabı hazırdır.
+            const moduleMeta = findTopicMeta(m.topic || "");
+            if (moduleMeta && moduleMeta.concepts.length > 0) {
+              node.conceptLanguage = conceptLanguage;
+              node.conceptIds = moduleMeta.concepts.map((c) => c.concept_id);
+              node.primaryConceptId =
+                (moduleMeta.concepts.find((c) => c.primary) || moduleMeta.concepts[0]).concept_id;
+              node.outcomes = moduleMeta.outcomes;
+            }
 
             if (isFirstModule) {
               node.lessonTopic = lesson.title;
@@ -845,6 +973,13 @@ const InstructorRoadmapBuilder: React.FC = () => {
 
       setSections(actualSections);
       setLiveSessionsConfig(configItem || null);
+      savedSnapshotRef.current = JSON.stringify({
+        curriculum: [
+          configItem || { type: "live_sessions_config", is_live: false, sessions: [] },
+          ...actualSections,
+        ],
+        notes: response.data.notes || [],
+      });
     } catch (error) {
       if (!isSilent) {
         console.error("Kurs bilgileri yüklenemedi:", error);
@@ -874,24 +1009,35 @@ const InstructorRoadmapBuilder: React.FC = () => {
     };
   }, [isGeneratingAI, courseId]);
 
+  const buildCurriculumPayload = (customSections: SectionNode[] = sections) => {
+    const curriculumPayload: any[] = [];
+    if (liveSessionsConfig) {
+      curriculumPayload.push(liveSessionsConfig);
+    } else {
+      curriculumPayload.push({
+        type: "live_sessions_config",
+        is_live: false,
+        sessions: [],
+      });
+    }
+    curriculumPayload.push(...customSections);
+    return curriculumPayload;
+  };
+
   const handleSaveCurriculumOnly = async (customSections: SectionNode[] = sections) => {
     try {
-      const curriculumPayload = [];
-      if (liveSessionsConfig) {
-        curriculumPayload.push(liveSessionsConfig);
-      } else {
-        curriculumPayload.push({
-          type: "live_sessions_config",
-          is_live: false,
-          sessions: [],
-        });
-      }
-      curriculumPayload.push(...customSections);
+      const curriculumPayload = buildCurriculumPayload(customSections);
+      const snapshot = JSON.stringify({ curriculum: curriculumPayload, notes });
+
+      // Müfredat JSON'u slayt içerikleriyle birlikte çok büyüyebiliyor; hiçbir
+      // değişiklik yokken tekrar göndermek gereksiz saniyeler kaybettiriyor.
+      if (snapshot === savedSnapshotRef.current) return;
 
       await api.put(`/update_course/${courseId}`, {
         curriculum: curriculumPayload,
         notes: notes,
       });
+      savedSnapshotRef.current = snapshot;
     } catch (error) {
       console.error("Error auto-saving curriculum:", error);
     }
@@ -1064,22 +1210,13 @@ const InstructorRoadmapBuilder: React.FC = () => {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const curriculumPayload = [];
-      if (liveSessionsConfig) {
-        curriculumPayload.push(liveSessionsConfig);
-      } else {
-        curriculumPayload.push({
-          type: "live_sessions_config",
-          is_live: false,
-          sessions: [],
-        });
-      }
-      curriculumPayload.push(...sections);
+      const curriculumPayload = buildCurriculumPayload(sections);
 
       await api.put(`/update_course/${courseId}`, {
         curriculum: curriculumPayload,
         notes: notes,
       });
+      savedSnapshotRef.current = JSON.stringify({ curriculum: curriculumPayload, notes });
 
       alert("Yol haritası başarıyla kaydedildi!");
       navigate("/instructor/courses");
@@ -2704,6 +2841,56 @@ const InstructorRoadmapBuilder: React.FC = () => {
                       )}
                     </button>
 
+                    {/* Ölçüm katmanı: hangi dilin sözlüğü kullanılıyor, kaç beceri var */}
+                    <div className="flex flex-col gap-2 p-3 bg-indigo-50/60 border border-indigo-100 rounded-2xl">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-black text-indigo-700 uppercase tracking-widest">
+                          Ölçülecek Beceriler
+                        </span>
+                        {conceptLanguageLabel && (
+                          <span className="px-2 py-0.5 rounded-md bg-white border border-indigo-100 text-[9px] font-black text-indigo-600">
+                            {conceptLanguageLabel}
+                          </span>
+                        )}
+                      </div>
+
+                      <p className="text-[10px] font-bold text-gray-600 leading-normal">
+                        {conceptLanguage && conceptDictionary.length > 0
+                          ? `${conceptLanguageLabel} sözlüğündeki ${conceptDictionary.length} beceri kullanılıyor. Sözlük dile aittir — düzeltmeleriniz sonraki kurslarda da geçerli olur.`
+                          : conceptLanguage
+                            ? `${conceptLanguageLabel} için henüz onaylanmış bir beceri sözlüğü yok.`
+                            : "Kurs konusundan bir programlama dili tespit edilemedi; beceri eşleştirmesi yapılmıyor."}
+                      </p>
+
+                      {conceptLanguage && conceptDictionary.length === 0 ? (
+                        <button
+                          onClick={() => setShowConceptDictionaryModal(true)}
+                          className="w-full py-2 bg-white border border-indigo-200 text-indigo-700 font-black rounded-xl text-[10px] uppercase tracking-wide flex items-center justify-center gap-1.5 hover:bg-indigo-50 transition-all active:scale-95"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                          <span>Beceri Sözlüğü Oluştur</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => runTopicEnrichment(suggestedLessons.flatMap((l) => l.topics))}
+                          disabled={isEnrichingTopics || !conceptLanguage}
+                          className="w-full py-2 bg-white border border-indigo-200 text-indigo-700 font-black rounded-xl text-[10px] uppercase tracking-wide flex items-center justify-center gap-1.5 hover:bg-indigo-50 disabled:opacity-50 transition-all active:scale-95"
+                        >
+                          {isEnrichingTopics ? (
+                            <>
+                              <div className="w-3 h-3 rounded-full border-2 border-indigo-200 border-t-indigo-600 animate-spin"></div>
+                              <span>Eşleştiriliyor...</span>
+                            </>
+                          ) : (
+                            <>
+                              <RefreshCw className="w-3 h-3" />
+                              <span>Kazanım ve Becerileri Yenile</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+
                     {/* Lesson Count Settings Block */}
                     <div className="mt-auto pt-4 border-t border-gray-100 flex flex-col gap-2.5">
                       <label className="block text-[10px] font-black text-gray-500 uppercase tracking-wider flex justify-between items-center select-none">
@@ -2808,8 +2995,8 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                 const isDragOverThis = dragOverTopicInfo?.lIdx === lIdx && dragOverTopicInfo?.tIdx === tIdx;
 
                                 return (
+                                  <div key={tIdx} className="flex flex-col">
                                   <div
-                                    key={tIdx}
                                     draggable
                                     onDragStart={(e) => handleTopicDragStart(e, lIdx, tIdx)}
                                     onDragOver={(e) => handleTopicDragOver(e, lIdx, tIdx)}
@@ -2840,6 +3027,17 @@ const InstructorRoadmapBuilder: React.FC = () => {
                                     >
                                       <X size={12} />
                                     </button>
+                                  </div>
+
+                                  {/* Konunun ne öğrettiği ve neyi ölçtüğü — öğretmen burada düzeltir */}
+                                  <TopicConceptTags
+                                    meta={topicMeta[topic]}
+                                    dictionary={conceptDictionary}
+                                    loading={isEnrichingTopics && !topicMeta[topic]}
+                                    onChange={(nextMeta) =>
+                                      setTopicMeta((prev) => ({ ...prev, [topic]: nextMeta }))
+                                    }
+                                  />
                                   </div>
                                 );
                               })}
@@ -2898,6 +3096,19 @@ const InstructorRoadmapBuilder: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {/* Sözlüğü olmayan dil için taslak onayı — onaylanan sözlük kalıcıdır */}
+      {showConceptDictionaryModal && conceptLanguage && (
+        <ConceptDictionaryModal
+          language={conceptLanguage}
+          languageLabel={conceptLanguageLabel || conceptLanguage}
+          courseTopic={aiTopic}
+          audience={aiAudience}
+          difficulty={aiDifficulty}
+          onClose={() => setShowConceptDictionaryModal(false)}
+          onApproved={handleConceptDictionaryApproved}
+        />
       )}
 
       {/* FLOATING AI DRAFT STATUS BANNER & EDIT BAR */}

@@ -6,11 +6,19 @@ export interface WebSocketMessage {
   [key: string]: any;
 }
 
+type Listener = (message: WebSocketMessage) => void;
+
 interface WebSocketContextProps {
   socket: WebSocket | null;
   isConnected: boolean;
   sendMessage: (message: WebSocketMessage) => void;
   lastMessage: WebSocketMessage | null;
+  /**
+   * Her mesajı kaçırmadan dinlemek için. `lastMessage` tek bir yuva: arka
+   * arkaya gelen iki mesajdan ilki görülmeden üzerine yazılabiliyor. Mesaj
+   * kutusu gibi hiçbir olayı atlamaması gereken yerler bunu kullanır.
+   */
+  subscribe: (listener: Listener) => () => void;
 }
 
 export const WebSocketContext = createContext<WebSocketContextProps | undefined>(undefined);
@@ -26,6 +34,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
   
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<any>(null);
+  const listenersRef = useRef<Set<Listener>>(new Set());
 
   const connect = useCallback(() => {
     // Kimlik sunucu tarafında httpOnly access_token cookie'sinden çözülür —
@@ -50,6 +59,9 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
       try {
         const message: WebSocketMessage = JSON.parse(event.data);
         setLastMessage(message);
+        listenersRef.current.forEach((listener) => {
+          try { listener(message); } catch (err) { console.error('WebSocket dinleyicisi hata verdi:', err); }
+        });
       } catch (error) {
         console.error('WebSocket mesajı parse edilemedi:', error);
       }
@@ -95,8 +107,13 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     }
   }, []);
 
+  const subscribe = useCallback((listener: Listener) => {
+    listenersRef.current.add(listener);
+    return () => { listenersRef.current.delete(listener); };
+  }, []);
+
   return (
-    <WebSocketContext.Provider value={{ socket, isConnected, sendMessage, lastMessage }}>
+    <WebSocketContext.Provider value={{ socket, isConnected, sendMessage, lastMessage, subscribe }}>
       {children}
     </WebSocketContext.Provider>
   );

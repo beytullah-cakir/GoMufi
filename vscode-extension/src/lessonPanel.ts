@@ -19,6 +19,23 @@ import { openLessonFolder } from './workspace';
  * koymak daha kolay olurdu ama adres geçmişe, referrer'a ve loglara sızardı.
  */
 
+/** Tarayıcıdan gelen "şu slaytta devam et" adresi. */
+export interface LessonTarget {
+    course?: string;
+    module?: string;
+    slide?: number;
+}
+
+const targetQuery = (target?: LessonTarget): string => {
+    if (!target) return '';
+    const params = new URLSearchParams();
+    if (target.course) params.set('course', target.course);
+    if (target.module) params.set('module', target.module);
+    if (target.slide) params.set('slide', String(target.slide));
+    const query = params.toString();
+    return query ? `?${query}` : '';
+};
+
 export class LessonPanel {
     private panel: vscode.WebviewPanel | null = null;
 
@@ -27,12 +44,21 @@ export class LessonPanel {
         private readonly runner: LocalRunner,
     ) {}
 
-    /** Paneli açar; zaten açıksa öne getirir. */
-    show(token: string): void {
+    /**
+     * Paneli açar; zaten açıksa öne getirir.
+     *
+     * `target`: tarayıcıdan "VS Code'a Geç" ile gelindiğinde açılacak slayt.
+     * İki yol var çünkü panel HENÜZ YOKSA adresi iframe'in URL'ine koymak
+     * gerekiyor (sayfa daha yüklenmedi, mesaj gönderecek kimse yok); panel
+     * ZATEN AÇIKSA sayfayı yeniden yüklemek öğrencinin yerini kaybettirir —
+     * orada mesajla söylüyoruz.
+     */
+    show(token: string, target?: LessonTarget): void {
         const siteUrl = siteBase();
 
         if (this.panel) {
             this.panel.reveal(vscode.ViewColumn.Two, true);
+            if (target) this.postMessage({ type: 'gomufi:openTarget', ...target });
             return;
         }
 
@@ -50,7 +76,7 @@ export class LessonPanel {
             },
         );
 
-        this.panel.webview.html = html(siteUrl, `${siteUrl}/vscode-ders`);
+        this.panel.webview.html = html(siteUrl, `${siteUrl}/vscode-ders${targetQuery(target)}`);
 
         this.panel.webview.onDidReceiveMessage(
             (msg) => this.onMessage(msg, token),
@@ -142,8 +168,11 @@ export class LessonPanel {
         // otomatik kontrol ve YZ koçu öğrencinin gerçek çıktısına dayanıyor.
         if (msg?.type === 'gomufi:prepareTask') {
             try {
+                // Gövde OLDUĞU GİBİ geçiyor: çok dosyalı görevlerde `files`,
+                // eskilerde `starter` var. Ayrımı runner yapıyor ki iki yüzeyde
+                // (panel / tarayıcı) aynı kural işlesin.
                 const path = await this.runner.prepareTask(
-                    String(msg.starter ?? ''), String(msg.language ?? 'python'),
+                    msg, String(msg.language ?? 'python'),
                     msg.slot === 'solution' ? 'solution' : 'student',
                 );
                 this.reply(msg.id, { ok: true, path });
@@ -158,6 +187,7 @@ export class LessonPanel {
             const path = this.runner.taskPath(
                 String(msg.language ?? 'python'),
                 msg.slot === 'solution' ? 'solution' : 'student',
+                msg.file,
             );
             if (msg.message) hints.show(path, String(msg.message), Number(msg.line) || 0);
             else hints.clear(path);
@@ -168,6 +198,7 @@ export class LessonPanel {
             const path = this.runner.taskPath(
                 String(msg.language ?? 'python'),
                 'student',
+                msg.file,
             );
             hints.showSuccess(path, String(msg.message || 'Tebrikler! Görevi tamamladın.'), Number(msg.xp) || 100);
             return;
@@ -178,6 +209,7 @@ export class LessonPanel {
             const path = this.runner.taskPath(
                 String(msg.language ?? 'python'),
                 msg.slot === 'solution' ? 'solution' : 'student',
+                msg.file,
             );
             void vscode.workspace.openTextDocument(vscode.Uri.file(path)).then((doc) => {
                 void vscode.window.showTextDocument(doc, {
@@ -199,6 +231,7 @@ export class LessonPanel {
                 hints.clear(this.runner.taskPath(
                     String(msg.language ?? 'python'),
                     msg.slot === 'solution' ? 'solution' : 'student',
+                    msg.entry,
                 ));
                 const language = String(msg.language ?? 'python');
                 const slot = msg.slot === 'solution' ? 'solution' : 'student';
@@ -209,11 +242,12 @@ export class LessonPanel {
                 // süreç + örnek girdi yoluna düşüyoruz.
                 let result = msg.visible === false
                     ? null
-                    : await this.runner.runInTerminal(language, slot);
+                    : await this.runner.runInTerminal(language, slot, msg.entry);
 
                 if (!result) {
                     result = await this.runner.checkTask(
                         language, slot, typeof msg.stdin === 'string' ? msg.stdin : '',
+                        msg.entry,
                     );
                 }
                 this.reply(msg.id, { ok: true, ...result });
@@ -290,7 +324,9 @@ function html(siteOrigin: string, src: string): string {
 
     // Hedef köken sabit: '*' olsaydı token başka bir sayfaya gömüldüğümüz an sızardı.
     const t = event.data && event.data.type;
-    if (t === 'gomufi:init' || t === 'gomufi:reply') {
+    if (t === 'gomufi:init' || t === 'gomufi:reply'
+        || t === 'gomufi:openTarget' || t === 'gomufi:runCheckFromVSCode'
+        || t === 'gomufi:requestHintFromVSCode') {
       frame.contentWindow.postMessage(event.data, SITE);
     }
   });

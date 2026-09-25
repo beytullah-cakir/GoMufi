@@ -3,6 +3,7 @@ import api from "../../api";
 import dragonSprite from "../../assets/sprites/DragonMonster.png";
 import mufiArmorSprite from "../../assets/sprites/MufiArmor.png";
 import battleBg from "../../assets/sprites/BattleBg.png";
+import { trackLearningEvent } from "../../learningEvents";
 
 interface MonsterBattleGameProps {
   level: number;
@@ -115,6 +116,13 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
 
   const handleAnswer = async (option: string) => {
     const isCorrect = option === currentQuestion.answer;
+    // Öğrenme kaydı: hangi soruda yanıldığı modülün kavramlarına yazılır.
+    if (typeof currentQuestion.id === 'number' && sectionId) {
+      trackLearningEvent(courseId, {
+        type: 'quiz_answer', node_id: sectionId, question_id: currentQuestion.id,
+        correct: isCorrect, answer: option,
+      });
+    }
 
     if (isCorrect) {
       setPhase("effect");

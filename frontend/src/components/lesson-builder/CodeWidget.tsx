@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Play, Eye, MessageCircle, AlertCircle, Loader2, SquareTerminal, FileCode } from 'lucide-react';
+import { Play, Loader2, SquareTerminal, FileCode, Copy, Check, ExternalLink } from 'lucide-react';
 import type { SlideElement } from './types';
 import { usePyodide } from '../../hooks/usePyodide';
 import { usePrismTheme } from './codeTheme';
 import { useLocalRunner } from '../../hooks/useLocalRunner';
-
-import Prism from 'prismjs';
-import 'prismjs/components/prism-python'; // Import python syntax
-import 'prismjs/components/prism-javascript';
-import 'prismjs/components/prism-typescript';
-import 'prismjs/components/prism-c';
-import 'prismjs/components/prism-cpp';
+import { findLanguage, highlightCode, isTerminalView } from './codeLanguages';
+import { runTerminalCommand } from '../../localRunnerClient';
+import { isEmbeddedInVSCode } from '../../vscodeBridge';
+import { switchToVSCode, useVSCodeTarget } from '../../vscodeTarget';
 
 // Basic Python Snippets
 const PYTHON_SNIPPETS = [
@@ -50,6 +47,20 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
     const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
     const [caretCoords, setCaretCoords] = useState({ x: 0, y: 0 });
     const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+    const preRef = React.useRef<HTMLPreElement>(null);
+    const gutterRef = React.useRef<HTMLDivElement>(null);
+
+    // Kopyalandı rozeti ve "ne oldu" bildirimi (VS Code yoksa, dil çalışmıyorsa…)
+    const [copied, setCopied] = useState(false);
+    const [notice, setNotice] = useState<string | null>(null);
+
+    // Hangi slayttayız? VS Code'a geçerken eklentiye verilecek adres.
+    // Builder'da sağlayıcı yok (null) — orada bağlantı yalnızca paneli açar.
+    const target = useVSCodeTarget();
+
+    // Dil kayıt defterinden: etiket, Prism dilbilgisi, dosya uzantısı, komut istemi.
+    const lang = findLanguage(el.codeConfig?.language);
+    const terminalView = isTerminalView(el.codeConfig?.language, el.codeConfig?.mode);
 
     // Pyodide Hook
     const { runCode, output, isLoading, error } = usePyodide();
@@ -79,21 +90,63 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
         });
     };
 
+    /**
+     * Kodu ÇALIŞTIRMAK bu editörün işi değil — burası ders örneği yazılan yer.
+     * Çalıştırma VS Code'da olur: gerçek yorumlayıcı, gerçek terminal, kurulu
+     * paketler. Buton kodu oraya gönderir.
+     *
+     * TARAYICIDA buton aynı zamanda bir KAPI: kod gönderildikten sonra pencere
+     * VS Code'a geçer ve öğrenci aynı slaytta orada devam eder. Panelin
+     * içindeysek geçilecek yer yok, zaten oradayız.
+     *
+     * VS Code yoksa tek istisna Python: tarayıcı içi Pyodide onu çalıştırabilir.
+     * Diğer dillerde uydurma bir çıktı üretmek yerine ne yapması gerektiğini
+     * söylüyoruz — yanlış çıktı, çıktı olmamasından kötüdür.
+     */
     const handleRunCode = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        setNotice(null);
 
-        // Öğrencinin VS Code'u açıksa kod ORADA çalışır: gerçek yorumlayıcı,
-        // gerçek terminal, kurulu paketler. Arayüz aynı kalır — buton aynı buton.
-        const language = el.codeConfig?.language || 'python';
-        if (await localRunner.run(localCode, language)) {
+        if (await localRunner.run(localCode, lang.id)) {
             setViewMode('code');
+            if (!lang.runsInVSCode) {
+                setNotice(`${lang.label} dosyası VS Code'da açıldı. Çalıştırmak için kendi derleyicini kullan.`);
+            }
+            if (!isEmbeddedInVSCode()) switchToVSCode(target);
             return;
         }
 
-        // Eklenti yoksa tarayıcı içi Pyodide'ye düş; eklentisi olmayan öğrenci
-        // için hiçbir şey değişmez.
+        if (lang.id === 'python') {
+            setViewMode('output');
+            await runCode(localCode);
+            return;
+        }
+
         setViewMode('output');
-        await runCode(localCode);
+        setNotice(`${lang.label} kodu tarayıcıda çalışmaz. VS Code eklentisini açtığında bu kod oraya gönderilir.`);
+    };
+
+    /** Terminal bloğu: komutu öğrencinin VS Code terminaline yollar. */
+    const handleRunInTerminal = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setNotice(null);
+        const ok = await runTerminalCommand(localCode, lang.id);
+        setNotice(ok
+            ? 'Komut VS Code terminaline yazıldı. Çalıştırmak için Enter\'a bas.'
+            : 'VS Code bulunamadı. Komutu kopyalayıp kendi terminaline yapıştırabilirsin.');
+        // Komut terminalde Enter bekliyor; öğrenci onu GÖRMELİ.
+        if (ok && !isEmbeddedInVSCode()) switchToVSCode(target);
+    };
+
+    const handleCopy = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await navigator.clipboard.writeText(localCode);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+        } catch {
+            setNotice('Kopyalanamadı — metni elle seçebilirsin.');
+        }
     };
 
     // --- Autocomplete Logic ---
@@ -188,8 +241,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
             const match = currentLine.match(/^(\s*)/);
             const currentIndent = match ? match[1] : '';
 
-            // Check if line ends with colon (ignoring trailing whitespace)
-            const endsWithColon = currentLine.trimEnd().endsWith(':');
+            // Girinti kuralı Python'a özgü: JavaScript'te satır sonundaki `:`
+            // bir nesne alanıdır, blok açmaz — orada girinti eklemek yanlış olur.
+            const endsWithColon = lang.id === 'python' && currentLine.trimEnd().endsWith(':');
 
             e.preventDefault();
 
@@ -256,7 +310,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
     };
 
     const triggerAutocomplete = () => {
-        if (!el.codeConfig?.enableAutocomplete) return;
+        // Öneri listesi Python parçacıkları; başka bir dilde `def`/`elif`
+        // önermek yardım değil, gürültü.
+        if (!el.codeConfig?.enableAutocomplete || lang.id !== 'python') return;
         if (!textareaRef.current) return;
 
         const textarea = textareaRef.current;
@@ -291,7 +347,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
         const newValue = e.target.value;
         setLocalCode(newValue);
 
-        if (!el.codeConfig?.enableAutocomplete) return;
+        // Öneri listesi Python parçacıkları; başka bir dilde `def`/`elif`
+        // önermek yardım değil, gürültü.
+        if (!el.codeConfig?.enableAutocomplete || lang.id !== 'python') return;
 
         // Debounce or immediate check? Immediate is better for typing flow.
         const cursor = e.target.selectionStart;
@@ -331,42 +389,52 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
         }
     };
 
-    // Highlight Function
-    const getHighlightedCode = (code: string, lang: string) => {
-        let grammar = Prism.languages[lang];
-        if (!grammar) grammar = Prism.languages.python; // Fallback
-        return Prism.highlight(code, grammar, lang);
-    };
-
     const theme = el.codeConfig?.theme || 'dark';
     const bgColor = theme === 'dark' ? '#1e1e1e' : '#ffffff';
+    // Terminal her zaman koyu: aydınlık temalı bir kabuk kimsenin ekranında
+    // öyle görünmüyor, blok "terminal" olduğunu ilk bakışta söylemeli.
+    const terminalBg = '#0c0c0c';
     // textColor is unused in overlay mode (textarea is transparent)
-    const headerColor = theme === 'dark' ? '#2d2d2d' : '#f3f4f6';
-    const borderColor = theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    const headerColor = terminalView ? '#1b1b1b' : theme === 'dark' ? '#2d2d2d' : '#f3f4f6';
+    const borderColor = terminalView || theme === 'dark' ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+    const inputText = terminalView ? '#9ca3af' : theme === 'dark' ? '#d1d5db' : '#374151';
 
-    // Config Panel Styles
-    const inputBg = theme === 'dark' ? '#1e1e1e' : '#ffffff';
-    const inputBorder = theme === 'dark' ? '#374151' : '#e5e7eb';
-    const inputText = theme === 'dark' ? '#d1d5db' : '#374151';
+    const fontSize = el.style?.fontSize || 14;
+
+    /**
+     * Terminalde komut istemi metnin PARÇASI DEĞİL, kenardaki bir sütun.
+     * İçeriğe `$` yazsaydık öğretmenin kaydettiği kod da onu taşırdı ve
+     * "kopyala" düğmesi çalışmayan bir komut verirdi.
+     *
+     * Bu sütunun satırlarla hizalı kalması için terminal görünümünde satır
+     * kaydırma KAPALI (`pre`): kaydırılan bir satır iki satır yer kaplar ama
+     * tek istem alır, ikisi anında birbirinden ayrışırdı.
+     */
+    const prompt = lang.prompt || '$';
+    const gutterWidth = terminalView ? Math.round(prompt.length * fontSize * 0.62) + 14 : 0;
 
     // Shared Editor Styles for perfect alignment
     const EDITOR_STYLES: React.CSSProperties = {
         fontFamily: el.style?.fontFamily || '"Menlo", "Monaco", "Courier New", monospace', // Use custom font or fallback
-        fontSize: el.style?.fontSize ? `${el.style.fontSize}px` : '14px',
+        fontSize: `${fontSize}px`,
         fontWeight: el.style?.bold ? 'bold' : 'normal', // Bold support
         lineHeight: '1.5',
         padding: '16px', // Matches p-4
+        paddingLeft: 16 + gutterWidth,
         margin: 0,
         border: 'none',
+        whiteSpace: terminalView ? 'pre' : 'pre-wrap',
+        wordWrap: terminalView ? 'normal' : 'break-word',
     };
 
-    const language = el.codeConfig?.language || 'python';
+    const language = lang.id;
+    const lineCount = localCode.split('\n').length;
 
     return (
         <div
             className="w-full h-full flex flex-col font-mono shadow-2xl rounded-xl overflow-hidden ring-1"
             style={{
-                backgroundColor: bgColor,
+                backgroundColor: terminalView ? terminalBg : bgColor,
                 boxShadow: `0 0 0 1px ${borderColor}`,
                 // fontSize handled in EDITOR_STYLES
             }}
@@ -390,26 +458,51 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     <div className="w-3 h-3 rounded-full bg-[#27c93f] border border-[#1aab29] hover:brightness-110 transition-all" />
                 </div>
 
-                <div className="text-xs font-medium flex items-center gap-1 opacity-100 uppercase tracking-wider" style={{ color: inputText }}>
-                    <span>{el.codeConfig?.language || 'python'}</span>
+                <div className="text-xs font-medium flex items-center gap-1.5 opacity-100 uppercase tracking-wider" style={{ color: inputText }}>
+                    {terminalView ? <SquareTerminal className="w-3.5 h-3.5" /> : <FileCode className="w-3.5 h-3.5" />}
+                    <span>{lang.label}</span>
                 </div>
 
                 {/* TEACHER/STUDENT CONTROLS */}
                 <div className="flex items-center gap-1 opacity-100">
-                    {/* Run Button (Always visible) */}
+                    {/* Kopyala: terminal bloğunun asıl işi bu — öğrenci komutu
+                        kendi terminaline yapıştırır. */}
                     <button
-                        onClick={handleRunCode}
-                        className="p-1.5 rounded-md bg-green-500/10 hover:bg-green-500/20 text-green-500 flex items-center gap-1 transition-all mr-2"
-                        title="Run Code"
+                        onClick={handleCopy}
+                        className="p-1.5 rounded-md hover:bg-black/10 text-gray-400 hover:text-gray-200 transition-all"
+                        title="Kopyala"
                     >
-                        {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
-                        <span className="text-[10px] font-bold">RUN</span>
+                        {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
                     </button>
+
+                    {terminalView ? (
+                        <button
+                            onClick={handleRunInTerminal}
+                            className="p-1.5 rounded-md bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 flex items-center gap-1 transition-all mr-2"
+                            title="Komutu VS Code terminaline gönder"
+                        >
+                            <SquareTerminal className="w-3.5 h-3.5" />
+                            <span className="text-[10px] font-bold">VS CODE</span>
+                        </button>
+                    ) : (
+                        <button
+                            onClick={handleRunCode}
+                            className="p-1.5 rounded-md bg-green-500/10 hover:bg-green-500/20 text-green-500 flex items-center gap-1 transition-all mr-2"
+                            title={lang.runsInVSCode
+                                ? "Kodu VS Code'a gönder ve orada çalıştır"
+                                : "Kodu VS Code'da aç"}
+                        >
+                            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                : lang.runsInVSCode ? <Play className="w-3.5 h-3.5 fill-current" />
+                                : <ExternalLink className="w-3.5 h-3.5" />}
+                            <span className="text-[10px] font-bold">{lang.runsInVSCode ? 'RUN' : 'AÇ'}</span>
+                        </button>
+                    )}
 
                     <button
                         onClick={(e) => { e.stopPropagation(); setViewMode('code'); }}
                         className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'code' ? 'text-indigo-500' : 'text-gray-400'}`}
-                        title="Code Editor"
+                        title={terminalView ? 'Komutlar' : 'Kod Editörü'}
                     >
                         <FileCode className="w-3.5 h-3.5" />
                     </button>
@@ -417,7 +510,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     <button
                         onClick={(e) => { e.stopPropagation(); setViewMode('output'); }}
                         className={`p-1 rounded hover:bg-black/5 transition-colors ${viewMode === 'output' ? 'text-indigo-500' : 'text-gray-400'}`}
-                        title="Terminal / Output"
+                        title="Çıktı"
                     >
                         <SquareTerminal className="w-3.5 h-3.5" />
                     </button>
@@ -432,24 +525,46 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
 
                     {/* HIGHLIGHT LAYER (Bottom) */}
                     <pre
+                        ref={preRef}
                         aria-hidden="true"
                         className={`language-${language} w-full h-full absolute top-0 left-0 pointer-events-none overflow-hidden`}
                         style={{
                             ...EDITOR_STYLES,
-                            backgroundColor: bgColor,
-                            whiteSpace: 'pre-wrap',
-                            wordWrap: 'break-word',
+                            backgroundColor: terminalView ? terminalBg : bgColor,
                         }}
                     >
                         <code
                             className={`language-${language}`}
                             style={{
                                 fontFamily: 'inherit',
+                                fontSize: 'inherit',
                                 lineHeight: 'inherit',
                             }}
-                            dangerouslySetInnerHTML={{ __html: getHighlightedCode(localCode, language) + '<br/>' }}
+                            dangerouslySetInnerHTML={{ __html: highlightCode(localCode, language) + '<br/>' }}
                         />
                     </pre>
+
+                    {/* PROMPT GUTTER — yalnızca terminal görünümünde */}
+                    {terminalView && (
+                        <div
+                            ref={gutterRef}
+                            aria-hidden="true"
+                            className="absolute top-0 left-0 h-full pointer-events-none select-none overflow-hidden"
+                            style={{
+                                width: 16 + gutterWidth,
+                                paddingTop: 16,
+                                paddingLeft: 16,
+                                fontFamily: EDITOR_STYLES.fontFamily,
+                                fontSize: `${fontSize}px`,
+                                lineHeight: '1.5',
+                                color: '#22c55e',
+                            }}
+                        >
+                            {Array.from({ length: lineCount }).map((_, i) => (
+                                <div key={i} className="whitespace-pre">{prompt}</div>
+                            ))}
+                        </div>
+                    )}
 
                     {/* TEXTAREA LAYER (Top) */}
                     <textarea
@@ -459,9 +574,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                             ...EDITOR_STYLES,
                             backgroundColor: 'transparent',
                             color: 'transparent',
-                            caretColor: theme === 'dark' ? 'white' : 'black',
-                            whiteSpace: 'pre-wrap',
-                            wordWrap: 'break-word',
+                            caretColor: terminalView || theme === 'dark' ? 'white' : 'black',
                         }}
                         readOnly={readOnly}
                         value={localCode}
@@ -471,15 +584,20 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                         autoCapitalize="off"
                         autoComplete="off"
                         autoCorrect="off"
-                        placeholder="// Write your code here..."
+                        placeholder={terminalView ? 'pip install pandas' : 'Kodunu buraya yaz…'}
                         onKeyDown={handleKeyDown}
                         onScroll={(e) => {
-                            // Sync scroll
-                            const pre = e.currentTarget.previousElementSibling;
-                            if (pre) {
-                                pre.scrollTop = e.currentTarget.scrollTop;
-                                pre.scrollLeft = e.currentTarget.scrollLeft;
+                            // Üç katman (vurgulama, istem sütunu, yazı) tek gövde
+                            // gibi kaymalı. Kardeş düğüme göre aramak kırılgandı:
+                            // araya istem sütunu girince yanlış öğe kaydı.
+                            const { scrollTop, scrollLeft } = e.currentTarget;
+                            if (preRef.current) {
+                                preRef.current.scrollTop = scrollTop;
+                                preRef.current.scrollLeft = scrollLeft;
                             }
+                            // İstem sütunu yatayda sabit: satır başındaki `$`
+                            // kod sağa kayarken yerinde kalmalı.
+                            if (gutterRef.current) gutterRef.current.scrollTop = scrollTop;
                         }}
                     />
 
@@ -531,7 +649,13 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                     )}
 
                     <div className="flex flex-col gap-1">
-                        {output.length === 0 && !isLoading && <span className="text-gray-600 italic">No output yet. Click RUN to execute.</span>}
+                        {output.length === 0 && !isLoading && !notice && (
+                            <span className="text-gray-600 italic">
+                                {lang.runsInVSCode
+                                    ? 'Henüz çıktı yok. Kod VS Code\'da çalıştırılır.'
+                                    : `${lang.label} kodu VS Code'da açılır; çalıştırmak sana kalmış.`}
+                            </span>
+                        )}
                         {output.map((line, i) => (
                             <div key={i} className="whitespace-pre-wrap font-mono">{line}</div>
                         ))}
@@ -545,13 +669,29 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
 
             </div>
 
+            {/* Bildirim şeridi: "VS Code'a gönderildi", "bu dil tarayıcıda
+                çalışmaz" gibi tek cümlelik geri bildirimler. Kod alanını
+                kaplamıyor, çünkü asıl iş orada. */}
+            {notice && (
+                <div className="shrink-0 px-3 py-1.5 text-[10.5px] font-medium bg-sky-500/10 text-sky-300 border-t border-sky-500/20 flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate" title={notice}>{notice}</span>
+                    <button
+                        onClick={(e) => { e.stopPropagation(); setNotice(null); }}
+                        className="shrink-0 text-sky-400/70 hover:text-sky-200 font-bold"
+                    >
+                        ✕
+                    </button>
+                </div>
+            )}
+
             {/* Footer / Status Bar (Optional decoration) */}
             <div className="bg-[#2d2d2d] px-3 py-1 flex justify-between items-center text-[10px] text-gray-500 select-none">
                 <span>
-                    {viewMode === 'code' && 'EDITOR'}
-                    {viewMode === 'output' && 'TERMINAL'}
+                    {viewMode === 'code' ? (terminalView ? 'TERMİNAL' : 'EDITOR') : 'ÇIKTI'}
                 </span>
-                <span>UTF-8</span>
+                <span className="font-mono">
+                    {terminalView ? lang.label : `.${lang.ext}`} · UTF-8
+                </span>
             </div>
         </div>
     );

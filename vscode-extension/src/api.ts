@@ -17,6 +17,26 @@ export class UnauthorizedError extends Error {
     }
 }
 
+/** Yazım kaydının bir paketi — sunucudaki `EditChunkIn` ile aynı biçim. */
+export interface EditChunk {
+    file: string;
+    session: string;
+    seq: number;
+    started_at_ms: number;
+    base_text: string | null;
+    /** [ms, konum, silinen uzunluk, eklenen metin, tür] */
+    ops: Array<[number, number, number, string, string]>;
+}
+
+export interface EditBatch {
+    course_id: number;
+    task_key: string;
+    client: 'vscode';
+    ext_version: string;
+    ai_extensions: string[];
+    chunks: EditChunk[];
+}
+
 export class Api {
     constructor(private readonly auth: Auth) {}
 
@@ -108,6 +128,18 @@ export class Api {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ port, token }),
+        });
+    }
+
+    /**
+     * Yazım kaydı: görev dosyalarındaki düzenlemeler (bkz. editRecorder.ts).
+     * Sunucu aynı paketi ikinci kez uygulamaz; ağ hatasında güvenle yeniden denenir.
+     */
+    async postEdits(body: EditBatch): Promise<void> {
+        await this.request('/analytics/edits', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
         });
     }
 

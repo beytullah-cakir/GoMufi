@@ -1,0 +1,101 @@
+﻿Log ID;Eğitmen ID;Kurs ID;Kurs Başlığı;İşlem / Aksiyon;Model;Girdi Token;Çıktı Token;Düşünce (Thinking) Token;Toplam Token;Maliyet ($ USD);Maliyet (₺ TL);İşlem Detayı / Yanıt Açıklaması;Tarih / Saat
+1774;3;-;-;enrich_topics;gemini-2.5-flash;2171;1838;435;4444;0.006334;0.2154;Kurs: 'Sıfırdan Python Kursu' | Dil: python | 11 konu;2026-09-10T22:12:30.153845
+1773;3;-;-;distribute_topics;gemini-3.1-flash-lite;1187;471;0;1658;0.001003;0.0341;;2026-09-10T22:12:27.855249
+1772;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;246;0;1199;0.000607;0.0206;;2026-09-10T22:12:23.175663
+1756;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;221;0;1174;0.000570;0.0194;;2026-09-10T21:31:04.651049
+1755;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1112;580;0;1692;0.001148;0.0390;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 11;2026-09-09T20:39:55.279443
+1754;3;-;-;generate_lesson_slides;gemini-2.5-flash;8385;10977;857;20219;0.032100;1.0914;Kurs: 'Sıfırdan Python Kursu' | Ders 5: 'Dosya & Nesne Yönelimli Prog' | Modül Sayısı: 7;2026-09-09T20:39:51.552046
+1753;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1580;934;0;2514;0.001796;0.0611;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 21;2026-09-09T20:38:58.879549
+1752;3;-;-;generate_lesson_slides;gemini-2.5-flash;8359;6758;1021;16138;0.021955;0.7465;Kurs: 'Sıfırdan Python Kursu' | Ders 4: 'Fonksiyonlar, Modüller' | Modül Sayısı: 7;2026-09-09T20:38:51.091067
+1751;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1230;662;0;1892;0.001301;0.0442;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 12;2026-09-09T20:38:14.298261
+1750;3;-;-;generate_lesson_slides;gemini-2.5-flash;8379;5496;868;14743;0.018424;0.6264;Kurs: 'Sıfırdan Python Kursu' | Ders 3: 'Döngüler ve Veri Koleksiyonları' | Modül Sayısı: 7;2026-09-09T20:38:11.059581
+1749;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1467;840;0;2307;0.001627;0.0553;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 16;2026-09-09T20:37:40.563673
+1748;3;-;-;generate_lesson_slides;gemini-2.5-flash;8369;7195;1022;16586;0.023053;0.7838;Kurs: 'Sıfırdan Python Kursu' | Ders 2: 'Aritmetik & Kontrol Akışı' | Modül Sayısı: 7;2026-09-09T20:37:37.420138
+1747;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1036;548;0;1584;0.001081;0.0368;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 10;2026-09-09T20:37:00.824826
+1746;3;-;-;generate_lesson_slides;gemini-2.5-flash;8368;4413;877;13658;0.015735;0.5350;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş, Veri Tipleri' | Modül Sayısı: 7;2026-09-09T20:36:56.427411
+1745;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1682;939;823;3444;0.004910;0.1669;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-09-09T20:35:27.615383
+1744;3;-;-;distribute_topics;gemini-3.1-flash-lite;1209;500;0;1709;0.001052;0.0358;;2026-09-09T20:35:17.50094
+1743;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;266;0;1219;0.000637;0.0217;;2026-09-09T20:35:14.436295
+1742;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1736;1499;902;4137;0.006523;0.2218;Kurs: 'Excel Kursu' (0 Ders İskeleti);2026-09-09T18:45:14.90231
+1741;3;-;-;distribute_topics;gemini-3.1-flash-lite;1270;558;0;1828;0.001154;0.0392;;2026-09-09T18:45:09.796599
+1740;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;943;331;0;1274;0.000732;0.0249;;2026-09-09T18:45:03.909316
+1739;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;567;43;0;610;0.000278;0.0095;UYGULA Koçu (quality, deneme 9);2026-09-09T18:32:49.175459
+1738;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;567;52;0;619;0.000300;0.0102;UYGULA Koçu (quality, deneme 8);2026-09-09T18:32:23.104538
+1737;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;548;58;0;606;0.000309;0.0105;UYGULA Koçu (diff, deneme 7);2026-09-09T18:31:56.278832
+1736;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;543;78;0;621;0.000358;0.0122;UYGULA Koçu (diff, deneme 6);2026-09-09T18:31:42.507752
+1735;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;545;54;0;599;0.000298;0.0101;UYGULA Koçu (diff, deneme 5);2026-09-09T18:30:54.538495
+1734;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;595;45;0;640;0.000291;0.0099;UYGULA Koçu (diff, deneme 4);2026-09-09T18:30:40.085497
+1733;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;531;55;0;586;0.000297;0.0101;UYGULA Koçu (diff, deneme 3);2026-09-09T18:30:29.07545
+1732;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;519;68;0;587;0.000326;0.0111;UYGULA Koçu (diff, deneme 2);2026-09-09T18:29:41.666283
+1731;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;528;49;0;577;0.000281;0.0096;UYGULA Koçu (diff, deneme 1);2026-09-09T18:29:23.008369
+1730;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;515;63;0;578;0.000312;0.0106;UYGULA Koçu (quality, deneme 1);2026-09-09T18:28:35.364716
+1729;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;570;28;0;598;0.000241;0.0082;UYGULA ölçüt değerlendirmesi;2026-09-09T18:28:33.711077
+1728;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1265;656;0;1921;0.001300;0.0442;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 15;2026-09-09T18:20:27.531866
+1727;3;-;-;generate_lesson_slides;gemini-2.5-flash;8448;8363;887;17698;0.025659;0.8724;Kurs: 'Sıfırdan Python Kursu' | Ders 2: 'Kontrol Yapıları ve Döngüler' | Modül Sayısı: 11;2026-09-09T18:20:24.847646
+1726;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1594;969;0;2563;0.001852;0.0630;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 25;2026-09-09T18:19:43.764782
+1725;3;-;-;generate_lesson_slides;gemini-2.5-flash;8440;8543;825;17808;0.025952;0.8824;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş: İlk Adımlar' | Modül Sayısı: 11;2026-09-09T18:19:30.071674
+1724;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1436;794;1021;3251;0.004968;0.1689;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-09-09T18:17:46.693075
+1723;3;-;-;distribute_topics;gemini-3.1-flash-lite;1058;207;0;1265;0.000575;0.0196;;2026-09-09T18:17:17.323315
+1722;3;-;-;expand_topics;gemini-3.1-flash-lite;707;168;0;875;0.000429;0.0146;Kurs: 'Sıfırdan Python Kursu' | Konu Genişletme;2026-09-09T18:17:08.601653
+1721;3;-;-;expand_topics;gemini-3.1-flash-lite;707;109;0;816;0.000340;0.0116;Kurs: 'Sıfırdan Python Kursu' | Konu Genişletme;2026-09-09T18:16:55.950494
+1720;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;230;0;1183;0.000583;0.0198;;2026-09-09T18:16:32.00519
+1719;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;445;14;0;459;0.000169;0.0057;UYGULA Koçu (diff, deneme 1);2026-09-05T16:57:57.068218
+1718;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;482;31;0;513;0.000222;0.0075;UYGULA ölçüt değerlendirmesi;2026-09-05T16:57:55.351105
+1717;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1362;714;0;2076;0.001411;0.0480;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 13;2026-09-05T16:55:24.071024
+1716;3;-;-;generate_lesson_slides;gemini-2.5-flash;8366;8922;778;18066;0.026760;0.9098;Kurs: 'Sıfırdan Python Kursu' | Ders 5: 'Ekosistem & Versiyon Kontrol' | Modül Sayısı: 7;2026-09-05T16:55:12.844783
+1715;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1756;849;0;2605;0.001713;0.0582;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 17;2026-09-05T16:54:26.49865
+1714;3;-;-;generate_lesson_slides;gemini-2.5-flash;8366;9569;833;18768;0.028515;0.9695;Kurs: 'Sıfırdan Python Kursu' | Ders 4: 'Fonksiyonlar & Hata Yönetimi' | Modül Sayısı: 7;2026-09-05T16:54:16.806235
+1713;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1445;780;0;2225;0.001531;0.0521;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 13;2026-09-05T16:53:26.901934
+1712;3;-;-;generate_lesson_slides;gemini-2.5-flash;8380;7359;899;16638;0.023159;0.7874;Kurs: 'Sıfırdan Python Kursu' | Ders 3: 'Veri Koleksiyonları & Döngüler' | Modül Sayısı: 7;2026-09-05T16:53:23.433162
+1711;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1424;478;0;1902;0.001073;0.0365;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 9;2026-09-05T16:52:45.332433
+1710;3;-;-;generate_lesson_slides;gemini-2.5-flash;8373;9952;922;19247;0.029697;1.0097;Kurs: 'Sıfırdan Python Kursu' | Ders 2: 'Operatörler ve Akış Kontrolü' | Modül Sayısı: 7;2026-09-05T16:52:31.849545
+1709;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1033;541;0;1574;0.001070;0.0364;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 9;2026-09-05T16:51:44.422478
+1708;3;-;-;generate_lesson_slides;gemini-2.5-flash;8360;4936;922;14218;0.017153;0.5832;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş & Veri' | Modül Sayısı: 7;2026-09-05T16:51:38.3891
+1707;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1634;928;881;3443;0.005013;0.1704;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-09-05T16:50:50.452976
+1706;3;-;-;distribute_topics;gemini-3.1-flash-lite;1169;451;0;1620;0.000969;0.0329;;2026-09-05T16:50:41.987673
+1705;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;226;0;1179;0.000577;0.0196;;2026-09-05T16:50:32.678158
+1704;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1237;619;0;1856;0.001238;0.0421;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 12;2026-08-13T19:44:03.352217
+1703;3;-;-;generate_lesson_slides;gemini-2.5-flash;8431;7315;758;16504;0.022712;0.7722;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Ders 1: O.Y.P. Giriş ve Sınıf' | Modül Sayısı: 9;2026-08-13T19:44:00.5861
+1702;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1394;382;896;2672;0.003613;0.1228;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-08-13T19:43:15.27773
+1701;3;-;-;distribute_topics;gemini-3.1-flash-lite;1039;148;0;1187;0.000482;0.0164;;2026-08-13T19:43:12.683341
+1700;3;-;-;expand_topics;gemini-3.1-flash-lite;707;81;0;788;0.000298;0.0101;Kurs: 'Sıfırdan Python Kursu' | Konu Genişletme;2026-08-13T19:43:09.992951
+1699;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;227;0;1180;0.000579;0.0197;;2026-08-13T19:43:01.136363
+1698;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1100;635;0;1735;0.001228;0.0418;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 12;2026-08-13T19:42:39.308113
+1697;3;-;-;regenerate_lesson_module;gemini-2.5-flash;8684;2641;881;12206;0.011410;0.3879;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş: Temeller' | Modül: 'İlk Program & Yorumlar';2026-08-13T19:42:19.883317
+1696;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1054;566;0;1620;0.001112;0.0378;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 9;2026-08-13T19:41:31.094829
+1695;3;-;-;generate_lesson_slides;gemini-2.5-flash;8353;8203;916;17472;0.025303;0.8603;Kurs: 'Sıfırdan Python Kursu' | Ders 2: 'Veri İşleme & Karar Yapıları' | Modül Sayısı: 7;2026-08-13T19:41:20.591195
+1694;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;883;439;0;1322;0.000879;0.0299;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 10;2026-08-13T19:40:39.210463
+1693;3;-;-;generate_lesson_slides;gemini-2.5-flash;8349;6178;814;15341;0.019985;0.6795;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş: Temeller' | Modül Sayısı: 7;2026-08-13T19:40:36.625354
+1692;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1441;283;793;2517;0.003122;0.1061;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-08-13T19:39:43.488733
+1691;3;-;-;distribute_topics;gemini-3.1-flash-lite;1065;211;0;1276;0.000583;0.0198;;2026-08-13T19:39:38.423648
+1690;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;282;0;1235;0.000661;0.0225;;2026-08-13T19:39:30.795713
+1689;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1437;425;794;2656;0.003479;0.1183;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-08-13T18:01:00.358485
+1688;3;-;-;distribute_topics;gemini-3.1-flash-lite;1059;207;0;1266;0.000575;0.0196;;2026-08-13T18:00:56.681575
+1687;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;236;0;1189;0.000592;0.0201;;2026-08-13T18:00:50.432332
+1686;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1285;583;0;1868;0.001196;0.0407;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 11;2026-08-13T17:42:44.747506
+1685;3;-;-;generate_lesson_slides;gemini-2.5-flash;8227;7730;917;16874;0.024086;0.8189;Kurs: 'Sıfırdan Python Kursu' | Ders 4: 'Döngüler ve Liste Yapıları' | Modül Sayısı: 7;2026-08-13T17:42:40.012356
+1684;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1306;564;0;1870;0.001172;0.0398;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 12;2026-08-13T17:42:01.784934
+1683;3;-;-;generate_lesson_slides;gemini-2.5-flash;8230;6152;1022;15404;0.020404;0.6937;Kurs: 'Sıfırdan Python Kursu' | Ders 3: 'Karar Mekanizmaları' | Modül Sayısı: 7;2026-08-13T17:41:51.771299
+1682;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;575;250;0;825;0.000519;0.0176;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 6;2026-08-13T17:41:18.059692
+1681;3;-;-;generate_lesson_slides;gemini-2.5-flash;8269;8246;847;17362;0.025213;0.8572;Kurs: 'Sıfırdan Python Kursu' | Ders 2: 'Veri Tipleri ve Operatörler' | Modül Sayısı: 9;2026-08-13T17:41:15.757783
+1680;3;-;-;shrink_slide_texts;gemini-3.1-flash-lite;1021;523;0;1544;0.001040;0.0354;Kurs: 'Sıfırdan Python Kursu' | Sığdırılan metin: 12;2026-08-13T17:40:36.597053
+1679;3;-;-;generate_lesson_slides;gemini-2.5-flash;8258;5817;799;14874;0.019017;0.6466;Kurs: 'Sıfırdan Python Kursu' | Ders 1: 'Python'a Giriş' | Modül Sayısı: 9;2026-08-13T17:40:27.036987
+1678;3;-;-;generate_roadmap_structure;gemini-2.5-flash;1550;1179;1021;3750;0.005965;0.2028;Kurs: 'Sıfırdan Python Kursu' (0 Ders İskeleti);2026-08-13T17:39:39.010407
+1677;3;-;-;distribute_topics;gemini-3.1-flash-lite;1057;354;0;1411;0.000795;0.0270;;2026-08-13T17:39:30.989466
+1676;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;953;246;0;1199;0.000607;0.0206;;2026-08-13T17:39:20.790376
+1675;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;476;27;0;503;0.000210;0.0071;UYGULA Koçu (quality, deneme 2);2026-08-10T12:47:27.665602
+1674;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;450;51;0;501;0.000262;0.0089;UYGULA Koçu (diff, deneme 1);2026-08-10T12:46:58.194575
+1673;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;500;28;0;528;0.000220;0.0075;UYGULA ölçüt değerlendirmesi;2026-08-10T12:46:56.514892
+1672;3;-;-;distribute_topics;gemini-3.1-flash-lite;1111;481;0;1592;0.000999;0.0340;;2026-08-10T12:44:10.400414
+1671;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;814;259;0;1073;0.000592;0.0201;;2026-08-10T12:44:04.486579
+1670;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;476;24;0;500;0.000203;0.0069;UYGULA Koçu (quality, deneme 2);2026-08-10T11:56:45.244765
+1669;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;454;55;0;509;0.000274;0.0093;UYGULA Koçu (diff, deneme 1);2026-08-10T11:56:11.271493
+1668;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;499;25;0;524;0.000212;0.0072;UYGULA ölçüt değerlendirmesi;2026-08-10T11:56:08.673159
+1667;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;455;46;0;501;0.000251;0.0085;UYGULA Koçu (diff, deneme 1);2026-08-10T09:36:58.065286
+1666;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;499;34;0;533;0.000235;0.0080;UYGULA ölçüt değerlendirmesi;2026-08-10T09:36:55.549176
+1665;3;-;-;distribute_topics;gemini-3.1-flash-lite;1055;421;0;1476;0.000895;0.0304;;2026-08-10T09:34:27.933895
+1664;3;-;-;suggest_raw_topics;gemini-3.1-flash-lite;814;203;0;1017;0.000508;0.0173;;2026-08-10T09:34:22.730774
+1663;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;456;64;0;520;0.000297;0.0101;UYGULA Koçu (diff, deneme 3);2026-08-07T21:49:51.159565
+1662;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;456;15;0;471;0.000174;0.0059;UYGULA Koçu (diff, deneme 2);2026-08-07T21:49:37.629836
+1661;-;9;Sıfırdan Python Kursu;challenge_check;gemini-2.5-flash;499;27;0;526;0.000217;0.0074;UYGULA ölçüt değerlendirmesi;2026-08-07T21:49:36.216603
+1660;-;9;Sıfırdan Python Kursu;challenge_coach;gemini-2.5-flash;450;49;0;499;0.000258;0.0088;UYGULA Koçu (diff, deneme 1);2026-08-07T21:49:30.842629

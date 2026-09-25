@@ -103,7 +103,7 @@ const LessonBuilderSlideStrip: React.FC<LessonBuilderSlideStripProps> = ({
     return (
         <div
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute bottom-3 left-1/2 -translate-x-1/2 z-50 flex items-center gap-0.5 p-1.5 bg-white/80 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 max-w-[calc(100vw-3rem)]"
+            className="absolute bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-0.5 p-1.5 bg-white/90 backdrop-blur-xl rounded-2xl shadow-[0_10px_35px_rgba(0,0,0,0.15)] border border-slate-200/80 max-w-[calc(100vw-3rem)]"
         >
             {slides.length > 1 && (
                 <button

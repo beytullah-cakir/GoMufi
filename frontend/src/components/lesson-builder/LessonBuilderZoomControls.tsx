@@ -10,7 +10,7 @@ const LessonBuilderZoomControls: React.FC<LessonBuilderZoomControlsProps> = ({ s
     return (
         <div
             onMouseDown={(e) => e.stopPropagation()}
-            className="absolute bottom-4 right-4 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2"
+            className="absolute bottom-6 right-6 z-50 flex items-center bg-white rounded-2xl shadow-xl border-2 border-gray-100 p-2 gap-2"
         >
             <button onClick={() => setScale(s => Math.max(0.2, s - 0.1))} className="w-8 h-8 flex items-center justify-center hover:bg-gray-100 rounded-lg text-gray-600 transition-colors">
                 <Minus className="w-5 h-5" />

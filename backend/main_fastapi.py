@@ -12,10 +12,11 @@ from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from connect_db import engine, Base
+from connect_db import engine, Base, SessionLocal
 from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, payment, utils
-from routers import quiz, ws, jitsi, admin, ai, device_auth, devices
+from routers import quiz, ws, jitsi, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
+from routers import parent_reports, parent_portal
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -37,6 +38,7 @@ async def lifespan(app: FastAPI):
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_id INTEGER;"))
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS course_title VARCHAR;"))
                 await conn.execute(text("ALTER TABLE ai_usage_logs ADD COLUMN IF NOT EXISTS thoughts_tokens INTEGER DEFAULT 0;"))
+                await conn.execute(text("ALTER TABLE homework_submissions ADD COLUMN IF NOT EXISTS rubric_scores JSON;"))
                 logger.info("Database migration: classes, start_date, and ai_usage_logs details/course_id/course_title checked/added.")
             except Exception as dberr:
                 logger.warning(f"Alter table column checking: {dberr}")
@@ -51,6 +53,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Tablo oluşturma hatası: {e}")
         
+    # Süresi dolan kod görüntüleri ve yazım kaydı (bkz. learning_store.RETENTION_DAYS).
+    try:
+        import learning_store
+        async with SessionLocal() as session:
+            purged = await learning_store.purge_expired(session)
+        logger.info("Öğrenme verisi temizliği: %s", purged)
+    except Exception as purge_err:
+        logger.warning(f"Öğrenme verisi temizliği atlandı: {purge_err}")
+
     await manager.initialize_redis()
     yield
     await manager.close_redis()
@@ -120,6 +131,22 @@ app.include_router(ws.router)
 app.include_router(jitsi.router)
 app.include_router(admin.router)
 app.include_router(ai.router)
+# Dil bazlı kavram sözlüğü (kursa değil DİLE ait — bkz. concept_seeds.py)
+app.include_router(concepts.router)
+app.include_router(analytics.router)
+# Öğretmen ana paneli: gerçek sayılar ve bugün yapılacaklar
+app.include_router(teacher_home.router)
+# Mesajlaşma: veritabanında, yalnızca karşı tarafa bildirim
+app.include_router(messages.router)
+# Canlı ders müdahaleleri: yardım isteği, ipucu, tahta, öneri takibi, öğretmen düzeltmeleri
+app.include_router(live_teaching.router)
+# Dereceli puanlama anahtarı kütüphanesi
+app.include_router(rubrics.router)
+# Not defteri: bileşenler ve ağırlıklı performans notu önerisi
+app.include_router(gradebook.router)
+# Veli raporu (öğretmen onaylar) ve veli portalı (gerçek veri, yazım kaydı izni)
+app.include_router(parent_reports.router)
+app.include_router(parent_portal.router)
 
 # Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
 # /generate_quiz -> /quiz/generate

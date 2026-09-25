@@ -26,6 +26,9 @@ export const setBearerToken = (token: string | null) => {
   bearerToken = token;
 };
 
+/** Sayfa kapanırken `fetch(keepalive)` ile gönderilen isteklerin kimliği (axios devrede değil). */
+export const getBearerToken = () => bearerToken;
+
 api.interceptors.request.use((config) => {
   if (bearerToken) {
     config.headers.Authorization = `Bearer ${bearerToken}`;

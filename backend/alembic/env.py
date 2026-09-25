@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 # Import all models to register them with Base.metadata
 from connect_db import Base
 from models import Student, Course, Enrollment, Teacher, Parent, LiveSession, Quiz
+from models import Concept, UnmatchedConcept
 
 load_dotenv()
 

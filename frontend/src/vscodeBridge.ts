@@ -91,6 +91,42 @@ const bindInitListener = (): void => {
     });
 };
 
+/**
+ * "Şu dersin şu slaydını aç" — tarayıcıdan VS Code'a geçen öğrencinin adresi.
+ *
+ * Panel zaten açıkken gelir (kapalıysa adres iframe'in URL'inde taşınır, orada
+ * mesaja gerek yok). Abonelik KALICI: öğrenci tarayıcı ile VS Code arasında
+ * birden çok kez gidip gelebilir.
+ */
+export interface LessonTarget {
+    course?: string;
+    module?: string;
+    slide?: number;
+}
+
+const targetSubs = new Set<(t: LessonTarget) => void>();
+
+export const onOpenTarget = (fn: (t: LessonTarget) => void): (() => void) => {
+    bindTargetListener();
+    targetSubs.add(fn);
+    return () => { targetSubs.delete(fn); };
+};
+
+let targetListenerBound = false;
+
+const bindTargetListener = (): void => {
+    if (targetListenerBound) return;
+    targetListenerBound = true;
+    window.addEventListener('message', (event: MessageEvent) => {
+        if (!event.origin.startsWith(VSCODE_ORIGIN_PREFIX)) return;
+        const data = event.data;
+        if (data?.type !== 'gomufi:openTarget') return;
+        targetSubs.forEach((fn) => fn({
+            course: data.course, module: data.module, slide: Number(data.slide) || 0,
+        }));
+    });
+};
+
 export const connectToVSCode = (timeoutMs = 8000): Promise<boolean> =>
     new Promise((resolve) => {
         bindInitListener();
@@ -203,7 +239,13 @@ const request = <T>(type: string, body: Record<string, unknown>, timeoutMs = 30_
 
 export interface TaskCheckResult {
     ok: boolean;
+    /** Çalıştırılan (giriş) dosyanın içeriği. */
     code: string;
+    /**
+     * Görevin TÜM dosyaları. Eski eklenti sürümleri göndermez; çağıran
+     * yokluğunda `code`a düşer (bkz. useChallengeCheck).
+     */
+    files?: Array<{ name: string; content: string; entry?: boolean }>;
     stdout: string;
     stderr: string;
     timedOut: boolean;
@@ -217,12 +259,37 @@ export interface TaskCheckResult {
 export type TaskSlot = 'student' | 'solution';
 
 /**
+ * Göreve giden dosya. Eklenti bunları aynı klasöre yazar, `entry` olanı
+ * çalıştırır. Tip burada da duruyor (ders yapılandırmasından import etmek
+ * yerine) çünkü köprü yalnızca TELİ tanır, dersin veri modelini değil.
+ */
+export interface TaskFile {
+    name: string;
+    content: string;
+    entry?: boolean;
+}
+
+/**
  * Görev dosyasını VS Code'da hazırlar ve editörde açar.
  * `student` yuvasında dosya varsa dokunulmaz; `solution` her zaman tazelenir.
  */
-export const prepareTaskInVSCode = (starter: string, language = 'python', slot: TaskSlot = 'student') =>
+export const prepareTaskInVSCode = (
+    files: TaskFile[], language = 'python', slot: TaskSlot = 'student',
+    /**
+     * Görevin kimliği: kendi klasörü (ör. "birlestir-8374") ve yazım kaydının
+     * gideceği kurs/görev. Verilmezse eski davranış: tüm görevler ortak
+     * klasörde, yazım kaydı yok. Bkz. localRunner.ts `prepareTask`.
+     */
+    target?: { folder?: string; courseId?: number | string; taskKey?: string },
+) =>
     request<{ ok: boolean; path?: string; error?: string }>(
-        'gomufi:prepareTask', { starter, language, slot },
+        'gomufi:prepareTask', {
+            files, language, slot, ...target,
+            // ESKİ EKLENTİ İÇİN: `files` alanını tanımayan sürüm `starter`ı
+            // okuyor. Kullanıcının eklentisi siteden eski olabilir; o durumda
+            // görev çok dosyalı olmasa da AÇILSIN.
+            starter: (files.find((f) => f.entry) ?? files[0])?.content ?? '',
+        },
     );
 
 /**
@@ -232,30 +299,36 @@ export const prepareTaskInVSCode = (starter: string, language = 'python', slot: 
  * için öğrencinin panelden koda göz taşıması gerekiyordu; tanı olarak
  * iliştirilince işaret ile hedef aynı ekranda oluyor. Boş mesaj eskisini siler.
  */
-export const showHintInVSCode = (message: string, line = 0, language = 'python'): void => {
+export const showHintInVSCode = (
+    message: string, line = 0, language = 'python', file?: string,
+): void => {
     if (!hostOrigin) return;
     window.parent.postMessage(
-        { type: 'gomufi:hint', message, line, language, slot: 'student' }, hostOrigin,
+        { type: 'gomufi:hint', message, line, language, file, slot: 'student' }, hostOrigin,
     );
 };
 
 /**
  * Görev doğru çözüldüğünde VS Code editöründe YEŞİL KUTLAMA VURGUSU tetikler.
  */
-export const showSuccessInVSCode = (message = 'Tebrikler!', xp = 100, language = 'python'): void => {
+export const showSuccessInVSCode = (
+    message = 'Tebrikler!', xp = 100, language = 'python', file?: string,
+): void => {
     if (!hostOrigin) return;
     window.parent.postMessage(
-        { type: 'gomufi:success', message, xp, language, slot: 'student' }, hostOrigin,
+        { type: 'gomufi:success', message, xp, language, file, slot: 'student' }, hostOrigin,
     );
 };
 
 /**
  * Editörde belirtilen satırı öne getirir, imleci o satıra koyar ve odaklanır.
  */
-export const revealLineInVSCode = (line: number, language = 'python'): void => {
+export const revealLineInVSCode = (
+    line: number, language = 'python', file?: string,
+): void => {
     if (!hostOrigin) return;
     window.parent.postMessage(
-        { type: 'gomufi:revealLine', line, language, slot: 'student' }, hostOrigin,
+        { type: 'gomufi:revealLine', line, language, file, slot: 'student' }, hostOrigin,
     );
 };
 
@@ -274,7 +347,8 @@ export const revealLineInVSCode = (line: number, language = 'python'): void => {
  */
 export const checkTaskInVSCode = (
     language = 'python', slot: TaskSlot = 'student', stdin = '', visible = true,
-) => request<TaskCheckResult>('gomufi:checkTask', { language, slot, stdin, visible });
+    entry?: string,
+) => request<TaskCheckResult>('gomufi:checkTask', { language, slot, stdin, visible, entry });
 
 /**
  * Kodu VS Code'a gönderir: eklenti dosyaya yazıp editörde açar ve terminalde
