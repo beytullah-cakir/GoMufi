@@ -3,8 +3,8 @@ import {
   LayoutDashboard,
   BookOpen,
   Calendar,
-  PlusCircle,
-  Sparkles,
+  GraduationCap,
+  ClipboardCheck,
   User,
   Users,
   MessageCircle,
@@ -30,72 +30,21 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
   const isAdmin = userData?.role === "admin" || localStorage.getItem("role") === "admin";
   const unread = useUnreadMessages();
 
+  // Kurs merkezli: öğretmen önce kursunu açar; sınıf içi işler ve takip aynı
+  // kursla açılır (seçilen kurs sayfalar arasında hatırlanır, bkz. activeCourse.ts).
   const navItems = [
-    {
-      label: "Panel",
-      icon: LayoutDashboard,
-      id: "Dashboard",
-    },
-    {
-      label: "Kurslarım",
-      icon: BookOpen,
-      id: "Courses",
-    },
-    {
-      label: "Takvim",
-      icon: Calendar,
-      id: "Calendar",
-    },
-    {
-      label: "Sınıflarım",
-      icon: Users,
-      id: "Classes",
-    },
-    {
-      label: "Yoklama",
-      icon: UserCheck,
-      id: "Attendance",
-    },
-    {
-      label: "Duyurular",
-      icon: Megaphone,
-      id: "Announcements",
-    },
-    {
-      label: "Profilim",
-      icon: User,
-      id: "Profile",
-    },
-    {
-      label: "Öğrenciler",
-      icon: Users,
-      id: "Students",
-    },
-    {
-      label: "Mesajlar",
-      icon: MessageCircle,
-      id: "Messages",
-      badgeCount: unread,
-    },
-    {
-      label: "Ödev Gönderileri",
-      icon: BookOpen,
-      id: "HomeworkSubmissions",
-    },
-    {
-      label: "Öğrenme Analizi",
-      icon: Microscope,
-      id: "Learning",
-    },
-    ...(isAdmin
-      ? [
-          {
-            label: "Metrikler",
-            icon: BarChart3,
-            id: "Metrics",
-          },
-        ]
-      : []),
+    { label: "Panel", icon: LayoutDashboard, id: "Dashboard" },
+    { label: "Kurslarım", icon: BookOpen, id: "Courses" },
+    { label: "Takvim", icon: Calendar, id: "Calendar" },
+    { label: "Yoklama", icon: UserCheck, id: "Attendance", section: "Sınıfta" },
+    { label: "Duyurular", icon: Megaphone, id: "Announcements", section: "Sınıfta" },
+    { label: "Şubeler", icon: Users, id: "Classes", section: "Sınıfta" },
+    { label: "Öğrenciler", icon: GraduationCap, id: "Students", section: "Sınıfta" },
+    { label: "Öğrenme Analizi", icon: Microscope, id: "Learning", section: "Takip" },
+    { label: "Ödev Gönderileri", icon: ClipboardCheck, id: "HomeworkSubmissions", section: "Takip" },
+    { label: "Mesajlar", icon: MessageCircle, id: "Messages", badgeCount: unread, section: "Hesap" },
+    { label: "Profilim", icon: User, id: "Profile", section: "Hesap" },
+    ...(isAdmin ? [{ label: "Metrikler", icon: BarChart3, id: "Metrics", section: "Hesap" }] : []),
   ];
 
   return (

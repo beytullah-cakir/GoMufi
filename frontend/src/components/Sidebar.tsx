@@ -13,6 +13,8 @@ export interface SidebarItem {
   id: string;
   icon: React.ElementType;
   badgeCount?: number;
+  /** Menü grubu başlığı; aynı gruptaki ardışık öğeler tek başlık altında. */
+  section?: string;
 }
 
 interface NavItemProps {
@@ -248,9 +250,14 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Navigation Items */}
       <div className="flex-1 px-4 overflow-y-auto no-scrollbar mt-4">
-        {items.map((item) => (
+        {items.map((item, index) => (
+          <React.Fragment key={item.id}>
+          {item.section && item.section !== items[index - 1]?.section && (
+            isCollapsed
+              ? <div className="h-px bg-gray-100 mx-2 my-3" />
+              : <p className="px-3 mt-4 mb-2 text-[10px] font-black uppercase tracking-widest text-gray-400">{item.section}</p>
+          )}
           <NavItem
-            key={item.id}
             icon={item.icon}
             label={item.label}
             isActive={activePage === item.id}
@@ -259,6 +266,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             badgeCount={item.badgeCount}
             themeColor={themeColor}
           />
+          </React.Fragment>
         ))}
       </div>
 

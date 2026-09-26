@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BookCheck, Brain, ClipboardList, HelpCircle, LayoutDashboard, Loader2, RefreshCw, Tags, Users, Microscope, Table2 } from 'lucide-react';
 import api from '../../../api';
+import { preferredCourse, rememberCourse } from '../activeCourse';
 import { useWebSocket } from '../../../hooks/useWebSocket';
 import { errorText, learningApi, type Scope } from './learningApi';
 import GradebookTab from './GradebookTab';
@@ -79,6 +80,7 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
     const [sinceChoices] = useState(sinceOptions);
     const scope: Scope = { classId: classId || null, since: since || null };
     const { lastMessage } = useWebSocket();
+    useEffect(() => rememberCourse(courseId), [courseId]);
 
     useEffect(() => {
         const apply = (list: any[]) => {
@@ -87,7 +89,7 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
                 classes: (c.classes || []).filter((x: any) => x && x.id != null).map((x: any) => ({ id: String(x.id), name: x.name || 'Şube' })),
             }));
             setCourses(data);
-            if (data.length) setCourseId((prev) => prev ?? data[0].id);
+            if (data.length) setCourseId((prev) => prev ?? preferredCourse(data.map((c) => c.id)));
         };
         if (coursesData?.length) apply(coursesData);
         else api.get('/teacher/content').then((r) => apply(r.data || [])).catch(() => setNotice('Kurslar yüklenemedi.'));
