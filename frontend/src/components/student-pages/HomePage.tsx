@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
-import { Zap, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Lock } from 'lucide-react';
+import { Zap, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -75,6 +75,22 @@ const HomePage: React.FC<HomePageProps> = ({
     // Refs for outside click detection
     const nodesContainerRef = useRef<HTMLDivElement>(null);
 
+    // Yatay yol: hangi kenarda devamı var (oklar ve kenar solması için)
+    const [mapEdges, setMapEdges] = useState({ left: false, right: false });
+    const updateMapEdges = () => {
+        const el = nodesContainerRef.current;
+        if (!el) return;
+        const left = el.scrollLeft > 8;
+        const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 8;
+        setMapEdges((prev) => (prev.left === left && prev.right === right ? prev : { left, right }));
+    };
+    const scrollMap = (dir: 1 | -1) => {
+        const el = nodesContainerRef.current;
+        el?.scrollBy({ left: dir * el.clientWidth * 0.6, behavior: 'smooth' });
+    };
+    const fade = (on: boolean) => (on ? 'transparent 0, #000 72px' : '#000 0');
+    const mapMask = `linear-gradient(to right, ${fade(mapEdges.left)}, #000 calc(100% - 72px), ${mapEdges.right ? 'transparent 100%' : '#000 100%'})`;
+
     // Outside click listener
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -124,6 +140,38 @@ const HomePage: React.FC<HomePageProps> = ({
     // Seri ve günlük görevler: XP ya da ilerleme değişince yeniden okunur.
     const activity = useActivity(`${userData?.xp ?? 0}:${Object.keys(currentCourse?.progress?.completed || {}).length}`);
     const navigate = useNavigate();
+
+    // Sıradaki modül (yolu açılışta ona kaydırmak için; aşağıdaki nextNode ile aynı kural)
+    const nextNodeId = currentCourse?.nodes.find((n) =>
+        !n.isLocked && !(n.sectionId && currentCourse.progress?.completed?.[String(n.sectionId)]) && (n.slides?.length ?? 0) > 0)?.id;
+
+    // Yatay yol: fare tekerleği yana kaydırsın, açılışta sıradaki modül ortada olsun,
+    // pencere boyu değişince oklar güncellensin.
+    useEffect(() => {
+        const el = nodesContainerRef.current;
+        if (!el) return;
+        const onWheel = (e: WheelEvent) => {
+            if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+            const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+            const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && e.deltaY > 0;
+            if (atStart || atEnd) return; // uçlarda sayfa normal kaysın
+            e.preventDefault();
+            el.scrollLeft += e.deltaY;
+        };
+        el.addEventListener('wheel', onWheel, { passive: false });
+        const ro = new ResizeObserver(() => requestAnimationFrame(updateMapEdges));
+        ro.observe(el);
+        const frame = requestAnimationFrame(() => {
+            const target = nextNodeId != null ? el.querySelector<HTMLElement>(`[data-node-id="${nextNodeId}"]`) : null;
+            if (target) {
+                const box = target.getBoundingClientRect();
+                const host = el.getBoundingClientRect();
+                el.scrollLeft += box.left + box.width / 2 - (host.left + host.width / 2);
+            }
+            updateMapEdges();
+        });
+        return () => { el.removeEventListener('wheel', onWheel); ro.disconnect(); cancelAnimationFrame(frame); };
+    }, [activeCourseId, nextNodeId, isUserDataLoading]);
 
     // Poll session status for enrolled courses to detect when teacher starts/stops lesson
     useEffect(() => {
@@ -478,7 +526,23 @@ const HomePage: React.FC<HomePageProps> = ({
                         animation: slideDownFade 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
                     }
                 `}</style>
-                <div className="w-full overflow-x-auto flex items-center px-12 md:px-24 no-scrollbar pt-48 pb-32 select-none" ref={nodesContainerRef}>
+                {/* Yol yana taşıyor ama kaydırma çubuğu gizli: kenarlar yumuşak solar ve
+                    oklar görünür — eskiden yol sağda keskin bir çizgiyle kesilmiş gibi duruyordu. */}
+                {mapEdges.left && (
+                    <button type="button" onClick={() => scrollMap(-1)} aria-label="Yolda geri git"
+                            className="absolute left-3 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-2xl bg-white border-2 border-slate-200 border-b-4 text-slate-600 hover:text-violet-600 hover:border-violet-300 active:border-b-2 active:translate-y-[calc(-50%+2px)] flex items-center justify-center shadow-sm">
+                        <ChevronLeft size={24} strokeWidth={3} />
+                    </button>
+                )}
+                {mapEdges.right && (
+                    <button type="button" onClick={() => scrollMap(1)} aria-label="Yolda ileri git"
+                            className="absolute right-3 top-1/2 -translate-y-1/2 z-40 w-12 h-12 rounded-2xl bg-white border-2 border-slate-200 border-b-4 text-slate-600 hover:text-violet-600 hover:border-violet-300 active:border-b-2 active:translate-y-[calc(-50%+2px)] flex items-center justify-center shadow-sm">
+                        <ChevronRight size={24} strokeWidth={3} />
+                    </button>
+                )}
+                <div className="w-full overflow-x-auto flex items-center px-12 md:px-24 no-scrollbar pt-48 pb-32 select-none" ref={nodesContainerRef}
+                     onScroll={updateMapEdges}
+                     style={{ maskImage: mapMask, WebkitMaskImage: mapMask }}>
                     <div
                         key={activeCourseId}
                         className="flex items-center min-w-max relative pl-20 pr-20 animate-course-change"
@@ -508,6 +572,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                         )}
                                         {/* Node Container */}
                                         <div
+                                            data-node-id={node.id}
                                             className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'} ${node.isLocked ? 'grayscale opacity-75 pointer-events-none' : ''}`}
                                             onClick={() => !node.isLocked && handleNodeClick(node)}
                                         >
