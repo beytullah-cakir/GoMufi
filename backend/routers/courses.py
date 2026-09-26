@@ -429,7 +429,6 @@ async def create_course(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"DEBUG: create_course data: {course_data.dict()}")
 
     if not course_data.curriculum or len(course_data.curriculum) == 0:
         raise HTTPException(status_code=400, detail="Müfredat boş olamaz. En az bir ders (bölüm) eklenmelidir.")
@@ -478,7 +477,6 @@ async def update_course(
 ):
     # NOT: Tüm payload'ı loglamak müfredat JSON'u büyüdükçe (slayt içerikleri)
     # isteği saniyelerce yavaşlatıyordu; sadece özet bilgi logluyoruz.
-    print(f"DEBUG: update_course {course_id} (curriculum items: {len(course_data.curriculum) if course_data.curriculum is not None else 0})")
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
@@ -585,17 +583,14 @@ async def start_session(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    print(f"DEBUG: start_session called for course {course_id} by teacher {teacher_id} with title {title}")
     # Dersi kontrol et
     result = await db.execute(
         select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
     )
     course = result.scalar_one_or_none()
     if not course:
-        print(f"DEBUG: Course {course_id} not found for teacher {teacher_id}")
         raise HTTPException(status_code=404, detail="Course not found")
 
-    print(f"DEBUG: Course found: {course.title}")
     # Mevcut canlı oturumu bul veya yeni oluştur
     stmt = select(LiveSession).where(LiveSession.course_id == course_id, LiveSession.status == 'live')
     result = await db.execute(stmt)
@@ -609,15 +604,12 @@ async def start_session(
             type='live'
         )
         db.add(session)
-        print("DEBUG: Created new live session")
     else:
         session.status = 'live'
         if title:
             session.title = title
-        print("DEBUG: Reused existing live session")
     
     await db.commit()
-    print("DEBUG: start_session committed")
     return {"message": "Session started", "session_id": session.id}
 
 @router.get("/session-status/{course_id}")

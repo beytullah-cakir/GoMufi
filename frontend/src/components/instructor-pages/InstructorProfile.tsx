@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api";
+import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus, BellRing } from "lucide-react";
 import techData from "../../data/technologies.json";
 import { useWebSocket } from "../../hooks/useWebSocket";
@@ -320,6 +321,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
           </div>
         </div>
       )}
+      <div className="mt-6"><AccountPrivacyCard /></div>
     </div>
   );
 };

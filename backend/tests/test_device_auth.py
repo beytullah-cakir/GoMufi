@@ -53,9 +53,22 @@ def ogretmen(**kw):
     return SimpleNamespace(**d)
 
 
+@pytest.fixture(autouse=True)
+def koruma_devre_disi(monkeypatch):
+    """Deneme sınırı ve askıya alma ayrı testte (test_login_guard.py); burada sahte DB var."""
+    from core import login_guard
+
+    async def hic(*_a, **_k):
+        return None
+
+    for ad in ("check", "record", "ensure_not_suspended"):
+        monkeypatch.setattr(login_guard, ad, hic)
+
+
 def cagir(email, parola, *, ogr=None, hoca=None):
+    istek = SimpleNamespace(headers={}, client=SimpleNamespace(host="127.0.0.1"))
     return asyncio.run(issue_device_token(
-        LoginRequest(email=email, password=parola), db=SahteDB(ogr, hoca)
+        LoginRequest(email=email, password=parola), request=istek, db=SahteDB(ogr, hoca)
     ))
 
 
