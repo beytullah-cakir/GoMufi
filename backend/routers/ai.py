@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from core.config import settings
-from core import ai_pricing, classroom
+from core import ai_pricing, classroom, storage
 from core import ai_economics
 from core.image_search import resolve_image_url
 from core import analytics
@@ -1196,13 +1196,9 @@ async def generate_roadmap_api(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    TEMPLATES_PATH = "slide_templates.json"
     try:
         # Load templates
-        templates = []
-        if os.path.exists(TEMPLATES_PATH):
-            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-                templates = json.load(f)
+        templates = await storage.load_templates(db)
                 
         # Group templates by category
         templates_by_category = {
@@ -2332,14 +2328,10 @@ async def generate_lesson_slides_api(
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db)
 ):
-    TEMPLATES_PATH = "slide_templates.json"
     
     try:
         # Load templates
-        templates = []
-        if os.path.exists(TEMPLATES_PATH):
-            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-                templates = json.load(f)
+        templates = await storage.load_templates(db)
                 
         # Group templates by category
         templates_by_category = {

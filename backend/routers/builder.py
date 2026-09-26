@@ -1,20 +1,22 @@
 """
-Ders builder router — resim yükleme ve ders JSON yönetimi.
-Supabase Storage kullanılıyorsa SUPABASE_KEY .env'de tanımlı olmalıdır.
+Ders builder router — dosya yükleme ve slayt şablonları.
+
+Yüklemeler ve şablonlar veritabanında (core/storage.py). Eskiden sunucunun diskine
+yazılıyordu; Render'ın diski kalıcı olmadığı için her deploy'da siliniyordu.
 """
-import os
-import json
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException, Request, Depends, status
-from auth.dependencies import get_current_user, get_current_teacher_id
-from typing import List
+
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from auth.dependencies import get_current_teacher_id, get_current_user
+from connect_db import get_db
+from core import storage
+from models.platform import SlideTemplate
 
 router = APIRouter(prefix="/builder", tags=["lesson-builder"])
 
-# Local JSON path
-JSON_PATH = "lesson.json"
-
-# Yüklenen dosyalar /static altından sunulduğu için çalıştırılabilir/işlenebilir
+# Yüklenen dosyalar API alan adından sunulduğu için çalıştırılabilir/işlenebilir
 # uzantılara (html, svg, php...) izin verilmez — aksi halde saklı XSS riski doğar.
 ALLOWED_UPLOAD_EXTENSIONS = {
     "png", "jpg", "jpeg", "webp", "gif", "bmp",
@@ -37,51 +39,34 @@ def safe_extension(filename: str, allowed: set, fallback: str) -> str:
     return ext
 
 
+async def _read_upload(file: UploadFile, limit: int = storage.MAX_FILE_BYTES) -> bytes:
+    contents = await file.read(limit + 1)
+    if len(contents) > limit:
+        raise HTTPException(status_code=400, detail="Dosya boyutu 5MB sınırını aşamaz.")
+    if not contents:
+        raise HTTPException(status_code=400, detail="Dosya boş.")
+    return contents
+
+
+def _owner(user: dict) -> tuple:
+    return str(user.get("role") or "student"), int(user.get("user_id") or 0)
+
+
 @router.post("/upload-chat-file")
 async def upload_chat_file(
     request: Request,
     file: UploadFile = File(...),
     user=Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    try:
-        # Max file size limit: 5MB
-        max_size = 5 * 1024 * 1024  # 5MB
-        
-        contents = await file.read()
-        if len(contents) > max_size:
-            raise HTTPException(
-                status_code=400,
-                detail="Dosya boyutu 5MB sınırını aşamaz."
-            )
-            
-        # Create a unique file name
-        file_ext = safe_extension(file.filename, ALLOWED_UPLOAD_EXTENSIONS, "dat")
-        file_name = f"{uuid.uuid4()}.{file_ext}"
-        
-        # Save to static uploads folder
-        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
-        os.makedirs(static_dir, exist_ok=True)
-        local_file_path = os.path.join(static_dir, file_name)
-        
-        with open(local_file_path, "wb") as f:
-            f.write(contents)
-            
-        base_url = str(request.base_url).rstrip("/")
-        public_url = f"{base_url}/static/uploads/{file_name}"
-        
-        return {
-            "success": True,
-            "filename": file.filename,
-            "url": public_url,
-            "size": len(contents)
-        }
-    except Exception as e:
-        if isinstance(e, HTTPException):
-            raise e
-        raise HTTPException(
-            status_code=500,
-            detail=f"Dosya yükleme hatası: {str(e)}"
-        )
+    """Mesaj eki. Veritabanında saklanır; yalnızca konuşmanın tarafları açabilir (bkz. routers/files.py)."""
+    file_ext = safe_extension(file.filename, ALLOWED_UPLOAD_EXTENSIONS, "dat")
+    contents = await _read_upload(file)
+    role, owner_id = _owner(user)
+    row = await storage.save_file(db, data=contents, extension=file_ext, filename=file.filename, kind="chat",
+                                  owner_role=role, owner_id=owner_id)
+    return {"success": True, "filename": file.filename, "url": storage.file_url(str(request.base_url), row),
+            "size": len(contents)}
 
 
 @router.post("/upload-image")
@@ -89,234 +74,99 @@ async def upload_image(
     request: Request,
     file: UploadFile = File(...),
     teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
 ):
-    try:
-        # Dosya formatı kontrolü — uzantı beyaz listeye göre doğrulanır.
-        # SVG kasıtlı olarak dışarıda: içine script gömülebildiği için saklı XSS riski taşır.
-        file_ext = safe_extension(file.filename, ALLOWED_IMAGE_EXTENSIONS, "png")
-        file_name = f"{uuid.uuid4()}.{file_ext}"
-
-        contents = await file.read()
-        if len(contents) > 5 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="Görsel boyutu 5MB sınırını aşamaz.")
-
-        # Yerel sunucuya yükle
-        static_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "uploads")
-        os.makedirs(static_dir, exist_ok=True)
-        local_file_path = os.path.join(static_dir, file_name)
-
-        with open(local_file_path, "wb") as f:
-            f.write(contents)
-
-        base_url = str(request.base_url).rstrip("/")
-        public_url = f"{base_url}/static/uploads/{file_name}"
-
-        # JSON dosyasını güncelle
-        lesson_data = []
-        if os.path.exists(JSON_PATH):
-            with open(JSON_PATH, "r", encoding="utf-8") as f:
-                try:
-                    lesson_data = json.load(f)
-                except json.JSONDecodeError:
-                    lesson_data = []
-
-        new_element = {
-            "id": str(uuid.uuid4()),
-            "type": "image",
-            "x": 100,
-            "y": 100,
-            "width": 300,
-            "height": 200,
-            "rotation": 0,
-            "content": "",
-            "src": public_url
-        }
-
-        if lesson_data:
-            if "elements" in lesson_data[0]:
-                lesson_data[0]["elements"].append(new_element)
-        else:
-            lesson_data.append({
-                "id": 1,
-                "elements": [new_element],
-                "connections": []
-            })
-
-        with open(JSON_PATH, "w", encoding="utf-8") as f:
-            json.dump(lesson_data, f, indent=2, ensure_ascii=False)
-
-        return {
-            "success": True,
-            "imageUrl": public_url,
-            "element": new_element
-        }
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+    """Ders görseli. SVG kasıtlı olarak dışarıda: içine script gömülebildiği için saklı XSS riski taşır."""
+    file_ext = safe_extension(file.filename, ALLOWED_IMAGE_EXTENSIONS, "png")
+    contents = await _read_upload(file)
+    row = await storage.save_file(db, data=contents, extension=file_ext, filename=file.filename, kind="image",
+                                  owner_role="teacher", owner_id=teacher_id)
+    url = storage.file_url(str(request.base_url), row)
+    element = {
+        "id": str(uuid.uuid4()), "type": "image", "x": 100, "y": 100, "width": 300, "height": 200,
+        "rotation": 0, "content": "", "src": url,
+    }
+    return {"success": True, "imageUrl": url, "element": element}
 
 
-TEMPLATES_PATH = "slide_templates.json"
+# --- slayt şablonları (veritabanında; eskiden sunucu diskindeki JSON dosyasıydı) ------
+
+def _require_admin(user: dict, verb: str) -> None:
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=f"Yalnızca yöneticiler şablon {verb}.")
+
+
+def _with_max_chars(elements: list) -> list:
+    """Metin kutularına sığacak yaklaşık karakter sayısı (YZ üretimi bu sınıra uyar)."""
+    for el in elements:
+        if not isinstance(el, dict):
+            continue
+        el_type = el.get("type")
+        if el_type in ["text", "sticky", "challenge"]:
+            width = el.get("width") or 300
+            height = el.get("height") or 150
+            font_size = (el.get("style") or {}).get("fontSize") or 18
+            max_chars = int((width * height) / (0.75 * (font_size ** 2)))
+            if el_type == "text" and font_size >= 32:
+                max_chars = max(30, min(120, max_chars))
+            else:
+                max_chars = max(50, min(1000, max_chars))
+            el["maxChars"] = max_chars
+    return elements
 
 
 @router.get("/templates")
-async def get_templates():
-    if not os.path.exists(TEMPLATES_PATH):
-        return []
-    try:
-        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-            return json.load(f)
-    except Exception as e:
-        return []
+async def get_templates(db: AsyncSession = Depends(get_db)):
+    return await storage.load_templates(db)
 
 
 @router.post("/templates")
-async def save_template(request: Request, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yalnızca yöneticiler şablon kaydedebilir."
-        )
-        
-    try:
-        body = await request.json()
-        category = body.get("category")
-        title = body.get("title")
-        description = body.get("description")
-        elements = body.get("elements", [])
-        background = body.get("background", "default")
-        
-        if not category or not title:
-            raise HTTPException(status_code=400, detail="Kategori ve Başlık zorunludur.")
-            
-        templates = []
-        if os.path.exists(TEMPLATES_PATH):
-            with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-                try:
-                    templates = json.load(f)
-                except json.JSONDecodeError:
-                    templates = []
-                    
-        # Dynamically calculate maxChars for text elements
-        for el in elements:
-            el_type = el.get("type")
-            if el_type in ["text", "sticky", "challenge"]:
-                width = el.get("width") or 300
-                height = el.get("height") or 150
-                style = el.get("style") or {}
-                font_size = style.get("fontSize") or 18
-                
-                max_chars = int((width * height) / (0.75 * (font_size ** 2)))
-                
-                if el_type == "text" and font_size >= 32:
-                    max_chars = max(30, min(120, max_chars))
-                else:
-                    max_chars = max(50, min(1000, max_chars))
-                    
-                el["maxChars"] = max_chars
-
-        new_template = {
-            "id": str(uuid.uuid4()),
-            "category": category.upper(),
-            "title": title,
-            "description": description,
-            "elements": elements,
-            "background": background
-        }
-        
-        templates.append(new_template)
-        
-        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
-            json.dump(templates, f, indent=2, ensure_ascii=False)
-            
-        return {"success": True, "template": new_template}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def save_template(request: Request, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    _require_admin(user, "kaydedebilir")
+    body = await request.json()
+    category = body.get("category")
+    title = body.get("title")
+    if not category or not title:
+        raise HTTPException(status_code=400, detail="Kategori ve Başlık zorunludur.")
+    await storage.load_templates(db)          # ilk kayıttan önce eski şablonlar taşınsın
+    row = SlideTemplate(
+        id=str(uuid.uuid4()), category=str(category).upper()[:100], title=str(title)[:200],
+        description=body.get("description"), elements=_with_max_chars(body.get("elements") or []),
+        background=body.get("background", "default"),
+    )
+    db.add(row)
+    await db.commit()
+    return {"success": True, "template": storage.template_dict(row)}
 
 
 @router.delete("/templates/{template_id}")
-async def delete_template(template_id: str, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yalnızca yöneticiler şablon silebilir."
-        )
-        
-    try:
-        if not os.path.exists(TEMPLATES_PATH):
-            raise HTTPException(status_code=404, detail="Şablon dosyası bulunamadı.")
-            
-        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-            templates = json.load(f)
-            
-        new_templates = [t for t in templates if t.get("id") != template_id]
-        
-        if len(new_templates) == len(templates):
-            raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
-            
-        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
-            json.dump(new_templates, f, indent=2, ensure_ascii=False)
-            
-        return {"success": True, "message": "Şablon başarıyla silindi."}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def delete_template(template_id: str, user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    _require_admin(user, "silebilir")
+    row = await db.get(SlideTemplate, template_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
+    await db.delete(row)
+    await db.commit()
+    return {"success": True, "message": "Şablon başarıyla silindi."}
 
 
 @router.put("/templates/{template_id}")
-async def update_template(template_id: str, request: Request, user=Depends(get_current_user)):
-    if user.get("role") != "admin":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Yalnızca yöneticiler şablon güncelleyebilir."
-        )
-        
-    try:
-        body = await request.json()
-        title = body.get("title")
-        description = body.get("description")
-        category = body.get("category")
-        elements = body.get("elements")
-        background = body.get("background")
-        
-        if not os.path.exists(TEMPLATES_PATH):
-            raise HTTPException(status_code=404, detail="Şablon dosyası bulunamadı.")
-            
-        with open(TEMPLATES_PATH, "r", encoding="utf-8") as f:
-            templates = json.load(f)
-            
-        found = False
-        for t in templates:
-            if t.get("id") == template_id:
-                if title is not None:
-                    t["title"] = title
-                if description is not None:
-                    t["description"] = description
-                if category is not None:
-                    t["category"] = category.upper()
-                if elements is not None:
-                    t["elements"] = elements
-                if background is not None:
-                    t["background"] = background
-                found = True
-                break
-                
-        if not found:
-            raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
-            
-        with open(TEMPLATES_PATH, "w", encoding="utf-8") as f:
-            json.dump(templates, f, indent=2, ensure_ascii=False)
-            
-        return {"success": True, "message": "Şablon başarıyla güncellendi."}
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
+async def update_template(template_id: str, request: Request, user=Depends(get_current_user),
+                          db: AsyncSession = Depends(get_db)):
+    _require_admin(user, "güncelleyebilir")
+    row = await db.get(SlideTemplate, template_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Şablon bulunamadı.")
+    body = await request.json()
+    if body.get("title") is not None:
+        row.title = str(body["title"])[:200]
+    if body.get("description") is not None:
+        row.description = body["description"]
+    if body.get("category") is not None:
+        row.category = str(body["category"]).upper()[:100]
+    if body.get("elements") is not None:
+        row.elements = _with_max_chars(body["elements"])
+    if body.get("background") is not None:
+        row.background = body["background"]
+    await db.commit()
+    return {"success": True, "message": "Şablon başarıyla güncellendi."}
