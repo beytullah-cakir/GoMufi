@@ -664,7 +664,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               </div>
 
               {/* Gerçek liderlik tablosu (global + sınıf) */}
-              <Leaderboard defaultScope="global" />
+              <Leaderboard />
 
               {/* Calendar / Streak View (Small) */}
               <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">

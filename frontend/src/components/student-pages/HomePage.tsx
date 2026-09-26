@@ -12,7 +12,7 @@ import LessonSlide from './LessonSlide';
 import LiveLessonStudent from './LiveLessonStudent';
 import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
-import { trackLearningEvent } from '../../learningEvents';
+import { completeModule, type CourseProgress } from '../../progress';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -40,6 +40,9 @@ interface HomePageProps {
     refreshUserData: () => Promise<void>;
     isLiveSessionJoined: boolean;
     setIsLiveSessionJoined: (val: boolean) => void;
+    /** Sunucudan dönen güncel ilerleme (yol haritası buradan yeniden kurulur) */
+    onProgress: (courseId: string | number, progress: CourseProgress | null) => void;
+    refreshProgress: (courseId: string | number) => Promise<void>;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -52,7 +55,9 @@ const HomePage: React.FC<HomePageProps> = ({
     isUserDataLoading,
     refreshUserData,
     isLiveSessionJoined,
-    setIsLiveSessionJoined
+    setIsLiveSessionJoined,
+    onProgress,
+    refreshProgress,
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -101,6 +106,16 @@ const HomePage: React.FC<HomePageProps> = ({
     // Lesson Slide State
     const [showLessonSlide, setShowLessonSlide] = useState(false);
     const [lessonLevel, setLessonLevel] = useState<number | null>(null);
+
+    // Sayfa içi kutlama (eskiden alert() + sayfa yenileme: canlı derste tüm sınıfın
+    // ekranı aynı anda yenileniyordu).
+    const [celebration, setCelebration] = useState<{ text: string; ok: boolean } | null>(null);
+    const celebrationTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const celebrate = (text: string, ok = true) => {
+        setCelebration({ text, ok });
+        if (celebrationTimer.current) clearTimeout(celebrationTimer.current);
+        celebrationTimer.current = setTimeout(() => setCelebration(null), 4000);
+    };
 
     // Homework Overlay State
     const [activeHomeworkSlide, setActiveHomeworkSlide] = useState<any | null>(null);
@@ -166,19 +181,14 @@ const HomePage: React.FC<HomePageProps> = ({
                     setLiveCourseId(null);
                     setIsLiveSessionJoined(false);
                     
-                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:")) {
-                        const parts = lastActiveSessionTitle.split(":");
-                        const lessonIndex = parseInt(parts[1]);
-                        
-                        if (!isNaN(lessonIndex) && liveCourseId) {
-                            const currentProgressStr = localStorage.getItem(`progress_${liveCourseId}`);
-                            const currentProgress = currentProgressStr ? parseInt(currentProgressStr) : 0;
-                            
-                            if (lessonIndex > currentProgress) {
-                                localStorage.setItem(`progress_${liveCourseId}`, lessonIndex.toString());
-                                alert(`Tebrikler! Ders ${lessonIndex} tamamlandı. Bir sonraki modülün kilidi açıldı!`);
-                                window.location.reload();
-                            }
+                    // Öğretmenin canlı derste işlediği modüller sunucuda bitmiş sayılır;
+                    // ilerlemeyi yenile ve sayfayı yeniden yüklemeden kutla.
+                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:") && liveCourseId) {
+                        const before = courses[String(liveCourseId)]?.progress?.open_until ?? 0;
+                        await refreshProgress(liveCourseId);
+                        const lessonIndex = parseInt(lastActiveSessionTitle.split(":")[1]);
+                        if (!isNaN(lessonIndex) && lessonIndex >= before) {
+                            celebrate(`Canlı ders bitti! ${lessonIndex}. modüle kadar tamamlandı 🎉`);
                         }
                     }
                     setLastActiveSessionTitle(null);
@@ -235,31 +245,15 @@ const HomePage: React.FC<HomePageProps> = ({
                 const { courseId: msgCourseId, lessonIndex: msgLessonIndex, stars: msgStars } = lastMessage;
                 
                 if (msgCourseId && currentCourse && String(msgCourseId) === String(currentCourse.id)) {
-                    const completedLessonLevel = Number(msgLessonIndex);
-                    setCourses(prev => {
-                        const currentCourseData = prev[activeCourseId];
-                        if (!currentCourseData) return prev;
-
-                        const updatedNodes = currentCourseData.nodes.map(node => {
-                            if (node.id === completedLessonLevel) {
-                                return { ...node, stars: msgStars || 3 };
-                            }
-                            if (node.id === completedLessonLevel + 1) {
-                                return { ...node, isLocked: false };
-                            }
-                            return node;
+                    const node = currentCourse.nodes.find(n => n.id === Number(msgLessonIndex));
+                    if (node?.sectionId) {
+                        void completeModule(currentCourse.id, String(node.sectionId), msgStars || 3, 'live').then((result) => {
+                            if (!result) return;
+                            onProgress(currentCourse.id, result);
+                            celebrate(`${node.title} tamamlandı!${result.xp_awarded ? ` +${result.xp_awarded} XP` : ''}`);
+                            if (result.xp_awarded) void refreshUserData?.();
                         });
-
-                        localStorage.setItem(`progress_${activeCourseId}`, completedLessonLevel.toString());
-
-                        return {
-                            ...prev,
-                            [activeCourseId]: {
-                                ...currentCourseData,
-                                nodes: updatedNodes
-                            }
-                        };
-                    });
+                    }
                 }
             }
         }
@@ -311,55 +305,29 @@ const HomePage: React.FC<HomePageProps> = ({
         setShowLessonSlide(true);
     };
 
+    /**
+     * Modülü sunucuda bitirir: ilerleme hesaba yazılır, XP modül başına bir kez
+     * verilir, öğretmenin analizine düşer. Yol haritası dönen ilerlemeyle kurulur.
+     */
+    const finishModule = async (nodeId: number, stars = 3) => {
+        const node = currentCourse.nodes.find(n => n.id === nodeId);
+        if (!node?.sectionId) return;
+        const result = await completeModule(activeCourseId, String(node.sectionId), stars);
+        if (!result) {
+            celebrate('İlerleme kaydedilemedi, bağlantını kontrol et.', false);
+            return;
+        }
+        onProgress(activeCourseId, result);
+        if (result.xp_awarded) {
+            celebrate(`${node.title} tamamlandı! +${result.xp_awarded} XP`);
+            if (refreshUserData) await refreshUserData();
+        }
+    };
+
     const handleLessonComplete = async () => {
         setShowLessonSlide(false);
         if (lessonLevel !== null) {
-            const gameLevel = lessonLevel;
-            const completedNode = currentCourse.nodes.find(n => n.id === gameLevel);
-            const xpGain = completedNode?.xp ?? 500;
-            // Öğrenme kaydı: ilerleme artık yalnızca tarayıcıda değil, öğretmen de görüyor.
-            if (completedNode?.sectionId) {
-                trackLearningEvent(activeCourseId, { type: 'module_completed', node_id: completedNode.sectionId });
-            }
-
-            // 1. Award XP and Gems in the backend (modül için roadmap builder'da ayarlanan XP)
-            try {
-                await api.post("/profile/student/stats", { xp_gain: xpGain });
-            } catch (err) {
-                console.error("Failed to update student stats:", err);
-            }
-
-            // 2. Refresh UI stats
-            if (refreshUserData) {
-                await refreshUserData();
-            }
-
-            // 3. Unlock next node and award 3 stars locally
-            setCourses(prev => {
-                const currentCourseData = prev[activeCourseId];
-                if (!currentCourseData) return prev; // Safety
-
-                const updatedNodes = currentCourseData.nodes.map(node => {
-                    if (node.id === gameLevel) {
-                        return { ...node, stars: 3 };
-                    }
-                    if (node.id === gameLevel + 1) {
-                        return { ...node, isLocked: false };
-                    }
-                    return node;
-                });
-
-                // Persist progress: last completed node ID
-                localStorage.setItem(`progress_${activeCourseId}`, gameLevel.toString());
-
-                return {
-                    ...prev,
-                    [activeCourseId]: {
-                        ...currentCourseData,
-                        nodes: updatedNodes
-                    }
-                };
-            });
+            await finishModule(lessonLevel);
             setLessonLevel(null);
         }
     };
@@ -369,35 +337,7 @@ const HomePage: React.FC<HomePageProps> = ({
     // builder'da ayarlanan XP'sini verir (her modül kendi XP'sini kazandırır).
     const handleAdvanceModule = async (nextNodeId: number) => {
         if (lessonLevel === null) return;
-        const finishedNodeId = lessonLevel;
-        const finishedNode = currentCourse.nodes.find(n => n.id === finishedNodeId);
-        const xpGain = finishedNode?.xp ?? 500;
-        if (finishedNode?.sectionId) {
-            trackLearningEvent(activeCourseId, { type: 'module_completed', node_id: finishedNode.sectionId });
-        }
-
-        try {
-            await api.post("/profile/student/stats", { xp_gain: xpGain });
-        } catch (err) {
-            console.error("Failed to update student stats:", err);
-        }
-        if (refreshUserData) {
-            await refreshUserData();
-        }
-
-        setCourses(prev => {
-            const currentCourseData = prev[activeCourseId];
-            if (!currentCourseData) return prev;
-            const updatedNodes = currentCourseData.nodes.map(node => {
-                if (node.id === finishedNodeId) return { ...node, stars: 3 };
-                if (node.id === nextNodeId) return { ...node, isLocked: false };
-                return node;
-            });
-            return {
-                ...prev,
-                [activeCourseId]: { ...currentCourseData, nodes: updatedNodes }
-            };
-        });
+        await finishModule(lessonLevel);
         setLessonLevel(nextNodeId);
     };
 
@@ -413,32 +353,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
     const handleGameComplete = (stars: number) => {
         if (gameLevel === null) return;
-
-        setCourses(prev => {
-            const currentCourseData = prev[activeCourseId];
-            if (!currentCourseData) return prev; // Safety
-
-            const updatedNodes = currentCourseData.nodes.map(node => {
-                if (node.id === gameLevel) {
-                    return { ...node, stars: stars };
-                }
-                if (node.id === gameLevel + 1) {
-                    return { ...node, isLocked: false };
-                }
-                return node;
-            });
-
-            // Persist progress: last completed node ID
-            localStorage.setItem(`progress_${activeCourseId}`, gameLevel.toString());
-
-            return {
-                ...prev,
-                [activeCourseId]: {
-                    ...currentCourseData,
-                    nodes: updatedNodes
-                }
-            };
-        });
+        void finishModule(gameLevel, stars);
         handleCloseGame();
     };
 
@@ -786,7 +701,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                     .filter(n => !n.isLocked && n.slides)
                                     .flatMap(n => {
                                         const hs = n.slides?.find((s: any) => s.type === 'homework');
-                                        if (hs && localStorage.getItem(`homework_submitted_${currentCourse.id}_${hs.id}`) !== 'true') {
+                                        if (hs && !(currentCourse.progress?.submitted_homework || []).includes(String(hs.id))) {
                                             return [{
                                                 nodeId: n.id,
                                                 lessonTitle: n.title,
@@ -827,6 +742,14 @@ const HomePage: React.FC<HomePageProps> = ({
 
             {/* Küçük ekranda sağ sütun görünmediği için en yeni duyuru burada */}
             <LatestAnnouncementBanner className="xl:hidden mx-4 mt-4 relative z-30" />
+
+            {celebration && (
+                <div role="status" aria-live="polite"
+                     className={`fixed top-6 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-xl border-2 font-black text-sm animate-in fade-in slide-in-from-top duration-300 ${
+                         celebration.ok ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
+                    {celebration.ok ? '🎉 ' : ''}{celebration.text}
+                </div>
+            )}
 
             {/* Middle Section: Horizontal Path */}
             <div className="w-full flex-1 flex items-center justify-center relative z-20">
@@ -935,7 +858,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             (() => {
                                                                 const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
                                                                 const isHwSubmitted = hwSlide
-                                                                    ? localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true'
+                                                                    ? (currentCourse.progress?.submitted_homework || []).includes(String(hwSlide.id))
                                                                     : false;
 
                                                                 return (
@@ -991,7 +914,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                 {(() => {
                                                                     const hwSlide = node.slides?.find((s: any) => s.type === 'homework');
                                                                     if (!hwSlide) return null;
-                                                                    const isHwSubmitted = localStorage.getItem(`homework_submitted_${currentCourse.id}_${hwSlide.id}`) === 'true';
+                                                                    const isHwSubmitted = (currentCourse.progress?.submitted_homework || []).includes(String(hwSlide.id));
                                                                     if (isHwSubmitted) {
                                                                         return (
                                                                             <div className="w-full mt-2.5 px-4 py-2.5 bg-green-500/20 border border-green-500/30 rounded-2xl text-center flex items-center justify-center gap-2">
@@ -1171,10 +1094,11 @@ const HomePage: React.FC<HomePageProps> = ({
                     <StudentHomeworkView
                         slide={activeHomeworkSlide}
                         courseId={currentCourse.id}
-                        onClose={() => setActiveHomeworkSlide(null)}
+                        onClose={() => { setActiveHomeworkSlide(null); void refreshProgress(currentCourse.id); }}
                         onComplete={() => {
                             setActiveHomeworkSlide(null);
                             refreshUserData();
+                            void refreshProgress(currentCourse.id);
                         }}
                     />
                 </div>

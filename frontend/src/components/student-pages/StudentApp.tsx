@@ -10,6 +10,7 @@ import AskQuestionPage from './AskQuestionPage';
 import MufiSleep from '../../assets/sprites/MufiSleep.png';
 import StudentClassesPage from './StudentClassesPage';
 import { useUnreadMessages } from '../../messaging/useUnreadMessages';
+import { applyProgress, fetchProgress, type CourseProgress } from '../../progress';
 
 
 // Import Types
@@ -104,19 +105,18 @@ const generateLessonNodes = (
     ];
 };
 
-const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, string>): Record<string, CourseData> => {
-    const getProgress = (courseId: string) => {
-        const saved = localStorage.getItem(`progress_${courseId}`);
-        return saved ? parseInt(saved) : 0; // Default to 0
-    };
-
+const generateCourseData = (
+    enrolledList: any[],
+    instructorsMap: Record<string, string>,
+    progressMap: Record<string, CourseProgress | null>,
+): Record<string, CourseData> => {
     const result: Record<string, CourseData> = {};
 
     enrolledList.forEach(course => {
         const courseName = course.title;
         const courseIdStr = course.id.toString();
         const titleLower = courseName.toLowerCase();
-        const progress = getProgress(courseIdStr);
+        const progress = progressMap[courseIdStr];
         const instructorName = instructorsMap[courseName] || 'Mufi Eğitmen';
 
         // Check if curriculum exists and has sections
@@ -147,12 +147,7 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                     section.xp
                 );
                 
-                const processedNodes = lessonNodes.map(node => ({
-                    ...node,
-                    isLocked: node.id > 1 && node.id > (progress + 1)
-                }));
-                
-                dynamicNodes.push(...processedNodes);
+                dynamicNodes.push(...lessonNodes);
             });
 
             result[courseIdStr] = {
@@ -160,12 +155,13 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                 title: courseName.toUpperCase(),
                 icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
-                nodes: dynamicNodes,
+                nodes: applyProgress(dynamicNodes, progress),
+                progress,
                 instructor: {
                     name: instructorName,
                     avatar: titleLower.includes('python') ? '👨‍🏫' : (titleLower.includes('matematik') ? '👩‍🏫' : '👤'),
-                    status: 'Çevrimiçi',
-                    isOnline: true
+                    status: 'Öğretmenin',
+                    isOnline: false
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
@@ -188,11 +184,7 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                     topic,
                     1
                 );
-                const processedNodes = lessonNodes.map(node => ({
-                    ...node,
-                    isLocked: node.id > 1 && node.id > (progress + 1)
-                }));
-                fallbackNodes.push(...processedNodes);
+                fallbackNodes.push(...lessonNodes);
             });
 
             result[courseIdStr] = {
@@ -200,12 +192,13 @@ const generateCourseData = (enrolledList: any[], instructorsMap: Record<string, 
                 title: courseName.toUpperCase(),
                 icon: '🚀',
                 themeColor: '#8b5cf6',
-                nodes: fallbackNodes,
+                nodes: applyProgress(fallbackNodes, progress),
+                progress,
                 instructor: {
                     name: instructorName,
                     avatar: '👤',
-                    status: 'Hazır',
-                    isOnline: true
+                    status: 'Öğretmenin',
+                    isOnline: false
                 },
                 stats: { league: 'Bronz Lig', xp: '0 XP', streak: 0 },
                 defaultHeader: { title: `${courseName} Yolculuğu`, subtitle: 'BÖLÜM 1, ÜNİTE 1' },
@@ -282,6 +275,15 @@ function StudentApp() {
     // --- Course Data State ---
     const [courses, setCourses] = useState<Record<string, CourseData>>({});
 
+    // --- Sunucudaki modül ilerlemesi (kurs kimliği → ilerleme) ---
+    const [progressMap, setProgressMap] = useState<Record<string, CourseProgress | null>>({});
+    const handleProgress = (courseId: string | number, progress: CourseProgress | null) => {
+        if (progress) setProgressMap((prev) => ({ ...prev, [String(courseId)]: progress }));
+    };
+    const refreshProgress = async (courseId: string | number) => {
+        handleProgress(courseId, await fetchProgress(courseId));
+    };
+
     // --- Instructors mapping (Title -> Instructor Name) ---
     const [instructorsMap, setInstructorsMap] = useState<Record<string, string>>({});
 
@@ -314,8 +316,13 @@ function StudentApp() {
 
                 setEnrolledCourses(contentRes.data);
 
+                const progresses = await Promise.all(contentRes.data.map((c: any) => fetchProgress(c.id)));
+                const newProgress: Record<string, CourseProgress | null> = {};
+                contentRes.data.forEach((c: any, i: number) => { newProgress[String(c.id)] = progresses[i]; });
+                setProgressMap(newProgress);
+
                 // Generate course data synchronously to batch with isUserDataLoading(false)
-                const newCourseData = generateCourseData(contentRes.data, newMap);
+                const newCourseData = generateCourseData(contentRes.data, newMap, newProgress);
                 setCourses(newCourseData);
                 const availableCourseKeys = Object.keys(newCourseData);
                 if (availableCourseKeys.length > 0) {
@@ -332,7 +339,7 @@ function StudentApp() {
 
     // Sync roadmap state whenever the enrolled course list changes
     useEffect(() => {
-        const newCourseData = generateCourseData(enrolledCourses, instructorsMap);
+        const newCourseData = generateCourseData(enrolledCourses, instructorsMap, progressMap);
         setCourses(newCourseData);
         
         // If current active course doesn't exist anymore or it's empty, pick the first one
@@ -346,7 +353,7 @@ function StudentApp() {
                 setActiveCourseId('');
             }
         }
-    }, [enrolledCourses, instructorsMap]);
+    }, [enrolledCourses, instructorsMap, progressMap]);
 
     const handleCourseChange = (id: string) => {
         setActiveCourseId(id);
@@ -398,6 +405,8 @@ function StudentApp() {
                             refreshUserData={refreshUserData}
                             isLiveSessionJoined={isLiveSessionJoined}
                             setIsLiveSessionJoined={setIsLiveSessionJoined}
+                            onProgress={handleProgress}
+                            refreshProgress={refreshProgress}
                         />
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
                         <ProfilePage 

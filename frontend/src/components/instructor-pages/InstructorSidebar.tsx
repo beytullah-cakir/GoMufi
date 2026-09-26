@@ -9,7 +9,6 @@ import {
   Users,
   MessageCircle,
   BarChart3,
-  Bug,
   Microscope,
   UserCheck,
   Megaphone,
@@ -94,11 +93,6 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
             label: "Metrikler",
             icon: BarChart3,
             id: "Metrics",
-          },
-          {
-            label: "Debug",
-            icon: Bug,
-            id: "Debug",
           },
         ]
       : []),
