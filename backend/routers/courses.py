@@ -1406,7 +1406,7 @@ async def my_homework_status(
     """Öğrencinin tüm kurslarındaki ödev teslimleri — ana sayfadaki "Ödevlerim"
     kartı ve bildirimler için tek istekte. Dosya içeriği ve geri bildirim metni
     DÖNMEZ (liste için gereksiz, ayrıntı `/homework/{id}/submission`da)."""
-    if user_info.get("role") != "student":
+    if user_info.get("role") not in ("student", "admin"):  # yönetici: öğrenci paneli önizlemesi
         return {"items": []}
     student_id = int(user_info["sub"])
     rows = (await db.execute(

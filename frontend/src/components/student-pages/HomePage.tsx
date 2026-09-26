@@ -885,7 +885,8 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {/* Dikey yol: telefonda her zaman, geniş ekranda "Dikey" seçiliyse */}
-            <div className={`${mapLayout === 'vertical' ? '' : 'md:hidden'} flex-1 min-w-0 pt-4 md:pt-2`}>
+            {/* xl:pl-80 = sağ sütunun genişliği: yol sütunun değil SAYFANIN ortasında dursun. */}
+            <div className={`${mapLayout === 'vertical' ? '' : 'md:hidden'} flex-1 min-w-0 pt-4 md:pt-2 xl:pl-80`}>
                 <div className="w-full max-w-2xl mx-auto">
                     <GamifiedRoadmapPath
                         key={`${activeCourseId}-${isWide ? 'w' : 'n'}`}

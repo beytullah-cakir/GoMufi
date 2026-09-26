@@ -249,7 +249,8 @@ async def complete_module(
 @router.get("/progress/activity")
 async def my_activity(user_info: dict = Depends(get_current_user_info), db: AsyncSession = Depends(get_db)):
     """Günlük seri, son 7 gün ve bugünün görevleri (bkz. core/streak.py)."""
-    if user_info.get("role") != "student":
+    # Yönetici öğrenci panelini önizlerken de görsün (profilde de aynı kimlikle öğrenci kaydına bakılıyor).
+    if user_info.get("role") not in ("student", "admin"):
         raise HTTPException(status_code=403, detail="Seri öğrenci hesaplarında tutulur.")
     return await streak.summary(db, int(user_info["sub"]))
 
