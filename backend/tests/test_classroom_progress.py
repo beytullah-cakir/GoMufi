@@ -35,6 +35,7 @@ def seeded(db_query):
 
     def cleanup():
         db_query("DELETE FROM module_progress WHERE course_id = %s", (COURSE,), fetch=False)
+        db_query("DELETE FROM lesson_contents WHERE course_id = %s", (COURSE,), fetch=False)
         db_query("DELETE FROM learning_events WHERE course_id = %s", (COURSE,), fetch=False)
         db_query("DELETE FROM concept_mastery WHERE course_id = %s", (COURSE,), fetch=False)
         db_query("DELETE FROM live_sessions WHERE course_id = %s", (COURSE,), fetch=False)
@@ -175,6 +176,11 @@ def test_icerigi_olmayan_modul_bitirilemez(auth_as, seeded, db_query):
     ece = auth_as(ECE, "student")
     res = complete(ece, "m_anla")
     assert res.status_code == 409 and "içerik" in res.json()["detail"]
+
+    # Slaytlar asıl lesson_contents tablosunda: oradaysa modül bitirilebilir.
+    db_query("INSERT INTO lesson_contents (course_id, node_id, title, slides) VALUES (%s, 'm_anla', 'Not', %s)",
+             (COURSE, json.dumps([{"id": "s1", "type": "text"}])), fetch=False)
+    assert complete(ece, "m_anla").status_code == 200
 
 
 def test_gunluk_seri_ve_gorevler(auth_as, seeded, db_query):

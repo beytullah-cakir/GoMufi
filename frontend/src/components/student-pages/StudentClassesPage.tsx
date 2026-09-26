@@ -3,6 +3,7 @@ import { UserPlus, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Users, Boo
 import api from '../../api';
 import type { CourseData } from '../../types';
 import CourseIcon from '../shared/CourseIcon';
+import InitialsAvatar from '../shared/InitialsAvatar';
 
 interface StudentClassesPageProps {
     courses: Record<string, CourseData>;
@@ -240,11 +241,7 @@ const StudentClassesPage: React.FC<StudentClassesPageProps> = ({ courses, onClas
                                             {classData.classmates.map(member => (
                                                 <div key={member.id} className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
                                                     <div className="relative shrink-0">
-                                                        <img
-                                                            src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`}
-                                                            alt={member.name}
-                                                            className="w-10 h-10 rounded-lg bg-white border border-gray-200"
-                                                        />
+                                                        <InitialsAvatar name={member.name} className="w-10 h-10 rounded-lg text-sm" />
                                                         <div className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
                                                             member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'
                                                         }`}></div>

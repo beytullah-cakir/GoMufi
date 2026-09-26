@@ -6,6 +6,7 @@ import {
     parentApi, shortDate, type ChildOverview, type ConsentState, type ParentReportView,
 } from './parentApi';
 import { AnnouncementFeed, AttendanceCard } from '../shared/SchoolNotices';
+import InitialsAvatar from '../shared/InitialsAvatar';
 
 /**
  * Velinin çocuğuna ait detay sayfası.
@@ -72,11 +73,7 @@ const ParentStudentDetail: React.FC<StudentDetailProps> = ({ student: initialStu
             </div>
 
             <div className="bg-gradient-to-r from-purple-600 to-indigo-700 rounded-[2.5rem] p-8 text-white shadow-xl shadow-purple-100 flex flex-col md:flex-row items-center gap-8">
-                <img
-                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${s.nickname || s.id}`}
-                    className="w-28 h-28 rounded-[2rem] bg-white border-4 border-white/30"
-                    alt={s.first_name}
-                />
+                <InitialsAvatar name={`${s.first_name || ''} ${s.last_name || ''}`} className="w-28 h-28 rounded-[2rem] border-4 border-white/30 text-4xl" />
                 <div className="flex-1 text-center md:text-left">
                     {s.grade_level && (
                         <span className="px-3 py-1 bg-white/20 rounded-full text-[10px] font-black uppercase tracking-widest border border-white/20">
