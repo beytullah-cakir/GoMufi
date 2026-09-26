@@ -1,97 +1,96 @@
 # GoMufi — VS Code Eklentisi
 
-Öğrenci ödevlerini VS Code içinde açar, **kendi bilgisayarında** çalıştırır ve teslim eder.
-Öğretmen aynı eklentiden gelen teslimleri inceleyip not verir.
+GoMufi derslerini VS Code'da açar: slaytlar sağdaki panelde, kod solda gerçek
+editörde. Kod **öğrencinin kendi bilgisayarında** çalışır; ödevler buradan
+teslim edilir. Öğretmen gelen teslimleri aynı eklentiden inceleyip not verir.
 
-## Neden
+## Öğrenci için
 
-Kod çalıştırma tarafında eklenti **hiçbir şey yapmaz** — terminal, hata ayıklayıcı, `pip`,
-`maven`, dil eklentileri zaten VS Code'da var. Bu yüzden Python dışındaki diller (Java, C++,
-C#) tarayıcıda çözülemeyen bir problem olmaktan çıkar ve sunucuda sandbox çalıştırma
-maliyeti/riski tamamen ortadan kalkar.
+1. Eklentiyi kur. Sol alttaki **GoMufi: Giriş Yap**'a tıkla; giriş tarayıcıda
+   yapılır (parolan VS Code'a girilmez).
+2. Giriş biter bitmez ev dizininde **`GoMufi`** klasörü açılır ve VS Code o
+   klasöre geçer; ders paneli sağda açılır.
+3. Bir derse tıkla. O dersin klasörü (`GoMufi/<Kurs>/<Modül>`) açılır;
+   "Çalıştır" dediğin kod oraya yazılır ve VS Code'un kendi terminalinde çalışır.
+4. İstediğin zaman: `Ctrl+Shift+P` → **GoMufi: Dersleri Aç** ya da durum
+   çubuğundaki **GoMufi** yazısı. Başka bir projedeyken bile seni ders
+   penceresine götürür.
 
-## Kurulum (geliştirme)
+Python gerekiyorsa ve bilgisayarda yoksa eklenti söyler ve indirme sayfasını açar.
+
+### Klasör düzeni
+
+```
+GoMufi/
+  BENİOKU.md
+  Serbest Çalışma/           ← ders seçmeden sitede "Çalıştır" denirse
+  <Kurs>/
+    <Modül>/                 ← derste açılan görev ve slayt dosyaları
+      slayt-<slayt adı>.py
+      <görev>/gorev.py
+    <Ödev>/                  ← YONERGE.md + cevap.py + .gomufi.json
+```
+
+Klasörü değiştirmek için **GoMufi: Ders Klasörünü Değiştir**.
+
+## Öğretmen için
+
+- **Gelen Teslimler** ağacı (bekleyenler üstte) → teslime tıkla, dosya editörde açılır.
+- **GoMufi: Not Ver** → not ve geri bildirim.
+
+## Okul laboratuvarı
+
+Ortak bilgisayarlarda ayarlardan **`gomufi.labMode`** açılmalı (makine ayarı):
+
+- VS Code kapanınca oturum kapanır; bir sonraki öğrenci öncekinin hesabıyla açamaz.
+- Her öğrencinin dosyaları `GoMufi/<Ad-Kimlik>/` altında ayrı durur.
+
+## Ayarlar
+
+| Ayar | Varsayılan | Ne işe yarar |
+|---|---|---|
+| `gomufi.siteUrl` | `https://go-mufi.vercel.app` | Giriş ve ders paneli |
+| `gomufi.apiUrl` | `https://gomufi-backend.onrender.com` | Sunucu |
+| `gomufi.workspaceRoot` | `~/GoMufi` | Ders klasörü |
+| `gomufi.labMode` | kapalı | Ortak bilgisayar modu |
+| `gomufi.fontFamily`, `gomufi.fontSize` | — | **GoMufi: Tasarımı Uygula** komutunun yazı tipi |
+
+Geliştirmede `siteUrl` = `http://localhost:5173`, `apiUrl` = `http://localhost:8000`.
+
+## Güvenlik
+
+- Oturum anahtarı işletim sisteminin şifre kasasında (`SecretStorage`) durur.
+- Sitedeki "Çalıştır" için açılan yerel sunucu yalnızca `127.0.0.1`'i dinler,
+  her istekte rastgele bir anahtar ve izinli site adresi ister; yalnızca ders
+  penceresi eşleşir.
+- Kısıtlı Mod'daki (güvenilmeyen) klasörde kod çalıştırılmaz.
+- Yazım kaydı yalnızca GoMufi görev dosyalarını izler; öğrencinin başka hiçbir
+  dosyası okunmaz.
+
+## Panel / kod genişliği
+
+Ders paneli ile kod editörünün dengesi slaydın aşamasına göre kurulur (ANLA'da
+panel geniş, UYGULA/ÜRET'te kod geniş, QUIZ/ÖDEV'de panel neredeyse tam ekran).
+Elle: `Ctrl+Alt+.` panel +%10, `Ctrl+Alt+,` kod +%10, `Ctrl+Alt+0` sıfırla.
+
+## Geliştirme
 
 ```bash
 cd vscode-extension
 npm install
-npm run compile
+npm run compile      # derle
+npm test             # birim testleri
+npm run package      # gomufi-<sürüm>.vsix üretir
 ```
 
-VS Code'da bu klasörü aç ve **F5** ile "Extension Development Host" başlat.
+VS Code'da bu klasörü açıp **F5** ile "Extension Development Host" başlat.
 
-Ayarlar → `gomufi.apiUrl` sunucu adresini gösterecek şekilde ayarlanmalı
-(varsayılan `http://localhost:8000`).
+### Yayınlama
 
-## Akış
+Site `vscode://gomufi.gomufi/...` bağlantılarını kullanır; bunun çalışması için
+eklentinin **gomufi** yayıncı adıyla yayınlanması gerekir:
 
-**Öğrenci**
-1. `GoMufi: Giriş Yap` — e-posta + parola
-2. Kenar çubuğundaki **Ödevlerim** ağacından bir ödeve tıkla
-3. Ödev `~/GoMufi/<Kurs>/<Ödev>/` altına açılır: `YONERGE.md` + `cevap.py`
-4. Kodu normal şekilde yaz ve çalıştır (VS Code'un kendi terminali/hata ayıklayıcısı)
-5. `GoMufi: Ödevi Teslim Et`
-6. Öğretmen not verince ağaçta `85/100` olarak görünür
-
-**Öğretmen**
-1. Giriş yap → **Gelen Teslimler** ağacı (bekleyenler üstte)
-2. Teslime tıkla → dosya gerçek editörde açılır
-3. `GoMufi: Not Ver` → not + geri bildirim
-
-## Görünüm
-
-İki tema gelir: **GoMufi Aydınlık** (site ve öğretmen panelinin beyaz/slate zemini) ve
-**GoMufi Karanlık** (aynı palet, gece mavisi zemin üzerinde). Palet doğrudan landing
-page'den alınmıştır — sky `#0ea5e9` birincil vurgu, yeşil `#23c55e` eylem rengi,
-mor/fuşya `#7c3aed`/`#d946ef` ikincil, sarı `#eab308` uyarı.
-
-`GoMufi: Tasarımı Uygula` komutu temayı seçer **ve** yazı tiplerini
-kurar: kodda Cascadia Code → JetBrains Mono → Fira Code → Consolas sırası (ligatür açık,
-1.7 satır aralığı), markdown önizlemede sitenin gövde fontu Nunito. Font tema
-dosyasından ayarlanamadığı için bu ayrı bir komut; ikisi tek yerde toplanmıştır.
-`gomufi.fontFamily` ve `gomufi.fontSize` ile değiştirilebilir. Ayarlar kullanıcı
-kapsamına yazılır — öğrenci her ödevde yeni klasör açıyor, görünüm sıfırlanmamalı.
-
-Eklenti ilk kurulduğunda temayı **bir kez teklif eder**, kendiliğinden uygulamaz.
-
-## Panel / kod genişliği
-
-Ders paneli ile kod editörünün genişlik dengesi slaydın aşamasına göre kendiliğinden
-kurulur — sabit 50/50 her aşamada yanlış olurdu:
-
-| Aşama | Ders paneli | Kod |
-|---|---|---|
-| ANLA | %70 | %30 |
-| UYGULA · BİRLEŞTİR · ÜRET | %40 | %60 |
-| QUIZ · ÖDEV | %94 | şerit |
-| Modül listesi | %50 | %50 |
-
-Geçişler 320 ms easeOutCubic ile tweenlenir. `vscode.setEditorLayout` anlık uygulanır
-ve CSS geçişi yoktur; oranı adım adım yürütmek animasyonun tek yolu.
-
-Elle ayar: `Ctrl+Alt+.` panel +%10, `Ctrl+Alt+,` kod +%10, `Ctrl+Alt+0` sıfırla.
-Sınırlar %15–%94; hiçbir taraf tamamen yok olmaz. Elle yapılan ayar **aşama başına**
-saklanır, aynı aşamaya dönüldüğünde geri gelir.
-
-Düzen yalnızca tam iki editör grubu varken uygulanır. Üçüncü bir grup açıksa
-`setEditorLayout` onu zorla ikiye indirip dosyaları taşırdı; oranı uygulamamayı
-kullanıcının düzenini bozmaya tercih ediyoruz.
-
-## Tasarım notları
-
-- **Token işletim sisteminin şifre kasasında** (`context.secrets`) tutulur. `globalState`
-  veya ayarlar kullanılmaz: ikisi de düz metindir ve ayarlar Settings Sync ile başka
-  makinelere kopyalanır.
-- **Teslim anahtarı** ödev *slaydının* id'sidir, müfredat düğümünün değil. Tarayıcı tarafı
-  da aynısını kullanıyor; farklı bir anahtar seçilseydi eklentiden gelen teslimler
-  tarayıcıdakilerle eşleşmez, öğretmen ikisini ayrı ödev sanırdı. Bkz. `src/assignments.ts`.
-- **`.gomufi.json`** her ödev klasörüne bırakılır. Teslim komutu klasör ADINA güvenmez —
-  öğrenci klasörü yeniden adlandırabilir.
-- **Cevap dosyasının üzerine yazılmaz.** Ödev yeniden açıldığında `YONERGE.md` tazelenir
-  ama öğrencinin yazdığı kod korunur.
-
-## Bilinen sınır
-
-Kod öğrencinin makinesinde çalıştığı için **teslim edilen çıktı doğrulanabilir değildir**.
-Otomatik notlandırmanın güvenilir olması gerekirse, teslim edilen dosyanın sunucuda
-çalıştırılması gerekir (teslim anında, tuş başına değil — bu çok daha ucuz bir sandbox).
+```bash
+npx @vscode/vsce publish          # Visual Studio Marketplace
+npx ovsx publish gomufi-*.vsix    # Open VSX (Cursor, VSCodium)
+```

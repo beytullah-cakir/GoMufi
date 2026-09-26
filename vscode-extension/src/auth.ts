@@ -44,6 +44,15 @@ export class Auth {
     private readonly tokenChanged = new vscode.EventEmitter<string | null>();
     readonly onDidChangeToken = this.tokenChanged.event;
 
+    /**
+     * Kullanıcı ŞİMDİ giriş yaptı (tarayıcı onayı geldi). `onDidChange`
+     * açılışta kasadan geri yüklemede de tetikleniyor; ilk kurulum rehberi ve
+     * "ders klasörüne geç" yalnızca gerçek girişte çalışmalı — yoksa her VS Code
+     * penceresi açılışta ders klasörüne atlardı.
+     */
+    private readonly signedIn = new vscode.EventEmitter<Session>();
+    readonly onDidSignIn = this.signedIn.event;
+
     constructor(private readonly ctx: vscode.ExtensionContext) {}
 
     get current(): Session | null {
@@ -56,6 +65,13 @@ export class Auth {
 
     /** Eklenti açılışında kasadaki oturumu geri yükler. */
     async restore(): Promise<void> {
+        // Laboratuvar modu: ortak bilgisayarda oturum VS Code kapanınca biter.
+        // Kasada önceki öğrenciden kalmış bir token varsa (çökme, elektrik
+        // kesintisi) onu da siliyoruz — sonraki öğrenci onun hesabıyla açmasın.
+        if (vscode.workspace.getConfiguration('gomufi').get<boolean>('labMode') === true) {
+            await this.ctx.secrets.delete(TOKEN_KEY);
+            await this.ctx.globalState.update(PROFILE_KEY, undefined);
+        }
         const token = await this.ctx.secrets.get(TOKEN_KEY);
         const raw = this.ctx.globalState.get<Omit<Session, 'token'>>(PROFILE_KEY);
         // Profil hassas değil (ad/rol), asıl sır olan token kasada.
@@ -151,12 +167,12 @@ export class Auth {
         const opened = await vscode.env.openExternal(
             vscode.Uri.parse(`${siteUrl.replace(/\/+$/, '')}/vscode-baglan?state=${state}`),
         );
-        if (!opened) throw new Error('Tarayici acilamadi.');
+        if (!opened) throw new Error('Tarayıcı açılamadı.');
 
         const session = await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'GoMufi: tarayicida onay bekleniyor...',
+                title: 'GoMufi: tarayıcıda onay bekleniyor…',
                 cancellable: true,
             },
             (_progress, cancel) => this.poll(base, state, cancel),
@@ -173,6 +189,7 @@ export class Auth {
         this.scheduleRenew();
         await this.publish();
         this.tokenChanged.fire(session.token);
+        this.signedIn.fire(session);
         return session;
     }
 
@@ -193,7 +210,7 @@ export class Auth {
                 continue; // gecici ag hatasi; yoklamaya devam
             }
             if (res.status === 404) continue; // henuz onaylanmadi
-            if (!res.ok) throw new Error('Giris tamamlanamadi.');
+            if (!res.ok) throw new Error('Giriş tamamlanamadı.');
 
             const data = (await res.json()) as DeviceToken;
             return {
@@ -203,7 +220,7 @@ export class Auth {
                 displayName: data.display_name,
             };
         }
-        throw new Error('Onay suresi doldu. Tekrar dene.');
+        throw new Error('Onay süresi doldu. Tekrar dene.');
     }
 
     async signOut(): Promise<void> {
