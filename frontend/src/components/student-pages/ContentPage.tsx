@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
-import { Calendar as CalendarIcon, Clock, Video, MessageCircle, MoreHorizontal, Zap, Users, Shield, Play, CheckCircle, Lock, Star, Layout, TrendingUp, Award, ChevronRight, ChevronDown, Target, Cloud, Circle, Triangle, Hexagon, Sparkles, Info, UserRound } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Video, MessageCircle, MoreHorizontal, Zap, Users, Shield, Play, CheckCircle, Lock, Star, Layout, TrendingUp, Award, ChevronRight, ChevronDown, Target, Cloud, Circle, Triangle, Hexagon, Sparkles, Info, UserRound, Rocket } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from '../shared/CourseInfoModal';
@@ -67,20 +67,25 @@ let isContentFetched = false;
 const getCourseStyle = (category: string | null) => {
     const cat = (category || '').toLowerCase();
     if (cat.includes('python') || cat.includes('yazılım') || cat.includes('coding')) {
-        return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Mufi Hoca' };
+        return { icon: PythonIcon, color: 'bg-yellow-400', borderColor: 'border-yellow-500', lightColor: 'bg-yellow-50', instructor: 'Öğretmen' };
     } else if (cat.includes('react') || cat.includes('frontend')) {
-        return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Ahmet Hoca' };
+        return { icon: ReactIcon, color: 'bg-sky-400', borderColor: 'border-sky-500', lightColor: 'bg-sky-50', instructor: 'Öğretmen' };
     } else if (cat.includes('english') || cat.includes('dil') || cat.includes('ingilizce')) {
-        return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Sarah Teacher' };
+        return { icon: EnglishIcon, color: 'bg-purple-500', borderColor: 'border-purple-600', lightColor: 'bg-purple-50', instructor: 'Öğretmen' };
     } else if (cat.includes('ver') || cat.includes('data')) {
-        return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Mufi Hoca' };
+        return { icon: DataIcon, color: 'bg-blue-600', borderColor: 'border-blue-700', lightColor: 'bg-blue-50', instructor: 'Öğretmen' };
     }
-    return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Mufi Hoca' };
+    if (cat.includes('javascript')) {
+        return { icon: JsIcon, color: 'bg-orange-400', borderColor: 'border-orange-500', lightColor: 'bg-orange-50', instructor: 'Öğretmen' };
+    }
+    // Tanınmayan kurs: yanlış bir dil logosu yerine genel simge
+    return { icon: '', color: 'bg-indigo-400', borderColor: 'border-indigo-500', lightColor: 'bg-indigo-50', instructor: 'Öğretmen' };
 };
 
 const mapContentCourses = (data: any[]): Course[] => {
     return data.map((c: any) => {
-        const style = getCourseStyle(c.category);
+        // Kategori boş ya da genel olabiliyor ("Programlama"): kurs adı da hesaba katılır.
+        const style = getCourseStyle(`${c.category || ''} ${c.title || ''}`);
         
         let liveSessions = [];
         let finalCurriculum = c.curriculum || [];
@@ -91,8 +96,8 @@ const mapContentCourses = (data: any[]): Course[] => {
         return {
             id: c.id.toString(),
             title: c.title,
-            level: `Level ${Math.floor((c.progress || 0) / 5) + 1}`,
-            progress: c.progress || 0,
+            level: '',
+            progress: 0,
             icon: style.icon,
             color: style.color,
             borderColor: style.borderColor,
@@ -121,7 +126,7 @@ interface ContentPageProps {
 const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinModal, userData, onJoinLiveClass }) => {
     // --- State ---
     const [selectedCourse, setSelectedCourse] = useState<string>('');
-    const [activeTab, setActiveTab] = useState<'schedule' | 'month' | 'archive'>('schedule');
+    const [activeTab, setActiveTab] = useState<'schedule' | 'month'>('schedule');
     const [infoCourseId, setInfoCourseId] = useState<string | null>(null);
     const navigate = useNavigate();
 
@@ -305,6 +310,13 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
             setProgressMap(next);
         });
     }, [courseIdsKey]);
+    // Kurs kartındaki ilerleme: sunucudaki bitmiş modüller / toplam modül
+    const realProgress = (courseId: string) => {
+        const p = progressMap[String(courseId)];
+        const total = p?.order.length ?? 0;
+        const done = p ? Object.keys(p.completed).length : 0;
+        return { done, total, pct: total ? Math.round((done / total) * 100) : 0 };
+    };
 
     // Sınıflara göre haftalık ve aylık takvimi dinamik oluştur
     useEffect(() => {
@@ -564,15 +576,15 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                                     }}
                                 >
                                     <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform cursor-pointer`}>
-                                        <img src={course.icon} alt={course.title} className="w-full h-full object-contain" />
+                                        {course.icon ? <img src={course.icon} alt="" className="w-full h-full object-contain" /> : <Rocket size={22} className="text-indigo-500" />}
                                     </div>
                                     <div className="cursor-pointer group/title flex-1 min-w-0">
                                         <h3 className={`font-black text-sm leading-tight mb-0.5 truncate w-full ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
                                             {course.title}
                                         </h3>
                                         <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wide bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 shrink-0">
-                                                {course.level}
+                                            <span className="text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 shrink-0">
+                                                {realProgress(course.id).done}/{realProgress(course.id).total} modül
                                             </span>
                                             {course.liveSessions && course.liveSessions.map((sess: any, idx: number) => (
                                                 <span key={idx} className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-indigo-100 shadow-sm shrink-0">
@@ -586,14 +598,14 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
 
                                 {/* Progress */}
                                 <div className="space-y-1 relative z-10">
-                                    <div className="flex justify-between text-[10px] font-bold text-gray-400">
+                                    <div className="flex justify-between text-[11px] font-bold text-gray-400">
                                         <span>İlerleme</span>
-                                        <span className={selectedCourse === course.id ? 'text-indigo-600' : ''}>%{course.progress}</span>
+                                        <span className={selectedCourse === course.id ? 'text-indigo-600' : ''}>%{realProgress(course.id).pct}</span>
                                     </div>
                                     <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
                                         <div
                                             className={`h-full rounded-full transition-all duration-500 ${course.color} relative overflow-hidden`}
-                                            style={{ width: `${course.progress}%` }}
+                                            style={{ width: `${realProgress(course.id).pct}%` }}
                                         >
                                             {/* Striped Pattern Overlay */}
                                             <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"
@@ -646,13 +658,6 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                             <Layout size={16} />
                             Aylık Takvim
                         </button>
-                        <button
-                            onClick={() => setActiveTab('archive')}
-                            className={`px-4 md:px-6 py-2 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'archive' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <Video size={16} />
-                            Ders Arşivi
-                        </button>
                     </div>
 
                     {activeTab === 'schedule' ? (
@@ -660,10 +665,10 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                             {/* Today's Highlight */}
                             <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden border-b-8 border-red-650">
                                 <Zap className="absolute top-0 right-0 text-white/20 w-40 h-40 transform translate-x-10 -translate-y-10" />
-                                <div className="relative z-10 flex items-center justify-between">
-                                    <div>
+                                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div className="min-w-0">
                                         <div className="flex items-center gap-2 mb-2">
-                                            <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki Ders</span>
+                                            <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki ders</span>
                                             {isClassActive ? (
                                                 <span className="flex items-center gap-1 text-xs font-black bg-emerald-500 px-2.5 py-1 rounded-lg animate-pulse uppercase tracking-wider">
                                                     Canlı Yayında!
@@ -674,31 +679,37 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                                                 </span>
                                             ) : null}
                                         </div>
-                                        <h2 className="text-3xl font-black font-display mb-1">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
+                                        <h2 className="text-2xl md:text-3xl font-black font-display mb-1 break-words">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
                                     </div>
-                                    <button 
-                                        disabled={!isClassActive}
-                                        onClick={() => {
-                                            const courseIdToJoin = liveCourseId || nextLessonData?.courseId;
-                                            if (!isClassActive || !courseIdToJoin) return;
-                                            handleJoinLiveClick(courseIdToJoin);
-                                        }}
-                                        className={`px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all ${
-                                            isClassActive
-                                                ? 'bg-white text-orange-655 hover:scale-105 animate-bounce cursor-pointer'
-                                                : 'bg-white/50 text-orange-800/50 cursor-not-allowed opacity-60'
-                                        }`}
-                                    >
-                                        <Play fill="currentColor" />
-                                        {isClassActive ? "DERSE KATIL" : "YAKINDA!"}
-                                    </button>
+                                    {isClassActive ? (
+                                        <button
+                                            onClick={() => {
+                                                const courseIdToJoin = liveCourseId || nextLessonData?.courseId;
+                                                if (courseIdToJoin) handleJoinLiveClick(courseIdToJoin);
+                                            }}
+                                            className="shrink-0 px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all bg-white text-orange-600 hover:scale-105"
+                                        >
+                                            <Play fill="currentColor" /> DERSE KATIL
+                                        </button>
+                                    ) : (
+                                        // Canlı ders yokken ölü "YAKINDA!" yerine: kendi başına çalışmaya git
+                                        <button
+                                            onClick={() => navigate('/student/home')}
+                                            className="shrink-0 px-5 py-3 rounded-2xl font-black text-sm bg-white/20 hover:bg-white/30 text-white flex items-center gap-2"
+                                        >
+                                            Kendi başına çalış <ChevronRight size={16} />
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
                             {/* Calendar Grid */}
-                            <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm flex-1">
+                            <div className="bg-white rounded-3xl border-2 border-gray-100 p-4 md:p-6 shadow-sm">
                                 <div className="space-y-4">
-                                    {getWeeklyEvents(schedule).map((slot) => {
+                                    {getWeeklyEvents(schedule).every((slot) => slot.type !== 'live' && slot.type !== 'reserved') && (
+                                        <p className="text-center text-sm font-bold text-gray-400 py-8">Bu hafta planlanmış canlı ders yok. Ana sayfadaki modüllerle kendi başına ilerleyebilirsin.</p>
+                                    )}
+                                    {getWeeklyEvents(schedule).filter((slot) => slot.type === 'live' || slot.type === 'reserved').map((slot) => {
                                         const isLiveNow = isClassActive && String(slot.courseId) === String(liveCourseId);
                                         return (
                                             <div key={slot.id} className="group">
@@ -744,11 +755,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                                                                         <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center">
                                                                             <CheckCircle size={18} />
                                                                         </div>
-                                                                    ) : (
-                                                                        <button className="bg-white/80 p-2 rounded-lg hover:bg-white transition-colors border border-gray-150">
-                                                                            <ChevronRight size={20} />
-                                                                        </button>
-                                                                    )}
+                                                                    ) : null}
                                                                 </div>
                                                             </div>
                                                         ) : slot.type === 'reserved' ? (
@@ -779,10 +786,6 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                             {/* Month Header */}
                             <div className="flex items-center justify-between mb-6">
                                 <h2 className="text-2xl font-black text-gray-800 font-display">{monthNameStr}</h2>
-                                <div className="flex gap-2">
-                                    <button className="p-2 rounded-xl border-2 border-gray-100 hover:bg-gray-50 text-gray-500"><ChevronDown className="rotate-90" size={20} /></button>
-                                    <button className="p-2 rounded-xl border-2 border-gray-100 hover:bg-gray-50 text-gray-500"><ChevronRight size={20} /></button>
-                                </div>
                             </div>
 
                             {/* Month Grid */}
@@ -842,16 +845,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                                 })}
                             </div>
                         </div>
-                    ) : (
-                        // ARCHIVE VIEW content placeholder
-                        <div className="bg-white rounded-3xl border-2 border-gray-100 p-10 flex flex-col items-center justify-center text-center opacity-70 h-64">
-                            <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4 border-2 border-gray-100">
-                                <Video size={32} />
-                            </div>
-                            <h3 className="text-xl font-black text-gray-400">Ders Arşivi Boş</h3>
-                            <p className="text-sm font-bold text-gray-300">Geçmiş canlı dersleriniz buraya yüklenecektir.</p>
-                        </div>
-                    )}
+                    ) : null}
                 </div>
 
 

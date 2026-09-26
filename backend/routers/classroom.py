@@ -35,6 +35,7 @@ from core import classroom, meb, streak
 from models.course import Course
 from models.enrollment import Enrollment
 from models.homework_submission import HomeworkSubmission
+from models.lesson_content import LessonContent
 from models.live_session import LiveSession
 from models.school import ModuleProgress
 from models.student import Student
@@ -76,7 +77,14 @@ def _module_xp(node: Dict[str, Any]) -> int:
     return max(0, min(MAX_MODULE_XP, xp))
 
 
-def _has_content(course: Course, node_id: str) -> bool:
+async def _has_content(db: AsyncSession, course: Course, node_id: str) -> bool:
+    """Modülün slaytı var mı. Slaytlar lesson_contents'te; eski kurslarda courses.notes'ta
+    (bkz. routers/courses.populate_course_notes — önce tablo, yoksa eski alan)."""
+    row = (await db.execute(
+        select(LessonContent.slides).where(LessonContent.course_id == course.id, LessonContent.node_id == node_id)
+    )).first()
+    if row is not None:
+        return bool(row[0])
     for note in course.notes or []:
         if isinstance(note, dict) and str(note.get("id")) == node_id:
             return bool(note.get("slides"))
@@ -188,7 +196,7 @@ async def complete_module(
         raise HTTPException(status_code=409, detail="Bu modül henüz açılmadı.")
     # İçeriği olmayan modül kendi başına bitirilemez (eskiden boş pencere açılıp
     # "bitir"e basınca XP veriliyordu). Canlı derste öğretmen işlediyse sayılır.
-    if not live and not _has_content(course, body.node_id):
+    if not live and not await _has_content(db, course, body.node_id):
         raise HTTPException(status_code=409, detail="Bu modülde henüz içerik yok.")
 
     existing = (await db.execute(

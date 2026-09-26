@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { AlertCircle, CalendarClock, CalendarCheck, ChevronRight, FileText, Flame, Loader2, MessageSquare, Trophy, UserPlus } from "lucide-react";
 import api from "../../api";
 import { parentApi, shortDate, type ChildSummary } from "./parentApi";
+import InitialsAvatar from '../shared/InitialsAvatar';
 
 /**
  * Veli paneli: her çocuk için kısa ve GERÇEK durum.
@@ -140,11 +141,7 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData, teachersDat
                                 <p className="text-gray-400 text-sm font-medium italic">Henüz bir eğitmen bulunmuyor.</p>
                             ) : instructors.slice(0, 4).map((inst: any) => (
                                 <div key={inst.id} className="flex items-center gap-3">
-                                    <img
-                                        src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${inst.first_name}${inst.id}`}
-                                        className="w-10 h-10 bg-gray-100 rounded-full border border-gray-100"
-                                        alt={inst.first_name}
-                                    />
+                                    <InitialsAvatar name={`${inst.first_name || ''} ${inst.last_name || ''}`} className="w-10 h-10 rounded-full text-sm" />
                                     <div className="flex-1 min-w-0">
                                         <div className="font-bold text-gray-800 text-sm truncate">{inst.first_name} {inst.last_name}</div>
                                         <div className="text-[10px] text-gray-400 font-black uppercase tracking-wider truncate">{inst.expertises || "Eğitmen"}</div>

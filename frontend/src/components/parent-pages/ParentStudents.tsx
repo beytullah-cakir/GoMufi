@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { User, Plus, ChevronRight, BookOpen, Clock, Trophy, Loader2, Link2, X, Trash2, Flame } from 'lucide-react';
 import api from '../../api';
+import InitialsAvatar from '../shared/InitialsAvatar';
 
 interface Student {
     id: number;
@@ -116,11 +117,7 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStude
 
                         <div className="h-24 bg-gradient-to-r from-purple-100 to-indigo-100 relative">
                             <div className="absolute -bottom-10 left-6 p-1 bg-white rounded-2xl shadow-sm border border-gray-50">
-                                <img 
-                                    src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${student.nickname || student.id}`} 
-                                    alt={student.first_name} 
-                                    className="w-20 h-20 rounded-xl bg-gray-50" 
-                                />
+                                <InitialsAvatar name={`${student.first_name || ''} ${student.last_name || ''}`} className="w-20 h-20 rounded-xl text-2xl" />
                             </div>
                         </div>
 

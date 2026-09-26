@@ -2,12 +2,13 @@ import React, { useState } from "react";
 import api from "../../api";
 import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import Leaderboard from "./Leaderboard";
-import { Settings, Share2, Award, Trophy, ChevronRight, Lock, BookOpen, Clock, Target, Calendar, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, Swords, Users, Video, Play, CheckCircle, GitBranch, Shield, Cpu, Gamepad2, Medal, Flame, KeyRound, Rocket, Crown, Moon, Construction } from 'lucide-react';
+import { Trophy, BookOpen, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, CheckCircle, Flame, KeyRound } from 'lucide-react';
 // Import the new character avatar
 import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
 import CharacterEyes from "../../assets/sprites/eyes.png";
-import PythonIcon from "../../assets/sprites/PythonIcon.png";
 import CourseIcon from '../shared/CourseIcon';
+import { LeagueIcon } from '../shared/LeagueBadge';
+import DailyQuests, { useActivity } from './DailyQuests';
 
 interface ProfilePageProps {
   userData?: any;
@@ -20,11 +21,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   userData: propUserData, 
   isLoading: propIsLoading,
   courses,
-  currentCourse
 }) => {
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "skills" | "portfolio"
-  >("overview");
+  const [copied, setCopied] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
   const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
   const [profileData, setProfileData] = useState<any>(null);
@@ -56,6 +54,21 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
       fetchProfile();
     }
   }, [propUserData, propIsLoading]);
+
+  const activity = useActivity(profileData?.xp ?? 0);
+  const progression = profileData?.progression;
+  const courseRows = Object.values(courses || {}).map((c: any) => {
+    const completed = c.progress?.completed || {};
+    const nodes: any[] = c.nodes || [];
+    const next = nodes.find((n) => !n.isLocked && !(n.sectionId && completed[String(n.sectionId)]));
+    return {
+      id: c.id, title: c.title, icon: c.icon, color: c.themeColor,
+      done: Object.keys(completed).length,
+      total: c.progress?.order?.length ?? nodes.length,
+      next: next?.title as string | undefined,
+    };
+  });
+  const modulesDone = courseRows.reduce((sum, c) => sum + c.done, 0);
 
   // Blinking effect logic
   React.useEffect(() => {
@@ -105,7 +118,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   return (
     <div className="w-full h-full overflow-y-auto bg-gray-50 pb-24">
       {/* HEROLIK HEADER - Custom Color requested #d2cfff */}
-      <div className="relative w-full h-[400px] bg-[#d2cfff] rounded-b-[40px] shadow-sm overflow-hidden mb-16">
+      <div className="relative w-full h-[300px] md:h-[400px] bg-[#d2cfff] rounded-b-[40px] shadow-sm overflow-hidden mb-16">
         {/* Background Decorations (Pattern) - Increased Visibility & Quantity */}
         <div className="absolute inset-0 pointer-events-none">
           {/* Clouds */}
@@ -168,16 +181,6 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           <div className="absolute bottom-24 right-1/3 w-2 h-2 bg-white/60 rounded-full"></div>
         </div>
 
-        {/* Header Action Bar */}
-        <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-start z-20">
-          <button className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-white hover:bg-black/10 transition-all">
-            <Share2 size={20} className="text-gray-700" strokeWidth={2.5} />
-          </button>
-          <button className="w-10 h-10 rounded-full bg-black/5 flex items-center justify-center text-white hover:bg-black/10 transition-all">
-            <Settings size={20} className="text-gray-700" strokeWidth={2.5} />
-          </button>
-        </div>
-
         {/* Character Avatar - STATIC & PINNED */}
         <div className="absolute bottom-[-10px] left-1/2 transform -translate-x-1/2 flex flex-col items-center z-10 w-full">
           <div className="relative">
@@ -190,7 +193,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
 
             {/* Avatar Image */}
             {/* Avatar Image - Layered for Animation */}
-            <div className="w-96 h-96 filter drop-shadow-xl cursor-default relative">
+            <div className="w-64 h-64 md:w-96 md:h-96 filter drop-shadow-xl cursor-default relative">
               {/* Base Body Layer */}
               <img
                 src={CharacterBody}
@@ -209,848 +212,108 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               />
             </div>
 
-            {/* Edit Button */}
-            <div className="absolute bottom-6 right-8 w-10 h-10 bg-white rounded-full shadow-lg flex items-center justify-center text-gray-700 hover:bg-gray-100 cursor-pointer border-4 border-gray-50">
-              <span className="text-xl">✏️</span>
-            </div>
           </div>
 
           {/* User Info Nameplate REMOVED - Moved to main content */}
         </div>
       </div>
 
-      {/* MAIN CONTENT CONTAINER - Overlapping Layout */}
-      <div className="max-w-5xl mx-auto px-6 relative z-10 -mt-8">
-        {/* NEW ROW: Name & Level Flanking Avatar */}
-        <div className="flex flex-col md:flex-row items-end justify-between mb-8 relative z-20">
-          {/* Left: Name & Identity */}
-          <div className="flex flex-col items-center md:items-start mb-4 md:mb-0">
-            <h1 className={`text-4xl font-black font-display tracking-tight mb-1 ${isLoading ? "bg-gray-200 animate-pulse text-transparent rounded" : "text-gray-900"}`}>
-              {profileData?.first_name || "Öğrenci"}{" "}
-              {profileData?.last_name || ""}
+      {/* Ana içerik: yalnızca gerçek veri (profil, /progress/activity, kurs ilerlemesi) */}
+      <div className="max-w-5xl mx-auto px-4 md:px-6 relative z-10 -mt-6 space-y-6">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+          <div className="flex flex-col items-center md:items-start text-center md:text-left">
+            <h1 className={`text-3xl md:text-4xl font-black font-display tracking-tight ${isLoading ? "bg-gray-200 animate-pulse text-transparent rounded" : "text-gray-900"}`}>
+              {profileData?.first_name || "Öğrenci"} {profileData?.last_name || ""}
             </h1>
-            <div className={`flex items-center gap-2 font-bold text-sm ${isLoading ? "bg-gray-100 animate-pulse text-transparent rounded mt-1" : "text-gray-500"}`}>
-              <span className="text-blue-500">
-                @{profileData?.nickname || "isimsiz"}
-              </span>
-              <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-              <span>{profileData?.grade_level || "Sınıf Belirtilmedi"}</span>
-              <span className="w-1.5 h-1.5 bg-gray-300 rounded-full"></span>
-              <span className="capitalize">
-                {profileData?.education_level || "Seviye Yok"}
-              </span>
-            </div>
+            <p className="flex flex-wrap justify-center md:justify-start items-center gap-2 font-bold text-sm text-gray-500 mt-1">
+              {profileData?.nickname && <span className="text-blue-500">@{profileData.nickname}</span>}
+              {profileData?.grade_level && <span>{profileData.grade_level}</span>}
+            </p>
           </div>
 
-          {/* Right: Level Progress */}
-          <div className="flex flex-col items-center md:items-end w-full md:w-auto">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm shadow-md transform rotate-3">
-                15
-              </div>
-              <span className="font-black text-gray-800 text-lg">Level 15</span>
-              <span className="text-xs font-bold text-gray-400">/ 20</span>
+          <div className="w-full md:w-72">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="flex items-center gap-2 font-black text-gray-800">
+                <span className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm">{progression?.level ?? 1}</span>
+                Seviye {progression?.level ?? 1}
+              </span>
+              <span className="flex items-center gap-1 text-sm font-black" style={{ color: progression?.league?.color }}>
+                <LeagueIcon icon={progression?.league?.icon} color={progression?.league?.color} size={16} /> {progression?.league?.name ?? "Bronz"} Lig
+              </span>
             </div>
-            {/* Progress Bar */}
-            <div className="w-full md:w-64 h-4 bg-gray-100 rounded-full border border-gray-200 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-orange-400 to-red-500 w-[75%] rounded-full shadow-inner"></div>
-              <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"></div>
+            <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full" style={{ width: `${Math.max(3, Math.min(100, progression?.progress_pct ?? 0))}%` }} />
             </div>
-            <span className="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-wide">
-              Sonraki Seviye: 1250 XP
-            </span>
+            <p className="text-xs font-bold text-gray-400 mt-1">Sonraki seviyeye {progression?.xp_to_next_level ?? 0} XP</p>
           </div>
         </div>
 
-        {/* TOP ROW: Quick Stats Widget */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          {/* Streak */}
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-            <div className="flex items-center gap-2 mb-1">
-              <Flame size={24} className="text-orange-500" />
-              <span className="text-3xl font-black text-gray-800 font-display">
-                8
-              </span>
-            </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Gün Serisi
-            </span>
-          </div>
-
-          {/* XP */}
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-            <div className="flex items-center gap-2 mb-1">
-              <Zap size={24} className="text-amber-500" />
-              <span className="text-3xl font-black text-gray-800 font-display">
-                12.5k
-              </span>
-            </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Toplam XP
-            </span>
-          </div>
-
-          {/* League */}
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-            <div className="flex items-center gap-2 mb-1">
-              <Trophy size={24} className="text-purple-500" />
-              <span className="text-3xl font-black text-purple-600 font-display">
-                Bronz
-              </span>
-            </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Güncel Lig
-            </span>
-          </div>
-
-          {/* Top 3 */}
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-            <div className="flex items-center gap-2 mb-1">
-              <Medal size={24} className="text-amber-400" />
-              <span className="text-3xl font-black text-gray-800 font-display">
-                4
-              </span>
-            </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              İlk 3 Derece
-            </span>
-          </div>
-
-          {/* Verified Masteries - NEW */}
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
-            <div className="flex items-center gap-2 mb-1">
-              <div className="bg-blue-100 p-1 rounded-full">
-                <CheckCircle size={20} className="text-blue-600" />
-              </div>
-              <span className="text-3xl font-black text-gray-800 font-display">
-                1
-              </span>
-            </div>
-            <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
-              Mastery Rozeti
-            </span>
-          </div>
-
-          {/* Student Code for Parent Link - NEW */}
-          {profileData?.student_code && (
-            <div className="bg-gradient-to-br from-purple-500 to-indigo-600 border-2 border-purple-400 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-md hover:-translate-y-1 transition-transform group relative overflow-hidden">
-              <div className="absolute top-0 right-0 p-1 opacity-10 group-hover:opacity-20 transition-opacity">
-                <Users size={40} className="text-white" />
-              </div>
-              <div className="flex items-center gap-2 mb-1 z-10">
-                <KeyRound size={20} className="text-white" />
-                <span className="text-2xl font-black text-white font-mono tracking-tighter">
-                  {profileData.student_code}
-                </span>
-              </div>
-              <span className="text-[10px] font-black text-purple-100 uppercase tracking-widest z-10">
-                Ebeveyn Bağlantı Kodu
-              </span>
-              <button 
-                onClick={() => {
-                    navigator.clipboard.writeText(profileData.student_code);
-                    alert("Kod kopyalandı!");
-                }}
-                className="mt-2 text-[9px] font-black text-white/80 hover:text-white underline underline-offset-2 z-10"
-              >
-                KOPYALA
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* TAB NAVIGATION */}
-        <div className="flex items-center gap-4 mb-8 border-b-2 border-gray-100 overflow-x-auto">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {[
-            {
-              id: "overview",
-              label: "Genel Bakış",
-              icon: <Target size={18} />,
-            },
-            {
-              id: "skills",
-              label: "Yetenek Ağacı",
-              icon: <GitBranch size={18} />,
-            },
-            {
-              id: "portfolio",
-              label: "Neler Ürettim?",
-              icon: <Code size={18} />,
-            },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`flex items-center gap-2 px-6 py-3 font-black text-sm uppercase tracking-wide transition-all border-b-4 ${
-                activeTab === tab.id
-                  ? "text-blue-500 border-blue-500 bg-blue-50/50 rounded-t-xl"
-                  : "text-gray-400 border-transparent hover:text-gray-600 hover:border-gray-200"
-              }`}
-            >
-              {tab.icon}
-              {tab.label}
-            </button>
+            { icon: <Flame size={22} className="text-orange-500" />, value: activity?.streak ?? profileData?.streak ?? 0, label: "Günlük seri" },
+            { icon: <Trophy size={22} className="text-amber-500" />, value: activity?.longest ?? 0, label: "En uzun seri" },
+            { icon: <Zap size={22} className="text-amber-500" />, value: (profileData?.xp ?? 0).toLocaleString("tr-TR"), label: "Toplam XP" },
+            { icon: <CheckCircle size={22} className="text-emerald-500" />, value: modulesDone, label: "Bitirdiğin modül" },
+          ].map((s) => (
+            <div key={s.label} className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center">
+              <span className="flex items-center gap-2">{s.icon}<span className="text-2xl md:text-3xl font-black text-gray-800 font-display">{s.value}</span></span>
+              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-1">{s.label}</span>
+            </div>
           ))}
         </div>
 
-        {/* TAB CONTENT: GENERAL OVERVIEW */}
-        {activeTab === "overview" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-            {/* LEFT COLUMN (2/3): Activity & Badges & SQUAD */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* SQUAD / TEAM BANNER - NEW */}
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg relative overflow-hidden">
-                {/* Background Pattern */}
-                <Swords className="absolute top-1/2 right-10 text-white/10 transform rotate-12 scale-[4]" />
-
-                <div className="flex flex-col md:flex-row items-center justify-between relative z-10 gap-6">
-                  {/* Team Info */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shadow-md border-4 border-indigo-200">
-                      <Rocket size={30} className="text-indigo-500" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-2xl font-black font-display">
-                          Kod Korsanları
-                        </h3>
-                        <span className="bg-white/20 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
-                          Lvl 5 Klan
-                        </span>
-                      </div>
-                      <p className="text-white/80 font-medium text-sm flex items-center gap-2">
-                        <Users size={14} /> Takım: Alphateam
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Role & Stats */}
-                  <div className="flex items-center gap-8">
-                    <div className="text-center">
-                      <div className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">
-                        Takım Rolü
-                      </div>
-                      <div className="font-black text-lg flex items-center justify-center gap-1.5 bg-white/10 px-3 py-1 rounded-lg">
-                        <Shield size={16} className="text-yellow-300" />
-                        Hata Avcısı
-                      </div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-xs font-bold text-indigo-100 uppercase tracking-wider mb-1">
-                        Klan Skoru
-                      </div>
-                      <div className="font-black text-2xl text-yellow-300">
-                        24.5k
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Squad Members */}
-                <div className="mt-6 pt-6 border-t border-white/10 flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-100 uppercase tracking-widest">
-                    Squad Üyeleri
-                  </span>
-                  <div className="flex -space-x-3">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div
-                        key={i}
-                        className="w-10 h-10 rounded-full border-2 border-indigo-600 bg-indigo-800 flex items-center justify-center text-xs font-bold relative group cursor-pointer hover:z-10 hover:scale-110 transition-all"
-                      >
-                        <img
-                          src={`https://api.dicebear.com/7.x/notionists/svg?seed=${i * 123}`}
-                          alt="Member"
-                          className="w-full h-full rounded-full"
-                        />
-                        {i === 1 && (
-                          <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-indigo-800"></div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* Learning Activity Chart */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-6">
-                  <div className="flex items-center gap-2">
-                    <Clock className="text-blue-500" size={24} />
-                    <h3 className="text-xl font-black text-gray-800 font-display">
-                      Öğrenme Aktivitesi
-                    </h3>
-                  </div>
-                  <select className="bg-gray-50 border-2 border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-600 outline-none">
-                    <option>Son 7 Gün</option>
-                    <option>Son 30 Gün</option>
-                  </select>
-                </div>
-
-                {/* Fake Bar Chart */}
-                <div className="flex items-end justify-between h-32 gap-2 px-2">
-                  {[35, 60, 25, 80, 55, 90, 45].map((h, i) => (
-                    <div
-                      key={i}
-                      className="flex flex-col items-center gap-2 w-full group cursor-pointer"
-                    >
-                      <div className="relative w-full bg-gray-100 rounded-t-lg h-full overflow-hidden">
-                        <div
-                          className={`absolute bottom-0 w-full rounded-t-lg transition-all duration-500 ${i === 5 ? "bg-blue-500" : "bg-blue-300 group-hover:bg-blue-400"}`}
-                          style={{ height: `${h}%` }}
-                        ></div>
-                        {/* Tooltip on Hover */}
-                        <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                          {h} XP
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <section className="bg-white border-2 border-gray-100 border-b-4 rounded-3xl p-5 md:p-6">
+              <h2 className="text-lg font-black text-gray-800 font-display flex items-center gap-2 mb-4"><BookOpen size={20} className="text-sky-500" /> Kurslarımdaki ilerlemem</h2>
+              {courseRows.length === 0 ? (
+                <p className="text-sm font-bold text-gray-400">Henüz bir kursa katılmadın. Öğretmeninin verdiği kodla Sınıflarım sayfasından katılabilirsin.</p>
+              ) : (
+                <ul className="space-y-4">
+                  {courseRows.map((c) => (
+                    <li key={c.id} className="flex items-center gap-3">
+                      <span className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0" style={{ color: c.color }}>
+                        <CourseIcon name={c.icon} size={24} />
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="font-black text-gray-800 truncate">{c.title}</span>
+                          <span className="text-xs font-bold text-gray-500 shrink-0">{c.done}/{c.total} modül</span>
                         </div>
+                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden mt-1">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${c.total ? (c.done / c.total) * 100 : 0}%` }} />
+                        </div>
+                        {c.next && <p className="text-xs font-bold text-gray-400 mt-1 truncate">Sıradaki: {c.next}</p>}
                       </div>
-                      <span className="text-xs font-bold text-gray-400">
-                        {["Pt", "Sa", "Ça", "Pe", "Cu", "Ct", "Pz"][i]}
-                      </span>
-                    </div>
+                    </li>
                   ))}
-                </div>
-              </div>
+                </ul>
+              )}
+            </section>
 
-              {/* Badges Section */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Trophy
-                      className="text-yellow-500 fill-yellow-500"
-                      size={24}
-                    />
-                    <h3 className="text-xl font-black text-gray-800 font-display">
-                      Başarımlar
-                    </h3>
-                  </div>
-                  <button className="text-sm font-bold text-blue-500 hover:text-blue-600 uppercase tracking-wide">
-                    Tümünü Gör
-                  </button>
-                </div>
+            <DailyQuests data={activity} />
+          </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Achievement 1 */}
-                  <div className="flex items-center gap-4 p-3 bg-yellow-50 border-2 border-yellow-100 rounded-xl cursor-pointer hover:bg-yellow-100 transition-colors">
-                    <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl shadow-sm">
-                      <Target size={24} className="text-yellow-500" />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-gray-800 text-sm">
-                        Keskin Nişancı
-                      </h4>
-                      <div className="w-24 bg-yellow-200 h-2 rounded-full mt-1">
-                        <div className="bg-yellow-500 w-full h-full rounded-full"></div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Achievement 2 */}
-                  <div className="flex items-center gap-4 p-3 bg-orange-50 border-2 border-orange-100 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors">
-                    <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl shadow-sm">
-                      <Flame size={24} className="text-orange-500" />
-                    </div>
-                    <div>
-                      <h4 className="font-black text-gray-800 text-sm">
-                        Ateşli Seri
-                      </h4>
-                      <span className="text-xs font-bold text-orange-500">
-                        8 / 30 Gün
-                      </span>
-                      <div className="w-24 bg-orange-200 h-2 rounded-full mt-1">
-                        <div className="bg-orange-500 w-[26%] h-full rounded-full"></div>
-                      </div>
-                    </div>
-                  </div>
-                  {/* Achievement 3 */}
-                  <div className="flex items-center gap-4 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl opacity-60">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl grayscale">
-                      <Crown size={24} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-black text-gray-500 text-sm">
-                          Efsanevi
-                        </h4>
-                        <Lock size={12} />
-                      </div>
-                      <div className="w-24 bg-gray-200 h-2 rounded-full mt-1"></div>
-                    </div>
-                  </div>
-                  {/* Achievement 4 */}
-                  <div className="flex items-center gap-4 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl opacity-60">
-                    <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl grayscale">
-                      <Moon size={24} className="text-gray-500" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-black text-gray-500 text-sm">
-                          Gece Kuşu
-                        </h4>
-                        <Lock size={12} />
-                      </div>
-                      <div className="w-24 bg-gray-200 h-2 rounded-full mt-1"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT COLUMN (1/3): Current Course & Friends */}
-            <div className="space-y-6">
-              {/* Current Course Widget */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm relative overflow-hidden group">
-                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                   {currentCourse?.icon ? (
-                    <CourseIcon name={currentCourse.icon} size={64} className="block transform rotate-12" />
-                  ) : (
-                    <img src={PythonIcon} className="w-24 h-24 rotate-12" />
-                  )}
-                </div>
-
-                <h3 className="text-gray-500 font-bold text-xs uppercase tracking-wider mb-2">
-                  Devam Et
-                </h3>
-                <h2 className="text-2xl font-black text-gray-800 font-display leading-tight mb-4">
-                  {currentCourse?.title || "Yeni Bir Kursa Başla!"}
-                </h2>
-
-                {currentCourse && (
-                  <>
-                    <div className="flex items-center justify-between text-sm font-bold text-gray-500 mb-2">
-                      <span>Bölüm 1 / 5</span>
-                      <span className="text-green-600">65%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 h-4 rounded-full overflow-hidden mb-6 border border-gray-200">
-                      <div className="bg-green-500 w-[65%] h-full rounded-full shadow-inner stripe-pattern"></div>
-                    </div>
-                  </>
-                )}
-
-                <button 
-                  onClick={() => window.location.href = '/'}
-                  className="w-full bg-green-500 hover:bg-green-600 text-white font-black py-3 rounded-xl shadow-[0_4px_0_rgb(21,128,61)] active:shadow-none active:translate-y-[4px] transition-all flex items-center justify-center gap-2"
+          <div className="space-y-6">
+            {profileData?.student_code && (
+              <section className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl p-5 text-white">
+                <p className="text-xs font-black uppercase tracking-wider text-purple-100 flex items-center gap-1.5"><KeyRound size={14} /> Veli bağlantı kodu</p>
+                <p className="text-2xl font-black font-mono my-1">{profileData.student_code}</p>
+                <p className="text-xs font-bold text-purple-100 mb-3">Velin bu kodla hesabını seninkine bağlar.</p>
+                <button
+                  type="button"
+                  onClick={() => { void navigator.clipboard?.writeText(profileData.student_code); setCopied(true); }}
+                  className="text-xs font-black bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg"
                 >
-                  <BookOpen size={20} />
-                  {currentCourse ? "DERSİ SÜRDÜR" : "KURSLARI KEŞFET"}
+                  {copied ? "Kopyalandı" : "Kopyala"}
                 </button>
-              </div>
-
-              {/* Gerçek liderlik tablosu (global + sınıf) */}
-              <Leaderboard />
-
-              {/* Calendar / Streak View (Small) */}
-              <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar className="text-orange-500" size={20} />
-                  <h3 className="text-lg font-black text-gray-800 font-display">
-                    Günlük Hedef
-                  </h3>
-                </div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-bold text-gray-500">
-                    50 XP / 100 XP
-                  </span>
-                  <span className="text-xs font-black text-white bg-orange-400 px-2 py-0.5 rounded-lg">
-                    50%
-                  </span>
-                </div>
-                <div className="w-full bg-gray-100 h-3 rounded-full overflow-hidden border border-gray-200">
-                  <div className="bg-orange-500 w-[50%] h-full rounded-full"></div>
-                </div>
-              </div>
-            </div>
+              </section>
+            )}
+            <Leaderboard />
           </div>
-        )}
-
-        {/* TAB CONTENT: SKILL TREE - FIXED & STYLED */}
-        {activeTab === "skills" && (
-          <div className="bg-white border-2 border-gray-100 border-b-4 rounded-3xl p-8 shadow-sm mb-8">
-            <div className="text-center mb-10">
-              <h2 className="text-3xl font-black text-gray-800 font-display mb-2 flex items-center justify-center gap-3">
-                <span className="bg-blue-100 text-blue-600 p-2 rounded-xl">
-                  <GitBranch size={28} />
-                </span>
-                Teknoloji Yolculuğu
-              </h2>
-              <p className="text-gray-500 font-medium max-w-lg mx-auto">
-                Zirveye giden yol haritan.{" "}
-                <span className="text-blue-500 font-bold">
-                  Adım adım ilerle!
-                </span>
-              </p>
-            </div>
-
-            {/* Interactive Skill Tree Container - ASPHALT ROAD THEME */}
-            <div className="relative w-full h-[700px] bg-[#1e1e24] rounded-3xl overflow-hidden border-4 border-gray-800 shadow-2xl group select-none flex justify-center">
-              {/* 1. Asphalt Texture & Grass Borders */}
-              <div
-                className="absolute inset-0 opacity-20"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
-                }}
-              ></div>
-              {/* Road Borders / Sidewalks */}
-              <div className="absolute left-0 top-0 bottom-0 w-8 bg-dashed-border-left"></div>
-              <div className="absolute right-0 top-0 bottom-0 w-8 bg-dashed-border-right"></div>
-
-              {/* 2. SVG Connections Layer - FIXED VIEWBOX */}
-              <svg
-                className="absolute inset-0 w-full h-full pointer-events-none z-0"
-                viewBox="0 0 800 700"
-                preserveAspectRatio="xMidYMid meet"
-              >
-                <defs>
-                  <filter
-                    id="glow"
-                    x="-20%"
-                    y="-20%"
-                    width="140%"
-                    height="140%"
-                  >
-                    <feGaussianBlur stdDeviation="2" result="blur" />
-                    <feComposite
-                      in="SourceGraphic"
-                      in2="blur"
-                      operator="over"
-                    />
-                  </filter>
-                </defs>
-
-                {/* Vertical Main Road Background */}
-                <path
-                  d="M400 120 L 400 350"
-                  stroke="#333"
-                  strokeWidth="120"
-                  strokeLinecap="square"
-                  fill="none"
-                />
-
-                {/* Dashed Center Line */}
-                <path
-                  d="M400 120 L 400 350"
-                  stroke="#fbbf24" // Amber yellow
-                  strokeWidth="4"
-                  strokeDasharray="20 20"
-                  strokeLinecap="butt"
-                  fill="none"
-                />
-
-                {/* Active GPS Progress Line */}
-                <path
-                  d="M400 150 L 400 310"
-                  stroke="#22c55e"
-                  strokeWidth="8"
-                  strokeLinecap="round"
-                  fill="none"
-                  className="animate-[pulse_3s_infinite]"
-                  filter="url(#glow)"
-                  opacity="0.8"
-                />
-
-                {/* Branching Roads Background */}
-                <path
-                  d="M400 410 C 400 500, 280 480, 280 600"
-                  stroke="#333"
-                  strokeWidth="100"
-                  fill="none"
-                />
-                <path
-                  d="M400 410 C 400 500, 520 480, 520 600"
-                  stroke="#333"
-                  strokeWidth="100"
-                  fill="none"
-                />
-
-                {/* Branching Lane Markings */}
-                <path
-                  d="M400 410 C 400 500, 280 480, 280 600"
-                  stroke="#e4e4e7" // White/Zinc
-                  strokeWidth="2"
-                  strokeDasharray="15 15"
-                  fill="none"
-                  opacity="0.6"
-                />
-                <path
-                  d="M400 410 C 400 500, 520 480, 520 600"
-                  stroke="#e4e4e7" // White/Zinc
-                  strokeWidth="2"
-                  strokeDasharray="15 15"
-                  fill="none"
-                  opacity="0.6"
-                />
-              </svg>
-
-              {/* 3. Nodes Layer */}
-
-              {/* NODE 1: START LINE (Top) */}
-              <div className="absolute top-[8%] flex flex-col items-center group cursor-pointer hover:-translate-y-2 transition-transform duration-300">
-                {/* Pit Stop Sign */}
-                <div className="relative overflow-visible">
-                  <div className="w-32 bg-zinc-800 text-white rounded-lg border-2 border-zinc-600 shadow-xl p-3 flex flex-col items-center relative z-10">
-                    <div className="absolute -top-3 bg-yellow-400 text-black text-[10px] font-black px-2 py-0.5 rounded uppercase tracking-wide border border-black transform -rotate-2">
-                      HEADQUARTERS
-                    </div>
-                    <Code size={32} className="text-green-400 mb-1" />
-                    <span className="text-sm font-black font-display text-zinc-200">
-                      BASIC_PY
-                    </span>
-                  </div>
-                  {/* Pole */}
-                  <div className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-8 bg-zinc-700"></div>
-                  <div className="absolute top-full left-1/4 -translate-x-1/2 w-1 h-8 bg-zinc-700"></div>
-                  <div className="absolute top-full right-1/4 translate-x-1/2 w-1 h-8 bg-zinc-700"></div>
-                </div>
-              </div>
-
-              {/* NODE 2: CHECKPOINT (Middle) */}
-              <div className="absolute top-[42%] flex flex-col items-center group cursor-pointer hover:-translate-y-2 transition-transform duration-300 z-10">
-                {/* Road Sign Style Node */}
-                <div className="relative w-32 h-32 bg-blue-600 rounded-full border-4 border-white shadow-[0_0_20px_rgba(37,99,235,0.5)] flex items-center justify-center">
-                  {/* Spinners */}
-                  <div className="absolute inset-0 border-4 border-dashed border-white/30 rounded-full animate-[spin_10s_linear_infinite]"></div>
-
-                  <GitBranch size={48} className="text-white relative z-10" />
-
-                  <div className="absolute -bottom-4 bg-white text-blue-900 border-2 border-blue-600 font-black text-xs px-3 py-1 rounded-full uppercase tracking-wider shadow-md">
-                    CHECKPOINT
-                  </div>
-                </div>
-
-                {/* Info Box */}
-                <div className="mt-6 bg-zinc-900/90 backdrop-blur-sm border border-zinc-700 p-3 rounded-xl shadow-2xl text-center max-w-[150px]">
-                  <h3 className="font-black text-white text-md">ALGORITHMS</h3>
-                  <div className="flex items-center gap-2 mt-2 justify-center">
-                    <div className="w-16 bg-zinc-700 h-2 rounded-full overflow-hidden">
-                      <div className="bg-green-500 w-[60%] h-full rounded-full animate-pulse"></div>
-                    </div>
-                    <span className="text-[10px] font-bold text-zinc-400">
-                      %60
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* NODE 3: CONSTRUCTION (Bottom Left) */}
-              <div className="absolute top-[78%] left-[35%] -translate-x-1/2 flex flex-col items-center group opacity-80 hover:opacity-100 transition-all">
-                <div className="relative w-24 h-24 bg-zinc-800 rounded-xl border-4 border-yellow-500/50 flex items-center justify-center shadow-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)]">
-                  <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
-                  <div className="relative z-10 bg-zinc-900 p-3 rounded-full border border-zinc-700">
-                    <Lock size={24} className="text-zinc-500" />
-                  </div>
-                  {/* Cone */}
-                  <Construction size={24} className="absolute -top-3 -right-3 text-yellow-400" />
-                </div>
-                <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
-                  WEB_ZONE
-                </div>
-              </div>
-
-              {/* NODE 4: CONSTRUCTION (Bottom Right) */}
-              <div className="absolute top-[78%] left-[65%] -translate-x-1/2 flex flex-col items-center group opacity-80 hover:opacity-100 transition-all">
-                <div className="relative w-24 h-24 bg-zinc-800 rounded-xl border-4 border-yellow-500/50 flex items-center justify-center shadow-lg bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)]">
-                  <div className="absolute inset-0 bg-black/50 rounded-lg"></div>
-                  <div className="relative z-10 bg-zinc-900 p-3 rounded-full border border-zinc-700">
-                    <Lock size={24} className="text-zinc-500" />
-                  </div>
-                  {/* Cone */}
-                  <Construction size={24} className="absolute -top-3 -left-3 text-yellow-400" />
-                </div>
-                <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
-                  GAME_LAB
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-        {/* TAB CONTENT: PORTFOLIO */}
-        {activeTab === "portfolio" && (
-          <div className="space-y-8">
-            {/* Hero Section of Portfolio */}
-            <div className="bg-[#1e1b4b] rounded-2xl p-8 text-white relative overflow-hidden">
-              <Sparkles
-                className="absolute top-10 right-10 text-yellow-400 animate-pulse"
-                size={40}
-              />
-              <div className="relative z-10 max-w-2xl">
-                <h2 className="text-3xl font-black font-display mb-4">
-                  Neler Ürettim?
-                </h2>
-                <p className="text-indigo-200 text-lg mb-6">
-                  Gomufi evreninde kodladığın, tasarladığın ve hayata geçirdiğin
-                  her şey burada. Geleceği inşa etmeye devam et!
-                </p>
-                <div className="flex gap-4">
-                  <div className="bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
-                    <span className="block text-2xl font-black text-yellow-400">
-                      12
-                    </span>
-                    <span className="text-xs text-indigo-300 font-bold uppercase">
-                      Proje
-                    </span>
-                  </div>
-                  <div className="bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
-                    <span className="block text-2xl font-black text-green-400">
-                      45
-                    </span>
-                    <span className="text-xs text-indigo-300 font-bold uppercase">
-                      Aha! Anı
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {/* Background Deco */}
-              <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-600 rounded-full blur-3xl opacity-50"></div>
-            </div>
-
-            {/* PROJECT GALLERY */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-black text-gray-800 font-display flex items-center gap-2">
-                  <Gamepad2 className="text-purple-500" />
-                  Proje Galerisi
-                </h3>
-                <button className="text-sm font-bold text-purple-600 hover:bg-purple-50 px-4 py-2 rounded-lg transition-colors">
-                  Tümünü Gör
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Project Card 1 */}
-                <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl overflow-hidden hover:-translate-y-1 transition-transform group">
-                  <div className="h-48 bg-gray-900 relative flex items-center justify-center">
-                    <h4 className="text-green-400 font-mono text-xl font-bold">{`> Matrix_Bot_v1`}</h4>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                      <button className="bg-white text-gray-900 font-black px-6 py-3 rounded-full flex items-center gap-2 transform scale-90 group-hover:scale-100 transition-transform">
-                        <Play size={20} fill="currentColor" />
-                        OYNA / İZLE
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-blue-100 text-blue-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                        Python
-                      </span>
-                      <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                        Bot
-                      </span>
-                    </div>
-                    <h4 className="font-black text-gray-800 text-lg mb-1">
-                      Discord Moderasyon Botu
-                    </h4>
-                    <p className="text-gray-500 text-xs font-medium mb-4">
-                      Sunucu güvenliğini sağlayan ve kelime filtresi yapan
-                      gelişmiş bir bot.
-                    </p>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <Heart size={16} />{" "}
-                        <span className="text-xs font-bold">24</span>
-                      </div>
-                      <span className="text-gray-400 text-xs font-bold">
-                        3 gün önce
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Project Card 2 */}
-                <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl overflow-hidden hover:-translate-y-1 transition-transform group">
-                  <div className="h-48 bg-[#2d1b4e] relative flex items-center justify-center">
-                    <div className="w-16 h-16 bg-yellow-400 rounded-lg shadow-lg rotate-12"></div>
-                    <div className="w-16 h-16 bg-red-400 rounded-lg shadow-lg -rotate-6 -ml-4 z-10"></div>
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center backdrop-blur-sm">
-                      <button className="bg-white text-gray-900 font-black px-6 py-3 rounded-full flex items-center gap-2 transform scale-90 group-hover:scale-100 transition-transform">
-                        <Play size={20} fill="currentColor" />
-                        OYNA / İZLE
-                      </button>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="bg-orange-100 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                        Blok Kodlama
-                      </span>
-                      <span className="bg-purple-100 text-purple-700 text-[10px] font-black px-2 py-0.5 rounded uppercase">
-                        Oyun
-                      </span>
-                    </div>
-                    <h4 className="font-black text-gray-800 text-lg mb-1">
-                      Uzay Macerası 2D
-                    </h4>
-                    <p className="text-gray-500 text-xs font-medium mb-4">
-                      Kendi tasarladığım karakterlerle dolu sonsuz bir uzay
-                      platform oyunu.
-                    </p>
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center gap-1 text-gray-400">
-                        <Heart size={16} />{" "}
-                        <span className="text-xs font-bold">56</span>
-                      </div>
-                      <span className="text-gray-400 text-xs font-bold">
-                        1 hafta önce
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Project Card 3 */}
-                <div className="bg-white border-dashed border-2 border-gray-200 rounded-2xl flex flex-col items-center justify-center p-8 text-center cursor-pointer hover:bg-gray-50 transition-colors">
-                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center text-gray-400 mb-4">
-                    <Code size={24} />
-                  </div>
-                  <h4 className="font-black text-gray-400 text-lg">
-                    Yeni Proje Ekle
-                  </h4>
-                  <p className="text-gray-400 text-xs font-medium px-8 mt-2">
-                    Builder'a git ve oluşturmaya başla!
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* AHA! MOMENTS */}
-            <div className="pb-12">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-black text-gray-800 font-display flex items-center gap-2">
-                  <Video className="text-red-500" />
-                  "Aha!" Anları
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {[1, 2, 3, 4].map((clip, i) => (
-                  <div
-                    key={i}
-                    className="relative aspect-[9/16] bg-gray-900 rounded-2xl overflow-hidden group cursor-pointer shadow-md"
-                  >
-                    <img
-                      src={`https://picsum.photos/300/600?random=${i}`}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-40 transition-opacity"
-                    />
-
-                    {/* Play Icon Overlay */}
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="w-12 h-12 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-white scale-75 group-hover:scale-100 transition-all">
-                        <Play size={20} fill="currentColor" />
-                      </div>
-                    </div>
-
-                    <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
-                      <span className="text-white text-xs font-bold mb-1 flex items-center gap-1">
-                        <Flame size={12} /> İlk Hatasız Run
-                      </span>
-                      <span className="text-white/60 text-[10px] font-mono">
-                        12.01.2025
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
+        </div>
       </div>
-      <div className="max-w-5xl mx-auto px-4 pb-10"><AccountPrivacyCard /></div>
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 pb-10"><AccountPrivacyCard /></div>
     </div>
   );
 };

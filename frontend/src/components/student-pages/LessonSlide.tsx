@@ -1109,7 +1109,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     {previewRole === 'student' && !isHwSlide && (
                         <span className="text-[10px] md:text-xs font-black uppercase tracking-wider px-2 md:px-3 py-1 md:py-1.5 bg-emerald-50 border-2 border-b-4 border-emerald-300 text-emerald-600 rounded-xl flex items-center gap-1 shadow-sm">
                             <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Tekrar Modu</span>
+                            <span>Kendi hızında</span>
                         </span>
                     )}
 

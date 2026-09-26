@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Star, Calendar, MessageSquare, Loader2 } from 'lucide-react';
 import api from '../../api';
+import InitialsAvatar from '../shared/InitialsAvatar';
 
 interface Instructor {
     id: number;
@@ -25,7 +26,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData, onM
         return teachersData.map((t: any) => ({
             ...t,
             nextLesson: "-",
-            avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+            avatar: ''
         }));
     });
     const [isLoading, setIsLoading] = useState(!teachersData);
@@ -35,7 +36,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData, onM
             const enrichedData = teachersData.map((t: any) => ({
                 ...t,
                     nextLesson: "-",
-                avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+                avatar: ''
             }));
             setInstructors(enrichedData);
             setIsLoading(false);
@@ -46,7 +47,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData, onM
                     const enrichedData = response.data.map((t: any) => ({
                         ...t,
                                     nextLesson: "-", // This could be fetched from live sessions in the future
-                        avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${t.first_name}${t.id}`
+                        avatar: ''
                     }));
                     setInstructors(enrichedData);
                 } catch (error) {
@@ -97,7 +98,7 @@ const ParentInstructors: React.FC<ParentInstructorsProps> = ({ teachersData, onM
                             <div className="flex items-start gap-6 relative z-10">
                                 <div className="relative">
                                     <div className="absolute inset-0 bg-purple-500 rounded-3xl rotate-6 group-hover:rotate-12 transition-transform opacity-10" />
-                                    <img src={instructor.avatar} alt={instructor.first_name} className="w-24 h-24 rounded-3xl bg-gray-50 relative z-10 border-2 border-white shadow-sm" />
+                                    <InitialsAvatar name={`${instructor.first_name || ''} ${instructor.last_name || ''}`} className="w-24 h-24 rounded-3xl relative z-10 border-2 border-white shadow-sm text-3xl" />
                                 </div>
 
                                 <div className="flex-1">
