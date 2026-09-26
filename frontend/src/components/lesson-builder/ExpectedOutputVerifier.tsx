@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AlertTriangle, Loader2, Pencil, Play, Plus, ShieldCheck, Trash2 } from 'lucide-react';
-import { runPythonProgram } from '../../hooks/usePyodide';
-import { checkTaskInVSCode, isEmbeddedInVSCode, prepareTaskInVSCode } from '../../vscodeBridge';
+import { runSolution, VSCODE_REQUIRED } from '../../codeRunner';
 import { challengeFiles, entryFile } from './challengeFiles';
 import type { ChallengeConfig, ChallengeCriterion, CriterionKind } from './types';
 
@@ -14,8 +13,8 @@ import type { ChallengeConfig, ChallengeCriterion, CriterionKind } from './types
  * çalışıyordu. Burada öğretmen çözümü yazıyor, çıktıyı sistem çalıştırıp
  * kendisi dolduruyor — tahmin değil ölçüm.
  *
- * NEREDE ÇALIŞIR: öğretmenin VS Code'u eşliyse orada (gerçek yorumlayıcı,
- * öğrencininkiyle aynı ortam), değilse tarayıcıdaki Pyodide. Hiçbiri çalışmazsa
+ * NEREDE ÇALIŞIR: HER ZAMAN öğretmenin VS Code'unda (gerçek yorumlayıcı,
+ * öğrencininkiyle aynı ortam). VS Code bağlı değilse ya da görev çalıştırılamazsa
  * (ör. Arduino görevi) otomatik kontrol dürüstçe kapatılır — sistem
  * çalıştıramadığı şeyi çalıştırabiliyormuş gibi göstermemeli.
  */
@@ -55,26 +54,13 @@ const ExpectedOutputVerifier: React.FC<Props> = ({ cfg, patch }) => {
             .map((s) => (s.input || '').trim()).filter(Boolean).join('\n');
 
         try {
-            if (isEmbeddedInVSCode()) {
-                // Öğretmen paneli VS Code'da açtıysa çözümü öğrencinin ortamında
-                // doğrula — kurulu paketler ve gerçek sürüm burada belirleyici.
-                await prepareTaskInVSCode(files, language, 'solution');
-                // Gizli çalıştırma: öğretmen etkileşim değil ölçüm istiyor.
-                const res = await checkTaskInVSCode(
-                    language, 'solution', stdin, false, entryFile(files).name,
-                );
-                if (!res?.ok) throw new Error(res?.error || 'VS Code yanıt vermedi.');
-                if (res.timedOut) throw new Error('Çözüm 10 saniyede bitmedi.');
-                if (res.stderr.trim()) throw new Error(res.stderr.trim());
-                patch({ expectedOutput: res.stdout.trimEnd(), outputVerified: true });
-            } else {
-                if (language !== 'python') {
-                    throw new Error('Tarayıcıda yalnızca Python çalıştırılabilir. Bu dili VS Code panelinden doğrula.');
-                }
-                const { stdout, error } = await runPythonProgram(files, entryFile(files).name, stdin);
-                if (error) throw new Error(error);
-                patch({ expectedOutput: (stdout || '').trimEnd(), outputVerified: true });
-            }
+            // Çözüm HER ZAMAN VS Code'da (panelde de tarayıcıda da): kurulu
+            // paketler ve gerçek Python sürümü burada belirleyici. Ayrı bir
+            // klasörde çalışır, öğrencinin dosyalarına dokunmaz.
+            const res = await runSolution(files, entryFile(files).name, stdin, language);
+            if (!res) throw new Error(VSCODE_REQUIRED);
+            if (res.error) throw new Error(res.error.trim());
+            patch({ expectedOutput: res.stdout.trimEnd(), outputVerified: true });
             setManualEdit(false);
         } catch (err) {
             // Başarısızlık iki anlama gelebilir: çözüm hatalı ya da bu görev

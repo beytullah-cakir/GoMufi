@@ -91,82 +91,16 @@ export class GoMufiCodeLensProvider implements vscode.CodeLensProvider {
     }
 }
 
-export class GoMufiInlineCompletionProvider implements vscode.InlineCompletionItemProvider {
-    provideInlineCompletionItems(
-        doc: vscode.TextDocument,
-        pos: vscode.Position,
-    ): vscode.ProviderResult<vscode.InlineCompletionItem[]> {
-        if (!active || !active.message) return [];
-
-        const match = active.message.match(/('(?:\\'|[^'])*'|"(?:\\"|[^"])*"|`[^`]+`|\bprint\([^)]*\))/i);
-        let completionText = '';
-
-        if (match) {
-            const raw = match[1];
-            if (raw.toLowerCase().startsWith('print(')) {
-                completionText = raw;
-            } else if (raw.startsWith("'") || raw.startsWith('"')) {
-                completionText = `print(${raw})`;
-            } else if (raw.startsWith('`')) {
-                completionText = raw.slice(1, -1);
-            }
-        }
-
-        if (!completionText) return [];
-
-        const currentLineText = doc.lineAt(pos.line).text;
-        const trimmed = currentLineText.trim();
-
-        if (trimmed === '' || trimmed === '#' || completionText.startsWith(trimmed)) {
-            const item = new vscode.InlineCompletionItem(
-                completionText,
-                new vscode.Range(pos.line, 0, pos.line, currentLineText.length),
-            );
-            return [item];
-        }
-
-        return [];
-    }
-}
-
-export class GoMufiCodeActionProvider implements vscode.CodeActionProvider {
-    provideCodeActions(
-        doc: vscode.TextDocument,
-        range: vscode.Range | vscode.Selection,
-    ): vscode.ProviderResult<(vscode.Command | vscode.CodeAction)[]> {
-        if (!active || !active.message) return [];
-
-        const match = active.message.match(/('(?:\\'|[^'])*'|"(?:\\"|[^"])*"|`[^`]+`|\bprint\([^)]*\))/i);
-        if (!match) return [];
-
-        const raw = match[1];
-        let replacement = '';
-        if (raw.toLowerCase().startsWith('print(')) {
-            replacement = raw;
-        } else if (raw.startsWith("'") || raw.startsWith('"')) {
-            replacement = `print(${raw})`;
-        } else if (raw.startsWith('`')) {
-            replacement = raw.slice(1, -1);
-        }
-
-        if (!replacement) return [];
-
-        const action = new vscode.CodeAction(
-            `GoMufi AI Öneri: '${replacement}' yap`,
-            vscode.CodeActionKind.QuickFix,
-        );
-        action.isPreferred = true;
-
-        const edit = new vscode.WorkspaceEdit();
-        let targetLine = active.line > 0 ? active.line - 1 : range.start.line;
-        const lineText = doc.lineAt(targetLine).text;
-
-        edit.replace(doc.uri, new vscode.Range(targetLine, 0, targetLine, lineText.length), replacement);
-        action.edit = edit;
-
-        return [action];
-    }
-}
+/*
+ * Koç önerisini editöre ekleyen "Tab ile kabul et" (satır içi tamamlama) ve
+ * "Ctrl + . ile uygula" (hızlı düzeltme) kaldırıldı.
+ *
+ * NEDEN: öneri metni YZ çıktısından (tırnaklı ya da ters tırnaklı parçalar)
+ * çıkarılıyordu. YZ'nin girdisinde öğretmenin görev metni ve öğrencinin kodu
+ * var; ikisine de gizlenmiş bir talimatla koça herhangi bir kod söyletilip
+ * öğrencinin dosyasına TEK TUŞLA yazdırılabiliyordu. Ayrıca koçun "kod verme"
+ * kuralıyla çelişiyordu: ipucu yön gösterir, kodu öğrenci yazar.
+ */
 
 export function init(ctx: vscode.ExtensionContext): void {
     // Sıcak Amber/Sarı ışıltı ve samimi AI Koç rozeti
@@ -215,14 +149,6 @@ export function init(ctx: vscode.ExtensionContext): void {
         successDecoration,
         diagnosticsCollection,
         vscode.languages.registerCodeLensProvider({ scheme: 'file', pattern: '**/*.py' }, codeLensProvider),
-        vscode.languages.registerInlineCompletionItemProvider(
-            { scheme: 'file', language: 'python' },
-            new GoMufiInlineCompletionProvider(),
-        ),
-        vscode.languages.registerCodeActionsProvider(
-            { scheme: 'file', language: 'python' },
-            new GoMufiCodeActionProvider(),
-        ),
 
         // Öğrenci yazmaya başladı: ipucu görevini yaptı, çekilsin.
         vscode.workspace.onDidChangeTextDocument((e) => {
@@ -316,9 +242,8 @@ function paintSuccess(): void {
         if (targetLine === -1) targetLine = 0;
 
         const line = doc.lineAt(targetLine);
-        const hover = new vscode.MarkdownString();
-        hover.isTrusted = true;
-        hover.supportThemeIcons = true;
+        // Güvenilmez Markdown: içinde komut bağlantısı çalışmaz (bkz. paint).
+        const hover = new vscode.MarkdownString(undefined, true);
         hover.appendMarkdown(`### $(pass-filled) Tebrikler! Görevi Harika Şekilde Tamamladın!\n\n`);
         hover.appendMarkdown(`$(star-full) **+${activeSuccess.xp} XP** Kazandın! Kodun tüm doğruluk testlerini geçti.`);
 
@@ -365,25 +290,30 @@ function paint(): void {
         const matchString = active.message.match(/('[^']+'|"[^"]+")/g) || [];
         const inlineBadge = formatShortEditorHint(active.message);
 
-        // Zengin Markdown Destekçi AI Koç Kartı
-        const hover = new vscode.MarkdownString();
-        hover.isTrusted = true;
-        hover.supportHtml = true;
-        hover.supportThemeIcons = true;
+        // AI Koç kartı — GÜVENİLMEZ Markdown, HTML kapalı.
+        //
+        // Koçun mesajı YZ çıktısıdır ve girdisinde öğretmenin görev metni ile
+        // öğrencinin kodu var. Eskiden kart `isTrusted = true` idi ve mesaj
+        // içine olduğu gibi ekleniyordu: mesaja sızdırılan bir
+        // `[tıkla](command:...)` bağlantısı VS Code komutu (ör. terminale komut
+        // yazdırma) çalıştırabiliyordu. Artık komut bağlantıları çalışmaz ve
+        // YZ'den gelen her şey düz metin olarak (Markdown'dan kaçışlanarak) basılır.
+        const hover = new vscode.MarkdownString(undefined, true);
+        hover.isTrusted = false;
+        hover.supportHtml = false;
 
         hover.appendMarkdown(`### $(lightbulb) GoMufi AI Koç İpucu (${index + 1}. Satır)\n\n`);
 
         if (matchString.length >= 2 && matchString[0] && matchString[1]) {
-            hover.appendMarkdown(`| Durum | Metin / Çıktı |\n|---|---|\n`);
-            hover.appendMarkdown(`| $(output) **Senin Çıktın** | \`${matchString[0].slice(1, -1)}\` |\n`);
-            hover.appendMarkdown(`| $(target) **Hedef Çıktı** | \`${matchString[1].slice(1, -1)}\` |\n\n`);
+            hover.appendMarkdown(`$(output) **Senin çıktın:** `);
+            hover.appendText(matchString[0].slice(1, -1));
+            hover.appendMarkdown(`\n\n$(target) **Hedef çıktı:** `);
+            hover.appendText(matchString[1].slice(1, -1));
+            hover.appendMarkdown(`\n\n`);
         }
 
-        hover.appendMarkdown(`$(lightbulb) **Öneri**:\n> ${active.message}\n\n`);
-        hover.appendMarkdown(`---\n\n`);
-        hover.appendMarkdown(`$(zap) **İpuçları & Kolaylıklar**:\n`);
-        hover.appendMarkdown(`- Klavyeden **\`Tab\`** tuşuna basarak gri tamamlamayı kabul edebilirsin.\n`);
-        hover.appendMarkdown(`- Klavyeden **\`Ctrl + .\`** (veya Ampul ikonu) ile otomatik uygulayabilirsin.\n`);
+        hover.appendMarkdown(`$(lightbulb) **Öneri:** `);
+        hover.appendText(active.message);
 
         editor.setDecorations(hintDecoration, [{
             range,

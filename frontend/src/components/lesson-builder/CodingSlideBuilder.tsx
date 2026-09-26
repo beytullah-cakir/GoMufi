@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Slide } from './types';
 import { Play, Loader2, SquareTerminal } from 'lucide-react';
-import { usePyodide } from '../../hooks/usePyodide';
+import { runSnippet, VSCODE_REQUIRED } from '../../codeRunner';
 import Prism from 'prismjs';
 import 'prismjs/components/prism-python'; // Import python syntax
 
@@ -38,7 +38,10 @@ const CodingSlideBuilder: React.FC<CodingSlideBuilderProps> = ({ slide, updateSl
     // Initialize logic
     const initialCode = slide.elements?.[0]?.content || 'print("Hello World")';
     const [localCode, setLocalCode] = useState(initialCode);
-    const { runCode, output, isLoading, error } = usePyodide();
+    // Kod VS Code'da çalışır (tarayıcı içi Python kaldırıldı); çıktı orada, terminalde görünür.
+    const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const output: string[] = [];
 
     // Sync back to slide model (debounce?)
     useEffect(() => {
@@ -64,7 +67,11 @@ const CodingSlideBuilder: React.FC<CodingSlideBuilderProps> = ({ slide, updateSl
     };
 
     const handleRunCode = async () => {
-        await runCode(localCode);
+        setIsLoading(true);
+        setError(null);
+        const ok = await runSnippet(localCode, 'python');
+        setIsLoading(false);
+        setError(ok ? 'Kod VS Code terminalinde çalıştırıldı.' : VSCODE_REQUIRED);
     };
 
     return (

@@ -6,6 +6,10 @@ import * as hints from './hints';
 import { pythonTerminalLine, resolvePython, warnPythonMissing } from './environment';
 import { slideFileName } from './paths';
 import { workspaceRoot } from './workspace';
+import { TEST_HARNESS, cleanTests, parseHarnessOutput, type TestResult } from './testHarness';
+import * as fs from 'fs';
+import * as os from 'os';
+import * as path from 'path';
 
 /**
  * Sitedeki "Çalıştır" butonunun ulaştığı yerel sunucu.
@@ -164,7 +168,7 @@ const MAX_TASK_FILES = 12;
 const SOLUTION_DIR = '_cozum';
 
 /** Sunucunun kabul ettiği komutlar. Liste dışındaki her yol 404. */
-const ROUTES = ['/ping', '/run', '/task', '/check', '/hint', '/success', '/reveal', '/terminal'];
+const ROUTES = ['/ping', '/run', '/task', '/check', '/tests', '/hint', '/success', '/reveal', '/terminal'];
 
 export interface RunPayload {
     code: string;
@@ -302,7 +306,7 @@ export class LocalRunner {
 
         // Hata gövdede dönüyor, HTTP koduyla değil: çağıran taraf "bağlantı
         // koptu" ile "kodun çalışmadı"yı ayırt edebilmeli. 500 görseydi site
-        // eşleşmeyi düşürüp Pyodide'ye kaçardı — oysa VS Code ayakta.
+        // eşleşmeyi düşürüp "VS Code bağlı değil" derdi — oysa VS Code ayakta.
         try {
             await this.dispatch(route, payload, json);
         } catch (err) {
@@ -359,6 +363,15 @@ export class LocalRunner {
                 return;
             }
 
+            case '/tests': {
+                try {
+                    json({ ok: true, ...(await this.runTests(language, slot, payload)) });
+                } catch (err) {
+                    json({ ok: false, error: (err as Error).message });
+                }
+                return;
+            }
+
             // Ders slaydındaki terminal bloğu ("pip install pandas").
             //
             // YAZAR, ÇALIŞTIRMAZ: komut terminale düşer, Enter'a öğrenci basar.
@@ -370,13 +383,28 @@ export class LocalRunner {
                     json({ ok: false, error: 'komut bos' });
                     return;
                 }
-                const terminal = this.ensureTerminal(this.dir());
-                terminal.show(true);
-
+                assertTrusted();
+                await assertConsent();
                 // Son satır YAZILIR ama çalıştırılmaz — kararı öğrenci verir.
                 // Ondan öncekiler (`cd proje` gibi hazırlık adımları) çalışmak
-                // zorunda, yoksa son komut yanlış klasörde beklerdi.
-                const lines = command.split('\n').map((l) => l.trim()).filter(Boolean);
+                // zorunda, yoksa son komut yanlış klasörde beklerdi. Bu satırlar
+                // ders içeriğinden (öğretmen/YZ) geldiği için ÖNCE öğrenciye
+                // gösterilir; onay vermeden hiçbiri çalışmaz.
+                const lines = command.split('\n').map((l) => l.trim()).filter(Boolean).slice(0, 20);
+                if (lines.length > 1) {
+                    const CALISTIR = 'Çalıştır';
+                    const secim = await vscode.window.showWarningMessage(
+                        'GoMufi: Ders şu hazırlık komutlarını terminalde çalıştırmak istiyor.',
+                        { modal: true, detail: lines.slice(0, -1).map((l) => `$ ${l}`).join('\n') },
+                        CALISTIR,
+                    );
+                    if (secim !== CALISTIR) {
+                        json({ ok: false, error: 'Komutlar onaylanmadı.' });
+                        return;
+                    }
+                }
+                const terminal = this.ensureTerminal(this.dir());
+                terminal.show(true);
                 lines.forEach((line, i) => {
                     terminal.sendText(line, i < lines.length - 1);
                 });
@@ -685,6 +713,64 @@ export class LocalRunner {
             }
         }
         return out;
+    }
+
+    /**
+     * Fonksiyon testleri: öğrencinin (ya da öğretmenin çözüm) dosyalarıyla,
+     * öğrencinin kendi Python'unda. `files` verilirse ve yuva `solution` ise
+     * önce dosyalar yazılır (öğretmen doğrulaması); öğrenci yuvasında diskteki
+     * gerçek dosyalar kullanılır.
+     */
+    async runTests(language: string, slot: TaskSlot, payload: any): Promise<{
+        results: TestResult[]; fatal: string | null;
+    }> {
+        assertTrusted();
+        await assertConsent();
+        if (language !== 'python') {
+            return { results: [], fatal: 'Fonksiyon testleri yalnızca Python görevlerinde çalışır.' };
+        }
+        const tests = cleanTests(payload?.tests);
+        if (!tests.length) return { results: [], fatal: null };
+        if (slot === 'solution' && Array.isArray(payload?.files)) {
+            await this.prepareTask(payload, language, slot);
+        }
+        const dir = this.slotDir(slot);
+        const entry = this.entryFile(language, slot, payload?.entry);
+        const open = vscode.workspace.textDocuments.find((d) => d.uri.fsPath === entry.fsPath);
+        if (open?.isDirty) await open.save();
+
+        const py = await resolvePython();
+        if (!py) {
+            void warnPythonMissing();
+            return { results: [], fatal: missingInterpreter('python') };
+        }
+        const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'gomufi-test-'));
+        const harness = path.join(tmp, 'harness.py');
+        const testsPath = path.join(tmp, 'tests.json');
+        fs.writeFileSync(harness, TEST_HARNESS, 'utf8');
+        fs.writeFileSync(testsPath, JSON.stringify(tests), 'utf8');
+        const marker = `@@GOMUFI-${crypto.randomBytes(8).toString('hex')}@@`;
+        const stdin = typeof payload?.stdin === 'string' ? payload.stdin : '';
+
+        try {
+            const stdout = await new Promise<string>((resolve) => {
+                const child = childProcess.execFile(
+                    py.cmd, [...py.args, harness, dir.fsPath, path.basename(entry.fsPath), testsPath, marker],
+                    {
+                        cwd: dir.fsPath, timeout: 10_000, maxBuffer: 1024 * 1024, windowsHide: true,
+                        env: { ...process.env, PYTHONIOENCODING: 'utf-8', PYTHONUTF8: '1' },
+                    },
+                    (err, out) => resolve(err && (err as any).killed
+                        ? '' : String(out ?? '')),
+                );
+                if (stdin) child.stdin?.write(stdin.endsWith('\n') ? stdin : `${stdin}\n`);
+                child.stdin?.end();
+            });
+            return parseHarnessOutput(stdout, marker, tests)
+                ?? { results: [], fatal: 'Testler zaman aşımına uğradı ya da program beklenmedik şekilde kapandı.' };
+        } finally {
+            fs.rmSync(tmp, { recursive: true, force: true });
+        }
     }
 
     /**

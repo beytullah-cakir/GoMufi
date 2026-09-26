@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Image as ImageIcon, Video as VideoIcon, Loader2, FolderOpen, Globe, ExternalLink, FileText, Pencil, Mic, PenTool, Trophy, Code2, FileUp, Send, CheckCircle, GitMerge, Target, Sparkles, Lightbulb, Terminal, ArrowRight, ShieldCheck, Play, PenLine, Folder, FlaskConical, Timer, FileCode2, RotateCcw, Presentation, GraduationCap, Search, MousePointer2 } from 'lucide-react';
 import CodeWidget from "./CodeWidget";
-import { usePyodide } from "../../hooks/usePyodide";
+import { runTests as runTestsInVSCode, VSCODE_REQUIRED } from "../../codeRunner";
 import MultipleChoiceWidget from "./MultipleChoiceWidget";
 import type { SlideElement, ElementStyle } from "./types";
 import api from "../../api";
@@ -558,8 +558,6 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
     const [isSubmitted, setIsSubmitted] = useState(!!el.extra?.isSubmitted);
     const [showSuccess, setShowSuccess] = useState(false);
 
-    // Pyodide Hook for Python Execution
-    const { runCode } = usePyodide();
 
     useEffect(() => {
         setTitle(el.extra?.title || 'UYGULA (KODLAMA GÖREVİ)');
@@ -588,37 +586,18 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
         if (e) e.stopPropagation();
         setIsTestRunning(true);
 
-        const updated = [...testCases];
-        let passedCount = 0;
-
-        for (let i = 0; i < updated.length; i++) {
-            const tc = updated[i];
-            // Combine student code with test invocation print statement
-            const codeToExecute = `${codeInput}\n\nprint(str(${tc.call}))`;
-
-            try {
-                // Execute code via Pyodide
-                await runCode(codeToExecute);
-
-                // Simple simulated test result matching expected string for demo
-                const isCodePass = codeInput.includes('return') && !codeInput.includes('pass');
-                const actual = isCodePass ? tc.expected : 'None';
-                const isPassed = actual.trim().toLowerCase() === tc.expected.trim().toLowerCase();
-
-                updated[i] = {
-                    ...tc,
-                    result: actual,
-                    status: isPassed ? 'passed' : 'failed'
-                };
-                if (isPassed) passedCount++;
-            } catch (err: any) {
-                updated[i] = {
-                    ...tc,
-                    result: 'Hata',
-                    status: 'failed'
-                };
-            }
-        }
+        // Testler öğrencinin VS Code'unda, ayrı bir çalışma klasöründe koşar
+        // (tarayıcı içi Python kaldırıldı). Eskiden burada sonuç UYDURULUYORDU:
+        // kodda `return` geçiyorsa her test "geçti" sayılıyordu.
+        const cases = testCases.map((tc, i) => ({ id: String(i), call: tc.call, expected: tc.expected }));
+        const run = await runTestsInVSCode(cases, 'gorev.py', '', 'solution', [{ name: 'gorev.py', content: codeInput, entry: true }]);
+        const byId = new Map((run?.results || []).map((r) => [r.id, r]));
+        const updated = testCases.map((tc, i) => {
+            if (!run) return { ...tc, result: VSCODE_REQUIRED, status: 'failed' as const };
+            if (run.fatal) return { ...tc, result: run.fatal, status: 'failed' as const };
+            const r = byId.get(String(i));
+            return { ...tc, result: r ? (r.error || r.actual) : 'Hata', status: (r?.passed ? 'passed' : 'failed') as 'passed' | 'failed' };
+        });
 
         setTestCases(updated);
         setIsTestRunning(false);
