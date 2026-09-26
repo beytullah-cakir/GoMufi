@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   LayoutDashboard,
   BookOpen,
@@ -12,7 +12,10 @@ import {
   Microscope,
   UserCheck,
   Megaphone,
+  Crown,
+  Building2,
 } from "lucide-react";
+import api from "../../api";
 import Sidebar from "../Sidebar";
 import { useUnreadMessages } from "../../messaging/useUnreadMessages";
 
@@ -29,6 +32,14 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
 }) => {
   const isAdmin = userData?.role === "admin" || localStorage.getItem("role") === "admin";
   const unread = useUnreadMessages();
+  // Kurum yöneticisiyse "Kurumum" menüsü; davet kabul edilince/ayrılınca yenilenir.
+  const [orgRole, setOrgRole] = useState<string | null>(null);
+  useEffect(() => {
+    const load = () => api.get("/org/me").then((r) => setOrgRole(r.data?.role ?? null)).catch(() => setOrgRole(null));
+    load();
+    window.addEventListener("org:changed", load);
+    return () => window.removeEventListener("org:changed", load);
+  }, []);
 
   // Kurs merkezli: öğretmen önce kursunu açar; sınıf içi işler ve takip aynı
   // kursla açılır (seçilen kurs sayfalar arasında hatırlanır, bkz. activeCourse.ts).
@@ -43,6 +54,8 @@ const InstructorSidebar: React.FC<InstructorSidebarProps> = ({
     { label: "Öğrenme Analizi", icon: Microscope, id: "Learning", section: "Takip" },
     { label: "Ödev Gönderileri", icon: ClipboardCheck, id: "HomeworkSubmissions", section: "Takip" },
     { label: "Mesajlar", icon: MessageCircle, id: "Messages", badgeCount: unread, section: "Hesap" },
+    ...(orgRole === "admin" ? [{ label: "Kurumum", icon: Building2, id: "Organization", section: "Hesap" }] : []),
+    { label: "Paketim", icon: Crown, id: "Plan", section: "Hesap" },
     { label: "Profilim", icon: User, id: "Profile", section: "Hesap" },
     ...(isAdmin ? [{ label: "Metrikler", icon: BarChart3, id: "Metrics", section: "Hesap" }] : []),
   ];

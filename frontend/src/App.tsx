@@ -13,6 +13,7 @@ import Animation from './components/Animation';
 import { WebSocketProvider } from './context/WebSocketContext';
 import VSCodeConnectPage from './components/VSCodeConnectPage';
 import VSCodeLessonPage from './components/VSCodeLessonPage';
+import OrgInvitePage from './components/OrgInvitePage';
 
 function App() {
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -57,6 +58,7 @@ function App() {
           path="/auth"
           element={<AuthPage onLogin={() => { }} />}
         />
+        <Route path="/kurum/davet" element={<OrgInvitePage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
 

@@ -16,6 +16,8 @@ import InstructorRoadmapBuilder from './InstructorRoadmapBuilder';
 import InstructorCalendar from './InstructorCalendar';
 import InstructorClasses from './InstructorClasses';
 import InstructorMetrics from './InstructorMetrics';
+import InstructorPlan from './InstructorPlan';
+import InstructorOrganization from './InstructorOrganization';
 import api from '../../api';
 
 const InstructorApp: React.FC = () => {
@@ -41,7 +43,9 @@ const InstructorApp: React.FC = () => {
             'profile': 'Profile',
             'builder': 'Builder',
             'homework-submissions': 'HomeworkSubmissions',
-            'learning': 'Learning'
+            'learning': 'Learning',
+            'plan': 'Plan',
+            'organization': 'Organization'
         };
         return mapping[lastPart] || 'Dashboard';
     };
@@ -94,7 +98,9 @@ const InstructorApp: React.FC = () => {
             'Profile': '/instructor/profile',
             'Builder': '/instructor/builder',
             'HomeworkSubmissions': '/instructor/homework-submissions',
-            'Learning': '/instructor/learning'
+            'Learning': '/instructor/learning',
+            'Plan': '/instructor/plan',
+            'Organization': '/instructor/organization'
         };
         navigate(mapping[pageId] || '/instructor/dashboard');
     };
@@ -155,6 +161,8 @@ const InstructorApp: React.FC = () => {
                 <Route path="profile" element={<InstructorProfile userData={userData} setUserData={setUserData} />} />
                 <Route path="homework-submissions" element={<InstructorHomeworkSubmissions coursesData={coursesData} />} />
                 <Route path="learning" element={<InstructorLearning coursesData={coursesData} />} />
+                <Route path="plan" element={<InstructorPlan onOrgChange={() => window.dispatchEvent(new Event('org:changed'))} />} />
+                <Route path="organization" element={<InstructorOrganization />} />
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
             </Routes>
         </InstructorLayout>
