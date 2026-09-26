@@ -41,9 +41,12 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             if not user_info:
                 user_info = await oauth.google.userinfo(token=token)
         except Exception as e:
-             raise HTTPException(status_code=500, detail=f"User Info Error: {str(e)}")
+             raise HTTPException(status_code=500, detail="Google hesap bilgisi alınamadı.")
             
         email = user_info.get('email')
+        # Doğrulanmamış Google e-postasıyla hesaba girilmez.
+        if not email or user_info.get('email_verified') is False:
+            raise HTTPException(status_code=400, detail="Google hesabının e-posta adresi doğrulanmamış.")
         first_name = user_info.get('given_name', '')
         last_name = user_info.get('family_name', '')
         
@@ -112,6 +115,18 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         
         if user_id is None:
             raise HTTPException(status_code=500, detail="User ID could not be determined")
+
+        # "Önceden açılmış hesap" saldırısı: kayıtta e-posta doğrulanmadığı için
+        # biri başkasının e-postasıyla parolalı hesap açıp, gerçek sahibi Google
+        # ile girince o hesabı paylaşabilirdi. Google e-postanın sahibini
+        # kanıtladı: parolayı bilen başkası varsa dışarıda kalsın — parola
+        # silinir, önceki oturumlar kapanır. (Parolayla girmek isteyen kullanıcı
+        # "şifremi unuttum" ile yeniden belirler.)
+        password_field = 'hashed_password' if role == 'parent' else 'password'
+        if not is_new_user and getattr(user, password_field, None):
+            setattr(user, password_field, "")
+            await login_guard.reset_sessions(db, role, user_id)
+            await db.commit()
         
         # Check for incomplete profile
         is_profile_incomplete = False

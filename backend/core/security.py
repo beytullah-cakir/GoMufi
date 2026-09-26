@@ -58,16 +58,21 @@ def decode_access_token(token: Optional[str]) -> Optional[dict]:
 
 def create_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + expires_delta
-    to_encode.update({"exp": expire})
+    now = datetime.now(timezone.utc)
+    # iat: şifre değişince önceki token'ları geçersiz saymak için (bkz. login_guard.ensure_session_valid)
+    to_encode.update({"exp": now + expires_delta, "iat": int(now.timestamp())})
     return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def create_access_token(user_id: str, role: str):
+def create_access_token(user_id: str, role: str, auth_time: Optional[int] = None):
+    """`auth_time`: kullanıcının GERÇEKTEN giriş yaptığı an. Tazelenen token'larda
+    korunur; böylece bir oturum sonsuza kadar uzatılamaz (bkz. /auth/device-renew)."""
+    now = int(datetime.now(timezone.utc).timestamp())
     return create_token(
         {
             "sub": str(user_id),
             "role": role,
-            "type": "access"
+            "type": "access",
+            "auth_time": int(auth_time or now),
         },
         timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     )

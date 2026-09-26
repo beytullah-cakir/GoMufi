@@ -704,6 +704,7 @@ export class LocalRunner {
         code: string; files: TaskFile[]; stdout: string; stderr: string; timedOut: boolean;
     }> {
         assertTrusted();
+        await assertConsent();
         const lang = RUN_COMMAND[language] ? language : 'python';
         const dir = this.slotDir(slot);
         const file = this.entryFile(lang, slot, entry);
@@ -796,6 +797,7 @@ export class LocalRunner {
         code: string; files: TaskFile[]; stdout: string; stderr: string; timedOut: boolean;
     } | null> {
         assertTrusted();
+        await assertConsent();
         const lang = RUN_COMMAND[language] ? language : 'python';
         const dir = this.slotDir(slot);
         const file = this.entryFile(lang, slot, entry);
@@ -858,6 +860,7 @@ export class LocalRunner {
 
     async run(payload: RunPayload): Promise<void> {
         assertTrusted();
+        await assertConsent();
         const { file, dir, language } = await this.materialize(payload);
 
         const doc = await vscode.workspace.openTextDocument(file);
@@ -986,4 +989,35 @@ function assertTrusted(): void {
         if (secim === GUVEN) void vscode.commands.executeCommand('workbench.trust.manage');
     });
     throw new Error('Klasör kısıtlı modda; kod çalıştırmak için klasöre güvenmen gerekiyor.');
+}
+
+/**
+ * Bir kerelik izin: derslerdeki kod öğrencinin bilgisayarında çalışıyor.
+ *
+ * NEDEN: öğretmen hesapları herkese açık; kötü niyetli biri öğretmen olup
+ * "Kodu Dene" slaydına zararlı Python koyabilirdi. Öğrenci (ya da velisi) ilk
+ * çalıştırmada ne olduğunu bilerek izin verir; reddederse hiçbir şey çalışmaz.
+ */
+const CONSENT_KEY = 'gomufi.runConsent';
+let consentStore: vscode.Memento | null = null;
+
+export function initConsent(store: vscode.Memento): void {
+    consentStore = store;
+}
+
+async function assertConsent(): Promise<void> {
+    if (!consentStore || consentStore.get<boolean>(CONSENT_KEY)) return;
+    const IZIN = 'İzin Ver';
+    const secim = await vscode.window.showWarningMessage(
+        'GoMufi: Derslerdeki kodlar bu bilgisayarda çalıştırılacak.',
+        {
+            modal: true,
+            detail: 'Kod, VS Code terminalinde senin hesabınla çalışır ve dosyalarına erişebilir. '
+                + 'Yalnızca okulunun ya da tanıdığın öğretmenlerin derslerinde izin ver. '
+                + 'Kodu çalıştırmadan önce her zaman editörde görebilirsin.',
+        },
+        IZIN,
+    );
+    if (secim !== IZIN) throw new Error('Kod çalıştırma izni verilmedi.');
+    await consentStore.update(CONSENT_KEY, true);
 }

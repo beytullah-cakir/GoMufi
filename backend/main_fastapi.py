@@ -118,7 +118,28 @@ app = FastAPI(
     title="GoMufi API",
     description="Eğitim platformu backend API",
     version="1.0.0",
+    # Canlıda API belgesi kapalı: bütün uçların haritasını herkese vermenin gereği yok.
+    docs_url=None if settings.IS_PRODUCTION else "/docs",
+    redoc_url=None if settings.IS_PRODUCTION else "/redoc",
+    openapi_url=None if settings.IS_PRODUCTION else "/openapi.json",
 )
+
+
+from fastapi.exception_handlers import http_exception_handler as _default_http_handler
+from fastapi.responses import JSONResponse as _JSONResponse
+from starlette.exceptions import HTTPException as _StarletteHTTPException
+
+_GENERIC_500 = "Sunucuda beklenmeyen bir hata oluştu. Lütfen biraz sonra tekrar dene."
+
+
+@app.exception_handler(_StarletteHTTPException)
+async def _hide_internal_details(request, exc):
+    """Canlıda 500 hatalarının ayrıntısı (istisna metni: tablo adı, dosya yolu,
+    SQL parçası…) kullanıcıya gitmez; loga yazılır. Yerelde ayrıntı görünür."""
+    if exc.status_code >= 500 and settings.IS_PRODUCTION:
+        logger.error("500 %s %s: %s", request.method, request.url.path, exc.detail)
+        return _JSONResponse({"detail": _GENERIC_500}, status_code=exc.status_code)
+    return await _default_http_handler(request, exc)
 
 # 1. Proxy headers (Railway / production reverse proxy için)
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")

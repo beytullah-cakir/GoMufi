@@ -111,3 +111,12 @@ def db_query(dsn):
             pytest.skip(f"veritabanına bağlanılamadı: {e}")
 
     return _q
+
+
+@pytest.fixture(autouse=True)
+def _hiz_siniri_sifirla():
+    """Hız sınırı sayaçları süreç belleğinde; testler birbirini etkilemesin."""
+    from core import ratelimit
+    ratelimit.reset()
+    yield
+    ratelimit.reset()

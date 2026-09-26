@@ -15,10 +15,16 @@ WS_POLICY_VIOLATION = status.WS_1008_POLICY_VIOLATION
 
 
 def _extract_token(websocket: WebSocket) -> str | None:
-    """Token'ı httpOnly cookie'den, yoksa ?token= query parametresinden alır."""
+    """Token'ı httpOnly cookie'den, yoksa Authorization başlığından alır.
+
+    ?token= adres parametresi artık kabul edilmiyor: adresteki token sunucu ve
+    vekil loglarına, tarayıcı geçmişine düşer. Hiçbir istemci kullanmıyordu.
+    """
     token = websocket.cookies.get("access_token")
     if not token:
-        token = websocket.query_params.get("token")
+        auth = websocket.headers.get("authorization") or ""
+        if auth.startswith("Bearer "):
+            token = auth.split(" ", 1)[1]
     return token
 
 
@@ -31,7 +37,7 @@ async def _authenticated_session(websocket: WebSocket) -> str | None:
     # başka bir site öğrencinin tarayıcısında bu adrese bağlanırsa çerez de
     # gider ve o site öğrencinin canlı ders mesajlarını okuyup onun adına
     # yazabilirdi. Tarayıcı Origin başlığını her zaman gönderir: kimlik ÇEREZDEN
-    # geliyorsa köken izinli olmalı. (?token= ile gelen istemci — ör. eklenti —
+    # geliyorsa köken izinli olmalı. (Authorization başlığıyla gelen istemci
     # token'ı zaten kendisi biliyor.)
     from_cookie = bool(websocket.cookies.get("access_token"))
     origin = websocket.headers.get("origin")
@@ -88,7 +94,7 @@ async def _run_session(websocket: WebSocket, user_id: str):
 async def websocket_endpoint(websocket: WebSocket):
     """Kullanıcının WebSocket bağlantısını sağlar ve yönetir.
 
-    Kimlik, access_token cookie'sinden (veya ?token= parametresinden) çözülür;
+    Kimlik, access_token cookie'sinden (veya Authorization başlığından) çözülür;
     istemcinin bildirdiği bir kullanıcı ID'sine güvenilmez.
     """
     user_id = await _authenticated_session(websocket)

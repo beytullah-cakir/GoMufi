@@ -135,6 +135,8 @@ def test_canli_derste_islenen_moduller_bitmis_sayilir(auth_as, seeded):
     # Canlıyken öğretmen dersi bitirdi: sırası gelmemiş olsa da işaretlenebilir.
     ece = auth_as(ECE, "student")
     assert complete(ece, "m_birlestir", via="live").status_code == 200
+    # Öğretmenin henüz işlemediği modül "canlı" diye bitirilemez.
+    assert complete(ece, "m_uret", via="live").status_code == 409
     teacher = auth_as(TEACHER, "teacher")
     assert teacher.post(f"/stop-session/{COURSE}").status_code == 200
 

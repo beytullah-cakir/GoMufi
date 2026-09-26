@@ -5,7 +5,7 @@ import { Auth } from './auth';
 import { StudentTree, AssignmentItem } from './studentView';
 import { SubmissionItem, TeacherTree } from './teacherView';
 import type { Assignment } from './types';
-import { LocalRunner } from './localRunner';
+import { LocalRunner, initConsent } from './localRunner';
 import { LessonPanel, type LessonTarget } from './lessonPanel';
 import { EditRecorder } from './editRecorder';
 import * as hints from './hints';
@@ -147,6 +147,7 @@ export async function activate(ctx: vscode.ExtensionContext): Promise<void> {
     );
 
     runner = new LocalRunner();
+    initConsent(ctx.globalState);
     lessons = new LessonPanel(ctx, runner, (title) => {
         currentLesson = title;
         updateStatus();

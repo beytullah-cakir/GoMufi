@@ -264,12 +264,19 @@ async def security(_: dict = Depends(_admin), db: AsyncSession = Depends(get_db)
     window_start = datetime.utcnow() - login_guard.WINDOW
     locked = []
     for email, _n, _last in by_email:
-        if await login_guard._failures(db, LoginAttempt.email, email, window_start) >= login_guard.MAX_PER_EMAIL:
+        pair_max = (await db.execute(
+            select(func.count(LoginAttempt.id)).where(
+                LoginAttempt.email == email, LoginAttempt.success.is_(False), LoginAttempt.created_at > window_start)
+            .group_by(LoginAttempt.ip).order_by(func.count(LoginAttempt.id).desc()).limit(1)
+        )).scalar() or 0
+        if pair_max >= login_guard.MAX_PER_EMAIL_IP or \
+                await login_guard._failures(db, LoginAttempt.email, email, window_start) >= login_guard.MAX_PER_EMAIL:
             locked.append(email)
     return {
         "failed_by_email": [{"email": e, "count": n, "last": _iso(t), "locked": e in locked} for e, n, t in by_email],
         "failed_by_ip": [{"ip": ip, "count": n, "emails": m} for ip, n, m in by_ip],
-        "limits": {"per_email": login_guard.MAX_PER_EMAIL, "per_ip": login_guard.MAX_PER_IP,
+        "limits": {"per_email": login_guard.MAX_PER_EMAIL, "per_email_ip": login_guard.MAX_PER_EMAIL_IP,
+                   "per_ip": login_guard.MAX_PER_IP,
                    "window_minutes": int(login_guard.WINDOW.total_seconds() // 60)},
     }
 

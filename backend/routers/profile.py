@@ -10,7 +10,7 @@ from models.parent import Parent
 from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
-from core import gamification, login_guard, streak
+from core import gamification, login_guard, ratelimit, streak
 from models.platform import LoginAttempt
 from datetime import datetime, timedelta
 
@@ -379,6 +379,10 @@ async def update_student_stats(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
+    # Çağrı başına sınır tek başına yetmiyordu: döngüyle çağırıp liderlik
+    # tablosunun başına geçilebiliyordu. Öğrenci başına dakikada 6, günde 60 çağrı.
+    if user["role"] == "student":
+        await ratelimit.check("game-xp", str(student_id), per_minute=6, per_day=60)
     gain = max(0, min(MAX_GAME_XP_PER_CALL, stats.xp_gain))
     student.xp = (student.xp or 0) + gain
     if gain and user["role"] == "student":

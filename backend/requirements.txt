@@ -1,25 +1,27 @@
-fastapi
-uvicorn[standard]
-psycopg2-binary
-sqlalchemy
-asyncpg
-SQLAlchemy[asyncio]
-python-dotenv
-PyJWT
-passlib[bcrypt]
+# Sürümler sabit: her kurulumda aynı (ve denetlenmiş) paketler gelsin.
+# Güncellemek için: pip install -U <paket> && pip-audit, sonra buradaki sürümü değiştir.
+fastapi==0.141.1
+uvicorn[standard]==0.54.0
+psycopg2-binary==2.9.13
+sqlalchemy==2.1.1
+asyncpg==0.31.0
+SQLAlchemy[asyncio]==2.1.1
+python-dotenv==1.2.3
+PyJWT==2.13.0
+passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
-authlib
-httpx
-itsdangerous
-python-multipart
-alembic
-google-genai
-email-validator
-pytz
-redis>=4.2.0
-websockets>=12.0
-pypdf
-posthog
+authlib==1.8.0
+httpx==0.28.1
+itsdangerous==2.2.0
+python-multipart==0.0.32
+alembic==1.20.0
+google-genai==2.25.0
+email-validator==2.3.0
+pytz==2026.4
+redis==8.1.0
+websockets==16.1.1
+pypdf==6.19.0
+posthog==7.60.1
 
 # Test
-pytest
+pytest==9.1.1

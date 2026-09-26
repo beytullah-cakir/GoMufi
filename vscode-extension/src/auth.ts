@@ -169,10 +169,13 @@ export class Auth {
         );
         if (!opened) throw new Error('Tarayıcı açılamadı.');
 
+        // Oltalamaya karşı: tarayıcıda bu kodu yazmadan onay verilemez
+        // (sunucu aynı kodu `state`ten hesaplayıp karşılaştırır).
+        const code = pairingCode(state);
         const session = await vscode.window.withProgress(
             {
                 location: vscode.ProgressLocation.Notification,
-                title: 'GoMufi: tarayıcıda onay bekleniyor…',
+                title: `GoMufi: tarayıcıda bu kodu gir → ${code.slice(0, 4)}-${code.slice(4)}`,
                 cancellable: true,
             },
             (_progress, cancel) => this.poll(base, state, cancel),
@@ -255,6 +258,16 @@ export class Auth {
  * Admin sunucuda öğretmen gibi davranır (`get_current_teacher_id` admin'e bir
  * Teacher kaydı eşler), burada da öyle davranıyoruz.
  */
+const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/** `state`ten türeyen 8 karakterlik eşleşme kodu — backend/routers/device_auth.py ile aynı. */
+export function pairingCode(state: string): string {
+    const digest = crypto.createHash('sha256').update(state).digest();
+    let out = '';
+    for (let i = 0; i < 8; i++) out += CODE_ALPHABET[digest[i] % 32];
+    return out;
+}
+
 /**
  * JWT'nin `exp` alanını okur (ms cinsinden).
  *

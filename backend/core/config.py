@@ -1,3 +1,4 @@
+import hashlib
 import os
 import logging
 from dotenv import load_dotenv
@@ -9,6 +10,9 @@ logger = logging.getLogger(__name__)
 # Geçmişte kaynak kodda varsayılan olarak bulunmuş, artık kabul edilmeyen değerler.
 _REJECTED_SECRETS = {"gomufi-dev-secret-key-change-in-prod", "secret", "changeme"}
 _REJECTED_ADMIN_PASSWORDS = {"admin123", "admin", "123456", "password"}
+# Git geçmişine sızmış anahtarların SHA-256 özetleri (anahtarın kendisi burada
+# yazmaz). Bu anahtarla imzalanmış token'ları geçmişi gören herkes üretebilir.
+_LEAKED_SECRET_HASHES = {"384fc745ff4c2f272a35f8fe5268235ee8e09270c7b1b10101c25d1762ed6b59"}
 
 
 class Settings:
@@ -110,6 +114,10 @@ class Settings:
             raise RuntimeError(
                 "SECRET_KEY ortam değişkeni ayarlanmamış. "
                 "Rastgele bir değer üretin: python -c \"import secrets; print(secrets.token_urlsafe(48))\""
+            )
+        if hashlib.sha256(self.SECRET_KEY.encode()).hexdigest() in _LEAKED_SECRET_HASHES:
+            raise RuntimeError(
+                "SECRET_KEY git geçmişine sızmış bir anahtarla aynı. Yeni ve rastgele bir anahtar üretin."
             )
         if self.SECRET_KEY in _REJECTED_SECRETS:
             raise RuntimeError(
