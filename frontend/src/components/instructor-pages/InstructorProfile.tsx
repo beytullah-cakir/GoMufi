@@ -4,7 +4,7 @@ import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus, BellRing, Presentation } from 'lucide-react';
 import techData from "../../data/technologies.json";
 import { useWebSocket } from "../../hooks/useWebSocket";
-import NamedIcon from '../shared/NamedIcon';
+import TechIcon from '../shared/TechIcon';
 
 interface InstructorProfileProps {
   userData: any;
@@ -175,7 +175,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
                       key={tag} 
                       className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:border-cyan-200 hover:bg-cyan-50 transition-colors cursor-default flex items-center gap-1.5"
                     >
-                      {tech && <NamedIcon name={tech.icon} size={14} />}
+                      {tech && <TechIcon slug={tech.logo} label={tech.label} size={14} />}
                       <span>{tag}</span>
                     </span>
                   );
@@ -282,7 +282,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
                             : "bg-white text-gray-500 border-gray-200 hover:border-cyan-200"
                         }`}
                       >
-                        <NamedIcon name={tech.icon} size={14} />
+                        <TechIcon slug={tech.logo} label={tech.label} size={14} />
                         <span>{tag}</span>
                         {isSelected && <X size={12} className="ml-1" />}
                       </button>

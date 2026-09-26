@@ -1,19 +1,19 @@
 {
   "languages": [
-    { "label": "Python", "icon": "file-code" },
-    { "label": "JavaScript", "icon": "braces" },
-    { "label": "TypeScript", "icon": "file-type" },
-    { "label": "Java", "icon": "coffee" },
-    { "label": "C#", "icon": "hash" },
-    { "label": "C++", "icon": "cpu" },
-    { "label": "Go", "icon": "zap" },
-    { "label": "Ruby", "icon": "gem" },
-    { "label": "Swift", "icon": "bird" },
-    { "label": "Kotlin", "icon": "smartphone" },
-    { "label": "PHP", "icon": "server" },
-    { "label": "Rust", "icon": "cog" },
-    { "label": "React", "icon": "atom" },
-    { "label": "Node.js", "icon": "hexagon" },
-    { "label": "SQL", "icon": "database" }
+    { "label": "Python", "logo": "python" },
+    { "label": "JavaScript", "logo": "javascript" },
+    { "label": "TypeScript", "logo": "typescript" },
+    { "label": "Java", "logo": "java" },
+    { "label": "C#", "logo": "csharp" },
+    { "label": "C++", "logo": "cplusplus" },
+    { "label": "Go", "logo": "go" },
+    { "label": "Ruby", "logo": "ruby" },
+    { "label": "Swift", "logo": "swift" },
+    { "label": "Kotlin", "logo": "kotlin" },
+    { "label": "PHP", "logo": "php" },
+    { "label": "Rust", "logo": "rust" },
+    { "label": "React", "logo": "react" },
+    { "label": "Node.js", "logo": "nodejs" },
+    { "label": "SQL", "logo": null }
   ]
 }
