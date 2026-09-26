@@ -1,11 +1,33 @@
 {
   "name": "gomufi",
   "displayName": "GoMufi",
-  "description": "GoMufi ödevlerini VS Code içinde aç, kendi bilgisayarında çalıştır, teslim et.",
-  "version": "0.5.0",
+  "description": "GoMufi derslerini VS Code'da aç: kodu kendi bilgisayarında yaz, çalıştır, ödevini teslim et.",
+  "version": "0.6.0",
   "publisher": "gomufi",
+  "icon": "media/icon.png",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "homepage": "https://go-mufi.vercel.app",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/beytullah-cakir/GoMufi.git"
+  },
+  "bugs": {
+    "email": "destek@gomufi.com"
+  },
+  "keywords": [
+    "gomufi",
+    "eğitim",
+    "education",
+    "python",
+    "öğrenci",
+    "ders"
+  ],
+  "galleryBanner": {
+    "color": "#0ea5e9",
+    "theme": "dark"
+  },
   "engines": {
-    "vscode": "^1.125.0"
+    "vscode": "^1.97.0"
   },
   "categories": [
     "Education",
@@ -17,6 +39,12 @@
     "onStartupFinished",
     "onUri"
   ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Kısıtlı Mod'da dersler ve ödevler görüntülenebilir; kod çalıştırmak için klasöre güvenmen gerekir."
+    }
+  },
   "contributes": {
     "themes": [
       {
@@ -62,7 +90,7 @@
       {
         "view": "gomufi.welcome",
         "when": "!gomufi.signedIn",
-        "contents": "Ödevlerini görmek için GoMufi hesabınla giriş yap.\n\n[Giriş Yap](command:gomufi.signIn)\n\nVS Code'u GoMufi görünümüne çevirmek istersen:\n\n[Temayı Uygula](command:gomufi.applyTheme)"
+        "contents": "Derslerine başlamak için GoMufi hesabınla giriş yap. Giriş tarayıcıda yapılır; parolan VS Code'a girilmez.\n\n[Giriş Yap](command:gomufi.signIn)\n\nVS Code'u GoMufi görünümüne çevirmek istersen:\n\n[Tasarımı Uygula](command:gomufi.applyTheme)"
       },
       {
         "view": "gomufi.welcome",
@@ -83,6 +111,11 @@
         "command": "gomufi.openLessons",
         "title": "GoMufi: Dersleri Aç",
         "icon": "$(book)"
+      },
+      {
+        "command": "gomufi.changeRoot",
+        "title": "GoMufi: Ders Klasörünü Değiştir",
+        "icon": "$(folder)"
       },
       {
         "command": "gomufi.refresh",
@@ -158,6 +191,11 @@
       "view/title": [
         {
           "command": "gomufi.openLessons",
+          "when": "view == gomufi.welcome && gomufi.signedIn",
+          "group": "navigation@1"
+        },
+        {
+          "command": "gomufi.openLessons",
           "when": "view == gomufi.assignments",
           "group": "navigation@1"
         },
@@ -202,8 +240,8 @@
       "properties": {
         "gomufi.apiUrl": {
           "type": "string",
-          "default": "http://localhost:8000",
-          "description": "GoMufi sunucu adresi."
+          "default": "https://gomufi-backend.onrender.com",
+          "description": "GoMufi sunucu (API) adresi. Yalnızca kendi kurulumunuz ya da geliştirme için değiştirin (ör. http://localhost:8000)."
         },
         "gomufi.allowedOrigins": {
           "type": "array",
@@ -216,17 +254,17 @@
         "gomufi.workspaceRoot": {
           "type": "string",
           "default": "",
-          "description": "Ödevlerin indirileceği klasör. Boş bırakılırsa ev dizininde 'GoMufi' klasörü kullanılır."
+          "description": "Derslerin, ödevlerin ve kodlarının durduğu klasör. Boş bırakılırsa ev dizinindeki 'GoMufi' klasörü kullanılır. \"GoMufi: Ders Klasörünü Değiştir\" komutuyla da seçilebilir."
         },
         "gomufi.siteUrl": {
           "type": "string",
-          "default": "http://localhost:5173",
-          "description": "GoMufi site adresi. Giris bu adreste tarayicida yapilir."
+          "default": "https://go-mufi.vercel.app",
+          "description": "GoMufi site adresi. Giriş ve ders paneli bu adresten açılır. Geliştirmede: http://localhost:5173"
         },
         "gomufi.fontFamily": {
           "type": "string",
           "default": "",
-          "markdownDescription": "\"GoMufi: Temayı ve Yazı Tiplerini Uygula\" komutunun kuracağı kod yazı tipi. Boş bırakılırsa `Cascadia Code → JetBrains Mono → Fira Code → Consolas` sırası kullanılır."
+          "markdownDescription": "\"GoMufi: Tasarımı Uygula\" komutunun kuracağı kod yazı tipi. Boş bırakılırsa `Cascadia Code → JetBrains Mono → Fira Code → Consolas` sırası kullanılır."
         },
         "gomufi.fontSize": {
           "type": "number",
@@ -234,6 +272,12 @@
           "minimum": 10,
           "maximum": 28,
           "markdownDescription": "Editör yazı boyutu. Terminal ve hata ayıklama konsolu bunun bir punto altını kullanır. Ders anlatırken 17-18 rahat okunur."
+        },
+        "gomufi.labMode": {
+          "type": "boolean",
+          "default": false,
+          "scope": "machine",
+          "markdownDescription": "**Laboratuvar modu** (okuldaki ortak bilgisayarlar için): VS Code kapanınca oturum kapanır ve her öğrencinin dosyaları ders klasörünün altında kendi klasöründe durur. Öğretmen/BT sorumlusu açar."
         }
       }
     }
@@ -241,11 +285,14 @@
   "scripts": {
     "compile": "tsc -p ./",
     "watch": "tsc -watch -p ./",
-    "typecheck": "tsc -p ./ --noEmit"
+    "typecheck": "tsc -p ./ --noEmit",
+    "test": "tsc -p ./ && node --test out/test/*.test.js",
+    "package": "npx --yes @vscode/vsce package --no-dependencies",
+    "vscode:prepublish": "npm run compile"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
-    "@types/vscode": "^1.125.0",
+    "@types/vscode": "~1.97.0",
     "typescript": "^5.4.0"
   }
 }

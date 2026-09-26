@@ -1,10 +1,11 @@
 import * as childProcess from 'child_process';
 import * as crypto from 'crypto';
 import * as http from 'http';
-import * as os from 'os';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import * as hints from './hints';
+import { pythonTerminalLine, resolvePython, warnPythonMissing } from './environment';
+import { slideFileName } from './paths';
+import { workspaceRoot } from './workspace';
 
 /**
  * Sitedeki "Çalıştır" butonunun ulaştığı yerel sunucu.
@@ -68,7 +69,6 @@ const RUN_COMMAND: Record<string, (file: string) => string> = {
  * boşluk veya `&` olsa bile bir şey yorumlanmaz.
  */
 const CAPTURE_COMMAND: Record<string, (file: string) => { cmd: string; args: string[] }> = {
-    python: (f) => ({ cmd: process.platform === 'win32' ? 'python' : 'python3', args: [f] }),
     javascript: (f) => ({ cmd: 'node', args: [f] }),
     typescript: (f) => ({ cmd: 'npx', args: ['tsx', f] }),
 };
@@ -462,13 +462,24 @@ export class LocalRunner {
      * klasörleri gibi bir isimlendirme şeması gerektirir.
      */
     async open(payload: RunPayload): Promise<void> {
-        const { file } = await this.materialize(payload);
+        // Her slayt kendi dosyasında; öğrenci o dosyada değişiklik yaptıysa
+        // KORUNUR — slayttaki orijinale dönmek isterse tek tık.
+        const { file, kept } = await this.materialize(payload, true);
         const doc = await vscode.workspace.openTextDocument(file);
         await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.One });
+        if (kept) {
+            const DON = 'Slayttaki Koda Dön';
+            const secim = await vscode.window.showInformationMessage(
+                'GoMufi: Bu slaytta yaptığın değişiklikler korundu.', DON,
+            );
+            if (secim === DON) await this.writeCode(file, payload.code);
+        }
     }
 
     /** Kodu çalışma klasörüne yazar ve dosya/dil bilgisini döner. */
-    private async materialize(payload: RunPayload): Promise<{ file: vscode.Uri; dir: vscode.Uri; language: string }> {
+    private async materialize(
+        payload: RunPayload, keepEdits = false,
+    ): Promise<{ file: vscode.Uri; dir: vscode.Uri; language: string; kept: boolean }> {
         // Ölçüt ÇALIŞTIRILABİLİRLİK DEĞİL, tanınırlık: Rust'ı çalıştıramıyoruz
         // ama dosyayı `.rs` olarak yazmalıyız. Eskiden bilinmeyen her dil
         // Python'a düşüyor ve bir Go örneği `slayt.py` olarak açılıyordu.
@@ -477,12 +488,15 @@ export class LocalRunner {
             : 'python';
         const ext = EXTENSION[language] ?? 'txt';
 
-        const dir = this.workingDir
-            ?? vscode.Uri.file(path.join(os.homedir(), 'GoMufi', 'Calisma'));
+        const dir = this.dir();
         await vscode.workspace.fs.createDirectory(dir);
-        const file = vscode.Uri.joinPath(dir, `slayt.${ext}`);
+        const file = vscode.Uri.joinPath(dir, slideFileName(payload.title, ext));
+        if (keepEdits && await exists(file)) {
+            const current = new TextDecoder().decode(await vscode.workspace.fs.readFile(file));
+            if (current !== payload.code) return { file, dir, language, kept: true };
+        }
         await this.writeCode(file, payload.code);
-        return { file, dir, language };
+        return { file, dir, language, kept: false };
     }
 
     /**
@@ -689,6 +703,7 @@ export class LocalRunner {
     ): Promise<{
         code: string; files: TaskFile[]; stdout: string; stderr: string; timedOut: boolean;
     }> {
+        assertTrusted();
         const lang = RUN_COMMAND[language] ? language : 'python';
         const dir = this.slotDir(slot);
         const file = this.entryFile(lang, slot, entry);
@@ -703,7 +718,10 @@ export class LocalRunner {
         const code = new TextDecoder().decode(raw);
         const files = await this.readTaskFiles(slot);
 
-        const spec = CAPTURE_COMMAND[lang](file.fsPath);
+        const spec = await captureSpec(lang, file.fsPath);
+        if (!spec) {
+            return { code, files, stdout: '', stderr: missingInterpreter(lang), timedOut: false };
+        }
         return new Promise((resolve) => {
             const child = childProcess.execFile(
                 spec.cmd, spec.args,
@@ -777,6 +795,7 @@ export class LocalRunner {
     ): Promise<{
         code: string; files: TaskFile[]; stdout: string; stderr: string; timedOut: boolean;
     } | null> {
+        assertTrusted();
         const lang = RUN_COMMAND[language] ? language : 'python';
         const dir = this.slotDir(slot);
         const file = this.entryFile(lang, slot, entry);
@@ -795,7 +814,9 @@ export class LocalRunner {
         const shell = await waitForShellIntegration(terminal);
         if (!shell) return null;
 
-        const execution = shell.executeCommand(RUN_COMMAND[lang](file.fsPath));
+        const line = await terminalCommand(lang, file.fsPath);
+        if (!line) return { code, files, stdout: '', stderr: missingInterpreter(lang), timedOut: false };
+        const execution = shell.executeCommand(line);
 
         // `read()` çalıştırma bitene kadar akar; bu bekleyiş aynı zamanda
         // "program durdu mu" sorusunun cevabı.
@@ -831,10 +852,12 @@ export class LocalRunner {
     }
 
     private dir(): vscode.Uri {
-        return this.workingDir ?? vscode.Uri.file(path.join(os.homedir(), 'GoMufi', 'Calisma'));
+        // Ders seçilmeden sitede "Çalıştır" denirse: ders kökünün altında ortak klasör.
+        return this.workingDir ?? vscode.Uri.joinPath(workspaceRoot(), 'Serbest Çalışma');
     }
 
     async run(payload: RunPayload): Promise<void> {
+        assertTrusted();
         const { file, dir, language } = await this.materialize(payload);
 
         const doc = await vscode.workspace.openTextDocument(file);
@@ -843,12 +866,13 @@ export class LocalRunner {
         // Çalıştırma komutu olmayan diller (C++, Rust, C#…) için iş burada
         // biter: dosya editörde açıldı. Uydurma bir komut göndermek terminalde
         // "command not found" üretir ve öğrenci hatayı KENDİ kodunda arar.
-        const command = RUN_COMMAND[language];
-        if (!command) return;
+        if (!RUN_COMMAND[language]) return;
+        const line = await terminalCommand(language, file.fsPath);
+        if (!line) return; // Python yok: terminalCommand öğrenciyi zaten yönlendirdi
 
         const terminal = this.ensureTerminal(dir);
         terminal.show(true);
-        terminal.sendText(command(file.fsPath));
+        terminal.sendText(line);
     }
 }
 
@@ -904,4 +928,62 @@ function readBody(req: http.IncomingMessage): Promise<string> {
         req.on('end', () => resolve(data));
         req.on('error', reject);
     });
+}
+
+
+async function exists(uri: vscode.Uri): Promise<boolean> {
+    try {
+        await vscode.workspace.fs.stat(uri);
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Terminale yazılacak çalıştırma satırı. Python için yorumlayıcı ARANIR
+ * (bkz. environment.ts); bulunamazsa öğrenci yönlendirilir ve null döner.
+ */
+async function terminalCommand(language: string, file: string): Promise<string | null> {
+    if (language === 'python') {
+        const line = await pythonTerminalLine(file);
+        if (!line) void warnPythonMissing();
+        return line;
+    }
+    return RUN_COMMAND[language]?.(file) ?? null;
+}
+
+/** Çıktı yakalayan çalıştırmanın komutu; terminal satırıyla AYNI yorumlayıcı. */
+async function captureSpec(language: string, file: string): Promise<{ cmd: string; args: string[] } | null> {
+    if (language === 'python') {
+        const py = await resolvePython();
+        if (!py) {
+            void warnPythonMissing();
+            return null;
+        }
+        return { cmd: py.cmd, args: [...py.args, file] };
+    }
+    return CAPTURE_COMMAND[language]?.(file) ?? null;
+}
+
+function missingInterpreter(language: string): string {
+    return language === 'python'
+        ? 'Bu bilgisayarda Python bulunamadı. python.org adresinden Python 3 kurup VS Code\'u yeniden başlat.'
+        : `${language} için otomatik kontrol desteklenmiyor; kodu terminalde kendin çalıştırabilirsin.`;
+}
+
+/**
+ * Kısıtlı modda (güvenilmeyen klasör) kod ÇALIŞTIRILMAZ: öğrencinin açtığı
+ * yabancı bir klasörde GoMufi'nin bir şey çalıştırması beklenmedik olurdu.
+ * Ders klasörü ilk açılışta güvenilir işaretlenince bu hiç görünmez.
+ */
+function assertTrusted(): void {
+    if (vscode.workspace.isTrusted) return;
+    const GUVEN = 'Klasöre Güven';
+    void vscode.window.showWarningMessage(
+        'GoMufi: Bu klasör "Kısıtlı Mod"da açık; kod çalıştırılmadı.', GUVEN,
+    ).then((secim) => {
+        if (secim === GUVEN) void vscode.commands.executeCommand('workbench.trust.manage');
+    });
+    throw new Error('Klasör kısıtlı modda; kod çalıştırmak için klasöre güvenmen gerekiyor.');
 }

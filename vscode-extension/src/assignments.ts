@@ -81,20 +81,4 @@ export function answerFileFor(type: Assignment['submissionType']): { name: strin
     }
 }
 
-/**
- * Dosya sisteminde guvenli klasor adi.
- *
- * Windows'ta yasak olanlar: < > : " / \ | ? * ve kontrol karakterleri.
- * BOSLUKLAR KORUNUR (yalnizca sadelestirilir) - silinirse kelimeler birbirine
- * yapisip klasor adi okunmaz hale gelir. Windows sondaki nokta ve boslugu da
- * kabul etmedigi icin ad sonu ayrica kirpilir.
- */
-export function safeFolderName(text: string): string {
-    const cleaned = (text || '')
-        .replace(/[<>:"/\\|?*]/g, '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 60)
-        .replace(/[. ]+$/, '');
-    return cleaned || 'odev';
-}
+export { safeFolderName } from './paths';

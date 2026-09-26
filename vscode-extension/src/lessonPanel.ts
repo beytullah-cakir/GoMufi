@@ -42,6 +42,8 @@ export class LessonPanel {
     constructor(
         private readonly ctx: vscode.ExtensionContext,
         private readonly runner: LocalRunner,
+        /** Öğrenci bir ders seçti (durum çubuğu adını gösterir); '' = panel kapandı. */
+        private readonly onLesson: (title: string) => void = () => undefined,
     ) {}
 
     /**
@@ -88,6 +90,7 @@ export class LessonPanel {
         this.panel.onDidDispose(() => {
             this.panel = null;
             layout.setActive(false);
+            this.onLesson('');
         }, null, this.ctx.subscriptions);
     }
 
@@ -132,13 +135,10 @@ export class LessonPanel {
             // Ders seçildi: o modülün çalışma klasörüne geç. Bundan sonraki her
             // "Çalıştır" oraya yazar ve terminal orada açılır.
             try {
-                const folder = await openLessonFolder(
-                    String(msg.courseTitle ?? 'GoMufi'),
-                    String(msg.moduleTitle ?? 'Ders'),
-                );
-                // İptal edilirse klasör değiştirmiyoruz; ders yine de izlenebilir,
-                // kod eski/varsayılan klasöre yazılır.
-                if (folder) this.runner.setWorkingDir(folder);
+                const moduleTitle = String(msg.moduleTitle ?? 'Ders');
+                const folder = await openLessonFolder(String(msg.courseTitle ?? 'GoMufi'), moduleTitle);
+                this.runner.setWorkingDir(folder);
+                this.onLesson(moduleTitle);
             } catch (err) {
                 vscode.window.showErrorMessage(
                     `GoMufi: çalışma klasörü hazırlanamadı — ${(err as Error).message}`,
@@ -301,14 +301,49 @@ function html(siteOrigin: string, src: string): string {
     background: #ffffff;
   }
   iframe { border: 0; width: 100%; height: 100%; display: block; }
+  #hata {
+    display: none; position: fixed; inset: 0; background: #ffffff; color: #334155;
+    font: 15px/1.5 -apple-system, "Segoe UI", sans-serif; text-align: center;
+    flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px;
+  }
+  #hata.acik { display: flex; }
+  #hata b { font-size: 18px; color: #0f172a; }
+  #hata button {
+    border: 0; border-radius: 12px; padding: 10px 18px; font-weight: 700; cursor: pointer;
+    background: #0ea5e9; color: #fff; font-size: 14px;
+  }
 </style>
 </head>
 <body>
 <iframe id="ders" src="${src}" allow="clipboard-write; autoplay"></iframe>
+<div id="hata" role="alert">
+  <b>Ders sayfasına ulaşılamadı</b>
+  <span>İnternet bağlantını kontrol et. Sorun sürerse öğretmenine haber ver.</span>
+  <button id="tekrar" type="button">Tekrar dene</button>
+</div>
 <script nonce="${nonce}">
   const vscode = acquireVsCodeApi();
   const frame = document.getElementById('ders');
   const SITE = ${JSON.stringify(siteOrigin)};
+  const SRC = ${JSON.stringify(src)};
+  const hata = document.getElementById('hata');
+
+  // Site açılmazsa (internet yok, sunucu kapalı) iframe sessizce boş kalıyordu.
+  // Sayfa hazır olduğunda 'gomufi:ready' der; belli bir sürede demezse hata
+  // ekranı çıkar. Ağ hatasında iframe'in 'error' olayı güvenilir değil.
+  let hazir = false;
+  let sayac = null;
+  function bekle() {
+    clearTimeout(sayac);
+    sayac = setTimeout(() => { if (!hazir) hata.classList.add('acik'); }, 15000);
+  }
+  document.getElementById('tekrar').addEventListener('click', () => {
+    hata.classList.remove('acik');
+    hazir = false;
+    frame.src = SRC + (SRC.includes('?') ? '&' : '?') + 't=' + Date.now();
+    bekle();
+  });
+  bekle();
 
   // Bu pencereye iki ayrı kaynaktan mesaj düşer ve ikisi farklı yöne gider:
   //   - iframe'den (event.source === frame.contentWindow) gelen -> eklentiye
@@ -318,6 +353,10 @@ function html(siteOrigin: string, src: string): string {
   window.addEventListener('message', (event) => {
     if (event.source === frame.contentWindow) {
       if (event.origin !== SITE) return;
+      if (event.data && event.data.type === 'gomufi:ready') {
+        hazir = true;
+        hata.classList.remove('acik');
+      }
       vscode.postMessage(event.data);
       return;
     }

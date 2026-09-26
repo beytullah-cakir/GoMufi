@@ -1,7 +1,8 @@
 import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { answerFileFor, safeFolderName } from './assignments';
+import { answerFileFor } from './assignments';
+import { isSameOrInside, labFolderName, safeFolderName } from './paths';
 import type { Assignment, AssignmentMarker } from './types';
 
 /**
@@ -19,7 +20,22 @@ import type { Assignment, AssignmentMarker } from './types';
 
 const MARKER = '.gomufi.json';
 
-export function workspaceRoot(): vscode.Uri {
+/**
+ * Laboratuvar modunda oturum açan öğrenci: kök klasörün altında ona ait bir
+ * alt klasör kullanılır ki aynı bilgisayardaki öğrencilerin dosyaları karışmasın.
+ */
+let labUser: { displayName: string; userId: string } | null = null;
+
+export function setLabUser(user: { displayName: string; userId: string } | null): void {
+    labUser = user;
+}
+
+export function labMode(): boolean {
+    return vscode.workspace.getConfiguration('gomufi').get<boolean>('labMode') === true;
+}
+
+/** Ayardaki kök ya da ev dizinindeki `GoMufi` — kişiden bağımsız temel klasör. */
+export function baseRoot(): vscode.Uri {
     const configured = vscode.workspace.getConfiguration('gomufi').get<string>('workspaceRoot');
     const base = configured && configured.trim()
         ? configured.trim()
@@ -28,87 +44,86 @@ export function workspaceRoot(): vscode.Uri {
 }
 
 /**
- * Kök klasörün diskte var olduğundan emin olur; yoksa öğrenciye SORAR.
+ * Derslerin, ödevlerin ve slayt kodlarının TEK kökü.
  *
- * Sessizce ev dizinine klasör açmak istemiyoruz: bu, dersin kodlarının kalıcı
- * olarak nereye yazılacağına dair bir karar ve öğrencinin bilmesi gerekiyor.
- * Seçim `gomufi.workspaceRoot` ayarına yazılır — bir kez sorulur, sonraki
- * derslerde doğrudan oraya gidilir.
- *
- * İptal edilirse null döner ve çağıran hiçbir şey oluşturmaz.
+ * Eskiden üç ayrı düzen vardı (ödevler `~/GoMufi/<Kurs>`, modüller sorulan bir
+ * kökte, "Çalıştır" `~/GoMufi/Calisma`'da) ve öğrenci dosyalarının nerede
+ * olduğunu bilemiyordu. Artık hepsi bu klasörün altında.
  */
-export async function ensureWorkspaceRoot(): Promise<vscode.Uri | null> {
+export function workspaceRoot(): vscode.Uri {
+    const base = baseRoot();
+    return labMode() && labUser
+        ? vscode.Uri.joinPath(base, labFolderName(labUser.displayName, labUser.userId))
+        : base;
+}
+
+const README = `# GoMufi Derslerim
+
+Bu klasörü GoMufi eklentisi oluşturdu. Derslerde yazdığın kodlar burada durur:
+
+    <Kurs>/<Modül>/      → derste açılan görev ve slayt dosyaları
+    <Kurs>/<Ödev>/       → ödevin yönergesi (YONERGE.md) ve cevabın
+
+Dosyaları silmediğin sürece kodların kaybolmaz; bir dersi tekrar açtığında
+kaldığın yerden devam edersin.
+
+Klasörü değiştirmek için: Ayarlar → "gomufi.workspaceRoot".
+`;
+
+/**
+ * Kök klasörün diskte olduğundan emin olur — SORMADAN.
+ *
+ * Eskiden ilk derste ekranı kilitleyen bir "nereye kaydedeyim?" penceresi
+ * çıkıyordu; öğrenci için anlamsız bir karar. Artık ev dizininde `GoMufi`
+ * klasörü kendiliğinden açılır ve ilk kurulumda bir kez "burada" denir
+ * (değiştirmek isteyen ayardan değiştirir). İlk kez oluşturulduysa true döner.
+ */
+export async function ensureWorkspaceRoot(): Promise<{ root: vscode.Uri; created: boolean }> {
     const root = workspaceRoot();
     try {
         await vscode.workspace.fs.stat(root);
-        return root;
+        return { root, created: false };
     } catch {
-        // Klasör yok — devam etmeden önce onay al.
+        // yok — oluştur
     }
-
-    const OLUSTUR = `Oluştur (${root.fsPath})`;
-    const SEC = 'Başka Klasör Seç…';
-    const secim = await vscode.window.showInformationMessage(
-        'GoMufi ders dosyalarını nereye kaydetsin?',
-        { modal: true, detail: 'Her ders için bu klasörün altında ayrı bir çalışma klasörü açılır.' },
-        OLUSTUR, SEC,
-    );
-
-    if (secim === OLUSTUR) {
-        await vscode.workspace.fs.createDirectory(root);
-        return root;
+    await vscode.workspace.fs.createDirectory(root);
+    try {
+        await vscode.workspace.fs.writeFile(vscode.Uri.joinPath(root, 'BENİOKU.md'), encode(README));
+    } catch {
+        // Açıklama dosyası süs; yazılamazsa klasör yine de kullanılabilir.
     }
+    return { root, created: true };
+}
 
-    if (secim === SEC) {
-        const picked = await vscode.window.showOpenDialog({
-            canSelectFolders: true,
-            canSelectFiles: false,
-            canSelectMany: false,
-            openLabel: 'Bu Klasörü Kullan',
-            title: 'GoMufi çalışma klasörü',
-        });
-        if (!picked?.length) return null;
-
-        // Genel ayara yazıyoruz: öğrenci başka bir proje açtığında da aynı yer
-        // geçerli olsun — çalışma klasörü kişiye ait, projeye değil.
-        await vscode.workspace.getConfiguration('gomufi').update(
-            'workspaceRoot', picked[0].fsPath, vscode.ConfigurationTarget.Global,
-        );
-        await vscode.workspace.fs.createDirectory(picked[0]);
-        return picked[0];
-    }
-
-    return null;
+/** Bu pencere GoMufi ders klasöründe mi (ya da onun altındaki bir klasörde)? */
+export function isLessonsWindow(): boolean {
+    const folders = vscode.workspace.workspaceFolders ?? [];
+    if (folders.length !== 1 || folders[0].uri.scheme !== 'file') return false;
+    return isSameOrInside(workspaceRoot().fsPath, folders[0].uri.fsPath);
 }
 
 /**
- * Bir ders modülünün çalışma klasörünü hazırlar ve VS Code'un Gezgin'ine ekler.
+ * Bir ders modülünün çalışma klasörünü hazırlar ve Gezgin'de gösterir.
  *
- * Klasörü çalışma alanına EKLİYORUZ, `vscode.openFolder` ile AÇMIYORUZ: açmak
- * pencereyi yeniden yükler, bu da ders panelini ve çalışan terminali kapatırdı.
- * Eklemek aynı sonucu verir (dosyalar Gezgin'de görünür) ve panel açık kalır.
+ * Klasör çalışma alanına EKLENMEZ: eskiden her modül ayrı bir kök olarak
+ * ekleniyordu — 10 dersten sonra Gezgin'de 10 kök oluyordu, öğrencinin kendi
+ * projesi açıksa GoMufi klasörleri onun içine karışıyordu, boş pencerede ise
+ * ilk ekleme VS Code'un tüm eklentileri yeniden başlatmasına (panel ve
+ * terminal kapanır) yol açıyordu. Artık pencere zaten ders kökünde açık
+ * (bkz. extension.ts → openLessons); modül onun altında bir klasör.
  */
 export async function openLessonFolder(
     courseTitle: string, moduleTitle: string,
-): Promise<vscode.Uri | null> {
-    const root = await ensureWorkspaceRoot();
-    if (!root) return null;
-
+): Promise<vscode.Uri> {
+    const { root } = await ensureWorkspaceRoot();
     const folder = vscode.Uri.joinPath(
         root, safeFolderName(courseTitle), safeFolderName(moduleTitle),
     );
     await vscode.workspace.fs.createDirectory(folder);
-
-    const already = (vscode.workspace.workspaceFolders ?? []).some(
-        (f) => f.uri.fsPath === folder.fsPath,
-    );
-    if (!already) {
-        vscode.workspace.updateWorkspaceFolders(
-            vscode.workspace.workspaceFolders?.length ?? 0, 0,
-            { uri: folder, name: `${moduleTitle} — GoMufi` },
-        );
+    if (isLessonsWindow()) {
+        // Gezgin'de klasörü aç ama odağı editörden/panelden çalma.
+        void vscode.commands.executeCommand('revealInExplorer', folder).then(undefined, () => undefined);
     }
-
     return folder;
 }
 
