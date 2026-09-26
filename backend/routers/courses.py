@@ -1398,6 +1398,32 @@ async def _join_with_code(db: AsyncSession, user_info: dict, code: str):
     }
 
 
+@router.get("/student/homework-status")
+async def my_homework_status(
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğrencinin tüm kurslarındaki ödev teslimleri — ana sayfadaki "Ödevlerim"
+    kartı ve bildirimler için tek istekte. Dosya içeriği ve geri bildirim metni
+    DÖNMEZ (liste için gereksiz, ayrıntı `/homework/{id}/submission`da)."""
+    if user_info.get("role") != "student":
+        return {"items": []}
+    student_id = int(user_info["sub"])
+    rows = (await db.execute(
+        select(
+            HomeworkSubmission.course_id, HomeworkSubmission.node_id, HomeworkSubmission.submitted_at,
+            HomeworkSubmission.grade, HomeworkSubmission.graded_at,
+        ).join(Enrollment, (Enrollment.course_id == HomeworkSubmission.course_id)
+               & (Enrollment.student_id == HomeworkSubmission.student_id))
+        .where(HomeworkSubmission.student_id == student_id)
+    )).all()
+    iso = lambda d: f"{d.isoformat()}Z" if d else None  # noqa: E731 — sunucu saatleri UTC
+    return {"items": [{
+        "course_id": r.course_id, "node_id": r.node_id,
+        "submitted_at": iso(r.submitted_at), "grade": r.grade, "graded_at": iso(r.graded_at),
+    } for r in rows]}
+
+
 @router.get("/student/my-class/{course_id}")
 async def get_student_class(
     course_id: int,

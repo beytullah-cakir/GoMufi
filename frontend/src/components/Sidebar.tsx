@@ -275,26 +275,34 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Bottom section with stats and logout */}
       <div className="mt-auto shrink-0 flex flex-col pt-4">
-        {/* Stats card when role is student */}
+        {/* Öğrenci: seviye, XP ve seri tek kartta (eskiden yalnızca "🔥 0") */}
         {role === "student" && (
           <div className="px-4 mb-4">
-            <div
-              className={`p-3 bg-gray-50 border-2 border-gray-100 rounded-2xl flex ${
-                isCollapsed ? "flex-col items-center gap-3" : "items-center justify-around gap-1"
-              } shrink-0`}
-            >
-              {/* Fire / Streak */}
-              <div className="flex flex-col items-center gap-1 group cursor-pointer" title="Günlük Seri">
-                <img
-                  src={FireIcon}
-                  alt="Streak"
-                  className="w-6 h-6 group-hover:scale-110 transition-transform"
-                />
-                <span className="text-[11px] font-black text-orange-500 font-display">
-                  {userData?.streak ?? 0}
-                </span>
+            {isCollapsed ? (
+              <div className="p-2 bg-orange-50 border-2 border-orange-100 rounded-2xl flex flex-col items-center gap-1" title={`${userData?.streak ?? 0} günlük seri`}>
+                <img src={FireIcon} alt="" className="w-6 h-6" />
+                <span className="text-xs font-black text-orange-500">{userData?.streak ?? 0}</span>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-white border-2 border-slate-200 border-b-4 rounded-2xl">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-9 h-9 rounded-xl bg-amber-400 text-amber-950 font-black flex items-center justify-center shrink-0 border-b-4 border-amber-600" title="Seviye">
+                    {userData?.progression?.level ?? 1}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between text-xs font-black text-slate-700">
+                      <span>{(userData?.xp ?? 0).toLocaleString("tr-TR")} XP</span>
+                      <span className="flex items-center gap-0.5 text-orange-500" title="Günlük seri">
+                        <img src={FireIcon} alt="" className="w-4 h-4" />{userData?.streak ?? 0}
+                      </span>
+                    </div>
+                    <div className="h-2 mt-1 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.max(4, Math.min(100, userData?.progression?.progress_pct ?? 0))}%` }} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

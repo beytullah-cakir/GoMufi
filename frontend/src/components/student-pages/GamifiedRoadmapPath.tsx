@@ -51,6 +51,8 @@ interface GamifiedRoadmapPathProps {
     modules: RoadmapModule[];
     onSelectModule: (module: RoadmapModule) => void;
     activeKey?: string | null;
+    /** Kurs başlığı şeridi. Ana sayfada kahraman alanı kursu zaten gösterdiği için kapatılır. */
+    showHeader?: boolean;
     isDark?: boolean;
 }
 
@@ -84,6 +86,7 @@ export const moduleActionLabel = (slideCount: number, done: boolean, xp: number)
 
 export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     courseTitle,
+    showHeader = true,
     modules,
     onSelectModule,
     activeKey,
@@ -98,6 +101,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     return (
         <div className="w-full flex flex-col items-center select-none pb-28">
             {/* Kurs başlığı — sitedeki renkli ünite başlığının dar panele sığan hâli */}
+            {showHeader && (
             <div
                 className="w-full max-w-[280px] rounded-2xl px-4 py-3 mb-2 text-white shadow-sm border-b-4 relative overflow-hidden"
                 style={{ backgroundColor: headMeta.baseColor, borderColor: headMeta.strokeColor }}
@@ -110,6 +114,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                     {courseTitle}
                 </h1>
             </div>
+            )}
 
             {/* Dikey yılan yolu */}
             <div className="w-full flex flex-col items-center pt-20">

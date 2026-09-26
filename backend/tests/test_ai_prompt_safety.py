@@ -129,3 +129,13 @@ def test_imzasiz_gecti_olayi_cozum_sayilmaz(auth_as, db_query, seeded, gemini):
     # Sahte olay "geçti" değil "düştü" olarak kayda geçti.
     outcomes = db_query("SELECT outcome FROM learning_events WHERE course_id = %s ORDER BY id", (COURSE,))
     assert [o[0] for o in outcomes] == ["fail", "pass"]
+
+
+def test_ogrenci_odev_durumu_yalnizca_kendi_teslimleri(auth_as, db_query, seeded):
+    db_query("INSERT INTO homework_submissions (course_id, node_id, student_id, file_name, grade, graded_at) "
+             "VALUES (%s, 'hw-1', %s, 'odev.py', 85, now())", (COURSE, STUDENT), fetch=False)
+    items = auth_as(STUDENT, "student").get("/student/homework-status").json()["items"]
+    assert [(i["node_id"], i["grade"]) for i in items] == [("hw-1", 85)]
+    assert items[0]["graded_at"].endswith("Z")
+    assert "file_data" not in items[0]
+    assert auth_as(TEACHER, "teacher").get("/student/homework-status").json() == {"items": []}

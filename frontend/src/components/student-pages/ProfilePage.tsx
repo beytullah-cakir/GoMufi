@@ -3,12 +3,13 @@ import api from "../../api";
 import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import Leaderboard from "./Leaderboard";
 import { Trophy, BookOpen, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, CheckCircle, Flame, KeyRound } from 'lucide-react';
+import { Card, CardTitle, ChunkyButton, DOTS_STYLE, IconTile, Mufi, MufiEmpty } from './ui';
 // Import the new character avatar
 import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
 import CharacterEyes from "../../assets/sprites/eyes.png";
 import CourseIcon from '../shared/CourseIcon';
 import { LeagueIcon } from '../shared/LeagueBadge';
-import DailyQuests, { useActivity } from './DailyQuests';
+import { useActivity } from './DailyQuests';
 
 interface ProfilePageProps {
   userData?: any;
@@ -187,7 +188,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
             {/* Status Bubble */}
             <div className="absolute -top-4 -right-8 bg-white border-2 border-gray-100 px-4 py-2 rounded-2xl rounded-bl-none shadow-lg transform rotate-12 z-20 animate-bounce">
               <span className="text-xl font-black text-gray-800">
-                Selam!
+                Selam{profileData?.first_name ? `, ${profileData.first_name}` : ""}!
               </span>
             </div>
 
@@ -234,7 +235,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           <div className="w-full md:w-72">
             <div className="flex items-center justify-between mb-1.5">
               <span className="flex items-center gap-2 font-black text-gray-800">
-                <span className="bg-orange-500 w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm">{progression?.level ?? 1}</span>
+                <span className="bg-amber-400 text-amber-950 border-b-4 border-amber-600 w-9 h-9 rounded-xl flex items-center justify-center text-sm">{progression?.level ?? 1}</span>
                 Seviye {progression?.level ?? 1}
               </span>
               <span className="flex items-center gap-1 text-sm font-black" style={{ color: progression?.league?.color }}>
@@ -242,74 +243,85 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               </span>
             </div>
             <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-orange-400 to-red-500 rounded-full" style={{ width: `${Math.max(3, Math.min(100, progression?.progress_pct ?? 0))}%` }} />
+              <div className="h-full bg-amber-400 rounded-full" style={{ width: `${Math.max(3, Math.min(100, progression?.progress_pct ?? 0))}%` }} />
             </div>
             <p className="text-xs font-bold text-gray-400 mt-1">Sonraki seviyeye {progression?.xp_to_next_level ?? 0} XP</p>
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            { icon: <Flame size={22} className="text-orange-500" />, value: activity?.streak ?? profileData?.streak ?? 0, label: "Günlük seri" },
-            { icon: <Trophy size={22} className="text-amber-500" />, value: activity?.longest ?? 0, label: "En uzun seri" },
-            { icon: <Zap size={22} className="text-amber-500" />, value: (profileData?.xp ?? 0).toLocaleString("tr-TR"), label: "Toplam XP" },
-            { icon: <CheckCircle size={22} className="text-emerald-500" />, value: modulesDone, label: "Bitirdiğin modül" },
-          ].map((s) => (
-            <div key={s.label} className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center">
-              <span className="flex items-center gap-2">{s.icon}<span className="text-2xl md:text-3xl font-black text-gray-800 font-display">{s.value}</span></span>
-              <span className="text-xs font-bold text-gray-400 uppercase tracking-wide mt-1">{s.label}</span>
-            </div>
+          {([
+            { icon: Flame, tone: "orange", value: activity?.streak ?? profileData?.streak ?? 0, label: "Günlük seri" },
+            { icon: Trophy, tone: "amber", value: activity?.longest ?? 0, label: "En uzun seri" },
+            { icon: Zap, tone: "violet", value: (profileData?.xp ?? 0).toLocaleString("tr-TR"), label: "Toplam XP" },
+            { icon: CheckCircle, tone: "green", value: modulesDone, label: "Bitirdiğin modül" },
+          ] as const).map((s) => (
+            <Card key={s.label} as="div" className="p-4 flex items-center gap-3">
+              <IconTile icon={s.icon} tone={s.tone} size="lg" />
+              <div className="min-w-0">
+                <p className="text-2xl md:text-3xl font-black text-slate-800 font-display leading-none">{s.value}</p>
+                <p className="text-xs font-bold text-slate-400 mt-1">{s.label}</p>
+              </div>
+            </Card>
           ))}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <section className="bg-white border-2 border-gray-100 border-b-4 rounded-3xl p-5 md:p-6">
-              <h2 className="text-lg font-black text-gray-800 font-display flex items-center gap-2 mb-4"><BookOpen size={20} className="text-sky-500" /> Kurslarımdaki ilerlemem</h2>
+            <Card className="p-5 md:p-6">
+              <CardTitle icon={BookOpen} tone="green">Kurslarımdaki ilerlemem</CardTitle>
               {courseRows.length === 0 ? (
-                <p className="text-sm font-bold text-gray-400">Henüz bir kursa katılmadın. Öğretmeninin verdiği kodla Sınıflarım sayfasından katılabilirsin.</p>
+                <MufiEmpty compact pose="peek" title="Henüz bir kursa katılmadın" text="Öğretmeninin verdiği kodla Sınıflarım sayfasından katılabilirsin." />
               ) : (
                 <ul className="space-y-4">
                   {courseRows.map((c) => (
                     <li key={c.id} className="flex items-center gap-3">
-                      <span className="w-11 h-11 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0" style={{ color: c.color }}>
+                      <span className="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
                         <CourseIcon name={c.icon} size={24} />
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
-                          <span className="font-black text-gray-800 truncate">{c.title}</span>
-                          <span className="text-xs font-bold text-gray-500 shrink-0">{c.done}/{c.total} modül</span>
+                          <span className="font-black text-slate-800 truncate">{c.title}</span>
+                          <span className="text-xs font-black text-slate-500 shrink-0">{c.done}/{c.total} modül</span>
                         </div>
-                        <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden mt-1">
-                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${c.total ? (c.done / c.total) * 100 : 0}%` }} />
+                        <div className="h-3 bg-slate-100 rounded-full overflow-hidden mt-1.5">
+                          <div className="h-full rounded-full bg-emerald-500" style={{ width: `${c.total ? Math.max(c.done ? 4 : 0, (c.done / c.total) * 100) : 0}%` }} />
                         </div>
-                        {c.next && <p className="text-xs font-bold text-gray-400 mt-1 truncate">Sıradaki: {c.next}</p>}
+                        {c.next && <p className="text-xs font-bold text-slate-400 mt-1 truncate">Sıradaki: {c.next}</p>}
                       </div>
                     </li>
                   ))}
                 </ul>
               )}
-            </section>
+            </Card>
 
-            <DailyQuests data={activity} />
+            <Leaderboard />
           </div>
 
           <div className="space-y-6">
             {profileData?.student_code && (
-              <section className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-3xl p-5 text-white">
-                <p className="text-xs font-black uppercase tracking-wider text-purple-100 flex items-center gap-1.5"><KeyRound size={14} /> Veli bağlantı kodu</p>
-                <p className="text-2xl font-black font-mono my-1">{profileData.student_code}</p>
-                <p className="text-xs font-bold text-purple-100 mb-3">Velin bu kodla hesabını seninkine bağlar.</p>
-                <button
-                  type="button"
-                  onClick={() => { void navigator.clipboard?.writeText(profileData.student_code); setCopied(true); }}
-                  className="text-xs font-black bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg"
-                >
-                  {copied ? "Kopyalandı" : "Kopyala"}
-                </button>
+              <section className="relative bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-3xl p-5 text-white border-b-8 border-violet-700/50 overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none" style={DOTS_STYLE} />
+                <div className="relative">
+                  <p className="text-xs font-black uppercase tracking-wider text-violet-100 flex items-center gap-1.5"><KeyRound size={14} /> Veli bağlantı kodu</p>
+                  <p className="text-2xl font-black font-mono my-1 break-all">{profileData.student_code}</p>
+                  <p className="text-xs font-bold text-violet-100 mb-3">Velin bu kodla hesabını seninkine bağlar; ilerlemeni görür.</p>
+                  <ChunkyButton variant="ghost" size="sm"
+                    onClick={() => { void navigator.clipboard?.writeText(profileData.student_code); setCopied(true); }}>
+                    {copied ? "Kopyalandı ✓" : "Kodu kopyala"}
+                  </ChunkyButton>
+                </div>
               </section>
             )}
-            <Leaderboard />
+            <Card className="p-5">
+              <div className="flex items-center gap-3">
+                <Mufi pose="wave" className="w-16 shrink-0" />
+                <div>
+                  <p className="font-black text-slate-800">Seviye {progression?.level ?? 1}</p>
+                  <p className="text-sm font-bold text-slate-500">Sonraki seviyeye {progression?.xp_to_next_level ?? 0} XP kaldı. Her modül seni yaklaştırır!</p>
+                </div>
+              </div>
+            </Card>
           </div>
         </div>
       </div>
