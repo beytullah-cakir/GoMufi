@@ -352,10 +352,15 @@ export const checkTaskInVSCode = (
 
 /**
  * Kodu VS Code'a gönderir: eklenti dosyaya yazıp editörde açar ve terminalde
- * çalıştırır. Köprü kurulmamışsa false döner — çağıran Pyodide'ye düşer.
+ * çalıştırır. Köprü kurulmamışsa false döner — çağıran "VS Code'u aç" göstermeli.
  */
 export const runInVSCode = (code: string, language: string, title?: string): boolean => {
     if (!hostOrigin) return false;
     window.parent.postMessage({ type: 'gomufi:run', code, language, title }, hostOrigin);
     return true;
 };
+
+/** Fonksiyon testlerini VS Code'da, öğrencinin (ya da öğretmenin çözüm) dosyalarıyla çalıştırır. */
+export const runTestsInVSCode = (
+    body: { language: string; slot: TaskSlot; entry: string; tests: unknown[]; stdin: string; files?: TaskFile[] },
+) => request<{ ok: boolean; results?: any[]; fatal?: string | null; error?: string }>('gomufi:runTests', body, 60_000);

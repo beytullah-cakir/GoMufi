@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Play, Loader2, SquareTerminal, FileCode, Copy, Check, ExternalLink } from 'lucide-react';
 import type { SlideElement } from './types';
-import { usePyodide } from '../../hooks/usePyodide';
 import { usePrismTheme } from './codeTheme';
 import { useLocalRunner } from '../../hooks/useLocalRunner';
 import { findLanguage, highlightCode, isTerminalView } from './codeLanguages';
@@ -62,8 +61,6 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
     const lang = findLanguage(el.codeConfig?.language);
     const terminalView = isTerminalView(el.codeConfig?.language, el.codeConfig?.mode);
 
-    // Pyodide Hook
-    const { runCode, output, isLoading, error } = usePyodide();
     // Sitedeki Calistir butonunu VS Code eklentisine yonlendirir (varsa).
     const localRunner = useLocalRunner();
 
@@ -99,9 +96,9 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
      * VS Code'a geçer ve öğrenci aynı slaytta orada devam eder. Panelin
      * içindeysek geçilecek yer yok, zaten oradayız.
      *
-     * VS Code yoksa tek istisna Python: tarayıcı içi Pyodide onu çalıştırabilir.
-     * Diğer dillerde uydurma bir çıktı üretmek yerine ne yapması gerektiğini
-     * söylüyoruz — yanlış çıktı, çıktı olmamasından kötüdür.
+     * VS Code yoksa kod ÇALIŞMAZ, ne yapılacağı söylenir. Tarayıcı içi Python
+     * (Pyodide) kaldırıldı: sayfanın içinde koştuğu için slayttaki bir kod
+     * `import js` ile öğrencinin oturumuna erişebiliyordu.
      */
     const handleRunCode = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -116,14 +113,8 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
             return;
         }
 
-        if (lang.id === 'python') {
-            setViewMode('output');
-            await runCode(localCode);
-            return;
-        }
-
-        setViewMode('output');
-        setNotice(`${lang.label} kodu tarayıcıda çalışmaz. VS Code eklentisini açtığında bu kod oraya gönderilir.`);
+        setNotice('Kodu çalıştırmak için VS Code eklentisini aç; kod oraya gönderilir.');
+        if (!isEmbeddedInVSCode()) switchToVSCode(target);
     };
 
     /** Terminal bloğu: komutu öğrencinin VS Code terminaline yollar. */
@@ -492,8 +483,7 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                                 ? "Kodu VS Code'a gönder ve orada çalıştır"
                                 : "Kodu VS Code'da aç"}
                         >
-                            {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                : lang.runsInVSCode ? <Play className="w-3.5 h-3.5 fill-current" />
+                            {lang.runsInVSCode ? <Play className="w-3.5 h-3.5 fill-current" />
                                 : <ExternalLink className="w-3.5 h-3.5" />}
                             <span className="text-[10px] font-bold">{lang.runsInVSCode ? 'RUN' : 'AÇ'}</span>
                         </button>
@@ -641,28 +631,13 @@ const CodeWidget: React.FC<CodeWidgetProps> = ({ el, isEditing, updateElement, h
                         <span>TERMINAL OUTPUT</span>
                     </div>
 
-                    {isLoading && (
-                        <div className="flex items-center gap-2 text-yellow-500 animate-pulse mb-2">
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                            <span>Python Environment Loading...</span>
-                        </div>
-                    )}
-
                     <div className="flex flex-col gap-1">
-                        {output.length === 0 && !isLoading && !notice && (
+                        {!notice && (
                             <span className="text-gray-600 italic">
                                 {lang.runsInVSCode
                                     ? 'Henüz çıktı yok. Kod VS Code\'da çalıştırılır.'
                                     : `${lang.label} kodu VS Code'da açılır; çalıştırmak sana kalmış.`}
                             </span>
-                        )}
-                        {output.map((line, i) => (
-                            <div key={i} className="whitespace-pre-wrap font-mono">{line}</div>
-                        ))}
-                        {error && (
-                            <div className="text-red-500 mt-2 whitespace-pre-wrap border-t border-red-500/20 pt-2">
-                                {error}
-                            </div>
                         )}
                     </div>
                 </div>

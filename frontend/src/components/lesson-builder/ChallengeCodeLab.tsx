@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Check, Loader2, Monitor, Play, PlugZap, RefreshCw, Zap, PenLine,
+    Check, Loader2, Monitor, Play, PlugZap, RefreshCw, Zap,
 } from 'lucide-react';
 import ChallengeResultPanel from './ChallengeResultPanel';
 import { localRuntime } from './challengeRuntime';
@@ -21,7 +21,8 @@ import { entryFile } from './challengeFiles';
  * Kontrol tarayıcıda kalıyor çünkü ölçüm ve YZ koçu site tarafında
  * (bkz. `useChallengeCheck`).
  *
- * Eklenti yoksa yol kapanmıyor: `onFallback` ile tarayıcı içi editöre dönülür.
+ * Eklenti yoksa "VS Code'u aç" gösterilir. Tarayıcı içi editör yok: tarayıcıda
+ * çalışan Python sayfaya ve öğrencinin oturumuna erişebiliyordu.
  */
 
 type Connection = 'probing' | 'online' | 'offline';
@@ -29,11 +30,9 @@ type Connection = 'probing' | 'online' | 'offline';
 interface Props {
     /** Görevin dosyaları, ölçütleri ve geri çağrıları (bkz. useChallengeCheck). */
     task: TaskCheckOptions;
-    /** "Tarayıcıda yaz" — eklentisi olmayan öğrenci için tarayıcı editörü. */
-    onFallback?: () => void;
 }
 
-const ChallengeCodeLab: React.FC<Props> = ({ task, onFallback }) => {
+const ChallengeCodeLab: React.FC<Props> = ({ task }) => {
     const { files, xp = 50, language = 'python' } = task;
     const [connection, setConnection] = useState<Connection>('probing');
     const [launched, setLaunched] = useState(false);
@@ -166,14 +165,6 @@ const ChallengeCodeLab: React.FC<Props> = ({ task, onFallback }) => {
                             </button>
                         )}
 
-                        {onFallback && (
-                            <button
-                                onClick={onFallback}
-                                className="flex items-center gap-1.5 text-slate-500 hover:text-slate-700 font-bold text-[11px] px-1.5 py-1 underline decoration-dotted underline-offset-2 cursor-pointer"
-                            >
-                                <PenLine size={12} /> Tarayıcıda yaz
-                            </button>
-                        )}
                     </div>
 
                     <div className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-bold">

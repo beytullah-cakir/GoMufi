@@ -182,6 +182,18 @@ export class LessonPanel {
             return;
         }
 
+        if (msg?.type === 'gomufi:runTests') {
+            try {
+                const out = await this.runner.runTests(
+                    String(msg.language ?? 'python'), msg.slot === 'solution' ? 'solution' : 'student', msg,
+                );
+                this.reply(msg.id, { ok: true, ...out });
+            } catch (err) {
+                this.reply(msg.id, { ok: false, error: (err as Error).message });
+            }
+            return;
+        }
+
         if (msg?.type === 'gomufi:hint') {
             // Koç bir ipucu üretti; öğrencinin kodunun yanına iliştir.
             const path = this.runner.taskPath(

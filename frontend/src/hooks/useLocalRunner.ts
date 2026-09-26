@@ -7,12 +7,11 @@ import { runInVSCode } from '../vscodeBridge';
  * yönlendirir.
  *
  * Kanalın kendisi `localRunnerClient`te; burada yalnızca "önce panel köprüsü,
- * sonra yerel sunucu, o da yoksa Pyodide" sıralaması var. Eklenti yoksa `run`
- * false döner ve çağıran tarayıcı içi Pyodide'ye düşer; böylece eklentisi
- * olmayan öğrenci için hiçbir şey değişmez.
+ * sonra yerel sunucu" sıralaması var. Eklenti yoksa `run` false döner ve
+ * çağıran "VS Code'u aç" gösterir — tarayıcıda kod çalıştırılmaz.
  */
 export const useLocalRunner = () => {
-    /** VS Code'a gönderir. Başarılıysa true; false ise çağıran Pyodide'ye düşmeli. */
+    /** VS Code'a gönderir. Başarılıysa true; false ise VS Code bağlı değil. */
     const run = useCallback(
         async (code: string, language = 'python', title?: string): Promise<boolean> => {
             // VS Code panelinde zaten eklentinin içindeyiz: eşleşme sorgusu, port

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../../api';
 import { flushEdits, trackLearningEvent } from '../../learningEvents';
-import { PYODIDE_UNAVAILABLE, runPythonTests } from '../../hooks/usePyodide';
+import { runTests as runTestsInVSCode, VSCODE_REQUIRED } from '../../codeRunner';
 import {
     evaluate, isAccepted, makeAIJudge, reviewRequirements, type CriterionResult,
 } from './challengeCheck';
@@ -21,11 +21,11 @@ import type { ChallengeRuntime } from './challengeRuntime';
  * eklenti sürümü gerektirirdi.
  *
  * Hangi yüzeyde çalıştığını bilmiyor — `runtime` panel köprüsü, tarayıcının
- * yerel sunucu istemcisi ya da tarayıcıdaki Pyodide olabilir.
+ * yerel sunucu istemcisi olabilir (kod HER ZAMAN öğrencinin VS Code'unda çalışır).
  *
  * ÖLÇÜM ÜÇ KATMANLI, hepsi tek sonuç listesinde:
  *   1. Ölçütler (çıktı biçimi, zorunlu yapılar) — deterministik, bedava.
- *   2. Fonksiyon testleri — kod gerçekten çağrılır (Pyodide).
+ *   2. Fonksiyon testleri — kod öğrencinin VS Code'unda gerçekten çağrılır.
  *   3. Proje gereksinimleri — tek YZ çağrısı; yalnızca üsttekiler geçince.
  */
 
@@ -195,23 +195,23 @@ export const useChallengeCheck = ({
     }, [courseId, stage, task, language, runtime, entry, track, taskKey]);
 
     /** Fonksiyon testlerini öğrencinin GERÇEK dosyalarıyla çalıştırır. */
-    const runTests = useCallback(async (
-        runFiles: ChallengeFile[],
-    ): Promise<CriterionResult[]> => {
+    const runTests = useCallback(async (): Promise<CriterionResult[]> => {
         if (language !== 'python') {
             return [{
                 id: 'tests', kind: 'exact', label: 'Fonksiyon testleri', status: 'pending',
                 detail: 'Fonksiyon testleri yalnızca Python görevlerinde çalışır.',
             }];
         }
-        const { results, fatal } = await runPythonTests(runFiles, entry, tests, stdin);
+        // Testler öğrencinin VS Code'unda, diskteki GERÇEK dosyalarıyla koşar
+        // (Pyodide yok: tarayıcıda Python sayfaya erişebiliyordu).
+        const run = await runTestsInVSCode(tests, entry, stdin, 'student');
+        if (!run) {
+            // VS Code bağlı değil: bu öğrencinin hatası değil.
+            return [{ id: 'tests', kind: 'exact', label: 'Fonksiyon testleri', status: 'pending', detail: VSCODE_REQUIRED }];
+        }
+        const { results, fatal } = run;
         if (fatal) {
-            return [{
-                id: 'tests', kind: 'exact', label: 'Fonksiyon testleri',
-                // Motor yüklenemediyse bu öğrencinin hatası değil.
-                status: fatal === PYODIDE_UNAVAILABLE ? 'pending' : 'fail',
-                detail: fatal === PYODIDE_UNAVAILABLE ? 'Testler şu an çalıştırılamadı, tekrar dene.' : fatal,
-            }];
+            return [{ id: 'tests', kind: 'exact', label: 'Fonksiyon testleri', status: 'fail', detail: fatal }];
         }
         const byId = new Map(results.map((r) => [r.id, r]));
         return tests.map((t) => {
@@ -315,7 +315,7 @@ export const useChallengeCheck = ({
             collected.push(...outcome.results);
         }
         if (checkMode === 'tests' && tests.length) {
-            collected.push(...await runTests(runFiles));
+            collected.push(...await runTests());
         }
         if (requirements.length) {
             collected.push(...await reviewProject(collected, source, result.stdout));

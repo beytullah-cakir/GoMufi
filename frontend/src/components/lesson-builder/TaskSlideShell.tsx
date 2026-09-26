@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import api from '../../api';
 import { recordBrowserEdit, trackLearningEvent } from '../../learningEvents';
-import { runPythonTests } from '../../hooks/usePyodide';
+import { runTests as runTestsInVSCode, VSCODE_REQUIRED } from '../../codeRunner';
 import { isEmbeddedInVSCode } from '../../vscodeBridge';
 import ChallengeCodeLab from './ChallengeCodeLab';
 import ChallengeResultPanel from './ChallengeResultPanel';
@@ -14,7 +14,6 @@ import ChallengeVSCodePanel from './ChallengeVSCodePanel';
 import ExpectedOutputVerifier from './ExpectedOutputVerifier';
 import { criteriaOf, isAccepted, type CriterionResult } from './challengeCheck';
 import { challengeFiles, entryFile, joinFiles, safeFileName } from './challengeFiles';
-import { browserRuntime } from './challengeRuntime';
 import { CODE_LANGUAGES, findLanguage, highlightCode } from './codeLanguages';
 import { codeEditorStyles, codeInheritStyles, usePrismTheme } from './codeTheme';
 import { STAGE_META, taskFolder, type StageTheme } from './taskStages';
@@ -321,63 +320,6 @@ const FileTabsEditor: React.FC<EditorProps> = ({
 };
 
 /* ------------------------------------------------------------------------- */
-/*  Tarayıcı editörü (VS Code'u olmayan öğrenci)                              */
-/* ------------------------------------------------------------------------- */
-
-const BrowserWorkspace: React.FC<{
-    task: TaskCheckOptions;
-    setFiles: (files: ChallengeFile[]) => void;
-    theme: StageTheme;
-}> = ({ task, setFiles, theme }) => {
-    const [active, setActive] = useState(() => entryFile(task.files).name);
-    const check = useChallengeCheck({ ...task, runtime: browserRuntime });
-
-    return (
-        <div className="flex flex-col gap-3">
-            <FileTabsEditor
-                files={task.files}
-                active={active}
-                setActive={setActive}
-                onChange={setFiles}
-                language={task.language || 'python'}
-                theme={theme}
-                structural={false}
-                onEdit={task.track
-                    ? (file, before, after, inputType) => recordBrowserEdit(
-                        task.courseId, task.taskKey, file, before, after, inputType)
-                    : undefined}
-                toolbar={(
-                    <button
-                        onClick={check.handleCheck}
-                        disabled={check.running}
-                        className={`flex items-center gap-1 text-[11px] font-black px-3 py-1 rounded-lg shadow-sm active:scale-95 transition-all disabled:opacity-50 ${theme.runButton}`}
-                    >
-                        {check.running ? <Loader2 size={12} className="animate-spin" /> : <Play size={12} fill="currentColor" />}
-                        {check.status === 'checking' ? 'Kontrol ediliyor…' : 'Çalıştır & Kontrol Et'}
-                    </button>
-                )}
-            />
-            <div className="bg-white border-2 border-slate-200 border-b-[5px] rounded-2xl p-3">
-                <h3 className="text-[9.5px] font-black text-slate-500 tracking-widest mb-1.5">SONUÇ</h3>
-                <ChallengeResultPanel
-                    status={check.status}
-                    stdout={check.stdout}
-                    stderr={check.stderr}
-                    checks={check.checks}
-                    coach={check.coach}
-                    coachLoading={check.coachLoading}
-                    activeHint={check.activeHint}
-                    xp={task.xp ?? 50}
-                    onReveal={check.reveal}
-                    canReveal={false}
-                    idleText="Kodunu yaz, sonra Çalıştır & Kontrol Et'e bas."
-                />
-            </div>
-        </div>
-    );
-};
-
-/* ------------------------------------------------------------------------- */
 /*  Öğretmen ayarları: fonksiyon testleri                                    */
 /* ------------------------------------------------------------------------- */
 
@@ -408,8 +350,11 @@ const TestsEditor: React.FC<{
         setFailure(null);
         const files = challengeFiles(cfg, '').map((f) => (f.entry ? { ...f, content: cfg.solutionCode || '' } : f));
         const stdin = (cfg.samples || []).map((s) => (s.input || '').trim()).filter(Boolean).join('\n');
-        const { results, fatal } = await runPythonTests(files, entryFile(files).name, tests, stdin);
+        // Öğretmenin çözümü VS Code'da, ayrı bir klasörde çalışır (öğrenci dosyalarına dokunmaz).
+        const run = await runTestsInVSCode(tests, entryFile(files).name, stdin, 'solution', files);
         setRunning(false);
+        if (!run) { setFailure(VSCODE_REQUIRED); return; }
+        const { results, fatal } = run;
         if (fatal) { setFailure(fatal); return; }
         const byId = new Map(results.map((r) => [r.id, r]));
         // Boş beklenenler ölçülen değerle dolar; dolu olanlar yalnızca denetlenir.
@@ -783,7 +728,6 @@ const TaskSlideShell: React.FC<Props> = ({
 
     const [answer, setAnswer] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [browserEditor, setBrowserEditor] = useState(false);
     const [lastChecks, setLastChecks] = useState<CriterionResult[]>([]);
     const [hasSource, setHasSource] = useState(false);
     const [showHint, setShowHint] = useState(false);
@@ -800,7 +744,7 @@ const TaskSlideShell: React.FC<Props> = ({
 
     // Slayt değişti: öğrencinin her şeyi sıfırlanır.
     useEffect(() => {
-        setAnswer(''); setFile(null); setBrowserEditor(false); setLastChecks([]);
+        setAnswer(''); setFile(null); setLastChecks([]);
         setHasSource(false); setSent(null); setSubmitError(null); setShowHint(false); setExplain(null);
         lastSourceRef.current = null;
         lastChecksRef.current = [];
@@ -858,7 +802,7 @@ const TaskSlideShell: React.FC<Props> = ({
             if (!file) return false;
             form.append('file', file);
         } else if (cfg.submissionType === 'code') {
-            const source = lastSourceRef.current ?? (browserEditor ? joinFiles(draft) : null);
+            const source = lastSourceRef.current;
             if (!source) {
                 if (!auto) setSubmitError('Göndermeden önce kodunu en az bir kez kontrol et.');
                 return false;
@@ -883,7 +827,7 @@ const TaskSlideShell: React.FC<Props> = ({
         } finally {
             setSending(false);
         }
-    }, [courseId, submissionNodeId, cfg.submissionType, file, browserEditor, draft, language, answer]);
+    }, [courseId, submissionNodeId, cfg.submissionType, file, language, answer]);
 
     /**
      * Görevi tamamlar — ama çözüm büyük ölçüde dışarıdan yapıştırıldıysa önce
@@ -1328,13 +1272,12 @@ const TaskSlideShell: React.FC<Props> = ({
         );
     } else if (inVSCode) {
         workspace = <ChallengeVSCodePanel key={wsKey} task={taskOptions(starterFiles, 'vscode-panel')} />;
-    } else if (!browserEditor) {
-        workspace = <ChallengeCodeLab key={wsKey} task={taskOptions(starterFiles, 'lab')} onFallback={() => setBrowserEditor(true)} />;
     } else {
-        workspace = <BrowserWorkspace key={wsKey} task={taskOptions(draft, 'browser')} setFiles={setDraft} theme={theme} />;
+        // Kod HER ZAMAN öğrencinin VS Code'unda (tarayıcı içi Python kaldırıldı).
+        workspace = <ChallengeCodeLab key={wsKey} task={taskOptions(starterFiles, 'lab')} />;
     }
 
-    const needsCheckFirst = isCode && !browserEditor && !hasSource;
+    const needsCheckFirst = isCode && !hasSource;
     const canSubmit = !sending && (
         cfg.submissionType === 'code' ? !needsCheckFirst
             : cfg.submissionType === 'text' ? !!answer.trim()

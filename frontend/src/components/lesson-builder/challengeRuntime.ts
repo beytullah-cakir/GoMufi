@@ -3,7 +3,6 @@ import {
     showHintInVSCode, showSuccessInVSCode, type TaskCheckResult, type TaskFile,
 } from '../../vscodeBridge';
 import { callLocalRunner } from '../../localRunnerClient';
-import { runPythonProgram } from '../../hooks/usePyodide';
 
 /**
  * UYGULA görevinin VS Code ile konuşma biçimi — iki taşıyıcı, tek arayüz.
@@ -103,34 +102,4 @@ export const localRuntime: ChallengeRuntime = {
     reveal: (line, language, file) => {
         void callLocalRunner('/reveal', { line, language, file });
     },
-};
-
-/**
- * Tarayıcı: VS Code yok, kod Pyodide'de çalışıyor.
- *
- * Eklentisi olmayan öğrencinin yolu ("Tarayıcıda yaz"). Eskiden bu yol kendi
- * ayrı mantığını taşıyordu — ölçütlere değil yalnızca `expectedOutput`a
- * bakıyor, YZ koçu hiç devreye girmiyordu; aynı görev VS Code'da geçip
- * tarayıcıda kalabiliyordu. Artık o da aynı `useChallengeCheck` döngüsünden
- * geçiyor, yalnızca çalıştıran farklı.
- *
- * Çalıştırılan dosyalar `check`e gelen `files`: öğrencinin editördeki güncel hâli.
- */
-export const browserRuntime: ChallengeRuntime = {
-    prepare: async () => true,
-    check: async (language, stdin, entry, files) => {
-        const entryFile = files.find((f) => f.name === entry) ?? files.find((f) => f.entry) ?? files[0];
-        const base = { code: entryFile?.content ?? '', files, timedOut: false };
-        if (language !== 'python') {
-            return {
-                ...base, ok: false, stdout: '', stderr: '',
-                error: 'Tarayıcıda yalnızca Python çalıştırılabilir. Bu görev için VS Code gerekli.',
-            };
-        }
-        const { stdout, error } = await runPythonProgram(files, entryFile?.name ?? 'main.py', stdin);
-        return { ...base, ok: true, stdout, stderr: error ?? '' };
-    },
-    hint: () => undefined,
-    success: () => undefined,
-    reveal: () => undefined,
 };
