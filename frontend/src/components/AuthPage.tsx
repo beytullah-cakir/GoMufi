@@ -6,7 +6,6 @@ import Paw from "../assets/sprites/Paw.png";
 import MufiMascot from "../assets/sprites/MufiMascot.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import techData from "../data/technologies.json";
-import NamedIcon from './shared/NamedIcon';
 
 interface AuthPageProps {
   onLogin: () => void;
@@ -421,7 +420,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                             <option value="" disabled>Uzmanlık Alanı / Branş Seçin</option>
                             {techData.languages.map((tech) => (
                               <option key={tech.label} value={tech.label}>
-                                <NamedIcon name={tech.icon} size={14} /> {tech.label}
+                                {tech.label}
                               </option>
                             ))}
                           </select>
