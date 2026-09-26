@@ -14,6 +14,7 @@ from models.enrollment import Enrollment
 from models.live_session import LiveSession
 from core.security import hash_password
 from core.config import settings
+from core import accounts
 from pydantic import BaseModel
 from typing import List, Optional, Any
 
@@ -263,43 +264,32 @@ async def update_user(
 async def delete_user(
     role: str,
     user_id: int,
+    with_courses: bool = False,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
+    """Hesabı ve kişisel verisini siler (kullanıcının kendi silmesiyle aynı işlem, core/accounts.py).
+
+    Kursu olan öğretmen yalnızca with_courses=true ile silinir; kurslar da silinir.
+    """
     verify_admin(user_info)
-    
-    if role in ["student", "admin"]:
-        res = await db.execute(select(Student).where(Student.id == user_id))
-        student = res.scalar_one_or_none()
-        if not student:
-            raise HTTPException(status_code=404, detail="Öğrenci bulunamadı.")
-            
-        # Clean enrollments
-        await db.execute(select(Enrollment).where(Enrollment.student_id == user_id))
-        enrolls_res = await db.execute(select(Enrollment).where(Enrollment.student_id == user_id))
-        for enroll in enrolls_res.scalars().all():
-            await db.delete(enroll)
-            
-        await db.delete(student)
-        await db.commit()
-        return {"message": "Öğrenci hesabı ve kayıtları silindi."}
-        
-    elif role == "teacher":
-        res = await db.execute(select(Teacher).where(Teacher.id == user_id))
-        teacher = res.scalar_one_or_none()
-        if not teacher:
-            raise HTTPException(status_code=404, detail="Öğretmen bulunamadı.")
-            
-        # Set teacher's courses teacher_id or delete them? We'll re-assign them to admin teacher or just block delete if they have courses.
-        courses_res = await db.execute(select(Course).where(Course.teacher_id == user_id))
-        if courses_res.scalars().all():
-            raise HTTPException(status_code=400, detail="Bu öğretmene ait aktif kurslar var. Önce kursları silmeli veya başka bir eğitmene atamalısınız.")
-            
-        await db.delete(teacher)
-        await db.commit()
-        return {"message": "Öğretmen hesabı silindi."}
-    else:
+    role = "student" if role == "admin" else role
+    if role not in accounts.MODELS:
         raise HTTPException(status_code=400, detail="Geçersiz rol.")
+    account = await db.get(accounts.MODELS[role], user_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="Hesap bulunamadı.")
+    if settings.ADMIN_EMAIL and (account.email or "").lower() == settings.ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=400, detail="Yönetici hesabı silinemez.")
+    try:
+        result = await accounts.delete_account(db, role, user_id, delete_courses=with_courses)
+    except ValueError:
+        courses = await accounts.owned_courses(db, user_id)
+        raise HTTPException(status_code=409, detail={
+            "message": f"Bu öğretmenin {len(courses)} kursu var. Kurslarla birlikte silmek için onay gerekiyor.",
+            "courses": courses,
+        })
+    return {"message": "Hesap ve kişisel verileri silindi.", **result}
 
 
 @router.post("/users/student/{student_id}/enroll")

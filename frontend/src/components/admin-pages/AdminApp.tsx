@@ -1,15 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Users, BookOpen, HelpCircle } from 'lucide-react';
+import { Bot, BookOpen, HelpCircle, History, LayoutDashboard, ShieldAlert, UserCog, Users } from 'lucide-react';
 import api from '../../api';
 import AdminPanel from './AdminPanel';
+import AdminOverview from './AdminOverview';
+import AdminAccounts from './AdminAccounts';
+import { AdminAudit, AdminSecurity } from './AdminSecurity';
+import InstructorMetrics from '../instructor-pages/InstructorMetrics';
+
+// Sayfa ↔ adres. Etkin sayfa adresten türetilir (tarayıcı geri/ileri kendiliğinden çalışır).
+const PAGES: Record<string, string> = {
+    Overview: '/admin',
+    Accounts: '/admin/users',
+    UserEdit: '/admin/users/edit',
+    Courses: '/admin/courses',
+    Quizzes: '/admin/quizzes',
+    AI: '/admin/ai',
+    Security: '/admin/security',
+    Audit: '/admin/audit',
+};
+
+const pageOf = (path: string) => {
+    const clean = path.replace(/\/+$/, '') || '/admin';
+    return Object.keys(PAGES).find((k) => PAGES[k] === clean) || 'Overview';
+};
 
 function AdminApp() {
     const navigate = useNavigate();
     const location = useLocation();
+    const activePage = pageOf(location.pathname);
 
-    const [activePage, setActivePage] = useState('Users');
     const [userData, setUserData] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -33,42 +54,17 @@ function AdminApp() {
         fetchAdminProfile();
     }, [navigate]);
 
-    // Page to Path mapping
-    const pageToPath: Record<string, string> = {
-        'Users': '/admin/users',
-        'Courses': '/admin/courses',
-        'Quizzes': '/admin/quizzes'
-    };
-
-    const pathToPage: Record<string, string> = {
-        '/admin/users': 'Users',
-        '/admin/courses': 'Courses',
-        '/admin/quizzes': 'Quizzes'
-    };
-
-    // Effect to sync URL -> State (Handle browser back/forward and initial load)
-    useEffect(() => {
-        const path = location.pathname;
-        const page = pathToPage[path];
-        if (page) {
-            setActivePage(page);
-        } else if (path === '/admin' || path === '/admin/') {
-            setActivePage('Users');
-        }
-    }, [location.pathname]);
-
-    // Effect to sync State -> URL
-    useEffect(() => {
-        const targetPath = pageToPath[activePage] || '/admin/users';
-        if (location.pathname !== targetPath) {
-            navigate(targetPath);
-        }
-    }, [activePage]);
+    const go = (page: string) => navigate(PAGES[page] || '/admin');
 
     const navItems = [
-        { id: 'Users', label: 'Kullanıcılar', icon: Users },
-        { id: 'Courses', label: 'Kurslar', icon: BookOpen },
-        { id: 'Quizzes', label: 'Soru Bankası', icon: HelpCircle }
+        { id: 'Overview', label: 'Genel Bakış', icon: LayoutDashboard },
+        { id: 'Accounts', label: 'Hesaplar', icon: Users, section: 'Kullanıcılar' },
+        { id: 'UserEdit', label: 'Ekle / Düzenle', icon: UserCog, section: 'Kullanıcılar' },
+        { id: 'Courses', label: 'Kurslar', icon: BookOpen, section: 'İçerik' },
+        { id: 'Quizzes', label: 'Soru Bankası', icon: HelpCircle, section: 'İçerik' },
+        { id: 'AI', label: 'YZ Maliyeti', icon: Bot, section: 'İşletme' },
+        { id: 'Security', label: 'Güvenlik', icon: ShieldAlert, section: 'İşletme' },
+        { id: 'Audit', label: 'İşlem Kaydı', icon: History, section: 'İşletme' },
     ];
 
     if (isLoading) {
@@ -81,18 +77,29 @@ function AdminApp() {
         );
     }
 
+    const search = new URLSearchParams(location.search).get('q') || '';
+
     return (
         <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
             <Sidebar
                 role="admin"
                 activePage={activePage}
-                onNavigate={setActivePage}
+                onNavigate={go}
                 items={navItems}
                 userData={userData}
             />
 
-            <div className="flex-1 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar">
-                <AdminPanel initialTab={activePage.toLowerCase() as any} />
+            <div className="flex-1 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar bg-gray-50/40">
+                {activePage === 'Overview' && <AdminOverview onNavigate={go} />}
+                {activePage === 'Accounts' && (
+                    <AdminAccounts onEdit={(email) => navigate(`${PAGES.UserEdit}${email ? `?q=${encodeURIComponent(email)}` : ''}`)} />
+                )}
+                {activePage === 'UserEdit' && <AdminPanel key={`users-${search}`} initialTab="users" initialSearch={search} hideTabs />}
+                {activePage === 'Courses' && <AdminPanel initialTab="courses" hideTabs />}
+                {activePage === 'Quizzes' && <AdminPanel initialTab="quizzes" hideTabs />}
+                {activePage === 'AI' && <InstructorMetrics />}
+                {activePage === 'Security' && <AdminSecurity />}
+                {activePage === 'Audit' && <AdminAudit />}
             </div>
         </div>
     );

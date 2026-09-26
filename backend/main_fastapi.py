@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from core.csrf import CSRFMiddleware
+from core.admin_audit import AdminAuditMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
@@ -19,7 +20,7 @@ from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, utils
 from routers import quiz, ws, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
 from routers import parent_reports, parent_portal
-from routers import password_reset, attendance, announcements, classroom, files, account
+from routers import password_reset, attendance, announcements, classroom, files, account, admin_ops
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -162,6 +163,7 @@ logger.info(f"CORS allowed origins: {_allowed_origins}")
 
 # CSRF: çerezli değiştirici istekler yalnızca izinli kökenlerden (bkz. core/csrf.py).
 # CORS'tan önce eklenir; böylece CORS en dışta kalır ve ret yanıtı da CORS başlığı taşır.
+app.add_middleware(AdminAuditMiddleware)
 app.add_middleware(CSRFMiddleware, allowed_origins=_allowed_origins, allowed_regex=_dev_origin_regex)
 
 app.add_middleware(
@@ -218,6 +220,7 @@ app.include_router(announcements.router)
 app.include_router(classroom.router)
 app.include_router(files.router)
 app.include_router(account.router)
+app.include_router(admin_ops.router)
 
 # Eski endpoint yollarıyla geriye dönük uyumluluk (frontend güncellenene kadar)
 # /generate_quiz -> /quiz/generate

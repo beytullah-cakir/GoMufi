@@ -62,9 +62,12 @@ interface QuizItem {
 
 interface AdminPanelProps {
   initialTab?: "users" | "courses" | "quizzes";
+  /** Hesaplar sayfasından "Düzenle" ile gelindiğinde arama kutusu bu değerle açılır. */
+  initialSearch?: string;
+  hideTabs?: boolean;
 }
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSearch = "", hideTabs = false }) => {
   const [activeTab, setActiveTab] = useState<"users" | "courses" | "quizzes">(initialTab);
 
   useEffect(() => {
@@ -77,7 +80,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
   const [quizzes, setQuizzes] = useState<QuizItem[]>([]);
 
   // Search filter
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
 
   // Loading states
   const [loading, setLoading] = useState(false);
@@ -211,7 +214,21 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
       alert("Kullanıcı silindi.");
       loadData();
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Silme başarısız.");
+      const detail = err.response?.data?.detail;
+      // Kursu olan öğretmen: kurslarıyla birlikte silmek ayrıca onay ister.
+      if (err.response?.status === 409 && detail?.courses) {
+        const titles = detail.courses.map((c: { title: string }) => c.title).join(", ");
+        if (!window.confirm(`${detail.message}\n\nKurslar: ${titles}\n\nKurslarla birlikte silinsin mi? Bu işlem geri alınamaz.`)) return;
+        try {
+          await api.delete(`/admin/users/${u.role}/${u.id}`, { params: { with_courses: true } });
+          alert("Kullanıcı ve kursları silindi.");
+          loadData();
+        } catch (again: any) {
+          alert(again.response?.data?.detail || "Silme başarısız.");
+        }
+        return;
+      }
+      alert((typeof detail === "string" && detail) || "Silme başarısız.");
     }
   };
 
@@ -486,7 +503,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — yönetici uygulamasında yan menü aynı işi gördüğü için gizli */}
+      {!hideTabs && (
       <div className="flex items-center gap-4 border-b-2 border-gray-100 mb-8 overflow-x-auto">
         <button
           onClick={() => { setActiveTab("users"); setSearchQuery(""); }}
@@ -522,6 +540,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users" }) => {
           Soru Bankası
         </button>
       </div>
+      )}
 
       {/* Toolbar */}
       <div className="flex flex-col md:flex-row items-center justify-between gap-4 mb-6 bg-white p-4 rounded-3xl border-2 border-gray-100 shadow-sm">
