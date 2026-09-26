@@ -7,6 +7,7 @@ from sqlalchemy.future import select
 from models.student import Student
 from models.teacher import Teacher
 from connect_db import get_db
+from core.login_guard import ensure_not_suspended
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
@@ -61,11 +62,14 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
                 "role": "admin"
             }
 
+        await ensure_not_suspended(db, role, sub)
         return {
             "user_id": sub,
             "role": role
         }
 
+    except HTTPException:
+        raise
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
     except jwt.InvalidTokenError:
@@ -120,6 +124,7 @@ async def get_current_user_info(request: Request, db: AsyncSession = Depends(get
                 "role": "admin",
                 "type": "access"
             }
+        await ensure_not_suspended(db, role, payload.get("sub"))
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -171,6 +176,7 @@ async def get_current_teacher_id(request: Request, db: AsyncSession = Depends(ge
                 await db.commit()
                 await db.refresh(teacher)
             return teacher.id
+        await ensure_not_suspended(db, role, user_id)
         return int(user_id)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

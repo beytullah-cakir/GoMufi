@@ -1,5 +1,5 @@
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from auth.auth_request import LoginRequest, TeacherRegisterRequest
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from core.security import create_access_token, hash_password, verify_password, i
 from core.config import settings
 from connect_db import get_db
 from models.teacher import Teacher
+from core import login_guard
 
 
 router = APIRouter()
@@ -48,9 +49,13 @@ async def register_user(
 async def login_user(
     data: LoginRequest,
     response: Response,
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
+    ip = login_guard.client_ip(request)
+    await login_guard.check(db, data.email, ip)
     if is_admin_credentials(data.email, data.password):
+        await login_guard.record(db, data.email, ip, True)
         access_token = create_access_token("admin", role="admin")
         response.set_cookie(
             key="access_token",
@@ -72,7 +77,10 @@ async def login_user(
     teacher = result.scalars().first()
 
     if not teacher or not verify_password(data.password, teacher.password):
-        raise HTTPException(status_code=401, detail="Invalid email or password.") 
+        await login_guard.record(db, data.email, ip, False)
+        raise HTTPException(status_code=401, detail="E-posta veya şifre hatalı.")
+    await login_guard.ensure_not_suspended(db, "teacher", teacher.id)
+    await login_guard.record(db, data.email, ip, True)
 
     access_token = create_access_token(str(teacher.id), role="teacher")
 

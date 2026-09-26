@@ -9,6 +9,7 @@ from connect_db import get_db
 from models.student import Student
 from models.teacher import Teacher
 from models.parent import Parent
+from core import login_guard
 
 router = APIRouter()
 
@@ -51,8 +52,6 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
             
         user_id = None
         is_new_user = False
-        
-        print(f"DEBUG: Processing login for {email} with role {role}")
         
         if role == 'student':
             result = await db.execute(select(Student).where(Student.email == email))
@@ -123,9 +122,10 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
              if not user.expertises or user.expertises == "General":
                 is_profile_incomplete = True
 
+        if await login_guard.is_suspended(db, role, user_id):
+            return RedirectResponse(url=f"{FRONTEND_URL.rstrip('/')}/?error=hesap-askida")
+
         access_token = create_access_token(user_id=str(user_id), role=role)
-        
-        print(f"DEBUG: Redirect decision - Role: {role}, IsNew: {is_new_user}, Incomplete: {is_profile_incomplete}")
         
         if (is_new_user or is_profile_incomplete) and role != 'parent':
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/complete-profile"
@@ -136,10 +136,8 @@ async def auth_google_callback(request: Request, db: AsyncSession = Depends(get_
         elif role == 'parent':
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/parent"
         else:
-            print(f"DEBUG: Unknown role {role}, defaulting to root")
             redirect_url = f"{FRONTEND_URL.rstrip('/')}/"
 
-        print(f"DEBUG: Redirecting to {redirect_url}")
         response = RedirectResponse(url=redirect_url)
         
         response.set_cookie(
