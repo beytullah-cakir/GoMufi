@@ -1,19 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  BookOpen, 
-  HelpCircle, 
-  Plus, 
-  Trash2, 
-  Edit, 
-  Search, 
-  X, 
-  Check, 
-  ShieldAlert,
-  Save,
-  Book,
-  Compass
-} from "lucide-react";
+import { Users, BookOpen, HelpCircle, Plus, Trash2, Edit, Search, X, Check, ShieldAlert, Save, Book, Compass, Zap, Flame, Presentation } from 'lucide-react';
 import api from "../../api";
 
 interface UserItem {
@@ -633,14 +619,14 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSe
                         <td className="p-5">
                           {u.role === 'student' || u.role === 'admin' ? (
                             <div className="flex flex-col gap-1">
-                              <span className="text-xs text-gray-500">
-                                ⚡ {u.xp || 0} XP • 🔥 {u.streak || 0} Seri
+                              <span className="text-xs text-gray-500 inline-flex items-center gap-1">
+                                <Zap size={12} className="text-amber-500" /> {u.xp || 0} XP • <Flame size={12} className="text-orange-500" /> {u.streak || 0} Seri
                               </span>
                               {u.enrolled_courses && u.enrolled_courses.length > 0 ? (
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {u.enrolled_courses.map(ec => (
-                                    <span key={ec.id} className="text-[10px] bg-green-50 text-green-700 font-bold px-1.5 py-0.5 rounded-md border border-green-200">
-                                      📚 {ec.title}
+                                    <span key={ec.id} className="text-[10px] bg-green-50 text-green-700 font-bold px-1.5 py-0.5 rounded-md border border-green-200 inline-flex items-center gap-1">
+                                      <BookOpen size={11} /> {ec.title}
                                     </span>
                                   ))}
                                 </div>
@@ -649,8 +635,8 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSe
                               )}
                             </div>
                           ) : (
-                            <span className="text-xs text-gray-500 truncate max-w-[200px] block">
-                              📚 {u.expertises || "Uzmanlık Yok"}
+                            <span className="text-xs text-gray-500 truncate max-w-[200px] flex items-center gap-1">
+                              <BookOpen size={12} className="shrink-0" /> {u.expertises || "Uzmanlık Yok"}
                             </span>
                           )}
                         </td>
@@ -706,7 +692,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSe
                           {c.title}
                         </td>
                         <td className="p-5"><span className="bg-sky-50 text-sky-600 px-2 py-0.5 rounded text-xs font-bold">{c.category}</span></td>
-                        <td className="p-5 text-gray-600">👨‍🏫 {c.teacher_name}</td>
+                        <td className="p-5 text-gray-600"><span className="inline-flex items-center gap-1.5"><Presentation size={14} className="text-gray-400" /> {c.teacher_name}</span></td>
                         <td className="p-5">
                           <span className="text-xs text-gray-500 font-bold bg-gray-100 px-2 py-1 rounded-lg">
                             {c.curriculum?.length || 0} Ünite
@@ -938,7 +924,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSe
                         {editingUser.enrolled_courses && editingUser.enrolled_courses.length > 0 ? (
                           editingUser.enrolled_courses.map((ec: any) => (
                             <span key={ec.id} className="text-xs bg-green-50 text-green-700 font-bold pl-3 pr-1 py-1 rounded-xl border border-green-200 flex items-center gap-1.5 animate-in fade-in duration-100">
-                              📚 {ec.title}
+                              <BookOpen size={12} /> {ec.title}
                               <button
                                 type="button"
                                 onClick={() => handleRemoveEnrollment(editingUser.id, ec.id)}
@@ -1261,7 +1247,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ initialTab = "users", initialSe
                   selectedUserForEnroll.enrolled_courses.map((ec: any) => (
                     <div key={ec.id} className="flex items-center justify-between p-3.5 bg-white border-2 border-gray-100 hover:border-green-300 rounded-2xl transition-all">
                       <div className="flex items-center gap-2">
-                        <span className="text-xl">📚</span>
+                        <BookOpen size={20} className="text-green-600" />
                         <span className="font-bold text-gray-700 text-sm">{ec.title}</span>
                       </div>
                       <button

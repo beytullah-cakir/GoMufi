@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock } from 'lucide-react';
+import { Lock, Sparkles } from 'lucide-react';
 import ButtonCyan from '../../assets/sprites/ButtonCyan.png';
 import ButtonPurple from '../../assets/sprites/ButtonPurple.png';
 import ButtonYellow from '../../assets/sprites/ButtonYellow.png';
@@ -261,7 +261,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                         >
                                             <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl" />
                                             <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl" />
-                                            <div className="absolute top-4 right-6 text-white/30 text-2xl">✨</div>
+                                            <Sparkles size={24} className="absolute top-4 right-6 text-white/30" />
                                         </div>
 
                                         {/* Kuyruk yukarı, düğümün gerçek yatay konumuna bakar */}

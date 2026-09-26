@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { CheckCircle2, XCircle, Lightbulb, Star, BarChart3, ArrowLeft, Sparkles, Code } from 'lucide-react';
+import { CheckCircle2, XCircle, Lightbulb, Star, BarChart3, ArrowLeft, Sparkles, Code, AlertTriangle } from 'lucide-react';
 import type { AIReviewResult } from './homeworkAIService';
 
 interface HomeworkAIReviewProps {
@@ -167,7 +167,7 @@ const HomeworkAIReview: React.FC<HomeworkAIReviewProps> = ({
                                                          {w.studentCode && (
                                                              <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 font-mono text-[11.5px] text-red-300 relative">
                                                                  <div className="text-[9px] font-black text-red-400 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                                     <span>⚠️ Senin Kodun</span>
+                                                                     <AlertTriangle size={11} /> <span>Senin Kodun</span>
                                                                  </div>
                                                                  <pre className="whitespace-pre-wrap overflow-x-auto">{w.studentCode}</pre>
                                                              </div>
@@ -177,7 +177,7 @@ const HomeworkAIReview: React.FC<HomeworkAIReviewProps> = ({
                                                          {w.improvedCode && (
                                                              <div className="bg-emerald-950 border border-emerald-900 rounded-xl p-4 font-mono text-[11.5px] text-emerald-300 relative">
                                                                  <div className="text-[9px] font-black text-emerald-450 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                                     <span>✨ Önerilen İyileştirme</span>
+                                                                     <Sparkles size={11} /> <span>Önerilen İyileştirme</span>
                                                                  </div>
                                                                  <pre className="whitespace-pre-wrap overflow-x-auto">{w.improvedCode}</pre>
                                                              </div>

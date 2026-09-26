@@ -66,7 +66,7 @@ export class GoMufiCodeLensProvider implements vscode.CodeLensProvider {
 
         if (activeSuccess) {
             const successLens = new vscode.CodeLens(range, {
-                title: `✔ GÖREV TAMAMLANDI | 🎉 +${activeSuccess.xp} XP Kazanıldı!`,
+                title: `$(pass-filled) GÖREV TAMAMLANDI | +${activeSuccess.xp} XP Kazanıldı!`,
                 command: 'gomufi.triggerCheck',
                 tooltip: 'Görev başarıyla tamamlandı',
             });
@@ -74,13 +74,13 @@ export class GoMufiCodeLensProvider implements vscode.CodeLensProvider {
         }
 
         const checkLens = new vscode.CodeLens(range, {
-            title: '▶ Kontrol Et & Gönder',
+            title: '$(play) Kontrol Et & Gönder',
             command: 'gomufi.triggerCheck',
             tooltip: 'Görevi GoMufi üzerinde çalıştır ve kontrol et',
         });
 
         const shortHint = active ? formatShortEditorHint(active.message) : '';
-        const hintTitle = shortHint ? `💡 İpucu: ${shortHint}` : '⚡ GoMufi AI Asistan';
+        const hintTitle = shortHint ? `$(lightbulb) İpucu: ${shortHint}` : '$(sparkle) GoMufi AI Asistan';
         const hintLens = new vscode.CodeLens(range, {
             title: hintTitle,
             command: 'gomufi.triggerHint',
@@ -152,7 +152,7 @@ export class GoMufiCodeActionProvider implements vscode.CodeActionProvider {
         if (!replacement) return [];
 
         const action = new vscode.CodeAction(
-            `💡 GoMufi AI Öneri: '${replacement}' yap`,
+            `GoMufi AI Öneri: '${replacement}' yap`,
             vscode.CodeActionKind.QuickFix,
         );
         action.isPreferred = true;
@@ -318,12 +318,13 @@ function paintSuccess(): void {
         const line = doc.lineAt(targetLine);
         const hover = new vscode.MarkdownString();
         hover.isTrusted = true;
-        hover.appendMarkdown(`### 🎉 Tebrikler! Görevi Harika Şekilde Tamamladın!\n\n`);
-        hover.appendMarkdown(`⭐ **+${activeSuccess.xp} XP** Kazandın! Kodun tüm doğruluk testlerini geçti.`);
+        hover.supportThemeIcons = true;
+        hover.appendMarkdown(`### $(pass-filled) Tebrikler! Görevi Harika Şekilde Tamamladın!\n\n`);
+        hover.appendMarkdown(`$(star-full) **+${activeSuccess.xp} XP** Kazandın! Kodun tüm doğruluk testlerini geçti.`);
 
         editor.setDecorations(successDecoration, [{
             range: line.range,
-            renderOptions: { after: { contentText: `  🎉 TEBRİKLER! Görev Tamamlandı (+${activeSuccess.xp} XP)` } },
+            renderOptions: { after: { contentText: `  ✓ TEBRİKLER! Görev Tamamlandı (+${activeSuccess.xp} XP)` } },
             hoverMessage: hover,
         }]);
     }
@@ -368,24 +369,25 @@ function paint(): void {
         const hover = new vscode.MarkdownString();
         hover.isTrusted = true;
         hover.supportHtml = true;
+        hover.supportThemeIcons = true;
 
-        hover.appendMarkdown(`### 💡 GoMufi AI Koç İpucu (${index + 1}. Satır)\n\n`);
+        hover.appendMarkdown(`### $(lightbulb) GoMufi AI Koç İpucu (${index + 1}. Satır)\n\n`);
 
         if (matchString.length >= 2 && matchString[0] && matchString[1]) {
             hover.appendMarkdown(`| Durum | Metin / Çıktı |\n|---|---|\n`);
-            hover.appendMarkdown(`| 📝 **Senin Çıktın** | \`${matchString[0].slice(1, -1)}\` |\n`);
-            hover.appendMarkdown(`| ✨ **Hedef Çıktı** | \`${matchString[1].slice(1, -1)}\` |\n\n`);
+            hover.appendMarkdown(`| $(output) **Senin Çıktın** | \`${matchString[0].slice(1, -1)}\` |\n`);
+            hover.appendMarkdown(`| $(target) **Hedef Çıktı** | \`${matchString[1].slice(1, -1)}\` |\n\n`);
         }
 
-        hover.appendMarkdown(`💡 **Öneri**:\n> ${active.message}\n\n`);
+        hover.appendMarkdown(`$(lightbulb) **Öneri**:\n> ${active.message}\n\n`);
         hover.appendMarkdown(`---\n\n`);
-        hover.appendMarkdown(`⚡ **İpuçları & Kolaylıklar**:\n`);
+        hover.appendMarkdown(`$(zap) **İpuçları & Kolaylıklar**:\n`);
         hover.appendMarkdown(`- Klavyeden **\`Tab\`** tuşuna basarak gri tamamlamayı kabul edebilirsin.\n`);
         hover.appendMarkdown(`- Klavyeden **\`Ctrl + .\`** (veya Ampul ikonu) ile otomatik uygulayabilirsin.\n`);
 
         editor.setDecorations(hintDecoration, [{
             range,
-            renderOptions: { after: { contentText: `  💡 ${inlineBadge}` } },
+            renderOptions: { after: { contentText: `  » ${inlineBadge}` } },
             hoverMessage: hover,
         }]);
 

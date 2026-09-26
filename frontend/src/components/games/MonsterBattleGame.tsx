@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Trophy, Skull, X } from 'lucide-react';
 import api from "../../api";
 import dragonSprite from "../../assets/sprites/DragonMonster.png";
 import mufiArmorSprite from "../../assets/sprites/MufiArmor.png";
@@ -128,7 +129,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
       setPhase("effect");
       setHeroAnimation("animate-lunge-right");
       setTimeout(() => {
-        setEffectMessage("Kritik Vuruş! 🔥");
+        setEffectMessage("Kritik Vuruş!");
         setMonsterHP((prev) => Math.max(0, prev - 50));
         setMonsterAnimation("animate-flash animate-shake");
         setHeroAnimation("");
@@ -157,7 +158,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
       }, 300);
     } else {
       setPhase("effect");
-      setEffectMessage("Iskaladın! 💨");
+      setEffectMessage("Iskaladın!");
 
       setTimeout(() => setPhase("monster_turn"), 1500);
     }
@@ -167,7 +168,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     if (item === "potion" && inventory.potions > 0) {
       setInventory((prev) => ({ ...prev, potions: prev.potions - 1 }));
       setPlayerHP((prev) => Math.min(maxPlayerHP, prev + 40));
-      setEffectMessage("Canın Yenilendi! ❤️");
+      setEffectMessage("Canın Yenilendi!");
       setPhase("effect");
       setTimeout(() => setPhase("monster_turn"), 1500);
     }
@@ -175,7 +176,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     if (item === "bomb" && inventory.bombs > 0) {
       setInventory((prev) => ({ ...prev, bombs: prev.bombs - 1 }));
       setMonsterHP((prev) => Math.max(0, prev - 80));
-      setEffectMessage("BOOM! 💥");
+      setEffectMessage("BOOM!");
       setMonsterAnimation("animate-flash animate-shake");
       setPhase("effect");
       setTimeout(() => {
@@ -194,7 +195,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     if (phase === "monster_turn") {
       setTimeout(() => {
         setPlayerHP((prev) => prev - 20);
-        setEffectMessage("Canavar Saldırdı! ⚔️");
+        setEffectMessage("Canavar Saldırdı!");
         setHeroAnimation("animate-flash animate-shake");
         setPhase("effect");
         setTimeout(() => {
@@ -225,7 +226,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     return (
       <div className="flex flex-col items-center justify-center h-full animate-in zoom-in bg-green-500 text-white">
         <h1 className="text-6xl font-black font-display mb-8">KAZANDIN!</h1>
-        <span className="text-9xl mb-8">🏆</span>
+        <Trophy size={128} strokeWidth={1.5} className="mb-8" />
         
         {/* Stars Display */}
         <div className="flex gap-4 mb-8">
@@ -264,7 +265,7 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
     return (
       <div className="flex flex-col items-center justify-center h-full animate-in zoom-in bg-red-600 text-white">
         <h1 className="text-6xl font-black font-display mb-8">KAYBETTİN...</h1>
-        <span className="text-9xl mb-8">💀</span>
+        <Skull size={128} strokeWidth={1.5} className="mb-8" />
         <button
           onClick={onClose}
           className="bg-white text-red-600 font-black text-2xl py-4 px-12 rounded-2xl border-b-8 border-red-800 active:border-b-0 active:translate-y-2 transition-all"
@@ -435,8 +436,9 @@ const MonsterBattleGame: React.FC<MonsterBattleGameProps> = ({
       <button
         onClick={onClose}
         className="absolute top-4 left-4 p-2 bg-white/50 backdrop-blur rounded-xl hover:bg-white/80 shadow-sm border border-gray-200 transition-colors z-50"
+        aria-label="Kapat"
       >
-        ❌
+        <X size={20} className="text-red-500" />
       </button>
     </div>
   );

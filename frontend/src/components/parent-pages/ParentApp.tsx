@@ -8,7 +8,7 @@ import ParentStudents from './ParentStudents';
 import ParentSettings from './ParentSettings';
 import ParentStudentDetail from './ParentStudentDetail';
 import ChatPanel, { type ChatTarget } from '../../messaging/ChatPanel';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 const ParentApp: React.FC = () => {
     const [activePage, setActivePage] = useState('Dashboard');
@@ -90,7 +90,7 @@ const ParentApp: React.FC = () => {
     if (error) {
         return (
             <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8 text-center">
-                <div className="text-6xl mb-4">⚠️</div>
+                <AlertTriangle size={56} className="text-red-400 mb-4" />
                 <h2 className="text-2xl font-black text-red-500 mb-2">Bir Hata Oluştu</h2>
                 <p className="text-gray-500 font-bold mb-6">{error}</p>
                 <button 

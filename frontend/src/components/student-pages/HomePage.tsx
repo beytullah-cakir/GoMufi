@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
-import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight } from 'lucide-react';
+import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight, Zap, KeyRound, BookOpen, Brain, Rocket, UserRound, Target, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Star } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -13,6 +13,8 @@ import LiveLessonStudent from './LiveLessonStudent';
 import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
 import { completeModule, type CourseProgress } from '../../progress';
+import CourseIcon from '../shared/CourseIcon';
+import { LeagueIcon } from '../shared/LeagueBadge';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -188,7 +190,7 @@ const HomePage: React.FC<HomePageProps> = ({
                         await refreshProgress(liveCourseId);
                         const lessonIndex = parseInt(lastActiveSessionTitle.split(":")[1]);
                         if (!isNaN(lessonIndex) && lessonIndex >= before) {
-                            celebrate(`Canlı ders bitti! ${lessonIndex}. modüle kadar tamamlandı 🎉`);
+                            celebrate(`Canlı ders bitti! ${lessonIndex}. modüle kadar tamamlandı.`);
                         }
                     }
                     setLastActiveSessionTitle(null);
@@ -373,7 +375,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <div className="relative">
                     <div className="w-48 h-48 rounded-full border-8 border-indigo-100 animate-pulse"></div>
                     <div className="absolute inset-0 border-t-8 border-indigo-600 rounded-full animate-spin"></div>
-                    <span className="absolute inset-0 flex items-center justify-center text-6xl animate-bounce">⚡</span>
+                    <span className="absolute inset-0 flex items-center justify-center animate-bounce"><Zap size={56} className="text-indigo-600" /></span>
                 </div>
                 <h2 className="text-2xl font-black text-gray-800 mt-8 font-display animate-pulse uppercase tracking-widest">Maceran Yükleniyor...</h2>
                 <div className="mt-4 flex gap-2">
@@ -389,7 +391,7 @@ const HomePage: React.FC<HomePageProps> = ({
         return (
             <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center">
                 <div className="w-64 h-64 bg-gray-50 rounded-full flex items-center justify-center mb-8">
-                    <span className="text-8xl animate-bounce">🔑</span>
+                    <KeyRound size={96} className="animate-bounce text-amber-400" />
                 </div>
                 <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz bir sınıfa katılmadın</h2>
                 <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
@@ -448,7 +450,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 style={courseBoxStyle}
                                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                             >
-                                <span className="text-3xl mb-0.5">{currentCourse.icon}</span>
+                                <CourseIcon name={currentCourse.icon} size={28} className="mb-0.5" />
                                 <span className="font-black text-[10px] uppercase tracking-wider font-display truncate max-w-[70px]">{currentCourse.title}</span>
                                 {/* Dropdown Indicator */}
                                 <div className="absolute top-1 right-1 opacity-50">
@@ -467,7 +469,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
                                             onClick={() => handleCourseChange(course.id)}
                                         >
-                                            <span className="text-2xl">{course.icon}</span>
+                                            <CourseIcon name={course.icon} size={22} className="text-gray-500" />
                                             <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
                                                 {course.title}
                                             </span>
@@ -493,7 +495,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             </div>
 
                             <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-2 rounded-xl text-xs transition-colors uppercase tracking-wider flex items-center gap-1.5 border-2 border-transparent">
-                                <span className="text-base">📖</span> REHBER
+                                <BookOpen size={15} /> REHBER
                             </button>
                         </div>
 
@@ -502,7 +504,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             className="h-20 px-5 shrink-0 bg-white border-2 border-gray-200 border-b-4 rounded-2xl flex flex-col items-center justify-center gap-0.5 shadow-sm hover:-translate-y-0.5 hover:border-indigo-300 transition-all"
                             title="Neyi öğrendin, neye çalışmalısın?"
                         >
-                            <span className="text-2xl leading-none">🧠</span>
+                            <Brain size={24} className="text-indigo-500" />
                             <span className="text-[10px] font-black uppercase tracking-wider text-gray-600 font-display">Kazanımlarım</span>
                         </button>
 
@@ -528,7 +530,7 @@ const HomePage: React.FC<HomePageProps> = ({
                             <div className="hidden xl:flex h-20 w-56 px-4.5 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3.5 shadow-sm shrink-0">
                                 <div className="relative shrink-0">
                                     <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl shadow-inner">
-                                        {currentCourse.instructor.avatar}
+                                        <UserRound size={20} className="text-indigo-500" />
                                     </div>
                                     {currentCourse.instructor.isOnline && (
                                         <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
@@ -557,7 +559,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
                             <div className="relative z-10">
                                 <div className="w-10 h-10 rounded-xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl shadow-md backdrop-blur-sm">
-                                    🚀
+                                    <Rocket size={20} />
                                 </div>
                             </div>
 
@@ -619,7 +621,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                     </div>
                                     <div className="flex flex-col min-w-0">
                                         <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">
-                                            {userData?.progression?.league?.emoji ?? '🥉'} {userData?.progression?.league?.name ?? 'Bronz'} Lig · Lv {userData?.progression?.level ?? 1}
+                                            <span className="inline-flex items-center gap-1"><LeagueIcon icon={userData?.progression?.league?.icon} color={userData?.progression?.league?.color} size={11} /> {userData?.progression?.league?.name ?? 'Bronz'} Lig · Lv {userData?.progression?.level ?? 1}</span>
                                         </span>
                                         <span className="text-sm font-black text-gray-800 font-display leading-none">{(userData?.xp ?? 0)} XP</span>
                                     </div>
@@ -653,7 +655,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                     onClick={() => setIsQuestsExpanded(!isQuestsExpanded)}
                                 >
                                     <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5">
-                                        🎯 Günlük Görevler
+                                        <Target size={16} className="text-green-500" /> Günlük Görevler
                                     </h3>
                                     <div className="text-gray-400 hover:text-gray-600">
                                         {isQuestsExpanded ? <ChevronDown size={16} className="transform rotate-180 transition-transform duration-200" /> : <ChevronDown size={16} className="transition-transform duration-200" />}
@@ -663,7 +665,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 {isQuestsExpanded && (
                                     <div className="space-y-4 mt-4 animate-in fade-in duration-200">
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-lg shadow-sm shrink-0">⚡</div>
+                                            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-lg shadow-sm shrink-0"><Zap size={18} className="text-orange-500" /></div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="font-black text-gray-700 text-xs truncate">10 Puan kazan</span>
@@ -678,7 +680,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-xl bg-green-100 border border-green-200 flex items-center justify-center text-lg shadow-sm shrink-0">🎯</div>
+                                            <div className="w-9 h-9 rounded-xl bg-green-100 border border-green-200 flex items-center justify-center text-lg shadow-sm shrink-0"><Target size={18} className="text-green-600" /></div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex justify-between items-center mb-1">
                                                     <span className="font-black text-gray-700 text-xs truncate">Hatasız ders</span>
@@ -716,7 +718,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                 return (
                                     <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all animate-in slide-in-from-bottom duration-300">
                                         <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5 mb-3">
-                                            📝 Aktif Ödevler ({activeHws.length})
+                                            <FileText size={16} className="text-blue-500" /> Aktif Ödevler ({activeHws.length})
                                         </h3>
                                         <div className="space-y-3">
                                             {activeHws.map((hw, idx) => (
@@ -728,7 +730,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                     <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">{hw.lessonTitle}</span>
                                                     <h5 className="font-bold text-gray-800 text-xs truncate">{hw.slide.homeworkConfig?.title || 'Ödev Görevi'}</h5>
                                                     <span className="text-[9px] font-black text-yellow-600 flex items-center gap-1 mt-1">
-                                                        ★ +{hw.slide.homeworkConfig?.points || 100} XP
+                                                        <Star size={10} className="fill-current" /> +{hw.slide.homeworkConfig?.points || 100} XP
                                                     </span>
                                                 </div>
                                             ))}
@@ -747,7 +749,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <div role="status" aria-live="polite"
                      className={`fixed top-6 left-1/2 -translate-x-1/2 z-[200] px-6 py-3 rounded-2xl shadow-xl border-2 font-black text-sm animate-in fade-in slide-in-from-top duration-300 ${
                          celebration.ok ? 'bg-emerald-500 border-emerald-600 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'}`}>
-                    {celebration.ok ? '🎉 ' : ''}{celebration.text}
+                    <span className="flex items-center gap-2">{celebration.ok && <PartyPopper size={18} />}{celebration.text}</span>
                 </div>
             )}
 
@@ -838,7 +840,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                         {/* Glow Shapes */}
                                                         <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl"></div>
                                                         <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-                                                        <div className="absolute top-4 right-6 text-white/30 text-2xl animate-pulse">✨</div>
+                                                        <Sparkles size={24} className="absolute top-4 right-6 text-white/30 animate-pulse" />
                                                     </div>
 
                                                     {/* Tail */}
@@ -867,7 +869,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                             <>
                                                                                 {/* Teslim edildi badge */}
                                                                                 <div className="w-full px-4 py-2.5 bg-green-500/25 border border-green-400/40 rounded-2xl flex items-center justify-center gap-2">
-                                                                                    <span className="text-[11px] font-black uppercase tracking-wider text-green-100">✅ ÖDEV TESLİM EDİLDİ</span>
+                                                                                    <span className="text-[11px] font-black uppercase tracking-wider text-green-100 flex items-center gap-1.5"><CheckCircle2 size={14} /> ÖDEV TESLİM EDİLDİ</span>
                                                                                 </div>
                                                                                 {/* Yine de girebilir */}
                                                                                 <button
@@ -877,7 +879,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                                         if (hwSlide) setActiveHomeworkSlide(hwSlide);
                                                                                     }}
                                                                                 >
-                                                                                    <span className="font-black text-xs uppercase tracking-wider">📂 ÖDEVE GİR</span>
+                                                                                    <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5"><FolderOpen size={14} /> ÖDEVE GİR</span>
                                                                                 </button>
                                                                             </>
                                                                         ) : (
@@ -890,7 +892,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                                 }}
                                                                             >
                                                                                 <span className="font-black text-sm uppercase tracking-wider flex items-center gap-1.5">
-                                                                                    📝 ÖDEVİ TESLİM ET (+{hwSlide?.homeworkConfig?.points || 100} XP)
+                                                                                    <FileText size={16} /> ÖDEVİ TESLİM ET (+{hwSlide?.homeworkConfig?.points || 100} XP)
                                                                                 </span>
                                                                             </button>
                                                                         )}
@@ -918,7 +920,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                     if (isHwSubmitted) {
                                                                         return (
                                                                             <div className="w-full mt-2.5 px-4 py-2.5 bg-green-500/20 border border-green-500/30 rounded-2xl text-center flex items-center justify-center gap-2">
-                                                                                <span className="text-[10px] font-black uppercase tracking-wider text-green-100">✅ ÖDEV TESLİM EDİLDİ</span>
+                                                                                <span className="text-[10px] font-black uppercase tracking-wider text-green-100 flex items-center gap-1.5"><CheckCircle2 size={13} /> ÖDEV TESLİM EDİLDİ</span>
                                                                             </div>
                                                                         );
                                                                     }
@@ -931,7 +933,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                                             }}
                                                                         >
                                                                             <span className="font-black text-xs uppercase tracking-wider flex items-center gap-1.5">
-                                                                                📝 ÖDEVİ TESLİM ET (+{hwSlide.homeworkConfig?.points || 100} XP)
+                                                                                <FileText size={15} /> ÖDEVİ TESLİM ET (+{hwSlide.homeworkConfig?.points || 100} XP)
                                                                             </span>
                                                                         </button>
                                                                     );

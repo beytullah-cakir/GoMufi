@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Clock, Users, Calendar as CalendarIcon, LayoutGrid, LayoutList, Play, Loader2, X, Brain, Puzzle, Trophy, HelpCircle } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, Users, Calendar as CalendarIcon, LayoutGrid, LayoutList, Play, Loader2, X, Brain, Puzzle, Trophy, HelpCircle, AlarmClock, Settings } from 'lucide-react';
 import api from '../../api';
 import { openMeetingLink } from '../../meetingLink';
 import LessonSlide from '../student-pages/LessonSlide';
@@ -485,7 +485,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
             {activeSession && (
                 <div className="bg-amber-50 border-2 border-b-[6px] border-amber-300 rounded-[2rem] p-6 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-md select-text">
                     <div className="flex items-center gap-3.5">
-                        <span className="text-3xl">⏰</span>
+                        <AlarmClock size={30} className="text-amber-600 shrink-0" />
                         <div>
                             <h3 className="font-black text-amber-900 text-sm md:text-base leading-tight">Devam Eden Aktif Canlı Dersiniz Var!</h3>
                             <p className="text-[11px] text-amber-700 font-bold mt-1">
@@ -729,7 +729,7 @@ const InstructorCalendar: React.FC<InstructorCalendarProps> = ({ coursesData = [
                     {/* Debug Mode Switcher */}
                     <div className="bg-amber-50 border-2 border-b-[6px] border-amber-200 p-4 rounded-3xl flex items-center justify-between shadow-sm max-w-md animate-in fade-in duration-300">
                         <div className="flex gap-3 items-center">
-                            <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-b-2 border-amber-200 flex items-center justify-center text-amber-600 font-bold">⚙️</div>
+                            <div className="w-8 h-8 rounded-full bg-amber-100 border-2 border-b-2 border-amber-200 flex items-center justify-center text-amber-600 font-bold"><Settings size={16} /></div>
                             <div>
                                 <h4 className="text-xs font-black text-amber-900">Hızlı Ders Başlatma (Debug Modu)</h4>
                                 <p className="text-[10px] text-amber-700 font-bold">Aktifken, saati veya tarihi gelmeyen dersler de anında takvimden başlatılabilir.</p>

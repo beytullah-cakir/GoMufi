@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../../api";
-import { Check, X, RefreshCw, AlertCircle, PenTool, FileText } from "lucide-react";
+import { Check, X, RefreshCw, AlertCircle, PenTool, FileText, Trophy, Hourglass, Zap, Presentation } from 'lucide-react';
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { trackLearningEvent } from "../../learningEvents";
+import RankMedal from '../shared/RankMedal';
 
 interface MatchingGameProps {
   level: number;
@@ -583,20 +584,19 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
 
         <div className="max-w-xl w-full flex flex-col items-center relative z-10">
           <div className="flex items-center gap-2 mb-2">
-            <span className="text-3xl">🏆</span>
+            <Trophy size={28} className="text-amber-400" />
             <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest">Soru {currentQuestionIndex + 1} Sonucu</span>
           </div>
           <h2 className="text-3xl font-black font-display mb-8 text-slate-100">Sıralama</h2>
 
           {studentRankings.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl animate-pulse block mb-4">⌛</span>
+              <Hourglass size={40} className="animate-pulse mx-auto mb-4 text-slate-400" />
               <p className="text-slate-400 font-bold text-sm">Katılımcı verileri bekleniyor...</p>
             </div>
           ) : (
             <div className="w-full space-y-3 mb-10 max-h-[300px] overflow-y-auto custom-scrollbar pr-1 text-left">
               {studentRankings.map((student, idx) => {
-                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
                 const isMe = student.id === (userData?.id?.toString() || 'me');
                 return (
                   <div 
@@ -614,8 +614,8 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                     }`}
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-6 text-center text-xs font-black text-indigo-400 font-display">
-                        {medal || `#${idx + 1}`}
+                      <span className="w-6 flex justify-center text-xs font-black text-indigo-400 font-display">
+                        {idx < 3 ? <RankMedal rank={idx + 1} size={20} /> : `#${idx + 1}`}
                       </span>
                       <span className={`font-black text-sm truncate ${isMe ? 'text-indigo-200' : 'text-slate-200'}`}>
                         {student.name} {isMe && "(Sen)"}
@@ -624,7 +624,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                     <div className="flex items-center gap-3 shrink-0">
                       {student.lastScore > 0 ? (
                         <span className="text-[10px] font-black text-green-400 flex items-center gap-0.5 bg-green-500/10 px-2 py-0.5 rounded">
-                          +{student.lastScore} ⚡
+                          +{student.lastScore} <Zap size={11} />
                         </span>
                       ) : (
                         <span className="text-[10px] font-black text-red-400 bg-red-500/10 px-2 py-0.5 rounded">
@@ -707,8 +707,8 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
               
               {/* Teacher Mode Overlay Badge */}
               {isTeacher && (
-                <div className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-[10px] font-black text-amber-600 tracking-wider uppercase select-none">
-                  👨‍🏫 ÖĞRETMEN GÖRÜNÜMÜ
+                <div className="absolute top-4 right-4 bg-amber-500/10 border border-amber-500/20 px-3 py-1 rounded-full text-[10px] font-black text-amber-600 tracking-wider uppercase select-none flex items-center gap-1">
+                  <Presentation size={12} /> ÖĞRETMEN GÖRÜNÜMÜ
                 </div>
               )}
 

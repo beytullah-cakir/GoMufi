@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Image as ImageIcon, Video as VideoIcon, Loader2, FolderOpen, Globe, ExternalLink, FileText, Pencil, Mic, PenTool, Trophy, Code2, FileUp, Send, CheckCircle, GitMerge, Target, Sparkles, Lightbulb, Terminal, ArrowRight, ShieldCheck, Play } from "lucide-react";
+import { Image as ImageIcon, Video as VideoIcon, Loader2, FolderOpen, Globe, ExternalLink, FileText, Pencil, Mic, PenTool, Trophy, Code2, FileUp, Send, CheckCircle, GitMerge, Target, Sparkles, Lightbulb, Terminal, ArrowRight, ShieldCheck, Play, PenLine, Folder, FlaskConical, Timer, FileCode2, RotateCcw, Presentation, GraduationCap, Search, MousePointer2 } from 'lucide-react';
 import CodeWidget from "./CodeWidget";
 import { usePyodide } from "../../hooks/usePyodide";
 import MultipleChoiceWidget from "./MultipleChoiceWidget";
@@ -537,7 +537,7 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
     );
 
     // Starter Code & Python Code Editor State
-    const starterCode = `# Kodunu buraya yaz 👇\ndef ${functionName}(sayi):\n    pass\n`;
+    const starterCode = `# Kodunu buraya yaz\ndef ${functionName}(sayi):\n    pass\n`;
     const [codeInput, setCodeInput] = useState(el.extra?.submittedCode || starterCode);
 
     // Test Cases State
@@ -714,34 +714,34 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                 <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200" onMouseDown={(e) => e.stopPropagation()}>
                     <button
                         onClick={() => handleTabChange('code')}
-                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                             activeTab === 'code' ? 'bg-[#22c55e] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
-                        💻 Kod
+                        <Code2 size={11} /> Kod
                     </button>
                     <button
                         onClick={() => handleTabChange('text')}
-                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                             activeTab === 'text' ? 'bg-[#22c55e] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
-                        ✍️ Metin
+                        <PenLine size={11} /> Metin
                     </button>
                     <button
                         onClick={() => handleTabChange('file')}
-                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer ${
+                        className={`px-3 py-1 text-[10px] font-black rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
                             activeTab === 'file' ? 'bg-[#22c55e] text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
                         }`}
                     >
-                        📁 Dosya
+                        <Folder size={11} /> Dosya
                     </button>
                 </div>
 
                 {/* XP Pill */}
                 <div className="flex items-center gap-1.5 shrink-0">
                     <span className="text-[10px] font-black text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1 rounded-xl flex items-center gap-1">
-                        🏆 +100 XP
+                        <Trophy size={11} /> +100 XP
                     </span>
                 </div>
             </div>
@@ -798,7 +798,7 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                         {/* Hint Box */}
                         <div className="bg-emerald-50/60 border border-emerald-200 rounded-2xl p-3 space-y-1">
                             <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest flex items-center gap-1">
-                                💡 İPUCU
+                                <Lightbulb size={11} /> İPUCU
                             </span>
                             <p className="text-[10px] font-bold text-slate-600 leading-relaxed">
                                 {hint}
@@ -807,8 +807,8 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
 
                         {/* Submit Task Block */}
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 space-y-2 mt-auto">
-                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">
-                                🛡️ GÖREVİ TAMAMLAMA
+                            <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-1">
+                                <ShieldCheck size={11} /> GÖREVİ TAMAMLAMA
                             </span>
                             <p className="text-[10px] font-bold text-slate-500">
                                 Kodunu yaz, testleri geç ve görevi tamamla!
@@ -837,8 +837,8 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                                 <span className="bg-white border border-slate-200 px-2.5 py-1 rounded-lg text-slate-900 shadow-xs flex items-center gap-1">
                                     <Code2 size={12} className="text-emerald-500" /> Kod Yaz
                                 </span>
-                                <span className="hover:text-slate-900 cursor-pointer">🧪 Test Sonuçları</span>
-                                <span className="hover:text-slate-900 cursor-pointer text-slate-400">⏱️ Çözüm Geçmişi</span>
+                                <span className="hover:text-slate-900 cursor-pointer flex items-center gap-1"><FlaskConical size={12} /> Test Sonuçları</span>
+                                <span className="hover:text-slate-900 cursor-pointer text-slate-400 flex items-center gap-1"><Timer size={12} /> Çözüm Geçmişi</span>
                             </div>
                         </div>
 
@@ -846,14 +846,14 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                         <div className="bg-[#1e293b] rounded-2xl p-3 flex flex-col gap-2 shadow-inner border border-slate-800 overflow-hidden flex-1 min-h-[160px]">
                             <div className="flex items-center justify-between border-b border-slate-700/60 pb-2 text-[10px]">
                                 <span className="text-slate-300 font-mono font-bold flex items-center gap-1.5">
-                                    🐍 main.py
+                                    <FileCode2 size={12} /> main.py
                                 </span>
                                 <div className="flex items-center gap-2" onMouseDown={(e) => e.stopPropagation()}>
                                     <button
                                         onClick={() => setCodeInput(starterCode)}
                                         className="text-slate-400 hover:text-slate-200 font-bold flex items-center gap-1 text-[9px] bg-slate-800 px-2 py-1 rounded-md cursor-pointer"
                                     >
-                                        🔄 Reset
+                                        <RotateCcw size={10} /> Reset
                                     </button>
                                     <button
                                         onClick={runAutomaticTests}
@@ -886,7 +886,7 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2.5 flex flex-col gap-2 shrink-0 max-h-[160px] overflow-y-auto">
                             <div className="flex justify-between items-center text-[10px] font-black border-b border-slate-200 pb-1">
                                 <span className="text-slate-700 flex items-center gap-1">
-                                    🛡️ OTOMATİK TESTLER
+                                    <ShieldCheck size={12} /> OTOMATİK TESTLER
                                 </span>
                                 <span className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                                     {passedCount} / {testCases.length} Test Geçildi
@@ -904,7 +904,7 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
                                             tc.status === 'failed' ? 'bg-red-100 text-red-700 border border-red-200' :
                                             'bg-blue-50 text-blue-600 border border-blue-100'
                                         }`}>
-                                            {tc.status === 'passed' ? '✓ Geçti' : tc.status === 'failed' ? '✕ Başarısız' : '⏱️ Bekleniyor'}
+                                            {tc.status === 'passed' ? '✓ Geçti' : tc.status === 'failed' ? '✕ Başarısız' : 'Bekleniyor'}
                                         </span>
                                     </div>
                                 ))}
@@ -987,7 +987,7 @@ const ChallengeWidget: React.FC<ChallengeWidgetProps> = ({
             {showSuccess && (
                 <div className="absolute inset-0 bg-white/95 backdrop-blur-sm z-20 flex flex-col items-center justify-center p-4 text-center select-none animate-in fade-in zoom-in-95 duration-200">
                     <CheckCircle className="w-12 h-12 text-green-500 mb-2 animate-bounce" />
-                    <h4 className="font-black text-slate-800 text-sm uppercase tracking-wide">Tebrikler! 🎉</h4>
+                    <h4 className="font-black text-slate-800 text-sm uppercase tracking-wide">Tebrikler!</h4>
                     <p className="text-xs font-bold text-slate-500 mt-1">Göreviniz eğitmeninize başarıyla iletildi.</p>
                 </div>
             )}
@@ -1200,12 +1200,12 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({
                 {/* State badges */}
                 <div className="flex items-center gap-2 shrink-0">
                     {previewRole === 'teacher' ? (
-                        <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg">👨‍🏫 ÖĞRETMEN</span>
+                        <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1"><Presentation size={10} /> ÖĞRETMEN</span>
                     ) : isPreview ? (
                         isSubmitted ? (
                             <span className="text-[9px] font-black text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-lg">✓ TESLİM EDİLDİ</span>
                         ) : (
-                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-100 border border-emerald-250 px-2 py-0.5 rounded-lg">🎓 ÖĞRENCİ</span>
+                            <span className="text-[9px] font-black text-emerald-700 bg-emerald-100 border border-emerald-250 px-2 py-0.5 rounded-lg inline-flex items-center gap-1"><GraduationCap size={10} /> ÖĞRENCİ</span>
                         )
                     ) : (
                         <span className="text-[9px] font-black text-indigo-700 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-lg">EDİTÖR</span>
@@ -1231,7 +1231,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({
                                     }}
                                     className="mt-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-black text-[8px] px-2 py-1 rounded-lg shadow-sm hover:shadow hover:scale-105 active:scale-95 transition-all uppercase tracking-wider w-full flex items-center justify-center gap-0.5"
                                 >
-                                    🔍 İncele
+                                    <Search size={9} /> İncele
                                 </button>
                             )}
                         </div>
@@ -1357,7 +1357,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({
                                 <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 border-b border-slate-50 pb-1.5">
                                     <span>Teslim Saati: {el.extra.submittedAt || 'Belirtilmemiş'}</span>
                                     <span className="bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-lg font-black text-[8px] uppercase">
-                                        {el.extra.activeTab === 'text' ? '📝 Metin' : el.extra.activeTab === 'code' ? '💻 Kod' : '📁 Dosya'}
+                                        {el.extra.activeTab === 'text' ? 'Metin' : el.extra.activeTab === 'code' ? 'Kod' : 'Dosya'}
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
@@ -1500,7 +1500,7 @@ const ConnectionTaskWidget: React.FC<ConnectionTaskWidgetProps> = ({
                                         </div>
                                         {el.extra?.teacherFeedback && (
                                             <div className="bg-amber-50/50 border border-amber-250 rounded-xl p-2.5 text-[9px] text-slate-700 leading-normal select-text mt-0.5 border-l-4 border-l-amber-500">
-                                                <span className="font-black text-amber-800 uppercase block mb-0.5">👨‍🏫 Eğitmen Geri Bildirimi:</span>
+                                                <span className="font-black text-amber-800 uppercase mb-0.5 flex items-center gap-1"><Presentation size={10} /> Eğitmen Geri Bildirimi:</span>
                                                 <span className="font-bold">{el.extra.teacherFeedback}</span>
                                             </div>
                                         )}
@@ -1817,12 +1817,12 @@ const ProductionTaskWidget: React.FC<ProductionTaskWidgetProps> = ({
                 {/* State badges */}
                 <div className="flex items-center gap-2 shrink-0">
                     {previewRole === 'teacher' ? (
-                        <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg">👨‍🏫 ÖĞRETMEN</span>
+                        <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1"><Presentation size={10} /> ÖĞRETMEN</span>
                     ) : isPreview ? (
                         isSubmitted ? (
                             <span className="text-[9px] font-black text-green-700 bg-green-100 border border-green-200 px-2 py-0.5 rounded-lg">✓ TESLİM EDİLDİ</span>
                         ) : (
-                            <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg">🎓 ÖĞRENCİ</span>
+                            <span className="text-[9px] font-black text-amber-700 bg-amber-100 border border-amber-200 px-2 py-0.5 rounded-lg inline-flex items-center gap-1"><GraduationCap size={10} /> ÖĞRENCİ</span>
                         )
                     ) : (
                         <span className="text-[9px] font-black text-indigo-700 bg-indigo-100 border border-indigo-200 px-2 py-0.5 rounded-lg">EDİTÖR</span>
@@ -1935,7 +1935,7 @@ const ProductionTaskWidget: React.FC<ProductionTaskWidgetProps> = ({
                                 <div className="flex items-center justify-between text-[9px] font-bold text-slate-400 border-b border-slate-50 pb-1.5">
                                     <span>Teslim Saati: {el.extra.submittedAt || 'Belirtilmemiş'}</span>
                                     <span className="bg-amber-50 text-amber-700 px-2 py-0.5 rounded-lg font-black text-[8px] uppercase">
-                                        {el.extra.activeTab === 'text' ? '📝 Metin' : el.extra.activeTab === 'code' ? '💻 Kod' : '📁 Dosya'}
+                                        {el.extra.activeTab === 'text' ? 'Metin' : el.extra.activeTab === 'code' ? 'Kod' : 'Dosya'}
                                     </span>
                                 </div>
                                 <div className="flex flex-col gap-1">
@@ -2078,7 +2078,7 @@ const ProductionTaskWidget: React.FC<ProductionTaskWidgetProps> = ({
                                         </div>
                                         {el.extra?.teacherFeedback && (
                                             <div className="bg-amber-50/50 border border-amber-250 rounded-xl p-2.5 text-[9px] text-slate-700 leading-normal select-text mt-0.5 border-l-4 border-l-amber-500">
-                                                <span className="font-black text-amber-800 uppercase block mb-0.5">👨‍🏫 Eğitmen Geri Bildirimi:</span>
+                                                <span className="font-black text-amber-800 uppercase mb-0.5 flex items-center gap-1"><Presentation size={10} /> Eğitmen Geri Bildirimi:</span>
                                                 <span className="font-bold">{el.extra.teacherFeedback}</span>
                                             </div>
                                         )}
@@ -2509,7 +2509,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
                 className="absolute top-2 right-2 z-30 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold px-2 py-1 rounded shadow-md flex items-center gap-1 border border-indigo-500 transition-colors"
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                {isInteractive ? "🖱️ Sürükleme Modu" : "▶️ Önizle/Oynat"}
+                {isInteractive ? <><MousePointer2 size={11} /> Sürükleme Modu</> : <><Play size={11} /> Önizle/Oynat</>}
               </button>
             )}
 

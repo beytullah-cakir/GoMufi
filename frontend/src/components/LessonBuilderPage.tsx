@@ -1043,9 +1043,9 @@ const LessonBuilderPage: React.FC<LessonBuilderProps> = ({ onExit }) => {
                 'code_editor': { content: '# Kodunuzu buraya yazın\nprint("Merhaba Dunya")\n', style: { ...baseStyle, fontFamily: 'Fira Code' as const, fontSize: 14 } },
                 'answer_box': { content: 'Soru: Python\'da listeler ile demetler (tuples) arasındaki fark nedir?', src: '' },
                 'challenge': {
-                    content: '🎯 GÖREV: Sağ taraftaki Kod Editörünü kullanarak ekrana "Merhaba GoMufi" yazdıran Python kodunu oluşturun ve çalıştırın.',
+                    content: 'GÖREV: Sağ taraftaki Kod Editörünü kullanarak ekrana "Merhaba GoMufi" yazdıran Python kodunu oluşturun ve çalıştırın.',
                     extra: {
-                        title: '🎯 Challenge (Mini Görev)',
+                        title: 'Challenge (Mini Görev)',
                         submittedText: '',
                         submittedCode: '# Çözüm kodunuzu buraya yazın\n',
                         submittedFile: '',

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { History, Loader2, LockOpen, ShieldAlert } from 'lucide-react';
+import { History, Loader2, LockOpen, ShieldAlert, AlertTriangle } from 'lucide-react';
 import api from '../../api';
 
 /**
@@ -69,7 +69,7 @@ export const AdminSecurity: React.FC = () => {
                             {data.failed_by_ip.map((r) => (
                                 <li key={r.ip} className="flex items-center justify-between py-2 text-sm">
                                     <span className="font-mono font-bold text-gray-700">{r.ip}</span>
-                                    <span className="text-xs font-bold text-gray-500">{r.count} deneme · {r.emails} farklı e-posta{r.emails >= 5 ? ' ⚠️' : ''}</span>
+                                    <span className="text-xs font-bold text-gray-500 inline-flex items-center gap-1">{r.count} deneme · {r.emails} farklı e-posta{r.emails >= 5 && <AlertTriangle size={13} className="text-amber-500" aria-label="Çok sayıda farklı e-posta" />}</span>
                                 </li>
                             ))}
                         </ul>

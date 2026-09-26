@@ -39,9 +39,9 @@ def test_lig_kademeleri_dogru_esleniyor():
     assert g.league_for_level(20)["name"] == "Platin"
     assert g.league_for_level(35)["name"] == "Elmas"
     assert g.league_for_level(100)["name"] == "Efsane"
-    # her lig emoji + renk taşımalı
+    # her lig ikon + renk taşımalı
     lg = g.league_for_level(10)
-    assert lg["emoji"] and lg["color"].startswith("#")
+    assert lg["icon"] and lg["color"].startswith("#")
 
 
 def test_level_progress_tam_ozet():

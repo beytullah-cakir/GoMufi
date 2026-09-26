@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
 import api from "../../api";
 import AccountPrivacyCard from '../shared/AccountPrivacyCard';
-import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus, BellRing } from "lucide-react";
+import { User, Mail, Award, BookOpen, Clock, Settings, Edit, Zap, X, Check, Plus, BellRing, Presentation } from 'lucide-react';
 import techData from "../../data/technologies.json";
 import { useWebSocket } from "../../hooks/useWebSocket";
+import NamedIcon from '../shared/NamedIcon';
 
 interface InstructorProfileProps {
   userData: any;
@@ -108,7 +109,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
             onClick={() => {
               sendMessage({
                 type: "notification",
-                title: "Oyun Bitti! 🚀",
+                title: "Oyun Bitti!",
                 message: "Öğrencilerinizden 'Ali' son uzay görevini başarıyla tamamladı ve 100 puan kazandı!"
               });
             }}
@@ -132,7 +133,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
         <div className="lg:col-span-1">
           <div className="bg-white border-2 border-gray-100 border-b-8 rounded-[2.5rem] p-8 shadow-sm flex flex-col items-center text-center">
             <div className="w-32 h-32 bg-cyan-50 rounded-3xl border-4 border-cyan-500 flex items-center justify-center text-5xl mb-6 shadow-lg shadow-cyan-100 transform -rotate-3 hover:rotate-0 transition-transform cursor-pointer">
-              👨‍🏫
+              <Presentation size={56} className="text-cyan-600" />
             </div>
             <h2 className="text-2xl font-black text-gray-800 mb-1">
               {profileData?.first_name} {profileData?.last_name}
@@ -174,7 +175,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
                       key={tag} 
                       className="px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl text-sm font-bold text-gray-600 hover:border-cyan-200 hover:bg-cyan-50 transition-colors cursor-default flex items-center gap-1.5"
                     >
-                      {tech && <span>{tech.emoji}</span>}
+                      {tech && <NamedIcon name={tech.icon} size={14} />}
                       <span>{tag}</span>
                     </span>
                   );
@@ -213,7 +214,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
                 {profileData.achievements.map((ach: any, idx: number) => (
                   <div key={idx} className="flex items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-100 group hover:bg-white hover:shadow-md transition-all">
                     <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl shadow-sm rotate-3 group-hover:rotate-0 transition-transform">
-                      🏅
+                      <Award size={24} className="text-amber-500" />
                     </div>
                     <div>
                       <h4 className="font-black text-gray-800 text-sm">{ach.title}</h4>
@@ -281,7 +282,7 @@ const InstructorProfile: React.FC<InstructorProfileProps> = ({ userData, setUser
                             : "bg-white text-gray-500 border-gray-200 hover:border-cyan-200"
                         }`}
                       >
-                        <span>{tech.emoji}</span>
+                        <NamedIcon name={tech.icon} size={14} />
                         <span>{tag}</span>
                         {isSelected && <X size={12} className="ml-1" />}
                       </button>

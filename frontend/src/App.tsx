@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Hourglass } from 'lucide-react';
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import LandingPage from './components/LandingPage';
 import AuthPage from './components/AuthPage';
@@ -37,7 +38,7 @@ function App() {
       {sessionExpired && (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-md">
             <div className="bg-white p-8 rounded-3xl shadow-2xl max-w-sm text-center animate-in zoom-in-95 duration-300">
-                <div className="text-5xl mb-4">⏳</div>
+                <Hourglass size={48} className="mx-auto mb-4 text-sky-500" />
                 <h2 className="text-2xl font-black text-gray-800 mb-2">Oturum Süresi Doldu</h2>
                 <p className="text-gray-500 font-medium mb-6">Güvenliğiniz için tekrar giriş yapmalısınız. Yönlendiriliyorsunuz...</p>
                 <div className="w-8 h-8 border-4 border-sky-200 border-t-sky-500 rounded-full animate-spin mx-auto"></div>

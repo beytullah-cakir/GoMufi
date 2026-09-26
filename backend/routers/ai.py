@@ -311,8 +311,8 @@ def _normalize_task_config(raw: Any, defaults: dict) -> Tuple[dict, dict]:
         xp = defaults["xp"]
 
     starter = (
-        f"# Kodunu buraya yaz 👇\ndef {fn}():\n    pass\n"
-        if check_mode == "tests" else "# Kodunu buraya yaz 👇\n"
+        f"# Kodunu buraya yaz\ndef {fn}():\n    pass\n"
+        if check_mode == "tests" else "# Kodunu buraya yaz\n"
     )
 
     language = normalize_language(cfg.get("language"))

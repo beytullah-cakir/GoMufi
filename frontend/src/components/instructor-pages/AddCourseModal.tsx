@@ -20,6 +20,7 @@ import {
   BookOpen,
 } from "lucide-react";
 import categoryData from "../../data/categories.json";
+import NamedIcon from '../shared/NamedIcon';
 
 export interface Lecture {
   id: string;
@@ -205,7 +206,7 @@ const AddCourseModal: React.FC<AddCourseModalProps> = ({
   const categories = categoryData.categories.map((c) => ({
     id: c.id,
     label: c.label,
-    icon: <span className="text-xl" role="img" aria-label={c.label}>{c.emoji}</span>,
+    icon: <NamedIcon name={c.icon} size={20} />,
     color: c.color,
   }));
 

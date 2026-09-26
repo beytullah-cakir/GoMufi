@@ -1,33 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import {
-    Layout,
-    Gamepad2,
-    Calendar,
-    TrendingUp,
-    Sparkles,
-    Users,
-    ChevronDown,
-    Menu,
-    X,
-    ChevronRight,
-    Cpu,
-    Layers,
-    Video,
-    KeyRound,
-    Zap,
-    Bot,
-    Star,
-    Quote,
-    ArrowRight,
-    BarChart3,
-    Wand2,
-    MousePointerClick,
-    Timer,
-    ShieldCheck,
-    GraduationCap
-} from 'lucide-react';
+import { Layout, Gamepad2, Calendar, TrendingUp, Sparkles, Users, ChevronDown, Menu, X, ChevronRight, Cpu, Layers, Video, KeyRound, Zap, Bot, Star, Quote, ArrowRight, BarChart3, Wand2, MousePointerClick, Timer, ShieldCheck, GraduationCap, Target, FileText, Brain, Palette, Shapes, PenLine, Flame, Package, Map as MapIcon, MonitorPlay, Backpack, ImagePlus, Code2, FileCode2, MessageCircle } from 'lucide-react';
 
 import LogoText from '../assets/sprites/GoMufiLogo_Final.png';
 import BrainSprite from '../assets/sprites/Brain.png';
@@ -50,6 +24,7 @@ import ButtonYellow from '../assets/sprites/ButtonYellow.png';
 import ButtonGreen from '../assets/sprites/ButtonGreen.png';
 import Frame1 from '../assets/sprites/Mufi/Frame1.png';
 import Frame2 from '../assets/sprites/Mufi/Frame2.png';
+import RankMedal from './shared/RankMedal';
 
 // Inline Vector Cloud Component for clean sharp rendering
 const VectorCloud: React.FC<{ className?: string }> = ({ className }) => (
@@ -680,7 +655,7 @@ const LandingPage: React.FC = () => {
                                 <button onClick={() => scrollToSection('steps')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Nasıl Çalışır?</button>
                                 <button onClick={() => scrollToSection('preview')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">Platform</button>
                                 <button onClick={() => scrollToSection('faq')} className="text-left py-3 px-3 hover:bg-slate-50 hover:text-purple-600 rounded-xl transition-colors">SSS</button>
-                                <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-3 hover:bg-slate-50 rounded-xl transition-colors text-purple-600">✨ Animasyon</button>
+                                <button onClick={() => { navigate('/animation'); setIsMobileMenuOpen(false); }} className="text-left py-3 px-3 hover:bg-slate-50 rounded-xl transition-colors text-purple-600 flex items-center gap-2"><Sparkles size={16} /> Animasyon</button>
                             </div>
                             <div className="mt-auto pt-6 border-t-2 border-slate-100 flex flex-col gap-3">
                                 <button onClick={() => { navigate('/auth'); setIsMobileMenuOpen(false); }} className="w-full py-3.5 rounded-2xl border-2 border-slate-200 border-b-4 border-b-slate-300 bg-white font-black text-center text-slate-700 active:translate-y-[2px] active:border-b-2 transition-all">Giriş Yap</button>
@@ -824,8 +799,8 @@ const LandingPage: React.FC = () => {
                                                     ✓ Hazır
                                                 </span>
                                             ) : simStep > 0 ? (
-                                                <span className="text-[9px] font-black text-white bg-purple-500 px-2.5 py-1 rounded-xl border border-b-2 border-purple-600 animate-pulse">
-                                                    ⚡ İşleniyor
+                                                <span className="text-[9px] font-black text-white bg-purple-500 px-2.5 py-1 rounded-xl border border-b-2 border-purple-600 animate-pulse inline-flex items-center gap-1">
+                                                    <Zap size={10} /> İşleniyor
                                                 </span>
                                             ) : null}
                                         </div>
@@ -846,7 +821,7 @@ const LandingPage: React.FC = () => {
                                         {simStep === 0 && (
                                             <div className="flex flex-col items-center gap-3 animate-in fade-in zoom-in-95 duration-300">
                                                 <div className="w-14 h-14 rounded-[1.2rem] bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center shadow-sm">
-                                                    <span className="text-2xl">🎯</span>
+                                                    <Target size={26} className="text-purple-500" />
                                                 </div>
                                                 <div className="text-center">
                                                     <p className="text-sm font-black text-slate-700">Ders planlanıyor...</p>
@@ -885,7 +860,7 @@ const LandingPage: React.FC = () => {
                                                         );
                                                     })}
                                                 </div>
-                                                <p className="text-[10px] font-black text-purple-500 text-center animate-pulse">🚧 Modüller oluşturuluyor...</p>
+                                                <p className="text-[10px] font-black text-purple-500 text-center animate-pulse">Modüller oluşturuluyor...</p>
                                             </div>
                                         )}
 
@@ -914,7 +889,7 @@ const LandingPage: React.FC = () => {
                                                     ))}
                                                 </div>
                                                 <p className="text-[10px] font-black text-blue-500 text-center animate-pulse">
-                                                    {slideCount === 12 ? "✓ Slaytlar hazır!" : "🎨 Slaytlar tasarlanıyor..."}
+                                                    {slideCount === 12 ? "✓ Slaytlar hazır!" : "Slaytlar tasarlanıyor..."}
                                                 </p>
                                             </div>
                                         )}
@@ -968,7 +943,7 @@ const LandingPage: React.FC = () => {
                                                 <div className="bg-slate-50 rounded-2xl border-2 border-b-4 border-slate-200 p-4 min-h-[85px] flex flex-col justify-center">
                                                     {quizCompileCount === 0 ? (
                                                         <div className="text-center">
-                                                            <div className="text-2xl mb-1.5 animate-bounce">📝</div>
+                                                            <FileText size={24} className="mx-auto mb-1.5 animate-bounce text-slate-400" />
                                                             <p className="text-[10px] font-black text-slate-400 animate-pulse">Sorular derleniyor...</p>
                                                         </div>
                                                     ) : (
@@ -999,7 +974,7 @@ const LandingPage: React.FC = () => {
                                                     ✓
                                                 </div>
                                                 <div className="text-center">
-                                                    <h5 className="text-sm font-black text-slate-800">Ders Hazır! 🎉</h5>
+                                                    <h5 className="text-sm font-black text-slate-800">Ders Hazır!</h5>
                                                     <p className="text-[10px] text-slate-400 font-black mt-1">Öğrenci Kodu:</p>
                                                     <div className="mt-1.5 inline-flex bg-white border-2 border-b-4 border-emerald-200 px-4 py-2 rounded-2xl">
                                                         <span className="text-emerald-600 font-black tracking-[0.2em] text-base font-mono">45CZWT</span>
@@ -1190,7 +1165,7 @@ const LandingPage: React.FC = () => {
                                         Kod Gir
                                     </button>
                                 </div>
-                                <p className="text-[10px] font-black text-slate-400 text-center tracking-wide">örn: 45CZWT — öğretmenin ekranında yazar 👀</p>
+                                <p className="text-[10px] font-black text-slate-400 text-center tracking-wide">örn: 45CZWT — öğretmenin ekranında yazar</p>
                             </form>
                         </div>
                     </div>
@@ -1253,9 +1228,9 @@ const LandingPage: React.FC = () => {
                                     </div>
                                     {/* Feature Pills */}
                                     <div className="flex flex-wrap gap-2 pt-2">
-                                        {["⚡ 4 Saniyede Ders", "🧠 Pedagojik Akış", "🎯 Kazanım Odaklı"].map((pill, i) => (
-                                            <span key={i} className="text-[11px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl">
-                                                {pill}
+                                        {([[Zap, "4 Saniyede Ders"], [Brain, "Pedagojik Akış"], [Target, "Kazanım Odaklı"]] as const).map(([PillIcon, pill], i) => (
+                                            <span key={i} className="text-[11px] font-black text-slate-700 bg-slate-100 border border-slate-200 px-3 py-1 rounded-xl inline-flex items-center gap-1.5">
+                                                <PillIcon size={12} /> {pill}
                                             </span>
                                         ))}
                                     </div>
@@ -1298,8 +1273,8 @@ const LandingPage: React.FC = () => {
                         {/* 2. Canva-like Editor (Uygula Level - Cyan #06b6d4) */}
                         <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#06b6d4] border-b-[8px] border-b-[#0891b2] hover:border-[#0891b2] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '80ms' }}>
                             <div className="space-y-3">
-                                <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
-                                    🎨 Sürükle & Bırak
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    <Palette size={12} /> Sürükle & Bırak
                                 </span>
                                 <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     Canva Benzeri <span className="text-[#06b6d4]">Editör</span>
@@ -1312,8 +1287,8 @@ const LandingPage: React.FC = () => {
                             {/* Mini Editor Toolbar Mockup */}
                             <div className="bg-slate-50 border-2 border-b-4 border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-sm">
                                 <div className="flex items-center gap-1.5">
-                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1">📐 Şekil</span>
-                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1">✍️ Metin</span>
+                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1"><Shapes size={11} /> Şekil</span>
+                                    <span className="text-[10px] font-black bg-white border border-slate-200 px-2 py-1 rounded-lg text-slate-700 shadow-2xl flex items-center gap-1"><PenLine size={11} /> Metin</span>
                                 </div>
                                 <span className="text-[10px] font-black text-white bg-[#06b6d4] px-2.5 py-1 rounded-lg shadow-sm">DÜZENLE</span>
                             </div>
@@ -1322,8 +1297,8 @@ const LandingPage: React.FC = () => {
                         {/* 3. Gamified (Birleştir Level - Green #22c55e) */}
                         <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#22c55e] border-b-[8px] border-b-[#16a34a] hover:border-[#16a34a] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '120ms' }}>
                             <div className="space-y-3">
-                                <span className="inline-block text-[10px] font-black text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
-                                    🎮 Oyunlaştırma
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#22c55e] bg-[#22c55e]/10 border border-[#22c55e]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    <Gamepad2 size={12} /> Oyunlaştırma
                                 </span>
                                 <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     <span className="text-[#22c55e]">Oyunlaştırılmış</span> Dersler
@@ -1342,15 +1317,15 @@ const LandingPage: React.FC = () => {
                                         <span className="text-[9px] font-bold text-amber-600">850 XP Kazanıldı</span>
                                     </div>
                                 </div>
-                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg">🔥 5 Gün</span>
+                                <span className="text-[10px] font-black text-emerald-700 bg-emerald-100 border border-emerald-200 px-2 py-1 rounded-lg inline-flex items-center gap-1"><Flame size={11} /> 5 Gün</span>
                             </div>
                         </div>
 
                         {/* 4. Ready Modules (Üret Level - Gold #eab308 / #ca8a04) */}
                         <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#eab308] border-b-[8px] border-b-[#ca8a04] hover:border-[#ca8a04] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '160ms' }}>
                             <div className="space-y-3">
-                                <span className="inline-block text-[10px] font-black text-[#ca8a04] bg-[#eab308]/10 border border-[#eab308]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
-                                    📦 Modül Kütüphanesi
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#ca8a04] bg-[#eab308]/10 border border-[#eab308]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    <Package size={12} /> Modül Kütüphanesi
                                 </span>
                                 <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     Hazır <span className="text-[#ca8a04]">Modüller</span>
@@ -1379,8 +1354,8 @@ const LandingPage: React.FC = () => {
                         {/* 5. Live Lesson (Quiz Level - Violet #7c3aed) */}
                         <div className="reveal-scale md:col-span-2 bg-white rounded-[2.5rem] border-2 border-[#7c3aed] border-b-[8px] border-b-[#6d28d9] hover:border-[#6d28d9] hover:-translate-y-1 transition-all duration-300 p-8 flex flex-col justify-between gap-6 group relative overflow-hidden" style={{ transitionDelay: '200ms' }}>
                             <div className="space-y-3">
-                                <span className="inline-block text-[10px] font-black text-[#7c3aed] bg-[#7c3aed]/10 border border-[#7c3aed]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
-                                    📹 Canlı Sınıf
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#7c3aed] bg-[#7c3aed]/10 border border-[#7c3aed]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                    <Video size={12} /> Canlı Sınıf
                                 </span>
                                 <h3 className="font-display text-xl font-black text-slate-700 tracking-tight">
                                     <span className="text-[#7c3aed]">Canlı Ders</span> Yönetimi
@@ -1410,8 +1385,8 @@ const LandingPage: React.FC = () => {
                             <div className="grid sm:grid-cols-2">
                                 <div className="p-8 md:p-10 flex flex-col justify-between gap-6">
                                     <div className="space-y-3">
-                                        <span className="inline-block text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
-                                            📊 Detaylı Analiz
+                                        <span className="inline-flex items-center gap-1.5 text-[10px] font-black text-[#06b6d4] bg-[#06b6d4]/10 border border-[#06b6d4]/30 px-3 py-1 rounded-xl uppercase tracking-widest">
+                                            <BarChart3 size={12} /> Detaylı Analiz
                                         </span>
                                         <h3 className="font-display text-2xl md:text-3xl font-black text-slate-700 tracking-tight">
                                             Öğrenci <span className="text-[#06b6d4]">Analitiği</span> & Gelişim Raporları
@@ -1469,7 +1444,7 @@ const LandingPage: React.FC = () => {
             <section id="sample-courses" className="py-24 px-6 bg-white relative">
                 <div className="max-w-7xl mx-auto">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <span className="inline-block text-[11px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 border-2 border-emerald-100 px-4 py-1.5 rounded-2xl">✨ AI Üretimi</span>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-emerald-600 uppercase tracking-widest bg-emerald-50 border-2 border-emerald-100 px-4 py-1.5 rounded-2xl"><Sparkles size={13} /> AI Üretimi</span>
                         <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Örnek Ders Müfredatları</h2>
                         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">Yapay zekanın saniyeler içinde kurguladığı ders akışlarını inceleyin.</p>
                     </div>
@@ -1565,10 +1540,10 @@ const LandingPage: React.FC = () => {
                     {/* Tabs Navigation */}
                     <div className="reveal flex flex-wrap justify-center gap-3">
                         {[
-                            { id: "roadmap", label: "Roadmap Builder", emoji: "🗺️" },
-                            { id: "editor", label: "Canva Editörü", emoji: "🎨" },
-                            { id: "live", label: "Canlı Ders Ekranı", emoji: "📺" },
-                            { id: "student", label: "Öğrenci Görünümü", emoji: "🎒" }
+                            { id: "roadmap", label: "Roadmap Builder", icon: MapIcon },
+                            { id: "editor", label: "Canva Editörü", icon: Palette },
+                            { id: "live", label: "Canlı Ders Ekranı", icon: MonitorPlay },
+                            { id: "student", label: "Öğrenci Görünümü", icon: Backpack }
                         ].map((tab) => (
                             <button
                                 key={tab.id}
@@ -1578,7 +1553,7 @@ const LandingPage: React.FC = () => {
                                     : "border-slate-200 border-b-slate-300 bg-white text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:border-b-slate-400"
                                     }`}
                             >
-                                <span className="text-base">{tab.emoji}</span>
+                                <tab.icon size={16} />
                                 <span>{tab.label}</span>
                             </button>
                         ))}
@@ -1641,13 +1616,13 @@ const LandingPage: React.FC = () => {
                                     <div className="max-w-3xl mx-auto w-full bg-slate-50 border-2 border-b-[6px] border-slate-200 rounded-[2.5rem] p-5 flex gap-4 text-slate-400 text-xs">
                                         {/* Editor Sidebar */}
                                         <div className="w-1/4 border-r-2 border-slate-200 pr-4 space-y-3 flex flex-col justify-center font-black text-slate-700">
-                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🖼️ Slayt Ekle</div>
-                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🧩 Kod Editörü</div>
-                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all">🎮 Mini Oyun</div>
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all flex items-center justify-center gap-1.5"><ImagePlus size={14} /> Slayt Ekle</div>
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all flex items-center justify-center gap-1.5"><Code2 size={14} /> Kod Editörü</div>
+                                            <div className="bg-white p-3 rounded-2xl text-center border-2 border-b-4 border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 active:translate-y-[1px] active:border-b-2 transition-all flex items-center justify-center gap-1.5"><Gamepad2 size={14} /> Mini Oyun</div>
                                         </div>
                                         {/* Editor Canvas */}
                                         <div className="flex-1 bg-white border-2 border-b-4 border-slate-200 rounded-3xl p-8 flex flex-col items-center justify-center relative min-h-[180px] shadow-sm">
-                                            <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center text-2xl shadow-inner animate-bounce-slow">🐍</div>
+                                            <div className="w-16 h-16 rounded-3xl bg-purple-50 border-2 border-b-4 border-purple-200 flex items-center justify-center text-2xl shadow-inner animate-bounce-slow"><FileCode2 size={28} className="text-purple-500" /></div>
                                             <span className="text-slate-800 font-black mt-4 text-base">Python Veri Tipleri</span>
                                             <div className="absolute bottom-4 right-4 text-[10px] font-black text-slate-400">Slayt 2/12</div>
                                         </div>
@@ -1670,7 +1645,7 @@ const LandingPage: React.FC = () => {
                                                 <span className="text-emerald-600 font-black bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-100">Kod: 45CZWT</span>
                                             </div>
                                             <div className="text-center text-slate-500 py-6 font-bold">
-                                                Öğrenciler quiz sorularını yanıtlıyor... 📊
+                                                Öğrenciler quiz sorularını yanıtlıyor...
                                             </div>
                                         </div>
                                         {/* Student Scoreboard Mockup */}
@@ -1678,11 +1653,11 @@ const LandingPage: React.FC = () => {
                                             <h5 className="font-black text-[10px] uppercase text-slate-700 tracking-wider">Liderlik Tablosu</h5>
                                             <div className="space-y-2 text-[10px] font-black">
                                                 <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
-                                                    <span className="text-slate-800 truncate">🥇 Ayşe K.</span>
+                                                    <span className="text-slate-800 truncate flex items-center gap-1"><RankMedal rank={1} size={13} /> Ayşe K.</span>
                                                     <span className="text-yellow-600">1200 XP</span>
                                                 </div>
                                                 <div className="flex justify-between bg-white p-2 rounded-xl border-2 border-b-[3px] border-slate-200 shadow-sm">
-                                                    <span className="text-slate-800 truncate">🥈 Mehmet B.</span>
+                                                    <span className="text-slate-800 truncate flex items-center gap-1"><RankMedal rank={2} size={13} /> Mehmet B.</span>
                                                     <span className="text-slate-400">950 XP</span>
                                                 </div>
                                             </div>
@@ -1725,7 +1700,7 @@ const LandingPage: React.FC = () => {
                 <div className="absolute inset-0 dot-grid opacity-50 pointer-events-none"></div>
                 <div className="max-w-7xl mx-auto relative z-10">
                     <div className="reveal text-center mb-16 space-y-4">
-                        <span className="inline-block text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 border-2 border-amber-100 px-4 py-1.5 rounded-2xl">💬 Deneyimler</span>
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-black text-amber-600 uppercase tracking-widest bg-amber-50 border-2 border-amber-100 px-4 py-1.5 rounded-2xl"><MessageCircle size={13} /> Deneyimler</span>
                         <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Öğretmenler Ne Diyor?</h2>
                         <p className="text-slate-500 text-lg max-w-2xl mx-auto font-bold">GoMufi'ye geçen öğretmenlerin zamandan tasarruf hikayeleri.</p>
                     </div>
@@ -1819,7 +1794,7 @@ const LandingPage: React.FC = () => {
                     <div className="reveal text-center mb-16 space-y-4">
                         <span className="inline-block text-[11px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-50 border-2 border-indigo-100 px-4 py-1.5 rounded-2xl">Merak Edilenler</span>
                         <h2 className="font-display text-3xl md:text-4xl font-black text-slate-700 tracking-tight">Sıkça Sorulan Sorular</h2>
-                        <p className="text-slate-500 font-bold">Cevabını bulamadığın bir soru mu var? Bize yaz, Mufi cevaplasın. 🐾</p>
+                        <p className="text-slate-500 font-bold">Cevabını bulamadığın bir soru mu var? Bize yaz, Mufi cevaplasın.</p>
                     </div>
 
                     <div className="space-y-4">
@@ -1896,7 +1871,7 @@ const LandingPage: React.FC = () => {
                             </p>
                             <div className="flex items-center gap-2.5">
                                 <img src={MufiMascot} alt="" className="w-9 h-9 object-contain animate-bounce-slow" />
-                                <span className="text-[11px] font-black text-slate-500">Mufi seni bekliyor! 🐾</span>
+                                <span className="text-[11px] font-black text-slate-500">Mufi seni bekliyor!</span>
                             </div>
                         </div>
 

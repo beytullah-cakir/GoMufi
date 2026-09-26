@@ -75,7 +75,7 @@ function AdminApp() {
             <div className="min-h-screen bg-white flex flex-col items-center justify-center font-display">
                 <div className="w-16 h-16 border-4 border-red-200 border-t-red-500 rounded-full animate-spin mb-4"></div>
                 <h2 className="text-xl font-black text-gray-800">Yönetici Paneli Yükleniyor...</h2>
-                <p className="text-gray-500 font-bold text-sm">Verileriniz hazırlanıyor 🚀</p>
+                <p className="text-gray-500 font-bold text-sm">Verileriniz hazırlanıyor…</p>
             </div>
         );
     }

@@ -1,4 +1,5 @@
 import React from 'react';
+import { Users } from 'lucide-react';
 import GrassIcon from "../../assets/sprites/grass.png";
 import ButtonCyan from "../../assets/sprites/ButtonCyan.png";
 import ButtonPurple from "../../assets/sprites/ButtonPurple.png";
@@ -152,7 +153,7 @@ const LiveLessonTeacher: React.FC<LiveLessonTeacherProps> = ({
                 <div className="flex items-center gap-4">
                     {/* Roster Summary Badge */}
                     <div className="bg-white px-5 py-3.5 rounded-2xl border-2 border-gray-100 shadow-sm flex items-center gap-3">
-                        <span className="text-xl">👥</span>
+                        <Users size={20} className="text-sky-500" />
                         <div className="flex flex-col">
                             <span className="text-[9px] text-gray-400 font-black uppercase font-display">Aktif Sınıf</span>
                             <span className="text-xs font-black text-gray-700">

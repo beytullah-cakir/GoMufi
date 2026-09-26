@@ -1,26 +1,5 @@
 import React, { useState, useEffect } from "react";
-import {
-  Search,
-  Filter,
-  MoreVertical,
-  Plus,
-  Users,
-  Star,
-  Info,
-  Layout,
-  Loader2,
-  Video,
-  Play,
-  Square,
-  Copy,
-  Check,
-  Settings2,
-  Landmark,
-  UserCheck,
-  Megaphone,
-  HelpCircle,
-  ClipboardCheck,
-} from "lucide-react";
+import { Search, Filter, MoreVertical, Plus, Users, Star, Info, Layout, Loader2, Video, Play, Square, Copy, Check, Settings2, Landmark, UserCheck, Megaphone, HelpCircle, ClipboardCheck, FileCode2, Globe, Gamepad2, BookOpen } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
 import posthog from "posthog-js";
@@ -449,12 +428,12 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                     className={`w-16 h-16 rounded-2xl bg-${course.color}-50 border-2 border-b-4 border-${course.color}-200 flex items-center justify-center text-3xl flex-shrink-0 group-hover:scale-105 transition-transform`}
                   >
                     {course.title.toLowerCase().includes("python")
-                      ? "🐍"
+                      ? <FileCode2 size={30} className="text-sky-600" />
                       : course.title.toLowerCase().includes("web")
-                        ? "🌐"
+                        ? <Globe size={30} className="text-sky-600" />
                         : course.title.toLowerCase().includes("oyun")
-                          ? "🎮"
-                          : "📘"}
+                          ? <Gamepad2 size={30} className="text-sky-600" />
+                          : <BookOpen size={30} className="text-sky-600" />}
                   </div>
 
                   {/* Main Info */}

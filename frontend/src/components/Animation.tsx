@@ -30,7 +30,7 @@ export default function Animation() {
 
   const [activeAction, setActiveAction] = useState<null | 'idle' | 'pet' | 'scare' | 'dance' | 'sleep'>('idle');
   const [particles, setParticles] = useState<Particle[]>([]);
-  const [catMood, setCatMood] = useState<string>('Mutlu 😺');
+  const [catMood, setCatMood] = useState<string>('Mutlu');
 
   // Ambient Idle Animations (Head bobbing, tail wagging, ears twitching, breathing)
   const idleTimeline = useRef<gsap.core.Timeline | null>(null);
@@ -147,13 +147,13 @@ export default function Animation() {
   const handlePet = () => {
     if (activeAction === 'sleep') handleWakeUp();
     setActiveAction('pet');
-    setCatMood('Keyifli 😻');
+    setCatMood('Keyifli');
 
     // 1. Tilt Head and close eyes happily
     gsap.timeline({
       onComplete: () => {
         setActiveAction('idle');
-        setCatMood('Mutlu 😺');
+        setCatMood('Mutlu');
       }
     })
     .to(headRef.current, { rotation: 8, y: 5, transformOrigin: '200px 276px', duration: 0.4, ease: 'sine.inOut' })
@@ -168,13 +168,13 @@ export default function Animation() {
   const handleScare = () => {
     if (activeAction === 'sleep') handleWakeUp();
     setActiveAction('scare');
-    setCatMood('Korkmuş! 🙀');
+    setCatMood('Korkmuş!');
     triggerParticle('exclamation');
 
     const mainTl = gsap.timeline({
       onComplete: () => {
         setActiveAction('idle');
-        setCatMood('Sakinleşti 😼');
+        setCatMood('Sakinleşti');
       }
     });
 
@@ -203,12 +203,12 @@ export default function Animation() {
   const handleDance = () => {
     if (activeAction === 'sleep') handleWakeUp();
     setActiveAction('dance');
-    setCatMood('Dans Ediyor! 🕺😸');
+    setCatMood('Dans Ediyor!');
 
     const danceTl = gsap.timeline({
       onComplete: () => {
         setActiveAction('idle');
-        setCatMood('Mutlu 😺');
+        setCatMood('Mutlu');
       }
     });
 
@@ -234,7 +234,7 @@ export default function Animation() {
 
   const handleSleep = () => {
     setActiveAction('sleep');
-    setCatMood('Uyuyor... 😴💤');
+    setCatMood('Uyuyor...');
 
     gsap.to(headRef.current, { y: 14, rotation: -3, transformOrigin: '200px 276px', duration: 1.8, ease: 'power1.inOut' });
     gsap.to([leftEyeRef.current, rightEyeRef.current], { scaleY: 0, transformOrigin: (i) => (i === 0 ? '150px 189px' : '250px 189px'), duration: 1.2, ease: 'power1.inOut' });
@@ -247,7 +247,7 @@ export default function Animation() {
 
   const handleWakeUp = () => {
     setActiveAction('idle');
-    setCatMood('Günaydın! 🌅😺');
+    setCatMood('Günaydın!');
     triggerParticle('exclamation');
 
     gsap.timeline()

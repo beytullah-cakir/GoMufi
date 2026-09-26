@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { User, Plus, ChevronRight, BookOpen, Clock, Trophy, Loader2, Link2, X, Trash2 } from 'lucide-react';
+import { User, Plus, ChevronRight, BookOpen, Clock, Trophy, Loader2, Link2, X, Trash2, Flame } from 'lucide-react';
 import api from '../../api';
 
 interface Student {
@@ -149,7 +149,7 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStude
                                 </div>
                                 <div className="p-3 bg-orange-50 rounded-xl border border-orange-100">
                                     <div className="text-[10px] text-orange-500 font-black uppercase tracking-widest mb-1 flex items-center gap-1">
-                                        🔥 Seri
+                                        <Flame size={12} /> Seri
                                     </div>
                                     <div className="text-lg font-black text-orange-600">
                                         {student.streak || 0} gün

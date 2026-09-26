@@ -153,13 +153,13 @@ const generateCourseData = (
             result[courseIdStr] = {
                 id: courseIdStr,
                 title: courseName.toUpperCase(),
-                icon: titleLower.includes('python') ? '🐍' : (titleLower.includes('matematik') ? '📐' : '🚀'),
+                icon: titleLower.includes('python') ? 'python' : (titleLower.includes('matematik') ? 'math' : 'rocket'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
                 nodes: applyProgress(dynamicNodes, progress),
                 progress,
                 instructor: {
                     name: instructorName,
-                    avatar: titleLower.includes('python') ? '👨‍🏫' : (titleLower.includes('matematik') ? '👩‍🏫' : '👤'),
+                    avatar: '',
                     status: 'Öğretmenin',
                     isOnline: false
                 },
@@ -190,13 +190,13 @@ const generateCourseData = (
             result[courseIdStr] = {
                 id: courseIdStr,
                 title: courseName.toUpperCase(),
-                icon: '🚀',
+                icon: 'rocket',
                 themeColor: '#8b5cf6',
                 nodes: applyProgress(fallbackNodes, progress),
                 progress,
                 instructor: {
                     name: instructorName,
-                    avatar: '👤',
+                    avatar: '',
                     status: 'Öğretmenin',
                     isOnline: false
                 },
@@ -374,7 +374,7 @@ function StudentApp() {
             <div className="min-h-screen bg-white flex flex-col items-center justify-center font-display">
                 <div className="w-16 h-16 border-4 border-yellow-200 border-t-yellow-500 rounded-full animate-spin mb-4"></div>
                 <h2 className="text-xl font-black text-gray-800">Öğrenci Paneli Yükleniyor...</h2>
-                <p className="text-gray-500 font-bold text-sm">Macera başlıyor, verileriniz hazırlanıyor 🚀</p>
+                <p className="text-gray-500 font-bold text-sm">Macera başlıyor, verileriniz hazırlanıyor…</p>
             </div>
         );
     }

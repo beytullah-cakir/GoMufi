@@ -2,38 +2,7 @@ import React, { useState } from "react";
 import api from "../../api";
 import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import Leaderboard from "./Leaderboard";
-import {
-  Settings,
-  Share2,
-  Award,
-  Trophy,
-  ChevronRight,
-  Lock,
-  BookOpen,
-  Clock,
-  Target,
-  Calendar,
-  Cloud,
-  Star,
-  Code,
-  Zap,
-  Heart,
-  Music,
-  Circle,
-  Triangle,
-  Hexagon,
-  Sparkles,
-  Swords,
-  Users,
-  Video,
-  Play,
-  CheckCircle,
-  GitBranch,
-  Shield,
-  Cpu,
-  Gamepad2,
-  Medal,
-} from "lucide-react";
+import { Settings, Share2, Award, Trophy, ChevronRight, Lock, BookOpen, Clock, Target, Calendar, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, Swords, Users, Video, Play, CheckCircle, GitBranch, Shield, Cpu, Gamepad2, Medal, Flame, KeyRound, Rocket, Crown, Moon, Construction } from 'lucide-react';
 // Import the new character avatar
 import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
 import CharacterEyes from "../../assets/sprites/eyes.png";
@@ -214,7 +183,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
             {/* Status Bubble */}
             <div className="absolute -top-4 -right-8 bg-white border-2 border-gray-100 px-4 py-2 rounded-2xl rounded-bl-none shadow-lg transform rotate-12 z-20 animate-bounce">
               <span className="text-xl font-black text-gray-800">
-                Selam! 👋
+                Selam!
               </span>
             </div>
 
@@ -297,7 +266,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           {/* Streak */}
           <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">🔥</span>
+              <Flame size={24} className="text-orange-500" />
               <span className="text-3xl font-black text-gray-800 font-display">
                 8
               </span>
@@ -310,7 +279,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           {/* XP */}
           <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">⚡</span>
+              <Zap size={24} className="text-amber-500" />
               <span className="text-3xl font-black text-gray-800 font-display">
                 12.5k
               </span>
@@ -323,7 +292,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           {/* League */}
           <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">🏆</span>
+              <Trophy size={24} className="text-purple-500" />
               <span className="text-3xl font-black text-purple-600 font-display">
                 Bronz
               </span>
@@ -336,7 +305,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           {/* Top 3 */}
           <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-4 flex flex-col items-center text-center shadow-sm hover:-translate-y-1 transition-transform">
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-2xl">🥇</span>
+              <Medal size={24} className="text-amber-400" />
               <span className="text-3xl font-black text-gray-800 font-display">
                 4
               </span>
@@ -368,7 +337,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 <Users size={40} className="text-white" />
               </div>
               <div className="flex items-center gap-2 mb-1 z-10">
-                <span className="text-xl">🔑</span>
+                <KeyRound size={20} className="text-white" />
                 <span className="text-2xl font-black text-white font-mono tracking-tighter">
                   {profileData.student_code}
                 </span>
@@ -437,7 +406,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   {/* Team Info */}
                   <div className="flex items-center gap-4">
                     <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center text-3xl shadow-md border-4 border-indigo-200">
-                      🚀
+                      <Rocket size={30} className="text-indigo-500" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2 mb-1">
@@ -562,7 +531,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   {/* Achievement 1 */}
                   <div className="flex items-center gap-4 p-3 bg-yellow-50 border-2 border-yellow-100 rounded-xl cursor-pointer hover:bg-yellow-100 transition-colors">
                     <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl shadow-sm">
-                      🎯
+                      <Target size={24} className="text-yellow-500" />
                     </div>
                     <div>
                       <h4 className="font-black text-gray-800 text-sm">
@@ -576,7 +545,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   {/* Achievement 2 */}
                   <div className="flex items-center gap-4 p-3 bg-orange-50 border-2 border-orange-100 rounded-xl cursor-pointer hover:bg-orange-100 transition-colors">
                     <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center text-2xl shadow-sm">
-                      🔥
+                      <Flame size={24} className="text-orange-500" />
                     </div>
                     <div>
                       <h4 className="font-black text-gray-800 text-sm">
@@ -593,7 +562,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   {/* Achievement 3 */}
                   <div className="flex items-center gap-4 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl opacity-60">
                     <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl grayscale">
-                      👑
+                      <Crown size={24} className="text-gray-500" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -608,7 +577,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                   {/* Achievement 4 */}
                   <div className="flex items-center gap-4 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl opacity-60">
                     <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center text-2xl grayscale">
-                      🦉
+                      <Moon size={24} className="text-gray-500" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
@@ -867,7 +836,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     <Lock size={24} className="text-zinc-500" />
                   </div>
                   {/* Cone */}
-                  <div className="absolute -top-3 -right-3 text-2xl">🚧</div>
+                  <Construction size={24} className="absolute -top-3 -right-3 text-yellow-400" />
                 </div>
                 <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
                   WEB_ZONE
@@ -882,7 +851,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     <Lock size={24} className="text-zinc-500" />
                   </div>
                   {/* Cone */}
-                  <div className="absolute -top-3 -left-3 text-2xl">🚧</div>
+                  <Construction size={24} className="absolute -top-3 -left-3 text-yellow-400" />
                 </div>
                 <div className="mt-3 bg-zinc-900 px-3 py-1 rounded text-zinc-500 font-bold text-xs uppercase border border-zinc-800">
                   GAME_LAB
@@ -906,7 +875,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                 </h2>
                 <p className="text-indigo-200 text-lg mb-6">
                   Gomufi evreninde kodladığın, tasarladığın ve hayata geçirdiğin
-                  her şey burada. Geleceği inşa etmeye devam et! 🚀
+                  her şey burada. Geleceği inşa etmeye devam et!
                 </p>
                 <div className="flex gap-4">
                   <div className="bg-white/10 px-4 py-2 rounded-lg backdrop-blur-md">
@@ -1066,8 +1035,8 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
                     </div>
 
                     <div className="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-black/80 to-transparent">
-                      <span className="text-white text-xs font-bold block mb-1">
-                        🔥 İlk Hatasız Run
+                      <span className="text-white text-xs font-bold mb-1 flex items-center gap-1">
+                        <Flame size={12} /> İlk Hatasız Run
                       </span>
                       <span className="text-white/60 text-[10px] font-mono">
                         12.01.2025

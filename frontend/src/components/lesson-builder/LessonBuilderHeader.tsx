@@ -1,5 +1,5 @@
 import React from 'react';
-import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil, Save, LayoutTemplate } from 'lucide-react';
+import { Home, Undo, Redo, Copy, Clipboard, CheckCircle2, Loader2, Play, Rocket, Cloud, Sparkles, Circle, Triangle, Hexagon, Pencil, Save, LayoutTemplate, Presentation, GraduationCap } from 'lucide-react';
 
 interface LessonBuilderHeaderProps {
     onExit: () => void;
@@ -156,7 +156,7 @@ const LessonBuilderHeader: React.FC<LessonBuilderHeaderProps> = ({
                                     : 'bg-white/10 hover:bg-white/20 border-white/10 text-white'
                             }`}
                         >
-                            <span>{previewRole === 'teacher' ? '👨‍🏫 ÖĞRETMEN ÖNİZLEMESİ' : '🎓 ÖĞRENCİ ÖNİZLEMESİ'}</span>
+                            <span className="flex items-center gap-1.5">{previewRole === 'teacher' ? <><Presentation size={14} /> ÖĞRETMEN ÖNİZLEMESİ</> : <><GraduationCap size={14} /> ÖĞRENCİ ÖNİZLEMESİ</>}</span>
                         </button>
                     )}
 

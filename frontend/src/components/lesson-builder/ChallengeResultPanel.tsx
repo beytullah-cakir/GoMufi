@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, Check, Clock, Loader2, Sparkles, Trophy, X, PlugZap, UserCheck } from 'lucide-react';
+import { AlertTriangle, Check, Clock, Loader2, Sparkles, Trophy, X, PlugZap, UserCheck, Pin } from 'lucide-react';
 import type { CriterionResult } from './challengeCheck';
 import type { CheckStatus } from './useChallengeCheck';
 
@@ -163,7 +163,7 @@ const ChallengeResultPanel: React.FC<Props> = ({
                         onClick={() => onReveal(2)}
                         className="inline-flex items-center gap-1 bg-white hover:bg-slate-50 text-indigo-700 border border-indigo-300 rounded-md px-2 py-0.5 text-[9.5px] font-bold shadow-2xs transition-all active:scale-95 cursor-pointer"
                     >
-                        📌 Editörde 2. Satıra Git
+                        <Pin size={10} /> Editörde 2. Satıra Git
                     </button>}
                 </div>
                 <div className="text-[11.5px] font-medium text-slate-800 leading-snug">
