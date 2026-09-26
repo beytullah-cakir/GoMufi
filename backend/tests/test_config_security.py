@@ -35,7 +35,10 @@ def test_zayif_secret_key_ile_acilmaz(label, env):
 
 
 def test_production_zayif_admin_parolasi_ile_acilmaz():
-    result = _import_config_with(ADMIN_PASSWORD="admin123", FRONTEND_URL="https://gomufi.com")
+    # ADMIN_EMAIL de verilmeli: e-posta tanımsızken admin girişi tamamen kapalıdır ve
+    # zayıf parola bir risk oluşturmaz (o durumda uygulamanın açılması doğrudur).
+    result = _import_config_with(ADMIN_EMAIL="yonetici@gomufi.com", ADMIN_PASSWORD="admin123",
+                                 FRONTEND_URL="https://gomufi.com")
     assert result.returncode != 0
     assert "ADMIN_PASSWORD" in result.stderr
 
