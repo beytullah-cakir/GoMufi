@@ -78,6 +78,8 @@ body, button, input, select, textarea, .font-sans {
   --animate-pulse-slow: pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   --animate-ping-once: ping-once 1s cubic-bezier(0, 0, 0.2, 1) forwards;
   --animate-slide-up: slideUpBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  --animate-wiggle: wiggle 1s ease-in-out 2;
+  --animate-bob: bob 2.4s ease-in-out infinite;
 }
 
 /* Custom Utilities */
@@ -249,4 +251,20 @@ body, button, input, select, textarea, .font-sans {
 
 .animate-zzz {
   animation: zzz 3s ease-out infinite;
+}
+
+/* Öğrenci ekranları: zil sallanması ve Mufi'nin hafif zıplaması */
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-14deg); }
+  40% { transform: rotate(12deg); }
+  60% { transform: rotate(-8deg); }
+  80% { transform: rotate(5deg); }
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-wiggle, .animate-bob { animation: none; }
 }

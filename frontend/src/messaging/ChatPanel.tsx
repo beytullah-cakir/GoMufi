@@ -21,6 +21,17 @@ export interface ChatTarget {
     courseId?: number;
     studentId?: number;
     parentId?: number;
+    /** Yeni mesaj penceresini bu konu/metinle doldur (hazır soru kalıpları). */
+    topic?: string;
+    body?: string;
+}
+
+/** Boş ekranda gösterilen hazır başlangıç (öğrencinin "nasıl sorarım" sorusuna cevap). */
+export interface QuickStart {
+    label: string;
+    icon?: React.ElementType;
+    topic: string;
+    body: string;
 }
 
 interface Props {
@@ -29,6 +40,10 @@ interface Props {
     subheading?: string;
     /** Açılışta bu kişiyle yazışmaya git ("mesaj gönder" bağlantıları). */
     target?: ChatTarget;
+    /** Seçili yazışma yokken ikon yerine gösterilecek görsel (ör. Mufi). */
+    emptyArt?: React.ReactNode;
+    /** Seçili yazışma yokken sunulan hazır soru kalıpları. */
+    quickStarts?: QuickStart[];
 }
 
 const ROLE_LABEL: Record<string, string> = { teacher: 'Öğretmen', student: 'Öğrenci', parent: 'Veli' };
@@ -38,7 +53,7 @@ const contactKey = (c: Pick<Contact, 'role' | 'id' | 'course_id'> & { student_id
 
 const errorText = (err: any, fallback: string) => err?.response?.data?.detail || fallback;
 
-const ChatPanel: React.FC<Props> = ({ role, heading, subheading, target }) => {
+const ChatPanel: React.FC<Props> = ({ role, heading, subheading, target, emptyArt, quickStarts }) => {
     const [archivedView, setArchivedView] = useState(false);
     const [conversations, setConversations] = useState<ConversationSummary[] | null>(null);
     const [listError, setListError] = useState<string | null>(null);
@@ -259,9 +274,9 @@ const ChatPanel: React.FC<Props> = ({ role, heading, subheading, target }) => {
                 <div className="p-3 border-t border-gray-100">
                     <button
                         onClick={() => { setPreset(null); setNewOpen(true); }}
-                        className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-indigo-200"
+                        className="w-full py-3 bg-violet-500 hover:bg-violet-600 text-white rounded-2xl font-black text-sm flex items-center justify-center gap-2 border-b-4 border-violet-700 active:border-b-0 active:translate-y-1 transition-all duration-75"
                     >
-                        <Plus size={18} /> {role === 'teacher' ? 'YENİ MESAJ' : 'YENİ SORU SOR'}
+                        <Plus size={18} /> {role === 'teacher' ? 'Yeni mesaj' : 'Yeni soru sor'}
                     </button>
                 </div>
             </aside>
@@ -270,10 +285,22 @@ const ChatPanel: React.FC<Props> = ({ role, heading, subheading, target }) => {
             <section className={`flex-1 flex-col bg-white rounded-3xl border-2 border-b-4 border-gray-200 overflow-hidden min-h-[480px] ${selectedId ? 'flex' : 'hidden md:flex'}`}>
                 {!selected ? (
                     <div className="flex-1 flex flex-col items-center justify-center text-gray-300 gap-3 p-8">
-                        <MessageCircle size={56} />
+                        {emptyArt ?? <MessageCircle size={56} />}
                         <p className="text-sm font-bold text-gray-400 text-center max-w-xs">
-                            Soldan bir yazışma seç ya da yeni bir mesaj başlat.
+                            {quickStarts?.length ? 'Nereden başlayacağını bilmiyorsan birini seç:' : 'Soldan bir yazışma seç ya da yeni bir mesaj başlat.'}
                         </p>
+                        {!!quickStarts?.length && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg mt-1">
+                                {quickStarts.map((q) => (
+                                    <button key={q.label} type="button"
+                                            onClick={() => { setPreset({ topic: q.topic, body: q.body }); setNewOpen(true); }}
+                                            className="flex items-center gap-2.5 text-left p-3 rounded-2xl bg-white border-2 border-slate-200 border-b-4 hover:border-violet-300 hover:bg-violet-50/40 active:border-b-2 active:translate-y-0.5 transition-all">
+                                        {q.icon && <span className="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center shrink-0"><q.icon size={18} /></span>}
+                                        <span className="text-sm font-black text-slate-700">{q.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <>
@@ -391,8 +418,8 @@ const NewConversationModal: React.FC<{
     const [contacts, setContacts] = useState<Contact[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [chosen, setChosen] = useState<string>('');
-    const [topic, setTopic] = useState('');
-    const [body, setBody] = useState('');
+    const [topic, setTopic] = useState(preset?.topic ?? '');
+    const [body, setBody] = useState(preset?.body ?? '');
     const [sending, setSending] = useState(false);
 
     useEffect(() => {
@@ -403,14 +430,15 @@ const NewConversationModal: React.FC<{
 
     const options = useMemo(() => {
         const list = contacts ?? [];
-        if (!preset) return list;
+        if (!preset || (!preset.courseId && !preset.studentId && !preset.parentId)) return list;
         const narrowed = list.filter((c) =>
             (!preset.courseId || c.course_id === preset.courseId)
             && (!preset.studentId || c.student_id === preset.studentId)
             && (preset.parentId ? c.role === 'parent' && c.id === preset.parentId : role !== 'teacher' || c.role === 'student'));
         return narrowed.length ? narrowed : list;
     }, [contacts, preset, role]);
-    const selected = options.find((c) => contactKey(c) === chosen) ?? (options.length === 1 || preset ? options[0] : undefined);
+    const narrowedByPreset = !!(preset?.courseId || preset?.studentId || preset?.parentId);
+    const selected = options.find((c) => contactKey(c) === chosen) ?? (options.length === 1 || narrowedByPreset ? options[0] : undefined);
 
     const submit = async () => {
         if (!selected || !body.trim()) return;

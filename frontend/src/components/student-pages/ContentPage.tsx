@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
-import { Calendar as CalendarIcon, Clock, Video, MessageCircle, MoreHorizontal, Zap, Users, Shield, Play, CheckCircle, Lock, Star, Layout, TrendingUp, Award, ChevronRight, ChevronDown, Target, Cloud, Circle, Triangle, Hexagon, Sparkles, Info, UserRound, Rocket } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Video, MessageCircle, Play, CheckCircle, Layout, ChevronRight, Info, UserRound, Rocket, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from '../shared/CourseInfoModal';
-import { AnnouncementFeed, AttendanceCard } from '../shared/SchoolNotices';
+import InitialsAvatar from '../shared/InitialsAvatar';
+import { Card, CardTitle, ChunkyButton, DOTS_STYLE, Mufi, MufiEmpty, PageHeader } from './ui';
 import { completedCount, fetchProgress, type CourseProgress } from '../../progress';
 
 // Import Assets (Reusing existing or placeholders if needed)
@@ -528,360 +529,237 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
         return schedule.filter(s => s.fullDate === dateStr);
     };
 
+    // Sıradaki canlı ders: takvimdeki bugünden sonraki ilk (bitmemiş) oturum.
+    const nowMs = Date.now();
+    const nextLive = schedule
+        .filter((e) => e.type === 'live' && e.status !== 'completed' && e.fullDate && e.time)
+        .map((e) => ({ e, at: new Date(`${e.fullDate}T${e.time}`).getTime() }))
+        .filter(({ at }) => !Number.isNaN(at) && at + 60 * 60_000 > nowMs)
+        .sort((x, y) => x.at - y.at)[0];
+    const whenText = (at: number) => {
+        const days = Math.floor((new Date(at).setHours(0, 0, 0, 0) - new Date(nowMs).setHours(0, 0, 0, 0)) / 86_400_000);
+        if (at <= nowMs) return 'Şimdi';
+        if (days === 0) return 'Bugün';
+        if (days === 1) return 'Yarın';
+        return `${days} gün sonra`;
+    };
+    const weekly = getWeeklyEvents(schedule).filter((slot) => slot.type === 'live' || slot.type === 'reserved');
+
     return (
-        <div className="w-full h-full bg-[#F3F4F6] p-3 md:p-6 font-sans text-gray-800 flex flex-col overflow-x-hidden overflow-y-auto">
+        <div className="w-full h-full bg-white bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] [background-size:22px_22px] p-4 md:p-8 font-sans text-slate-800 flex flex-col overflow-x-hidden overflow-y-auto">
+            <PageHeader title="Kurslarım" subtitle="Kursların, ders programın ve öğretmenin tek yerde." />
 
-            {/* --- MAIN GRID CONTENT --- */}
-            <div className="grid grid-cols-12 gap-4 md:gap-8 flex-1 pb-20 mt-2">
+            <div className="grid grid-cols-12 gap-5 md:gap-6 flex-1 pb-20">
 
-                {/* LEFT COLUMN: COURSE LIST (25%) */}
-                <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
-                    <div className="flex items-center justify-between mb-1">
-                        <h2 className="font-black text-gray-700 text-lg">Aktif Dersler</h2>
-                        <span 
-                            onClick={() => setSelectedCourse('')}
-                            className={`text-xs font-black px-3 py-1 rounded-xl cursor-pointer transition-all border-2 border-b-4 ${
-                                !selectedCourse 
-                                    ? 'bg-slate-900 border-black text-white shadow-sm' 
-                                    : 'bg-white border-slate-200 text-slate-500 hover:border-slate-350'
-                            }`}
-                        >
-                            Tümü
-                        </span>
+                {/* SOL: kurs kartları */}
+                <div className="col-span-12 lg:col-span-3 flex flex-col gap-4">
+                    <div className="flex items-center justify-between">
+                        <h2 className="font-black text-slate-700">Aktif kurslar</h2>
+                        {courses.length > 1 && (
+                            <button type="button" onClick={() => setSelectedCourse('')}
+                                    className={`text-xs font-black px-3 py-1 rounded-xl border-2 border-b-4 transition-colors ${!selectedCourse ? 'bg-violet-500 border-violet-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-violet-300'}`}>
+                                Tümü
+                            </button>
+                        )}
                     </div>
 
-                    <div className="space-y-4">
-                        {courses.map((course) => (
-                            <div
-                                key={course.id}
-                                onClick={() => setSelectedCourse(course.id)}
-                                className={`
-                                    relative p-4 rounded-2xl border-2 cursor-pointer transition-all duration-300 group overflow-hidden
-                                    ${selectedCourse === course.id
-                                        ? 'bg-white border-indigo-500 border-b-4 shadow-md -translate-y-1'
-                                        : 'bg-white border-gray-100 border-b-4 hover:border-indigo-300 hover:-translate-y-1 hover:shadow-sm'
-                                    }
-                                `}
-                            >
-                                {/* Active State Glow Background (Subtle) */}
-                                {selectedCourse === course.id && (
-                                    <div className="absolute inset-0 bg-indigo-50/30 pointer-events-none"></div>
-                                )}
+                    {isLoading && courses.length === 0 && (
+                        <div className="h-28 rounded-3xl bg-slate-100 animate-pulse" />
+                    )}
 
-                                <div 
-                                    className="flex items-center gap-4 mb-3 relative z-10"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        setInfoCourseId(course.id);
-                                    }}
-                                >
-                                    <div className={`w-12 h-12 rounded-xl ${course.lightColor} border-2 ${course.borderColor} flex items-center justify-center p-2 shadow-sm group-hover:scale-110 transition-transform cursor-pointer`}>
-                                        {course.icon ? <img src={course.icon} alt="" className="w-full h-full object-contain" /> : <Rocket size={22} className="text-indigo-500" />}
+                    {courses.map((course) => {
+                        const selected = selectedCourse === course.id;
+                        const prog = realProgress(course.id);
+                        return (
+                            <div key={course.id} role="button" tabIndex={0}
+                                 onClick={() => setSelectedCourse(course.id)}
+                                 onKeyDown={(e) => { if (e.key === 'Enter') setSelectedCourse(course.id); }}
+                                 className={`relative p-4 rounded-3xl border-2 border-b-4 cursor-pointer transition-all bg-white ${selected ? 'border-violet-400 shadow-md shadow-violet-100' : 'border-slate-200 hover:border-violet-200 hover:-translate-y-0.5'}`}>
+                                <div className="flex items-center gap-3 mb-3">
+                                    <span className={`w-12 h-12 rounded-2xl ${course.lightColor} flex items-center justify-center p-2 shrink-0`}>
+                                        {course.icon ? <img src={course.icon} alt="" className="w-full h-full object-contain" /> : <Rocket size={22} className="text-violet-500" />}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <h3 className={`font-black leading-tight truncate ${selected ? 'text-violet-800' : 'text-slate-800'}`} title={course.title}>{course.title}</h3>
+                                        <p className="text-xs font-bold text-slate-400 truncate">{course.instructor}</p>
                                     </div>
-                                    <div className="cursor-pointer group/title flex-1 min-w-0">
-                                        <h3 className={`font-black text-sm leading-tight mb-0.5 truncate w-full ${selectedCourse === course.id ? 'text-indigo-900' : 'text-gray-800'} group-hover/title:text-indigo-600 transition-colors`} title={course.title}>
-                                            {course.title}
-                                        </h3>
-                                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                                            <span className="text-[11px] font-bold text-gray-500 bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100 shrink-0">
-                                                {realProgress(course.id).done}/{realProgress(course.id).total} modül
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); setInfoCourseId(course.id); }}
+                                            className="p-1.5 rounded-lg text-slate-400 hover:text-violet-600 hover:bg-violet-50" aria-label="Kurs hakkında">
+                                        <Info size={18} />
+                                    </button>
+                                </div>
+                                <div className="flex items-center justify-between text-xs font-black mb-1">
+                                    <span className="text-slate-500">{prog.done}/{prog.total} modül</span>
+                                    <span className="text-emerald-600">%{prog.pct}</span>
+                                </div>
+                                <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(prog.pct ? 4 : 0, prog.pct)}%` }} />
+                                </div>
+                                {course.liveSessions?.length > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mt-3">
+                                        {course.liveSessions.map((sess: any, idx: number) => (
+                                            <span key={idx} className="text-[11px] font-black text-violet-600 bg-violet-50 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                                <Clock className="w-3 h-3" /> {sess.day || getDayName(sess.date)} {sess.time}
                                             </span>
-                                            {course.liveSessions && course.liveSessions.map((sess: any, idx: number) => (
-                                                <span key={idx} className="text-[10px] font-black text-indigo-500 bg-indigo-50 px-1.5 py-0.5 rounded-md flex items-center gap-1 border border-indigo-100 shadow-sm shrink-0">
-                                                    <Clock className="w-3 h-3 text-indigo-400" />
-                                                    {sess.day || getDayName(sess.date)} - {sess.time}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Progress */}
-                                <div className="space-y-1 relative z-10">
-                                    <div className="flex justify-between text-[11px] font-bold text-gray-400">
-                                        <span>İlerleme</span>
-                                        <span className={selectedCourse === course.id ? 'text-indigo-600' : ''}>%{realProgress(course.id).pct}</span>
-                                    </div>
-                                    <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden border border-gray-200">
-                                        <div
-                                            className={`h-full rounded-full transition-all duration-500 ${course.color} relative overflow-hidden`}
-                                            style={{ width: `${realProgress(course.id).pct}%` }}
-                                        >
-                                            {/* Striped Pattern Overlay */}
-                                            <div className="absolute inset-0 bg-white/20 w-full h-full animate-[shimmer_2s_infinite]"
-                                                style={{ backgroundImage: 'linear-gradient(45deg,rgba(255,255,255,0.15) 25%,transparent 25%,transparent 50%,rgba(255,255,255,0.15) 50%,rgba(255,255,255,0.15) 75%,transparent 75%,transparent)', backgroundSize: '1rem 1rem' }}
-                                            ></div>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                 {/* Selected Checkmark (Optional visual reinforcement) */}
-                                {selectedCourse === course.id && (
-                                    <div className="absolute top-2 right-2 text-indigo-500">
-                                        <CheckCircle size={16} fill="currentColor" className="text-white" />
+                                        ))}
                                     </div>
                                 )}
                             </div>
-                        ))}
+                        );
+                    })}
 
-                        {/* Kod ile Derse Katıl Button */}
-                        <button
-                            onClick={onOpenJoinModal}
-                            className="w-full py-4 rounded-2xl border-2 border-dashed border-gray-300 text-gray-400 font-bold text-sm hover:border-indigo-400 hover:text-indigo-500 hover:bg-indigo-50/50 transition-all flex items-center justify-center gap-2 group"
-                        >
-                            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
-                                <span className="text-xl leading-none mb-0.5">+</span>
-                            </div>
-                            Kod ile Derse Katıl
-                        </button>
-                    </div>
+                    <button type="button" onClick={onOpenJoinModal}
+                            className="w-full py-3.5 rounded-3xl border-2 border-dashed border-slate-300 text-slate-500 font-black text-sm hover:border-violet-400 hover:text-violet-600 hover:bg-violet-50/50 transition-colors flex items-center justify-center gap-2">
+                        <Plus size={18} /> Yeni kursa katıl
+                    </button>
                 </div>
 
+                {/* ORTA: sıradaki canlı ders + takvim */}
+                <div className="col-span-12 lg:col-span-6 flex flex-col gap-4">
+                    {isClassActive ? (
+                        <section className="relative rounded-[2rem] bg-gradient-to-br from-emerald-500 to-teal-500 text-white border-b-8 border-emerald-700/50 p-5 md:p-6 overflow-hidden">
+                            <div className="absolute inset-0 pointer-events-none" style={DOTS_STYLE} />
+                            <div className="relative flex flex-col sm:flex-row sm:items-center gap-4">
+                                <Mufi pose="wave" className="w-20 -mb-6 hidden sm:block" />
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-black uppercase tracking-wider text-emerald-100 flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-white animate-ping" /> Şu an canlı</p>
+                                    <h2 className="text-2xl font-black font-display truncate">{courses.find((c) => c.id === liveCourseId)?.title || 'Canlı ders'}</h2>
+                                </div>
+                                <ChunkyButton variant="white" size="lg" onClick={() => liveCourseId && handleJoinLiveClick(liveCourseId)}>
+                                    <Play size={18} className="fill-current text-emerald-600" /> <span className="text-emerald-700">Derse katıl</span>
+                                </ChunkyButton>
+                            </div>
+                        </section>
+                    ) : nextLive ? (
+                        <section className="relative rounded-[2rem] bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white border-b-8 border-violet-700/50 p-5 md:p-6 overflow-hidden">
+                            <div className="absolute inset-0 pointer-events-none" style={DOTS_STYLE} />
+                            <div className="relative flex items-center gap-4">
+                                <span className="w-16 h-16 rounded-2xl bg-white text-violet-600 flex flex-col items-center justify-center shrink-0 border-b-4 border-violet-200">
+                                    <span className="text-[11px] font-black uppercase leading-none">{nextLive.e.day?.slice(0, 3)}</span>
+                                    <span className="text-xl font-black font-display leading-tight">{nextLive.e.time}</span>
+                                </span>
+                                <div className="min-w-0 flex-1">
+                                    <p className="text-xs font-black uppercase tracking-wider text-violet-100">Sıradaki canlı ders · {whenText(nextLive.at)}</p>
+                                    <h2 className="text-xl md:text-2xl font-black font-display truncate">{nextLive.e.title}</h2>
+                                    {nextLive.e.sectionTitle && <p className="text-sm font-bold text-violet-100 truncate">Ders {nextLive.e.lessonIndex}: {nextLive.e.sectionTitle}</p>}
+                                </div>
+                            </div>
+                        </section>
+                    ) : null}
 
-                {/* CENTER COLUMN: SCHEDULER (50%) */}
-                <div className="col-span-12 lg:col-span-6 flex flex-col">
-
-
-                    {/* Switcher: Schedule vs Monthly vs Archive */}
-                    <div className="bg-white p-2 rounded-2xl border-2 border-gray-200 flex mb-6 w-full lg:w-fit overflow-x-auto overflow-y-hidden no-scrollbar">
-                        <button
-                            onClick={() => setActiveTab('schedule')}
-                            className={`px-4 md:px-6 py-2 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'schedule' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <CalendarIcon size={16} />
-                            Haftalık
-                        </button>
-                        <button
-                            onClick={() => setActiveTab('month')}
-                            className={`px-4 md:px-6 py-2 rounded-xl font-black text-xs md:text-sm transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'month' ? 'bg-indigo-500 text-white shadow-md' : 'text-gray-400 hover:text-gray-600'}`}
-                        >
-                            <Layout size={16} />
-                            Aylık Takvim
-                        </button>
+                    <div className="bg-white p-1.5 rounded-2xl border-2 border-slate-200 flex w-full sm:w-fit">
+                        {([['schedule', 'Bu hafta', CalendarIcon], ['month', 'Aylık takvim', Layout]] as const).map(([key, label, Icon]) => (
+                            <button key={key} type="button" onClick={() => setActiveTab(key)}
+                                    className={`flex-1 sm:flex-none px-4 md:px-6 py-2 rounded-xl font-black text-sm transition-all flex items-center justify-center gap-2 ${activeTab === key ? 'bg-violet-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}>
+                                <Icon size={16} /> {label}
+                            </button>
+                        ))}
                     </div>
 
                     {activeTab === 'schedule' ? (
-                        <div className="flex flex-col gap-4 flex-1">
-                            {/* Today's Highlight */}
-                            <div className="bg-gradient-to-r from-orange-400 to-red-500 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden border-b-8 border-red-650">
-                                <Zap className="absolute top-0 right-0 text-white/20 w-40 h-40 transform translate-x-10 -translate-y-10" />
-                                <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                    <div className="min-w-0">
-                                        <div className="flex items-center gap-2 mb-2">
-                                            <span className="bg-white/20 px-2 py-1 rounded-lg text-xs font-black uppercase tracking-wider backdrop-blur-sm">Sıradaki ders</span>
-                                            {isClassActive ? (
-                                                <span className="flex items-center gap-1 text-xs font-black bg-emerald-500 px-2.5 py-1 rounded-lg animate-pulse uppercase tracking-wider">
-                                                    Canlı Yayında!
-                                                </span>
-                                            ) : timeLeftStr ? (
-                                                <span className="flex items-center gap-1 text-xs font-bold bg-black/20 px-2 py-1 rounded-lg">
-                                                    <Clock size={12} /> {timeLeftStr}
-                                                </span>
-                                            ) : null}
-                                        </div>
-                                        <h2 className="text-2xl md:text-3xl font-black font-display mb-1 break-words">{nextLessonData?.title || activeCourseData?.title || "Önce Bir Kurs Seç!"}</h2>
-                                    </div>
-                                    {isClassActive ? (
-                                        <button
-                                            onClick={() => {
-                                                const courseIdToJoin = liveCourseId || nextLessonData?.courseId;
-                                                if (courseIdToJoin) handleJoinLiveClick(courseIdToJoin);
-                                            }}
-                                            className="shrink-0 px-6 py-4 rounded-2xl font-black shadow-lg flex items-center gap-2 transition-all bg-white text-orange-600 hover:scale-105"
-                                        >
-                                            <Play fill="currentColor" /> DERSE KATIL
-                                        </button>
-                                    ) : (
-                                        // Canlı ders yokken ölü "YAKINDA!" yerine: kendi başına çalışmaya git
-                                        <button
-                                            onClick={() => navigate('/student/home')}
-                                            className="shrink-0 px-5 py-3 rounded-2xl font-black text-sm bg-white/20 hover:bg-white/30 text-white flex items-center gap-2"
-                                        >
-                                            Kendi başına çalış <ChevronRight size={16} />
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Calendar Grid */}
-                            <div className="bg-white rounded-3xl border-2 border-gray-100 p-4 md:p-6 shadow-sm">
-                                <div className="space-y-4">
-                                    {getWeeklyEvents(schedule).every((slot) => slot.type !== 'live' && slot.type !== 'reserved') && (
-                                        <p className="text-center text-sm font-bold text-gray-400 py-8">Bu hafta planlanmış canlı ders yok. Ana sayfadaki modüllerle kendi başına ilerleyebilirsin.</p>
-                                    )}
-                                    {getWeeklyEvents(schedule).filter((slot) => slot.type === 'live' || slot.type === 'reserved').map((slot) => {
+                        <Card className="p-4 md:p-6">
+                            {weekly.length === 0 ? (
+                                <MufiEmpty pose="sleep" title="Bu hafta canlı ders yok"
+                                           text="Haritadaki modüllerle kendi hızında ilerleyebilirsin."
+                                           action={<ChunkyButton onClick={() => navigate('/student/home')}>Haritaya git <ChevronRight size={16} /></ChunkyButton>} />
+                            ) : (
+                                <div className="space-y-3">
+                                    {weekly.map((slot) => {
                                         const isLiveNow = isClassActive && String(slot.courseId) === String(liveCourseId);
+                                        const done = slot.status === 'completed';
                                         return (
-                                            <div key={slot.id} className="group">
-                                                <div className="flex items-start gap-4">
-                                                    {/* Time Column */}
-                                                    <div className="w-16 flex flex-col items-center pt-2">
-                                                        <span className="font-black text-gray-800">{slot.time}</span>
-                                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{slot.day}</span>
+                                            <div key={slot.id} className="flex items-stretch gap-3">
+                                                <div className="w-16 shrink-0 flex flex-col items-center justify-center rounded-2xl bg-slate-50 py-2">
+                                                    <span className="font-black text-slate-800">{slot.time}</span>
+                                                    <span className="text-[11px] font-black text-slate-400">{slot.day?.slice(0, 3)}</span>
+                                                </div>
+                                                <div className={`flex-1 min-w-0 p-3 md:p-4 rounded-2xl border-2 flex items-center justify-between gap-3 ${isLiveNow ? 'bg-emerald-50 border-emerald-300' : done ? 'bg-slate-50 border-slate-100' : 'bg-white border-violet-100'}`}>
+                                                    <div className="min-w-0">
+                                                        <h4 className={`font-black truncate ${done ? 'text-slate-400' : 'text-slate-800'}`}>{slot.title}</h4>
+                                                        <p className="text-xs font-bold text-slate-500 truncate flex items-center gap-1.5">
+                                                            <Video size={13} /> {slot.sectionTitle ? `Ders ${slot.lessonIndex}: ${slot.sectionTitle}` : 'Canlı ders'}
+                                                        </p>
                                                     </div>
-
-                                                    {/* Content Block */}
-                                                    <div className="flex-1">
-                                                        {slot.type === 'live' ? (
-                                                            <div className={`p-4 rounded-2xl border-l-[6px] ${isLiveNow ? 'bg-emerald-50 border-emerald-300 text-emerald-800 border-l-emerald-500' : slot.color} transition-all hover:scale-[1.01] hover:shadow-md cursor-pointer relative overflow-hidden`}>
-                                                                <div className="flex justify-between items-center relative z-10">
-                                                                    <div>
-                                                                        <h4 className="font-black text-base mb-1">{slot.title}</h4>
-                                                                        <div className="flex items-center gap-2 text-xs font-bold opacity-80">
-                                                                            <Video size={14} />
-                                                                            <span>Canlı Ders</span>
-                                                                            {slot.sectionTitle && (
-                                                                                <span className="bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded text-[10px] font-black uppercase">Ders {slot.lessonIndex}: {slot.sectionTitle}</span>
-                                                                            )}
-                                                                            {isLiveNow ? (
-                                                                                <span className="bg-emerald-500 text-white px-2 py-0.5 rounded text-[10px] font-black animate-pulse">CANLI YAYINDA</span>
-                                                                            ) : slot.status === 'completed' ? (
-                                                                                <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold">TAMAMLANDI</span>
-                                                                            ) : null}
-                                                                        </div>
-                                                                    </div>
-                                                                    {isLiveNow ? (
-                                                                        <button 
-                                                                            onClick={(e) => {
-                                                                                e.stopPropagation();
-                                                                                if (slot.courseId) handleJoinLiveClick(slot.courseId);
-                                                                            }}
-                                                                            className="bg-emerald-500 hover:bg-emerald-600 text-white font-black text-xs px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 flex items-center gap-1 cursor-pointer"
-                                                                        >
-                                                                            <Play size={12} fill="currentColor" />
-                                                                            Derse Katıl
-                                                                        </button>
-                                                                    ) : slot.status === 'completed' ? (
-                                                                        <div className="w-8 h-8 rounded-full bg-green-500/20 text-green-700 flex items-center justify-center">
-                                                                            <CheckCircle size={18} />
-                                                                        </div>
-                                                                    ) : null}
-                                                                </div>
-                                                            </div>
-                                                        ) : slot.type === 'reserved' ? (
-                                                            <div className="p-4 rounded-2xl border-2 border-dashed border-indigo-200 bg-indigo-50 flex items-center justify-between">
-                                                                <div>
-                                                                    <h4 className="font-black text-indigo-900 text-sm mb-1">{slot.title}</h4>
-                                                                    <span className="text-xs font-bold text-indigo-400">Onay Bekliyor</span>
-                                                                </div>
-                                                                <div className="bg-indigo-200 px-3 py-1 rounded-lg text-xs font-bold text-indigo-700">1-on-1</div>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="h-16 rounded-2xl border-2 border-dashed border-gray-100 flex items-center justify-center group-hover:border-gray-300 transition-colors cursor-pointer group/empty">
-                                                                <div className="flex items-center gap-2 opacity-0 group-hover/empty:opacity-100 transition-opacity">
-                                                                    <span className="text-xs font-bold text-gray-400">Ders Ayarla</span>
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                    {isLiveNow ? (
+                                                        <ChunkyButton variant="green" size="sm" onClick={() => slot.courseId && handleJoinLiveClick(slot.courseId)}>
+                                                            <Play size={12} className="fill-current" /> Katıl
+                                                        </ChunkyButton>
+                                                    ) : done ? (
+                                                        <span className="shrink-0 text-[11px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg flex items-center gap-1"><CheckCircle size={13} /> İşlendi</span>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         );
                                     })}
                                 </div>
-                            </div>
-                        </div>
-                    ) : activeTab === 'month' ? (
-                        <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm flex flex-col h-full animate-in fade-in zoom-in duration-300">
-                            {/* Month Header */}
-                            <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-2xl font-black text-gray-800 font-display">{monthNameStr}</h2>
-                            </div>
-
-                            {/* Month Grid */}
-                            <div className="grid grid-cols-7 gap-2 mb-2 text-center">
-                                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map(day => (
-                                    <div key={day} className="text-xs font-black text-gray-400 uppercase tracking-wide py-2">{day}</div>
+                            )}
+                        </Card>
+                    ) : (
+                        <Card className="p-4 md:p-6 flex flex-col">
+                            <h2 className="text-xl font-black text-slate-800 font-display mb-4">{monthNameStr}</h2>
+                            <div className="grid grid-cols-7 gap-1.5 md:gap-2 mb-2 text-center">
+                                {['Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt', 'Paz'].map((day) => (
+                                    <div key={day} className="text-xs font-black text-slate-400 py-1">{day}</div>
                                 ))}
                             </div>
-                            <div className="grid grid-cols-7 gap-2 flex-1 auto-rows-[minmax(60px,auto)] overflow-y-auto">
-                                {/* Placeholders for previous month */}
-                                {prevPlaceholders.map(d => (
-                                    <div key={`prev-${d}`} className="p-2 rounded-xl bg-gray-50/50 text-gray-300 font-bold text-sm min-h-[60px] border border-transparent">
-                                        {d}
-                                    </div>
+                            <div className="grid grid-cols-7 gap-1.5 md:gap-2 auto-rows-[minmax(56px,auto)]">
+                                {prevPlaceholders.map((d) => (
+                                    <div key={`prev-${d}`} className="p-2 rounded-xl text-slate-300 font-bold text-sm">{d}</div>
                                 ))}
-
-                                {/* Current Month Days */}
-                                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+                                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => {
                                     const dailyEvents = getEventsForDay(day);
-                                    const hasEvent = dailyEvents.length > 0;
-                                    const isToday = day === currentDayNum; 
-                                    
+                                    const isToday = day === currentDayNum;
                                     return (
-                                        <div key={day} className={`
-                                            p-2 rounded-xl font-bold text-sm min-h-[60px] border-2 relative group cursor-pointer transition-all
-                                            ${isToday ? 'bg-indigo-50 border-indigo-200 text-indigo-600' : 'bg-white border-gray-100 hover:border-indigo-100 hover:shadow-md'}
-                                        `}>
-                                            <span className={`${isToday ? 'bg-indigo-500 text-white px-2 py-0.5 rounded-md' : ''}`}>{day}</span>
-
-                                            {hasEvent && (
-                                                <div className="mt-2 space-y-1">
+                                        <div key={day} className={`p-1.5 md:p-2 rounded-xl font-bold text-sm border-2 relative group ${isToday ? 'bg-violet-50 border-violet-300 text-violet-700' : 'bg-white border-slate-100'}`}>
+                                            <span className={isToday ? 'bg-violet-500 text-white px-1.5 py-0.5 rounded-md' : ''}>{day}</span>
+                                            {dailyEvents.length > 0 && (
+                                                <div className="mt-1.5 space-y-1">
                                                     {dailyEvents.slice(0, 2).map((ev, i) => (
-                                                        <div key={i} className={`h-1.5 w-full rounded-full ${(ev.color || '').split(' ')[0] || 'bg-indigo-400'}`}></div>
+                                                        <div key={i} className={`h-1.5 w-full rounded-full ${ev.status === 'completed' ? 'bg-emerald-400' : 'bg-violet-400'}`} />
                                                     ))}
-                                                    {dailyEvents.length > 2 && <div className="text-[8px] text-gray-400 text-right w-full">+{dailyEvents.length - 2}</div>}
                                                 </div>
                                             )}
-
-                                            {/* Hover Detail */}
-                                            {hasEvent && (
-                                                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-40 bg-gray-900 text-white p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl border border-gray-700">
-                                                    <div className="font-black text-xs border-b border-gray-700 pb-1 mb-1.5 text-indigo-300">{day} {monthNameStr.split(' ')[0]} Programı</div>
-                                                    <div className="space-y-1.5">
-                                                        {dailyEvents.map((ev, i) => (
-                                                            <div key={i} className="flex flex-col text-[10px]">
-                                                                <span className="font-bold text-gray-100 truncate w-full">{ev.title}</span>
-                                                                <span className="text-gray-400 font-medium flex items-center gap-1">
-                                                                    <Clock size={8} /> {ev.time}
-                                                                </span>
-                                                            </div>
-                                                        ))}
-                                                    </div>
+                                            {dailyEvents.length > 0 && (
+                                                <div className="absolute z-20 bottom-full left-1/2 -translate-x-1/2 mb-2 w-44 bg-slate-900 text-white p-2 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none shadow-xl">
+                                                    {dailyEvents.map((ev, i) => (
+                                                        <div key={i} className="text-[11px]">
+                                                            <span className="font-black block truncate">{ev.title}</span>
+                                                            <span className="text-slate-300 flex items-center gap-1"><Clock size={10} /> {ev.time}{ev.sectionTitle ? ` · ${ev.sectionTitle}` : ''}</span>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
                                     );
                                 })}
                             </div>
-                        </div>
-                    ) : null}
+                        </Card>
+                    )}
                 </div>
 
-
-                {/* RIGHT COLUMN: DASHBOARD WIDGETS (25%) */}
-                <div className="col-span-12 lg:col-span-3 flex flex-col gap-6">
-
-                    {/* Öğretmen */}
-                    <div className="bg-white rounded-3xl border-2 border-gray-100 p-6 shadow-sm border-b-4 border-gray-200">
-                        <h3 className="font-black text-gray-800 mb-4 flex items-center gap-2">
-                            <Star className="text-yellow-400 fill-yellow-400" size={20} />
-                            Öğretmenin
-                        </h3>
-                        <div className="flex items-center gap-4 mb-5">
-                            <div className="w-14 h-14 bg-gray-100 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-3xl shadow-sm">
-                                <UserRound size={28} className="text-gray-500" />
-                            </div>
-                            <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Öğretmen"}</h4>
+                {/* SAĞ: öğretmen */}
+                <div className="col-span-12 lg:col-span-3 flex flex-col gap-4">
+                    <Card className="p-5">
+                        <CardTitle icon={UserRound} tone="violet" hint={activeCourseData?.title}>Öğretmenin</CardTitle>
+                        <div className="flex items-center gap-3 mb-4">
+                            <InitialsAvatar name={activeCourseData?.instructor || 'Öğretmen'} className="w-12 h-12 rounded-2xl text-base" />
+                            <p className="font-black text-slate-800 text-lg leading-tight">{activeCourseData?.instructor || 'Öğretmen'}</p>
                         </div>
-                        <button
-                            onClick={() => navigate('/student/ask')}
-                            className="w-full py-3 bg-indigo-500 text-white rounded-xl font-black text-sm shadow-[0_4px_0_rgb(67,56,202)] hover:shadow-none hover:translate-y-[4px] transition-all flex items-center justify-center gap-2"
-                        >
-                            <MessageCircle size={18} />
-                            Hocaya Soru Sor
-                        </button>
-                    </div>
-
-                    {/* Öğretmenden gelenler: duyurular ve devam durumu */}
-                    <AnnouncementFeed courseIds={activeCourseData ? [Number(activeCourseData.id)] : undefined} />
-                    <AttendanceCard courseId={activeCourseData?.id ?? null} />
-
+                        <ChunkyButton className="w-full" onClick={() => navigate('/student/ask')}>
+                            <MessageCircle size={18} /> Öğretmenine soru sor
+                        </ChunkyButton>
+                    </Card>
+                    <Card className="p-5 bg-gradient-to-br from-amber-50 to-white">
+                        <div className="flex items-center gap-3">
+                            <Mufi pose="peek" className="w-14 shrink-0" />
+                            <p className="text-sm font-bold text-slate-600">
+                                Canlı ders dışında da haritadan kendi hızında ilerleyebilirsin. Takıldığında <b className="text-violet-600">Soru Sor</b>'dan yaz!
+                            </p>
+                        </div>
+                    </Card>
                 </div>
             </div>
 
-
-            {/* --- INFO MODAL --- */}
             <CourseInfoModal
                 isOpen={infoCourseId !== null}
                 onClose={() => setInfoCourseId(null)}

@@ -151,7 +151,7 @@ const generateCourseData = (
 
             result[courseIdStr] = {
                 id: courseIdStr,
-                title: courseName.toUpperCase(),
+                title: courseName,
                 icon: titleLower.includes('python') ? 'python' : (titleLower.includes('matematik') ? 'math' : 'rocket'),
                 themeColor: titleLower.includes('python') ? '#58cc02' : (titleLower.includes('matematik') ? '#3b82f6' : '#8b5cf6'),
                 nodes: applyProgress(dynamicNodes, progress),
@@ -188,7 +188,7 @@ const generateCourseData = (
 
             result[courseIdStr] = {
                 id: courseIdStr,
-                title: courseName.toUpperCase(),
+                title: courseName,
                 icon: 'rocket',
                 themeColor: '#8b5cf6',
                 nodes: applyProgress(fallbackNodes, progress),
@@ -393,6 +393,7 @@ function StudentApp() {
                             setIsLiveSessionJoined={setIsLiveSessionJoined}
                             onProgress={handleProgress}
                             refreshProgress={refreshProgress}
+                            unreadMessages={unreadMessages}
                         />
                     ) : activePage === 'PROFILIM' || activePage === 'Profilim' ? (
                         <ProfilePage 
@@ -404,7 +405,7 @@ function StudentApp() {
                     ) : activePage === 'Kurslarım' ? (
                         <ContentPage 
                             enrolledCourses={enrolledCourses}
-                            onOpenJoinModal={() => setActivePage('Sınıflarım')}
+                            onOpenJoinModal={() => navigate('/student/my-classes#katil')}
                             userData={userData}
                             onJoinLiveClass={(courseId) => {
                                 handleCourseChange(courseId);

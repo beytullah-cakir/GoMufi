@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
-import { Trophy, ChevronDown, ChevronRight, Zap, KeyRound, Brain, UserRound, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Star } from 'lucide-react';
+import { Zap, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Lock } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -13,11 +13,12 @@ import LiveLessonStudent from './LiveLessonStudent';
 import StudentHomeworkView from './StudentHomeworkView';
 import type { CourseData, PathNode } from '../../types';
 import { completeModule, type CourseProgress } from '../../progress';
-import CourseIcon from '../shared/CourseIcon';
-import { LeagueIcon } from '../shared/LeagueBadge';
 import GamifiedRoadmapPath, { moduleActionLabel, type RoadmapModule } from './GamifiedRoadmapPath';
 import DailyQuests, { useActivity } from './DailyQuests';
-import MufiSleep from '../../assets/sprites/MufiSleep.png';
+import HomeHero, { mufiLine } from './HomeHero';
+import { HomeworkCard, NotificationBell, collectHomework, useHomeworkStatus, type HomeworkItem } from './studentFeed';
+import { VSCodeGuideModal, VSCodeStatusChip, shouldAutoOpenGuide, useVSCodeStatus } from './VSCodeStatus';
+import { ChunkyButton, Mufi, MufiEmpty } from './ui';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -48,6 +49,8 @@ interface HomePageProps {
     /** Sunucudan dönen güncel ilerleme (yol haritası buradan yeniden kurulur) */
     onProgress: (courseId: string | number, progress: CourseProgress | null) => void;
     refreshProgress: (courseId: string | number) => Promise<void>;
+    /** Okunmamış hoca cevapları (bildirim zili). */
+    unreadMessages?: number;
 }
 
 const HomePage: React.FC<HomePageProps> = ({
@@ -63,22 +66,18 @@ const HomePage: React.FC<HomePageProps> = ({
     setIsLiveSessionJoined,
     onProgress,
     refreshProgress,
+    unreadMessages = 0,
 }) => {
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
-    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // "Kazanımlarım": öğrencinin kendi kazanım haritası (neyi öğrendim, neye çalışmalıyım).
     const [showConcepts, setShowConcepts] = useState(false);
 
     // Refs for outside click detection
-    const courseDropdownRef = useRef<HTMLDivElement>(null);
     const nodesContainerRef = useRef<HTMLDivElement>(null);
 
     // Outside click listener
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
-            if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
-                setIsDropdownOpen(false);
-            }
             if (nodesContainerRef.current && !nodesContainerRef.current.contains(event.target as Node)) {
                 setActiveNodeId(null);
             }
@@ -105,8 +104,17 @@ const HomePage: React.FC<HomePageProps> = ({
         celebrationTimer.current = setTimeout(() => setCelebration(null), 4000);
     };
 
-    // Homework Overlay State
-    const [activeHomeworkSlide, setActiveHomeworkSlide] = useState<any | null>(null);
+    // Homework Overlay State — ödev, seçili kurstan başka bir kursa da ait olabilir
+    // ("Ödevlerim" kartı tüm kursları listeler).
+    const [activeHomework, setActiveHomework] = useState<{ slide: any; courseId: string } | null>(null);
+    const setActiveHomeworkSlide = (slide: any | null) =>
+        setActiveHomework(slide ? { slide, courseId: String(currentCourse?.id ?? activeCourseId) } : null);
+
+    // Ödev durumları (teslim/not) ve VS Code bağlantısı
+    const [homeworkTick, setHomeworkTick] = useState(0);
+    const homeworkStatus = useHomeworkStatus(homeworkTick);
+    const [showGuide, setShowGuide] = useState(false);
+    const vscode = useVSCodeStatus(() => { if (shouldAutoOpenGuide()) setShowGuide(true); });
 
     // Real-time Class Session States
     const [isClassActive, setIsClassActive] = useState<boolean>(false);
@@ -233,7 +241,6 @@ const HomePage: React.FC<HomePageProps> = ({
 
     const handleCourseChange = (courseId: string) => {
         onCourseChange(courseId); // Prop call
-        setIsDropdownOpen(false);
         setActiveNodeId(null);
     };
 
@@ -330,19 +337,12 @@ const HomePage: React.FC<HomePageProps> = ({
     if (!currentCourse) {
         return (
             <div className="absolute inset-0 bg-white flex flex-col items-center justify-center p-8 text-center">
-                <div className="w-64 h-64 bg-gray-50 rounded-full flex items-center justify-center mb-8">
-                    <KeyRound size={96} className="animate-bounce text-amber-400" />
-                </div>
-                <h2 className="text-3xl font-black text-gray-800 mb-4 font-display">Henüz bir sınıfa katılmadın</h2>
-                <p className="text-gray-500 max-w-md mb-8 text-lg font-medium">
-                    Öğretmeninin verdiği katılım kodunu girerek sınıfına katıl; dersler burada açılacak.
-                </p>
-                <button 
-                    onClick={() => navigate('/student/my-classes')}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-12 py-5 rounded-2xl shadow-xl shadow-indigo-200 transition-all hover:-translate-y-1 active:translate-y-0 text-xl font-display uppercase tracking-widest"
-                >
-                    Katılım kodu gir
-                </button>
+                <MufiEmpty
+                    pose="wave"
+                    title="Henüz bir sınıfa katılmadın"
+                    text="Öğretmeninin verdiği katılım kodunu gir; dersler ve macera haritan burada açılacak."
+                    action={<ChunkyButton size="lg" onClick={() => navigate('/student/my-classes')}>Katılım kodu gir</ChunkyButton>}
+                />
             </div>
         );
     }
@@ -373,41 +373,24 @@ const HomePage: React.FC<HomePageProps> = ({
         lessonTopic: n.lessonTopic,
     }));
 
-    // Açık modüllerdeki teslim edilmemiş ödevler
-    const activeHomeworks = currentCourse.nodes
-        .filter((n) => !n.isLocked)
-        .flatMap((n) => {
-            const hw = homeworkSlideOf(n);
-            return hw && !(currentCourse.progress?.submitted_homework || []).includes(String(hw.id))
-                ? [{ nodeId: n.id, lessonTitle: n.title, slide: hw }] : [];
-        });
-    const homeworkWidget = activeHomeworks.length === 0 ? null : (
-        <section className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4">
-            <h3 className="text-gray-700 font-black text-sm flex items-center gap-1.5 mb-3">
-                <FileText size={16} className="text-blue-500" /> Bekleyen ödevler ({activeHomeworks.length})
-            </h3>
-            <div className="space-y-2">
-                {activeHomeworks.map((hw) => (
-                    <button
-                        type="button"
-                        key={hw.nodeId}
-                        onClick={() => setActiveHomeworkSlide(hw.slide)}
-                        className="w-full text-left p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-2xl flex flex-col gap-1 transition-colors"
-                    >
-                        <span className="text-[11px] font-black text-blue-600 uppercase tracking-wide">{hw.lessonTitle}</span>
-                        <span className="font-bold text-gray-800 text-sm truncate">{hw.slide.homeworkConfig?.title || 'Ödev'}</span>
-                        <span className="text-xs font-black text-yellow-600 flex items-center gap-1"><Star size={12} className="fill-current" /> +{hw.slide.homeworkConfig?.points || 100} XP</span>
-                    </button>
-                ))}
-            </div>
-        </section>
-    );
-
-    // Calculate dynamic styles for the Course Box to match the header
-    const courseBoxStyle = {
-        borderColor: currentCourse.themeColor,
-        color: currentCourse.themeColor
+    // Ödevlerim (tüm kurslar) ve Mufi'nin cümlesi
+    const homework = collectHomework(courses, homeworkStatus);
+    const openHomework = (hw: HomeworkItem) => {
+        if (hw.courseId !== String(activeCourseId)) handleCourseChange(hw.courseId);
+        setActiveHomework({ slide: hw.slide, courseId: hw.courseId });
     };
+    const someLocked = currentCourse.nodes.some((n) => n.isLocked);
+    const line = mufiLine({
+        name: userData?.first_name || 'kaşif',
+        live: isClassActive,
+        nextNode,
+        allDone: !nextNode,
+        someLocked,
+        activity,
+        homework,
+        completedAny: Object.keys(currentCourse.progress?.completed || {}).length > 0,
+    });
+    const homeworkWidget = <HomeworkCard items={homework} onOpen={openHomework} />;
 
     if (isLiveSessionJoined) {
         return (
@@ -430,135 +413,40 @@ const HomePage: React.FC<HomePageProps> = ({
     }
 
     return (
-        <div className="absolute inset-0 bg-white flex flex-col overflow-y-auto overflow-x-hidden md:overflow-hidden">
+        <div className="absolute inset-0 bg-white bg-[radial-gradient(#e2e8f0_1.2px,transparent_1.2px)] [background-size:22px_22px] flex flex-col overflow-y-auto overflow-x-hidden">
             {showConcepts && activeCourseId && (
                 <MyConceptsModal courseId={activeCourseId} onClose={() => setShowConcepts(false)} />
             )}
 
-            {/* Üst şerit: kurs seçimi · kaldığın yerden devam · kazanımlar · canlı ders · XP */}
-            <div className="w-full px-4 md:px-8 pt-4 md:pt-6 flex flex-wrap items-stretch gap-3 z-30 relative">
-                {/* Kurs seçimi */}
-                <div className="relative shrink-0" ref={courseDropdownRef}>
-                    <button
-                        type="button"
-                        className="h-full min-h-16 px-3 md:px-4 rounded-2xl border-2 border-b-4 bg-white flex items-center gap-2 hover:-translate-y-0.5 transition-transform"
-                        style={courseBoxStyle}
-                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                        aria-haspopup="listbox"
-                        aria-expanded={isDropdownOpen}
-                    >
-                        <CourseIcon name={currentCourse.icon} size={28} />
-                        <span className="font-black text-sm font-display max-w-[160px] truncate hidden sm:block">{currentCourse.title}</span>
-                        {Object.keys(courses).length > 1 && <ChevronDown size={16} className="opacity-60" />}
-                    </button>
-                    {isDropdownOpen && (
-                        <div role="listbox" className="absolute top-[110%] left-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden">
-                            {(Object.values(courses) as CourseData[]).map((course) => (
-                                <button
-                                    type="button"
-                                    role="option"
-                                    aria-selected={activeCourseId === course.id}
-                                    key={course.id}
-                                    className={`w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
-                                    onClick={() => handleCourseChange(course.id)}
-                                >
-                                    <CourseIcon name={course.icon} size={22} className="text-gray-500" />
-                                    <span className={`font-black text-sm font-display truncate ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>{course.title}</span>
-                                    {activeCourseId === course.id && <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" />}
-                                </button>
-                            ))}
-                        </div>
-                    )}
-                </div>
+            {showGuide && (
+                <VSCodeGuideModal state={vscode.state} recheck={vscode.recheck} onClose={() => setShowGuide(false)} />
+            )}
 
-                {/* Kaldığın yerden devam et */}
-                {nextNode ? (
-                    <div
-                        className="flex-1 min-w-[220px] max-w-[460px] rounded-2xl px-4 py-3 text-white flex items-center justify-between gap-3 border-b-4 border-black/10 shadow-sm"
-                        style={{ backgroundColor: nextNode.baseColor }}
-                    >
-                        <div className="min-w-0">
-                            <p className="text-[11px] font-black tracking-wider uppercase opacity-90">Kaldığın yerden devam et</p>
-                            <p className="text-base font-black font-display truncate">{nextNode.title}</p>
-                            <p className="text-xs font-bold opacity-90">{nextNode.stage || 'Modül'} · +{nextNode.xp ?? 500} XP</p>
-                        </div>
-                        <button
-                            type="button"
-                            onClick={() => openNode(nextNode)}
-                            className="shrink-0 bg-white font-black text-sm px-4 py-2.5 rounded-xl border-b-4 border-black/10 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-1"
-                            style={{ color: nextNode.baseColor }}
-                        >
-                            Devam et <ChevronRight size={16} />
-                        </button>
-                    </div>
-                ) : (
-                    <div className="flex-1 min-w-[220px] max-w-[460px] rounded-2xl px-4 py-3 bg-emerald-50 border-2 border-emerald-100 flex items-center gap-3">
-                        <CheckCircle2 size={28} className="text-emerald-500 shrink-0" />
-                        <div className="min-w-0">
-                            <p className="text-sm font-black text-emerald-800">
-                                {currentCourse.nodes.some((n) => n.isLocked) ? 'Açık modüllerin hepsini bitirdin' : 'Kursu tamamladın!'}
-                            </p>
-                            <p className="text-xs font-bold text-emerald-700/80">
-                                {currentCourse.nodes.some((n) => n.isLocked) ? 'Öğretmenin sıradaki modülü açıp hazırlayınca burada görünecek.' : 'İstediğin modülü tekrar edebilirsin.'}
-                            </p>
-                        </div>
-                    </div>
-                )}
-
-                <button
-                    type="button"
-                    onClick={() => setShowConcepts(true)}
-                    className="shrink-0 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl flex flex-col items-center justify-center gap-0.5 hover:-translate-y-0.5 hover:border-indigo-300 transition-all min-h-16"
-                    title="Neyi öğrendin, neye çalışmalısın?"
-                >
-                    <Brain size={22} className="text-indigo-500" />
-                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-600">Kazanımlarım</span>
-                </button>
-
-                {isClassActive && (
-                    <button
-                        type="button"
-                        onClick={handleJoinLiveClass}
-                        className="shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black px-5 rounded-2xl flex items-center gap-3 shadow-lg shadow-emerald-100 min-h-16 border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px] transition-all hover:scale-105"
-                    >
-                        <span className="flex h-3 w-3 relative">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-                        </span>
-                        <span className="flex flex-col text-left">
-                            <span className="text-[11px] font-black text-emerald-100 uppercase tracking-wider leading-none mb-1">Ders başladı</span>
-                            <span className="text-sm font-black leading-none">DERSE KATIL</span>
-                        </span>
-                    </button>
-                )}
-
-                {currentCourse.instructor && (
-                    <div className="hidden 2xl:flex min-h-16 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3 shrink-0 max-w-[220px]">
-                        <span className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0"><UserRound size={20} className="text-indigo-500" /></span>
-                        <span className="min-w-0">
-                            <span className="block text-[11px] font-black text-gray-400 uppercase tracking-wider">Öğretmenin</span>
-                            <span className="block text-sm font-black text-gray-800 truncate">{currentCourse.instructor.name}</span>
-                        </span>
-                    </div>
-                )}
-
-                {/* XP ve seviye (sunucudaki ilerlemeden) */}
-                <div className="flex-1 min-w-[190px] sm:flex-none sm:w-72 sm:ml-auto bg-white border-2 border-gray-200 border-b-4 rounded-2xl min-h-16 px-4 py-2 flex items-center gap-3 shrink-0">
-                    <span className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><Trophy size={20} /></span>
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                            <span className="text-base font-black text-gray-800 font-display whitespace-nowrap">{(userData?.xp ?? 0).toLocaleString('tr-TR')} XP</span>
-                            <span className="flex items-center gap-1 text-[11px] font-black text-gray-500 whitespace-nowrap">
-                                <LeagueIcon icon={userData?.progression?.league?.icon} color={userData?.progression?.league?.color} size={12} />
-                                {userData?.progression?.league?.name ?? 'Bronz'} · Sv {userData?.progression?.level ?? 1}
-                            </span>
-                        </div>
-                        <div className="mt-1 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                            <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" style={{ width: `${Math.max(4, Math.min(100, userData?.progression?.progress_pct ?? 0))}%` }} />
-                        </div>
-                        <span className="text-[11px] font-bold text-gray-400">Sonraki seviyeye {userData?.progression?.xp_to_next_level ?? 0} XP</span>
-                    </div>
-                </div>
+            {/* Kahraman alanı: Mufi'nin karşılaması, seviye/seri ve tek büyük "devam et" */}
+            <div className="w-full px-4 md:px-8 pt-4 md:pt-6 z-30 relative">
+                <HomeHero
+                    line={line}
+                    course={currentCourse}
+                    courses={courses}
+                    onPickCourse={handleCourseChange}
+                    userData={userData}
+                    activity={activity}
+                    nextNode={nextNode}
+                    onContinue={() => nextNode && openNode(nextNode)}
+                    live={isClassActive}
+                    onJoinLive={handleJoinLiveClass}
+                    onOpenConcepts={() => setShowConcepts(true)}
+                    tools={<>
+                        <VSCodeStatusChip state={vscode.state} onClick={() => setShowGuide(true)} onDark />
+                        <NotificationBell
+                            homework={homework}
+                            unreadMessages={unreadMessages}
+                            onOpenHomework={openHomework}
+                            onOpenMessages={() => navigate('/student/ask')}
+                            onDark
+                        />
+                    </>}
+                />
             </div>
 
             <LatestAnnouncementBanner className="xl:hidden mx-4 mt-3 relative z-30" />
@@ -643,6 +531,32 @@ const HomePage: React.FC<HomePageProps> = ({
                                                         </svg>
                                                     ))}
                                                 </div>
+                                            )}
+
+                                            {/* Modül adı: okunur hap etiket (eskiden dış çizgili yazı butonun üstüne biniyordu) */}
+                                            <div className="absolute top-[11.25rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
+                                                <span
+                                                    className="px-3 py-1 rounded-xl bg-white border-2 border-b-4 text-sm font-black text-center leading-tight line-clamp-2 max-w-[13rem] shadow-sm"
+                                                    style={{ borderColor: node.isLocked ? '#cbd5e1' : node.strokeColor, color: node.isLocked ? '#64748b' : node.strokeColor }}
+                                                    title={node.title}
+                                                >
+                                                    {node.title}
+                                                </span>
+                                            </div>
+
+                                            {/* Sıradaki modül: Mufi yanında bekliyor */}
+                                            {nextNode?.id === node.id && (
+                                                <div className="absolute -left-16 top-10 z-30 flex flex-col items-center pointer-events-none">
+                                                    <span className="mb-1 px-2 py-0.5 rounded-lg bg-violet-500 text-white text-[11px] font-black whitespace-nowrap border-b-2 border-violet-700">Sıradaki!</span>
+                                                    <Mufi pose="wave" className="w-16 animate-bob drop-shadow" />
+                                                </div>
+                                            )}
+
+                                            {/* Kilitli modül */}
+                                            {node.isLocked && (
+                                                <span className="absolute top-[42%] left-1/2 -translate-x-1/2 -translate-y-1/2 z-40 w-10 h-10 rounded-full bg-slate-700 text-white flex items-center justify-center border-2 border-white shadow" title="Öğretmenin açınca başlar">
+                                                    <Lock size={18} />
+                                                </span>
                                             )}
 
                                             {/* Text Bubble */}
@@ -813,26 +727,6 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             }}
                                                         />
 
-                                                        {/* Level Number Underneath */}
-                                                        <div
-                                                            className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
-                                                            style={{ animationDelay: `${index * 0.5 * -1}s` }}
-                                                        >
-                                                            <span
-                                                                className="text-lg sm:text-xl font-black tracking-wide select-none text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
-                                                                style={{
-                                                                    fontFamily: "'Fredoka', sans-serif",
-                                                                    color: 'white',
-                                                                    WebkitTextStroke: `1.5px ${node.strokeColor}`,
-                                                                    paintOrder: 'stroke fill',
-                                                                    filter: `drop-shadow(0 0 4px ${node.pastelColor})`,
-                                                                    textShadow: `2px 2px 0px ${node.strokeColor}`
-                                                                }}
-                                                                title={node.title}
-                                                            >
-                                                                {node.title?.toUpperCase()}
-                                                            </span>
-                                                        </div>
                                                     </>
                                                 ) : null}
                                             </div>
@@ -883,6 +777,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 <GamifiedRoadmapPath
                     key={activeCourseId}
                     courseTitle={currentCourse.title}
+                    showHeader={false}
                     modules={roadmapModules}
                     activeKey={nextNode ? String(nextNode.id) : null}
                     onSelectModule={(mod) => {
@@ -898,15 +793,11 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {/* Geniş ekranda sağ sütun: akışta, yolun üstüne binmez */}
-            <aside className="hidden xl:flex flex-col gap-5 w-72 shrink-0 overflow-y-auto no-scrollbar px-5 pb-6 pt-4 relative z-30">
+            <aside className="hidden xl:flex flex-col gap-5 w-80 shrink-0 overflow-y-auto no-scrollbar px-5 pb-6 pt-4 relative z-30">
                 <DailyQuests data={activity} />
                 {homeworkWidget}
                 <AnnouncementFeed />
                 <AttendanceCard courseId={activeCourseId} />
-                <div className="relative mt-auto self-center pointer-events-none select-none" aria-hidden="true">
-                    <span className="absolute top-2 right-6 text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
-                    <img src={MufiSleep} alt="" className="w-40 animate-breathe" />
-                </div>
             </aside>
             </div>
 
@@ -945,16 +836,17 @@ const HomePage: React.FC<HomePageProps> = ({
 
             {/* HOMEWORK OVERLAY — tam ekran konumlandırma burada yapılır;
                 StudentHomeworkView yalnızca kabına yayılır (bkz. bileşendeki not). */}
-            {activeHomeworkSlide && (
+            {activeHomework && (
                 <div className="fixed inset-0 z-[300] bg-slate-50">
                     <StudentHomeworkView
-                        slide={activeHomeworkSlide}
-                        courseId={currentCourse.id}
-                        onClose={() => { setActiveHomeworkSlide(null); void refreshProgress(currentCourse.id); }}
+                        slide={activeHomework.slide}
+                        courseId={activeHomework.courseId}
+                        onClose={() => { setActiveHomework(null); void refreshProgress(activeHomework.courseId); setHomeworkTick((t) => t + 1); }}
                         onComplete={() => {
-                            setActiveHomeworkSlide(null);
+                            setActiveHomework(null);
                             refreshUserData();
-                            void refreshProgress(currentCourse.id);
+                            void refreshProgress(activeHomework.courseId);
+                            setHomeworkTick((t) => t + 1);
                         }}
                     />
                 </div>
