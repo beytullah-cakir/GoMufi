@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { UserPlus, Sparkles, CheckCircle2, AlertTriangle, ArrowRight, Users, BookOpen, User } from 'lucide-react';
 import api from '../../api';
 import type { CourseData } from '../../types';
+import CourseIcon from '../shared/CourseIcon';
 
 interface StudentClassesPageProps {
     courses: Record<string, CourseData>;
@@ -123,7 +124,7 @@ const StudentClassesPage: React.FC<StudentClassesPageProps> = ({ courses, onClas
                                             }`}
                                         >
                                             <div className="flex items-center gap-3">
-                                                <span className="text-3xl">{course.icon}</span>
+                                                <CourseIcon name={course.icon} size={28} className="text-sky-600 shrink-0" />
                                                 <div>
                                                     <h4 className="font-black text-sm text-gray-800 truncate max-w-[180px] leading-tight">{course.title}</h4>
                                                     <p className="text-[10px] text-gray-400 font-bold uppercase mt-0.5">{course.instructor.name}</p>
@@ -202,7 +203,7 @@ const StudentClassesPage: React.FC<StudentClassesPageProps> = ({ courses, onClas
                             {/* Course Header Info */}
                             <div className="flex items-center gap-4 pb-4 border-b border-gray-100">
                                 <div className="w-14 h-14 rounded-2xl bg-gray-50 border border-gray-100 flex items-center justify-center text-3xl shrink-0">
-                                    {selectedCourse.icon}
+                                    <CourseIcon name={selectedCourse.icon} size={28} className="text-sky-600" />
                                 </div>
                                 <div>
                                     <h3 className="text-xl font-black text-gray-800 leading-tight font-display">{selectedCourse.title}</h3>
