@@ -7,6 +7,7 @@ import { Settings, Share2, Award, Trophy, ChevronRight, Lock, BookOpen, Clock, T
 import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
 import CharacterEyes from "../../assets/sprites/eyes.png";
 import PythonIcon from "../../assets/sprites/PythonIcon.png";
+import CourseIcon from '../shared/CourseIcon';
 
 interface ProfilePageProps {
   userData?: any;
@@ -599,7 +600,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               <div className="bg-white border-2 border-gray-100 border-b-4 rounded-2xl p-6 shadow-sm relative overflow-hidden group">
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
                    {currentCourse?.icon ? (
-                    <span className="text-6xl block transform rotate-12">{currentCourse.icon}</span>
+                    <CourseIcon name={currentCourse.icon} size={64} className="block transform rotate-12" />
                   ) : (
                     <img src={PythonIcon} className="w-24 h-24 rotate-12" />
                   )}
