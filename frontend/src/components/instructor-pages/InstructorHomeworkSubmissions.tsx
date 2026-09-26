@@ -10,7 +10,9 @@ import {
     RefreshCw, ChevronDown, ChevronUp, Loader2, BrainCircuit,
     Inbox, Sparkles, AlertCircle, X, Search, CheckCircle2, Clock, History
 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
+import { preferredCourse, rememberCourse } from './activeCourse';
 import { evaluateHomework, type AIReviewResult } from '../student-pages/homeworkAIService';
 import HomeworkAIReview from '../student-pages/HomeworkAIReview';
 import RubricGrader from '../../rubric/RubricGrader';
@@ -105,22 +107,26 @@ const InstructorHomeworkSubmissions: React.FC<InstructorHomeworkSubmissionsProps
     const [showReview, setShowReview] = useState(false);
     const [reviewSub, setReviewSub] = useState<Submission | null>(null);
 
+    const [params] = useSearchParams();
+    const paramCourse = params.get('course');
+    useEffect(() => rememberCourse(selectedCourseId), [selectedCourseId]);
+
     // Load instructor courses
     useEffect(() => {
         if (coursesData && coursesData.length > 0) {
             const data: Course[] = coursesData.map((c: any) => ({ id: c.id, title: c.title }));
             setCourses(data);
-            setSelectedCourseId(prev => prev ?? data[0].id);
+            setSelectedCourseId(prev => prev ?? preferredCourse(data.map(c => c.id), paramCourse));
         } else {
             api.get('/teacher/content')
                 .then(res => {
                     const data: Course[] = (res.data || []).map((c: any) => ({ id: c.id, title: c.title }));
                     setCourses(data);
-                    if (data.length > 0) setSelectedCourseId(prev => prev ?? data[0].id);
+                    if (data.length > 0) setSelectedCourseId(prev => prev ?? preferredCourse(data.map(c => c.id), paramCourse));
                 })
                 .catch(() => setError('Kurslar yüklenemedi.'));
         }
-    }, [coursesData]);
+    }, [coursesData, paramCourse]);
 
     const loadSubmissions = useCallback(async (courseId: number) => {
         setIsLoading(true);

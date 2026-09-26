@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { CalendarCheck, Check, ClipboardList, Download, Loader2, Save, Table2, UserCheck } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
+import { preferredCourse, rememberCourse } from './activeCourse';
 
 /**
  * Yoklama: ders günü için her öğrenciyi Var / Yok / Geç / İzinli işaretle,
@@ -64,9 +66,12 @@ const InstructorAttendance: React.FC<{ coursesData?: any[] }> = ({ coursesData =
 
     const [summary, setSummary] = useState<{ days: string[]; students: SummaryRow[] } | null>(null);
 
+    const [params] = useSearchParams();
+    const paramCourse = params.get('course');
     useEffect(() => {
-        if (courseId === null && courses.length) setCourseId(courses[0].id);
-    }, [courses, courseId]);
+        if (courseId === null && courses.length) setCourseId(preferredCourse(courses.map((c) => c.id), paramCourse));
+    }, [courses, courseId, paramCourse]);
+    useEffect(() => rememberCourse(courseId), [courseId]);
 
     const loadSheet = useCallback(async () => {
         if (!courseId) return;

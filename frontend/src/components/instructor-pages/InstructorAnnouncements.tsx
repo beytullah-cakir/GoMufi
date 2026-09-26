@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Check, Loader2, Mail, Megaphone, Send, Trash2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../api';
+import { preferredCourse, rememberCourse } from './activeCourse';
 
 /**
  * Duyurular: kursun tamamına ya da tek şubeye "yarın ders yok", "ödev süresi
@@ -39,9 +41,12 @@ const InstructorAnnouncements: React.FC<{ coursesData?: any[] }> = ({ coursesDat
     const [list, setList] = useState<Announcement[]>([]);
     const [loading, setLoading] = useState(false);
 
+    const [params] = useSearchParams();
+    const paramCourse = params.get('course');
     useEffect(() => {
-        if (courseId === null && courses.length) setCourseId(courses[0].id);
-    }, [courses, courseId]);
+        if (courseId === null && courses.length) setCourseId(preferredCourse(courses.map((c) => c.id), paramCourse));
+    }, [courses, courseId, paramCourse]);
+    useEffect(() => rememberCourse(courseId), [courseId]);
 
     const load = useCallback(async () => {
         if (!courseId) return;

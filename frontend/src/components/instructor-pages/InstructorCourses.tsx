@@ -16,6 +16,10 @@ import {
   Check,
   Settings2,
   Landmark,
+  UserCheck,
+  Megaphone,
+  HelpCircle,
+  ClipboardCheck,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
@@ -496,6 +500,23 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                             ))}
                           </div>
                         )}
+                    </div>
+                    {/* Kurs merkezli kısayollar: sayfa bu kursla açılır */}
+                    <div className="flex flex-wrap items-center justify-center md:justify-start gap-1.5 mt-3">
+                      {[
+                        { label: "Yoklama", icon: UserCheck, to: `/instructor/attendance?course=${course.id}` },
+                        { label: "Duyuru", icon: Megaphone, to: `/instructor/announcements?course=${course.id}` },
+                        { label: "Neyi anlamadılar?", icon: HelpCircle, to: `/instructor/learning?course=${course.id}&tab=misconceptions` },
+                        { label: "Ödevler", icon: ClipboardCheck, to: `/instructor/homework-submissions?course=${course.id}` },
+                      ].map(({ label, icon: Icon, to }) => (
+                        <button
+                          key={label}
+                          onClick={(e) => { e.stopPropagation(); navigate(to); }}
+                          className="flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-black text-slate-500 bg-slate-50 border border-slate-200 hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200 transition-colors"
+                        >
+                          <Icon size={12} /> {label}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
