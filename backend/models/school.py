@@ -6,6 +6,8 @@ Okulun günlük işleri:
   announcements         — kursa ya da tek bir şubeye duyuru
   notification_log      — otomatik e-postaların (ödev hatırlatma, teslim özeti) kaydı;
                           aynı bildirim iki kez gönderilmesin diye
+  module_progress       — öğrencinin bitirdiği modüller (eskiden tarayıcıda tutuluyordu;
+                          cihaz değişince kayboluyor, öğretmen göremiyordu)
 """
 from sqlalchemy import (
     Boolean, Column, Date, DateTime, ForeignKey, Index, Integer, String, Text,
@@ -85,3 +87,21 @@ class NotificationLog(Base):
     sent_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (UniqueConstraint("kind", "key", name="uq_notification_once"),)
+
+
+class ModuleProgress(Base):
+    __tablename__ = "module_progress"
+
+    id = Column(Integer, primary_key=True)
+    course_id = Column(Integer, ForeignKey("courses.id", ondelete="CASCADE"), nullable=False)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    # Müfredattaki modülün kimliği (course.curriculum[].id)
+    node_id = Column(String(100), nullable=False)
+    stars = Column(Integer, default=3, nullable=False)
+    # Modül XP'si yalnızca ilk tamamlamada verilir.
+    xp_awarded = Column(Integer, default=0, nullable=False)
+    # "self" = öğrenci bitirdi · "live" = öğretmen canlı derste işledi
+    source = Column(String(10), default="self", nullable=False)
+    completed_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (UniqueConstraint("course_id", "student_id", "node_id", name="uq_module_progress"),)

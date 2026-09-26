@@ -90,8 +90,6 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     };
 
     const submissionType: 'text' | 'code' | 'image' | 'file' = config.submissionType || 'text';
-    const storageKey = `homework_submitted_${courseId || 'preview'}_${slide?.id}`;
-    const isAlreadySubmitted = !isPreviewMode && localStorage.getItem(storageKey) === 'true';
 
     // ── State ─────────────────────────────────────────────────────
     const [isEvaluating, setIsEvaluating] = useState(false);
@@ -100,11 +98,11 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
     const [showReview, setShowReview] = useState(false);
     const [answerText, setAnswerText] = useState(config.starterCode || '');
     const [uploadedFile, setUploadedFile] = useState<File | null>(null);
-    const [isSubmitted, setIsSubmitted] = useState(isAlreadySubmitted);
+    const [isSubmitted, setIsSubmitted] = useState(false);
     const [showHint, setShowHint] = useState(false);
 
-    // Sunucudaki gerçek kayıt. localStorage yalnızca ilk boyama için hızlı bir
-    // tahmindi; teslimin gerçekten ulaşıp ulaşmadığını ve notu ancak sunucu bilir.
+    // Teslim durumu yalnızca sunucudan: tarayıcıda tutulursa ortak okul
+    // bilgisayarında bir öğrenci diğerinin teslimini "teslim edildi" görüyordu.
     const [mySubmission, setMySubmission] = useState<MySubmission | null>(null);
     const [rules, setRules] = useState<HomeworkRules | null>(null);
     const [now] = useState(() => Date.now());
@@ -126,20 +124,16 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
             if (res.data?.submitted && res.data.submission) {
                 setMySubmission(res.data.submission);
                 setIsSubmitted(true);
-                localStorage.setItem(storageKey, 'true');
             } else {
-                // Sunucuda kayıt yok: localStorage yanlış hatırlıyor olabilir
-                // (eskiden teslim sunucuya hiç gitmiyordu). Doğrusu sunucudur.
                 setMySubmission(null);
                 setIsSubmitted(false);
-                localStorage.removeItem(storageKey);
             }
         } catch {
-            // Ağ hatası: yerel tahmini bozma, sessiz geç.
+            // Ağ hatası: sessiz geç, kullanıcı tekrar açabilir.
         } finally {
             setIsLoadingSubmission(false);
         }
-    }, [courseId, slide?.id, isPreviewMode, storageKey]);
+    }, [courseId, slide?.id, isPreviewMode]);
 
     useEffect(() => { loadMySubmission(); }, [loadMySubmission]);
 
@@ -186,7 +180,6 @@ const StudentHomeworkView: React.FC<StudentHomeworkViewProps> = ({
             await api.post(`/courses/${courseId}/homework/${slide.id}/submit`, form, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
-            localStorage.setItem(storageKey, 'true');
             setIsSubmitted(true);
             // Yeni teslim değerlendirmeyi sıfırlar (sunucu da öyle yapıyor);
             // güncel durumu sunucudan yeniden oku.

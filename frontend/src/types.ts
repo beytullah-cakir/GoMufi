@@ -56,4 +56,6 @@ export interface CourseData {
         subtitle: string;
     };
     classes?: any[];
+    /** Sunucudaki ilerleme (bkz. progress.ts) */
+    progress?: import('./progress').CourseProgress | null;
 }

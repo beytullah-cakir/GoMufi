@@ -403,46 +403,55 @@ def _entry(student: Student, rank: int, me_id: int) -> dict:
 
 @router.get("/leaderboard")
 async def get_leaderboard(
-    scope: str = "global",
     course_id: Optional[int] = None,
+    scope: str = "class",
     limit: int = 20,
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    XP'ye göre öğrenci sıralaması.
+    Şube içi XP sıralaması.
 
-    - scope=global: tüm öğrenciler.
-    - scope=class : yalnızca course_id'ye kayıtlı öğrenciler (öğrenci bu kursa
-      kayıtlı olmalı; admin her kursu görebilir).
-    Yanıt: top N liste + (listede olmasa bile) çağıran öğrencinin kendi sırası.
+    Platform geneli sıralama kaldırıldı: farklı okullardaki çocukları birbirine
+    göstermenin öğrenmeye katkısı yok, gizlilik riski var. Öğrenci yalnızca kendi
+    şubesindekilerle sıralanır (şubesi yoksa kursun kayıtlılarıyla). Öğretmen
+    sıralamayı kurs ayarından kapatabilir; kapalıysa `disabled: true` döner.
     """
+    from core import classroom
+
     if user["role"] not in ("student", "admin"):
         raise HTTPException(status_code=403, detail="Sadece öğrenciler liderlik tablosunu görüntüleyebilir.")
+    if scope != "class":
+        raise HTTPException(status_code=400, detail="Yalnızca şube sıralaması var (scope=class).")
+    if not course_id:
+        raise HTTPException(status_code=400, detail="Sıralama için course_id gerekli.")
 
     me_id = int(user["user_id"]) if str(user["user_id"]).isdigit() else -1
     limit = max(1, min(100, limit))
 
-    base = select(Student)
-
-    if scope == "class":
-        if not course_id:
-            raise HTTPException(status_code=400, detail="Sınıf sıralaması için course_id gerekli.")
-        # Öğrenci ise bu kursa kayıtlı olmalı
-        if user["role"] == "student":
-            enrolled = await db.execute(
-                select(Enrollment).where(
-                    Enrollment.course_id == course_id,
-                    Enrollment.student_id == me_id,
-                )
-            )
-            if not enrolled.scalar_one_or_none():
-                raise HTTPException(status_code=403, detail="Bu kursa kayıtlı değilsiniz.")
-        base = base.join(Enrollment, Enrollment.student_id == Student.id).where(
-            Enrollment.course_id == course_id
+    course = (await db.execute(select(Course).where(Course.id == course_id))).scalar_one_or_none()
+    if not course:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı.")
+    if user["role"] == "student":
+        enrolled = await db.execute(
+            select(Enrollment).where(Enrollment.course_id == course_id, Enrollment.student_id == me_id)
         )
-    elif scope != "global":
-        raise HTTPException(status_code=400, detail="Geçersiz scope (global veya class).")
+        if not enrolled.scalar_one_or_none():
+            raise HTTPException(status_code=403, detail="Bu kursa kayıtlı değilsiniz.")
+
+    settings_ = await classroom.load(db, course_id)
+    my_class = classroom.student_class(course, me_id)
+    base_out = {
+        "scope": "class",
+        "course_id": course_id,
+        "class_name": my_class.get("name") if my_class else None,
+    }
+    if not settings_["leaderboard_enabled"]:
+        return {**base_out, "disabled": True, "total_players": 0, "entries": [], "me": None}
+
+    base = select(Student).join(Enrollment, Enrollment.student_id == Student.id).where(Enrollment.course_id == course_id)
+    if my_class:
+        base = base.where(Student.id.in_(classroom.class_student_ids(my_class) or [-1]))
 
     # Sıralama: XP azalan, eşitlikte id artan (kararlı)
     ordered = base.order_by(Student.xp.desc().nullslast(), Student.id.asc())
@@ -458,8 +467,8 @@ async def get_leaderboard(
             break
 
     return {
-        "scope": scope,
-        "course_id": course_id if scope == "class" else None,
+        **base_out,
+        "disabled": False,
         "total_players": len(all_students),
         "entries": entries,
         "me": me_entry,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { Trophy, Loader2, Users, Globe } from 'lucide-react';
+import { Trophy, Loader2 } from 'lucide-react';
 import api from '../../api';
 
 interface LeagueInfo {
@@ -18,9 +18,15 @@ interface LeaderEntry {
   is_me: boolean;
 }
 
+/**
+ * Şube içi sıralama. Platform geneli sıralama yok: farklı okullardaki çocukları
+ * birbirine göstermenin öğrenmeye katkısı yok. Öğretmen sıralamayı kapatabilir.
+ */
 interface LeaderboardData {
-  scope: 'global' | 'class';
+  scope: 'class';
   course_id: number | null;
+  class_name: string | null;
+  disabled: boolean;
   total_players: number;
   entries: LeaderEntry[];
   me: LeaderEntry | null;
@@ -63,8 +69,7 @@ const EntryRow: React.FC<{ e: LeaderEntry }> = ({ e }) => (
   </div>
 );
 
-const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultScope = 'global' }) => {
-  const [scope, setScope] = useState<'global' | 'class'>(defaultScope);
+const Leaderboard: React.FC = () => {
   const [courses, setCourses] = useState<{ id: number; title: string }[]>([]);
   const [courseId, setCourseId] = useState<number | null>(null);
   const [data, setData] = useState<LeaderboardData | null>(null);
@@ -84,7 +89,7 @@ const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultS
   }, []);
 
   const fetchBoard = useCallback(async () => {
-    if (scope === 'class' && !courseId) {
+    if (!courseId) {
       setData(null);
       setLoading(false);
       return;
@@ -92,18 +97,14 @@ const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultS
     setLoading(true);
     setError(null);
     try {
-      const q =
-        scope === 'class'
-          ? `?scope=class&course_id=${courseId}&limit=10`
-          : `?scope=global&limit=10`;
-      const res = await api.get(`/leaderboard${q}`);
+      const res = await api.get(`/leaderboard?course_id=${courseId}&limit=10`);
       setData(res.data);
     } catch (e: any) {
       setError(e?.response?.data?.detail || 'Liderlik tablosu yüklenemedi.');
     } finally {
       setLoading(false);
     }
-  }, [scope, courseId]);
+  }, [courseId]);
 
   useEffect(() => {
     fetchBoard();
@@ -117,29 +118,13 @@ const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultS
         <h3 className="text-xl font-black text-gray-800 font-display flex items-center gap-2">
           <Trophy size={20} className="text-amber-500" /> Liderlik
         </h3>
-        {/* Scope sekmeleri */}
-        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
-          <button
-            onClick={() => setScope('global')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${
-              scope === 'global' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Globe size={13} /> Global
-          </button>
-          <button
-            onClick={() => setScope('class')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all flex items-center gap-1 ${
-              scope === 'class' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400 hover:text-gray-600'
-            }`}
-          >
-            <Users size={13} /> Sınıf
-          </button>
-        </div>
+        {data?.class_name && (
+          <span className="text-xs font-black text-gray-400 bg-gray-100 px-2.5 py-1 rounded-lg">{data.class_name}</span>
+        )}
       </div>
 
-      {/* Sınıf sekmesinde birden fazla kurs varsa seçici */}
-      {scope === 'class' && courses.length > 1 && (
+      {/* Birden fazla kurs varsa seçici */}
+      {courses.length > 1 && (
         <select
           value={courseId ?? ''}
           onChange={(e) => setCourseId(Number(e.target.value))}
@@ -159,9 +144,13 @@ const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultS
         </div>
       ) : error ? (
         <div className="py-8 text-center text-xs font-bold text-gray-400">{error}</div>
-      ) : scope === 'class' && !courseId ? (
+      ) : !courseId ? (
         <div className="py-8 text-center text-xs font-bold text-gray-400">
-          Sıralama için kayıtlı bir kursun olması gerekir.
+          Sıralama için bir sınıfa katılman gerekir.
+        </div>
+      ) : data?.disabled ? (
+        <div className="py-8 text-center text-xs font-bold text-gray-400">
+          Öğretmenin bu sınıf için sıralamayı kapattı.
         </div>
       ) : !data || data.entries.length === 0 ? (
         <div className="py-8 text-center text-xs font-bold text-gray-400">
@@ -183,7 +172,7 @@ const Leaderboard: React.FC<{ defaultScope?: 'global' | 'class' }> = ({ defaultS
           )}
 
           <div className="mt-4 pt-3 border-t border-gray-100 text-center text-[11px] font-bold text-gray-400">
-            {scope === 'global' ? 'Tüm platform' : 'Bu sınıf'} · {data.total_players} oyuncu
+            {data.class_name || 'Bu sınıf'} · {data.total_players} öğrenci
           </div>
         </>
       )}

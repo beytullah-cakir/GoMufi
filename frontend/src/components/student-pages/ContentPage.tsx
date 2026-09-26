@@ -31,6 +31,7 @@ import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from '../shared/CourseInfoModal';
 import { AnnouncementFeed, AttendanceCard } from '../shared/SchoolNotices';
+import { completedCount, fetchProgress, type CourseProgress } from '../../progress';
 
 // Import Assets (Reusing existing or placeholders if needed)
 import PythonIcon from '../../assets/sprites/PythonIcon.png';
@@ -317,6 +318,19 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
         }
     }, [selectedCourse, courses]);
 
+    // Sunucudaki modül ilerlemesi (takvimde işlenen dersleri işaretlemek için)
+    const [progressMap, setProgressMap] = useState<Record<string, CourseProgress | null>>({});
+    const courseIdsKey = courses.map(c => c.id).join(',');
+    useEffect(() => {
+        if (!courseIdsKey) return;
+        const ids = courseIdsKey.split(',');
+        Promise.all(ids.map((id) => fetchProgress(id))).then((list) => {
+            const next: Record<string, CourseProgress | null> = {};
+            ids.forEach((id, i) => { next[id] = list[i]; });
+            setProgressMap(next);
+        });
+    }, [courseIdsKey]);
+
     // Sınıflara göre haftalık ve aylık takvimi dinamik oluştur
     useEffect(() => {
         if (courses.length === 0) return;
@@ -334,8 +348,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                 const scheduleList = studentClass ? (studentClass.schedule || []) : (course.schedule || []);
                 
                 const sections = (course.curriculum || []).filter((item: any) => item.type !== 'live_sessions_config');
-                const progressKey = `progress_${course.id}`;
-                const currentProgress = parseInt(localStorage.getItem(progressKey) || '0');
+                const currentProgress = completedCount(progressMap[String(course.id)]);
                 
                 if (sections.length === 0) {
                     // Sınıfın haftalık günlerine göre bu haftaki slotları oluştur
@@ -422,7 +435,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
 
         const generated = generateScheduleEvents();
         setSchedule(generated);
-    }, [courses, selectedCourse, userData]);
+    }, [courses, selectedCourse, userData, progressMap]);
 
     // Eğitmenin dersi başlatıp başlatmadığını sunucudan kontrol et (5 saniyede bir)
     useEffect(() => {
@@ -458,21 +471,11 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                     setLiveCourseId(null);
                     setTimeLeftStr("");
                     
-                    // Eğer canlı dersin başlığı gomufi_session formatındaysa, ilerlemeyi güncelle
-                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:")) {
-                        const parts = lastActiveSessionTitle.split(":");
-                        const lessonIndex = parseInt(parts[1]); // e.g. 1
-                        
-                        if (!isNaN(lessonIndex) && liveCourseId) {
-                            const currentProgressStr = localStorage.getItem(`progress_${liveCourseId}`);
-                            const currentProgress = currentProgressStr ? parseInt(currentProgressStr) : 0;
-                            
-                            if (lessonIndex > currentProgress) {
-                                localStorage.setItem(`progress_${liveCourseId}`, lessonIndex.toString());
-                                alert(`Tebrikler! Ders ${lessonIndex} tamamlandı. Bir sonraki modülün kilidi açıldı!`);
-                                window.location.reload();
-                            }
-                        }
+                    // Öğretmenin canlı derste işlediği modüller sunucuda bitmiş sayılır;
+                    // takvimi güncel ilerlemeyle yeniden çiz (sayfayı yenilemeden).
+                    if (lastActiveSessionTitle && lastActiveSessionTitle.startsWith("gomufi_session:") && liveCourseId) {
+                        const updated = await fetchProgress(liveCourseId);
+                        if (updated) setProgressMap((prev) => ({ ...prev, [String(liveCourseId)]: updated }));
                     }
                     setLastActiveSessionTitle(null);
                 }
