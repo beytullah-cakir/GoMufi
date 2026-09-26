@@ -15,7 +15,7 @@ from pydantic import BaseModel
 from google import genai
 from google.genai import types
 from core.config import settings
-from core import ai_pricing
+from core import ai_pricing, classroom
 from core import ai_economics
 from core.image_search import resolve_image_url
 from core import analytics
@@ -3273,6 +3273,8 @@ async def run_background_slide_generation(
                     overall_idx += 1
                     node.pop("isAIDraft", None)
                     node.pop("isAILoading", None)
+                    # Öğretmen kontrol edip onaylayana kadar öğrenciye kapalı (core/classroom.py)
+                    node[classroom.AI_REVIEW_KEY] = classroom.AI_REVIEW_PENDING
 
                 for note in returned_notes:
                     matched_node = next((nm for nm in returned_modules if nm.get("id") == note.get("id")), None)

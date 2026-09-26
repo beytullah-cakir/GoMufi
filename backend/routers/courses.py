@@ -170,15 +170,7 @@ def student_view_of_courses(db: AsyncSession, courses: List[Course], student_id:
             {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
             for cls in course.classes or []
         ]
-        notes = []
-        for note in course.notes or []:
-            if isinstance(note, dict) and isinstance(note.get("slides"), list):
-                note = {**note, "slides": [
-                    s for s in note["slides"]
-                    if not (isinstance(s, dict) and s.get("assignedTo")) or student_id in s["assignedTo"]
-                ]}
-            notes.append(note)
-        course.notes = notes
+        course.notes = classroom.student_notes(course.notes, student_id, classroom.pending_review_ids(course))
     return courses
 
 
@@ -315,13 +307,8 @@ async def read_course(
             {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
             for cls in course.classes or []
         ]
-        # Belirli öğrencilere atanmış tekrar görevleri yalnızca onlara
-        course_dict["notes"] = [
-            {**n, "slides": [s for s in n["slides"] if not (isinstance(s, dict) and s.get("assignedTo"))
-                             or user_id in s["assignedTo"]]}
-            if isinstance(n, dict) and isinstance(n.get("slides"), list) else n
-            for n in course_dict["notes"] or []
-        ]
+        # Onay bekleyen YZ modülleri boş; atanmış tekrar görevleri yalnızca ilgili öğrencilere.
+        course_dict["notes"] = classroom.student_notes(course_dict["notes"], user_id, classroom.pending_review_ids(course))
 
     return course_dict
 
@@ -517,7 +504,7 @@ async def update_course(
             course.requirements = course_data.requirements
             flag_modified(course, "requirements")
         if course_data.curriculum is not None:
-            course.curriculum = course_data.curriculum
+            course.curriculum = classroom.keep_review_flags(course.curriculum, course_data.curriculum)
             flag_modified(course, "curriculum")
         if course_data.notes is not None:
             course.notes = course_data.notes

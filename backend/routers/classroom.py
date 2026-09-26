@@ -25,6 +25,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.attributes import flag_modified
 
 import learning_store
 from auth.dependencies import get_current_teacher_id, get_current_user_info
@@ -127,8 +128,11 @@ async def _state(db: AsyncSession, course: Course, student_id: int) -> Dict[str,
         select(HomeworkSubmission.node_id).where(
             HomeworkSubmission.course_id == course.id, HomeworkSubmission.student_id == student_id)
     )).all()})
+    pending = classroom.pending_review_ids(course)
     return {
         "order": [str(n.get("id")) for n in modules],
+        # YZ modülü öğretmen onaylayana kadar kapalı (ve sonrası da)
+        "review_block": next((i for i, n in enumerate(modules, start=1) if str(n.get("id")) in pending), None),
         "completed": completed,
         "unlocked_until": classroom.unlock_limit(settings, my_class.get("id") if my_class else None),
         "submitted_homework": submitted,
@@ -146,6 +150,8 @@ def _open_index(state: Dict[str, Any]) -> int:
             break
     limit = state["unlocked_until"]
     top = min(done + 1, len(state["order"]))
+    if state.get("review_block"):
+        top = min(top, state["review_block"] - 1)
     return min(top, limit) if limit is not None else top
 
 
@@ -215,7 +221,8 @@ def _settings_out(course: Course, settings: Dict[str, Any]) -> Dict[str, Any]:
         "classes": [{"id": str(c.get("id")), "name": c.get("name") or "Şube"}
                     for c in course.classes or [] if isinstance(c, dict) and c.get("id") is not None],
         "modules": [{"id": str(n.get("id")), "index": i, "title": n.get("title") or f"Modül {i}",
-                     "lesson_topic": n.get("lessonTopic"), "theme": n.get("theme")}
+                     "lesson_topic": n.get("lessonTopic"), "theme": n.get("theme"),
+                     "pending_review": n.get(classroom.AI_REVIEW_KEY) == classroom.AI_REVIEW_PENDING}
                     for i, n in enumerate(_modules(course), start=1)],
     }
 
@@ -253,3 +260,35 @@ async def put_classroom_settings(
             limits[key] = value
         values["unlocked_until"] = limits
     return _settings_out(course, await classroom.save(db, course_id, values))
+
+
+# --- YZ içeriği: öğretmen onayı ------------------------------------------------------
+
+class ReviewIn(BaseModel):
+    # Boşsa onay bekleyen tüm modüller
+    node_ids: List[str] = []
+
+
+@router.post("/courses/{course_id}/ai-review/approve")
+async def approve_ai_modules(
+    course_id: int,
+    body: ReviewIn,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğretmen YZ'nin ürettiği modülü kontrol etti: öğrencilere açılabilir."""
+    course = await _own_course(db, course_id, teacher_id)
+    wanted = {str(n) for n in body.node_ids}
+    approved = []
+    curriculum = []
+    for node in course.curriculum or []:
+        if (isinstance(node, dict) and node.get(classroom.AI_REVIEW_KEY) == classroom.AI_REVIEW_PENDING
+                and (not wanted or str(node.get("id")) in wanted)):
+            node = {k: v for k, v in node.items() if k != classroom.AI_REVIEW_KEY}
+            approved.append(str(node.get("id")))
+        curriculum.append(node)
+    if approved:
+        course.curriculum = curriculum
+        flag_modified(course, "curriculum")
+        await db.commit()
+    return {"approved": approved, "pending": sorted(classroom.pending_review_ids(course))}
