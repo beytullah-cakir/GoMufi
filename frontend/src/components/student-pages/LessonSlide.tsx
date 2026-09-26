@@ -783,7 +783,6 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         // Kart rengi de deste boyunca SABİT deckStage'i izlemeli — aksi halde bir
         // ANLA slaytındaki kod örneği (UYGULA rengine) yanlış boyanır (bkz. yukarıdaki not).
         const currentBubbleTitle = hasFixedStage ? deckStage : getSlideStage(slide);
-        const stageColor = getStageColor(currentBubbleTitle);
 
         // Yalnızca grid'i olan slaytlar dar moda geçebilir. Mutlak yerleşimli
         // eski slaytlar yeniden akamaz; onları zorla dar moda sokmak üst üste
@@ -811,8 +810,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
         return (
             <div
                 ref={containerRef}
-                className={`relative select-text mx-auto w-full rounded-[2.5rem] border-4 border-b-[10px] shadow-2xl transition-all duration-500 ${isNarrow ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
-                    } ${slideIsDark ? 'border-slate-800 border-b-slate-950 shadow-slate-950/50' : 'border-slate-200/90 shadow-slate-200/40'
+                // Sade çerçeve: aşama rengi yalnızca üst çubuktaki rozette. Eskiden
+                // kalın pembe alt kenar + gölge slaydın kendisinden fazla dikkat çekiyordu.
+                className={`relative select-text mx-auto w-full rounded-[2rem] border-2 border-b-[6px] shadow-[0_8px_30px_rgba(15,23,42,0.06)] transition-all duration-500 ${isNarrow ? 'overflow-y-auto overflow-x-hidden' : 'overflow-hidden'
+                    } ${slideIsDark ? 'border-slate-800 border-b-slate-950' : 'border-slate-200 border-b-slate-300'
                     }`}
                 style={{
                     // Dar modda 16:9'u dayatmak slaydı bir şeride sıkıştırırdı.
@@ -821,10 +822,9 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     height: isNarrow ? '100%' : undefined,
                     maxHeight: '100%',
                     backgroundColor: slideIsDark ? '#0f172a' : '#ffffff',
-                    borderBottomColor: slideIsDark ? '#020617' : stageColor.border,
                     backgroundImage: slideIsDark
                         ? 'radial-gradient(rgba(148,163,184,0.14) 1px, transparent 1px)'
-                        : 'radial-gradient(#f1f5f9 1.2px, transparent 1.2px)',
+                        : 'none',
                     backgroundSize: '24px 24px',
                 }}
             >
@@ -1036,13 +1036,6 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 backgroundSize: '24px 24px',
             }}
         >
-            {/* Fixed GoMufi Ambient Background Blobs */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-                <div className="absolute top-[-10%] left-[-5%] w-[45rem] h-[45rem] bg-[#23c55e]/5 rounded-full filter blur-[140px] opacity-70 animate-blob" />
-                <div className="absolute top-[-5%] right-[-10%] w-[40rem] h-[40rem] bg-sky-400/5 rounded-full filter blur-[140px] opacity-70 animate-blob animation-delay-2000" />
-                <div className="absolute bottom-[-15%] left-[20%] w-[45rem] h-[45rem] bg-indigo-400/5 rounded-full filter blur-[140px] opacity-70 animate-blob animation-delay-4000" />
-            </div>
-
             {/* ── Üst çubuk: çıkış · aşama rozeti + başlık · ders yolu · seri/XP ──
                 Eskiden iki ayrı çıkış düğmesi (geri + kırmızı X) ve her modülü büyük
                 harfle sayan uzun bir şerit vardı; şimdi tek çıkış, tek bakışta
@@ -1143,10 +1136,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                     <div className="mt-2 md:mt-3 flex items-center gap-1 max-w-3xl mx-auto" aria-label={`Slayt ${stepNum} / ${totalSlides}`}>
                         {totalSlides <= 24 ? Array.from({ length: totalSlides }, (_, i) => (
                             <span key={i} className={`h-2.5 flex-1 rounded-full transition-colors duration-300 ${i < stepNum ? '' : isDark ? 'bg-slate-700' : 'bg-slate-200'}`}
-                                  style={i < stepNum ? { backgroundColor: getStageColor(currentBubbleTitle).bg } : undefined} />
+                                  style={i < stepNum ? { backgroundColor: '#8b5cf6' } : undefined} />
                         )) : (
                             <span className={`h-2.5 flex-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
-                                <span className="block h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, backgroundColor: getStageColor(currentBubbleTitle).bg }} />
+                                <span className="block h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, backgroundColor: '#8b5cf6' }} />
                             </span>
                         )}
                         <span className={`ml-2 text-xs font-black tabular-nums shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{stepNum}/{totalSlides}</span>
