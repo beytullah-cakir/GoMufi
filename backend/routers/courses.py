@@ -24,7 +24,7 @@ from core.config import settings
 import homework_rules
 import learning_store
 from models.teaching import HomeworkSubmissionVersion
-from core import classroom, plans
+from core import classroom, plans, streak
 
 router = APIRouter()
 
@@ -1590,6 +1590,8 @@ async def submit_homework(
         )
         db.add(sub)
 
+    if role == "student":
+        await streak.record(db, int(student_id), homework=1)
     await db.commit()
     # Öğrenme kaydı: görev/ödev teslim edildi (kavram kanıtı değil, ilerleme).
     await learning_store.safe_record_event(course_id, int(student_id), {

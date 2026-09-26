@@ -21,6 +21,8 @@ CURRICULUM = [
     {"id": "m_birlestir", "title": "Döngüler · BİRLEŞTİR", "theme": "green"},
     {"id": "m_uret", "title": "Döngüler · ÜRET", "theme": "yellow", "xp": 50},
 ]
+# Her modülün en az bir slaytı var; içeriksiz modül kendi başına bitirilemez.
+NOTES = [{"id": m, "slides": [{"id": f"{m}_s1", "type": "text"}]} for m in MODULES]
 CLASSES = [
     {"id": "c_a", "name": "A Şubesi", "student_ids": [ECE], "code": "CPA001", "schedule": []},
     {"id": "c_b", "name": "B Şubesi", "student_ids": [CAN], "code": "CPB001", "schedule": []},
@@ -50,8 +52,8 @@ def seeded(db_query):
     for sid in students:
         db_query("INSERT INTO students (id, first_name, last_name, email, xp) VALUES (%s, 'Öğrenci', 'Test', %s, 0)",
                  (sid, f"cp{sid}@test.local"), fetch=False)
-    db_query("INSERT INTO courses (id, teacher_id, title, curriculum, notes, classes) VALUES (%s, %s, 'Python', %s, '[]', %s)",
-             (COURSE, TEACHER, json.dumps(CURRICULUM), json.dumps(CLASSES)), fetch=False)
+    db_query("INSERT INTO courses (id, teacher_id, title, curriculum, notes, classes) VALUES (%s, %s, 'Python', %s, %s, %s)",
+             (COURSE, TEACHER, json.dumps(CURRICULUM), json.dumps(NOTES), json.dumps(CLASSES)), fetch=False)
     for sid in (ECE, CAN):
         db_query("INSERT INTO enrollments (student_id, course_id) VALUES (%s, %s)", (sid, COURSE), fetch=False)
     import learning_store
@@ -165,3 +167,43 @@ def test_oyun_xpsi_istek_basina_sinirli(auth_as, seeded):
     ece = auth_as(ECE, "student")
     assert ece.post("/profile/student/stats", json={"xp_gain": 1_000_000}).json()["xp"] == 50
     assert ece.post("/profile/student/stats", json={"xp_gain": -500}).json()["xp"] == 50
+
+
+def test_icerigi_olmayan_modul_bitirilemez(auth_as, seeded, db_query):
+    db_query("UPDATE courses SET notes = %s WHERE id = %s",
+             (json.dumps([{"id": "m_anla", "slides": []}]), COURSE), fetch=False)
+    ece = auth_as(ECE, "student")
+    res = complete(ece, "m_anla")
+    assert res.status_code == 409 and "içerik" in res.json()["detail"]
+
+
+def test_gunluk_seri_ve_gorevler(auth_as, seeded, db_query):
+    from datetime import timedelta
+    from core import streak
+
+    ece = auth_as(ECE, "student")
+    empty = ece.get("/progress/activity").json()
+    assert empty["streak"] == 0 and not empty["active_today"]
+    assert [q["progress"] for q in empty["quests"]] == [0, 0, 0]
+
+    # Dün ve önceki gün çalışmış (seri 2); bugün modül bitirince 3 olur.
+    today = streak.today()
+    for back in (1, 2):
+        db_query("INSERT INTO student_activity_days (student_id, day, modules, perfect, xp, homework) "
+                 "VALUES (%s, %s, 1, 0, 0, 0)", (ECE, today - timedelta(days=back)), fetch=False)
+    assert ece.get("/progress/activity").json()["streak"] == 2        # bugün henüz yok, seri bozulmadı
+
+    complete(ece, "m_anla", stars=3)                                     # 100 XP, 3 yıldız
+    complete(ece, "m_anla", stars=2)                                     # tekrar: yeni XP yok ama sayılır
+    data = auth_as(ECE, "student").get("/progress/activity").json()
+    assert data["streak"] == 3 and data["longest"] == 3 and data["active_today"]
+    assert data["today"] == {"modules": 2, "perfect": 1, "xp": 100, "homework": 0}
+    quests = {q["key"]: q for q in data["quests"]}
+    assert quests["module"]["progress"] == 1 and quests["perfect"]["progress"] == 1
+    assert quests["xp"]["progress"] == 100
+    assert auth_as(ECE, "student").get("/profile").json()["streak"] == 3
+
+    # Bir gün boşluk: seri sıfırlanır (saklanan değer bayatlasa bile okunan hesaplanır).
+    db_query("DELETE FROM student_activity_days WHERE student_id = %s AND day >= %s",
+             (ECE, today - timedelta(days=1)), fetch=False)
+    assert auth_as(ECE, "student").get("/progress/activity").json()["streak"] == 0

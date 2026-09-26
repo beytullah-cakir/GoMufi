@@ -28,6 +28,7 @@ import learning_views
 import teacher_summary
 from auth.dependencies import get_current_user_info
 from connect_db import get_db
+from core import streak
 from models.course import Course
 from models.enrollment import Enrollment
 from models.homework_submission import HomeworkSubmission
@@ -150,7 +151,7 @@ async def child_overview(
         "student": {
             "id": child.id, "first_name": child.first_name, "last_name": child.last_name,
             "nickname": child.nickname, "grade_level": child.grade_level,
-            "xp": child.xp or 0, "streak": child.streak or 0, "student_code": child.student_code,
+            "xp": child.xp or 0, "streak": await streak.current(db, child.id), "student_code": child.student_code,
         },
         "courses": out_courses,
         "latest_report": {"id": latest.id, "sent_at": latest.sent_at.isoformat() if latest.sent_at else None,
@@ -266,7 +267,7 @@ async def parent_summary(
             "student_id": child.id,
             "name": f"{child.first_name or ''} {child.last_name or ''}".strip(),
             "xp": child.xp or 0,
-            "streak": child.streak or 0,
+            "streak": await streak.current(db, child.id),
             "courses": len(overview["courses"]),
             "active_days_14": sum(c["active_days_14"] for c in overview["courses"]),
             "last_activity_at": last,

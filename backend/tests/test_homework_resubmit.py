@@ -34,6 +34,12 @@ def kurallar_ve_arsiv(monkeypatch):
     monkeypatch.setattr(courses_router, "homework_rules_for", kurallar)
     monkeypatch.setattr(courses_router, "_archive_submission", arsivle)
 
+    async def seri(*_a, **_k):
+        return None
+
+    # Günlük seri kendi tablosuna yazar (bkz. core/streak.py); sahte oturumda yok.
+    monkeypatch.setattr(courses_router.streak, "record", seri)
+
 
 def yukleme(icerik: bytes = b"print('yeni cevap')", ad: str = "cevap.py") -> UploadFile:
     return UploadFile(filename=ad, file=io.BytesIO(icerik))

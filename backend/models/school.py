@@ -105,3 +105,16 @@ class ModuleProgress(Base):
     completed_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (UniqueConstraint("course_id", "student_id", "node_id", name="uq_module_progress"),)
+
+
+class StudentActivityDay(Base):
+    """Öğrencinin bir takvim günündeki (Türkiye saati) etkinliği: günlük seri ve
+    günlük görevler buradan hesaplanır. Bkz. core/streak.py"""
+    __tablename__ = "student_activity_days"
+
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), primary_key=True)
+    day = Column(Date, primary_key=True)
+    modules = Column(Integer, default=0, nullable=False)
+    perfect = Column(Integer, default=0, nullable=False)
+    xp = Column(Integer, default=0, nullable=False)
+    homework = Column(Integer, default=0, nullable=False)

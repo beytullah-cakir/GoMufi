@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
-import { Swords, Users, Shield, Trophy, ChevronDown, PenTool, ChevronRight, Zap, KeyRound, BookOpen, Brain, Rocket, UserRound, Target, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Star } from 'lucide-react';
+import { Trophy, ChevronDown, ChevronRight, Zap, KeyRound, Brain, UserRound, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Star } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -15,6 +15,9 @@ import type { CourseData, PathNode } from '../../types';
 import { completeModule, type CourseProgress } from '../../progress';
 import CourseIcon from '../shared/CourseIcon';
 import { LeagueIcon } from '../shared/LeagueBadge';
+import GamifiedRoadmapPath, { moduleActionLabel, type RoadmapModule } from './GamifiedRoadmapPath';
+import DailyQuests, { useActivity } from './DailyQuests';
+import MufiSleep from '../../assets/sprites/MufiSleep.png';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -65,11 +68,9 @@ const HomePage: React.FC<HomePageProps> = ({
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     // "Kazanımlarım": öğrencinin kendi kazanım haritası (neyi öğrendim, neye çalışmalıyım).
     const [showConcepts, setShowConcepts] = useState(false);
-    const [isClanDropdownOpen, setIsClanDropdownOpen] = useState(false);
 
     // Refs for outside click detection
     const courseDropdownRef = useRef<HTMLDivElement>(null);
-    const clanDropdownRef = useRef<HTMLDivElement>(null);
     const nodesContainerRef = useRef<HTMLDivElement>(null);
 
     // Outside click listener
@@ -78,9 +79,6 @@ const HomePage: React.FC<HomePageProps> = ({
             if (courseDropdownRef.current && !courseDropdownRef.current.contains(event.target as Node)) {
                 setIsDropdownOpen(false);
             }
-            if (clanDropdownRef.current && !clanDropdownRef.current.contains(event.target as Node)) {
-                setIsClanDropdownOpen(false);
-            }
             if (nodesContainerRef.current && !nodesContainerRef.current.contains(event.target as Node)) {
                 setActiveNodeId(null);
             }
@@ -88,18 +86,6 @@ const HomePage: React.FC<HomePageProps> = ({
         document.addEventListener('mousedown', handleClickOutside);
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
-
-    const squadMembers = [
-        { id: 1, name: 'Ali', status: 'online', avatarSeed: 123 },
-        { id: 2, name: 'Ayşe', status: 'in-class', avatarSeed: 456 },
-        { id: 3, name: 'Can', status: 'offline', avatarSeed: 789 },
-        { id: 4, name: 'Ece', status: 'online', avatarSeed: 101 },
-    ];
-
-    // Dynamic Header State
-    const [headerColor, setHeaderColor] = useState<string>('#58cc02'); // Default Green
-    const [headerTitle, setHeaderTitle] = useState<string>('İngilizce temellerini at');
-    const [headerSubtitle, setHeaderSubtitle] = useState<string>('BÖLÜM 1, ÜNİTE 1');
 
     // Game Overlay State
     const [showGameOverlay, setShowGameOverlay] = useState(false);
@@ -127,33 +113,9 @@ const HomePage: React.FC<HomePageProps> = ({
     const [liveCourseId, setLiveCourseId] = useState<string | null>(null);
     const [lastActiveSessionTitle, setLastActiveSessionTitle] = useState<string | null>(null);
     const { sendMessage, lastMessage } = useWebSocket();
+    // Seri ve günlük görevler: XP ya da ilerleme değişince yeniden okunur.
+    const activity = useActivity(`${userData?.xp ?? 0}:${Object.keys(currentCourse?.progress?.completed || {}).length}`);
     const navigate = useNavigate();
-
-    const [myClass, setMyClass] = useState<{ class_name: string | null; classmates: any[] }>({
-        class_name: null,
-        classmates: []
-    });
-
-    const [isQuestsExpanded, setIsQuestsExpanded] = useState(true);
-
-    useEffect(() => {
-        if (!activeCourseId) return;
-
-        const fetchClassData = async () => {
-            try {
-                const res = await api.get(`/student/my-class/${activeCourseId}`);
-                setMyClass({
-                    class_name: res.data.class_name,
-                    classmates: res.data.classmates || []
-                });
-            } catch (err) {
-                console.error("Failed to fetch student class data:", err);
-                setMyClass({ class_name: null, classmates: [] });
-            }
-        };
-
-        fetchClassData();
-    }, [activeCourseId]);
 
     // Poll session status for enrolled courses to detect when teacher starts/stops lesson
     useEffect(() => {
@@ -261,33 +223,11 @@ const HomePage: React.FC<HomePageProps> = ({
         }
     }, [lastMessage, currentCourse, isLiveSessionJoined, activeCourseId, setCourses]);
 
-    // Initialize/Update Header when currentCourse changes
-    useEffect(() => {
-        if (currentCourse) {
-            // Find the last unlocked node (highest ID that is not locked)
-            const reversedNodes = [...currentCourse.nodes].reverse();
-            const lastUnlockedNode = reversedNodes.find(node => !node.isLocked);
-
-            if (lastUnlockedNode) {
-                setHeaderColor(lastUnlockedNode.baseColor);
-                setHeaderTitle(lastUnlockedNode.title);
-                setHeaderSubtitle(`BÖLÜM 1, DERS ${lastUnlockedNode.id}`);
-            } else {
-                setHeaderColor(currentCourse.themeColor);
-                setHeaderTitle(currentCourse.defaultHeader.title);
-                setHeaderSubtitle(currentCourse.defaultHeader.subtitle);
-            }
-        }
-    }, [currentCourse]); // Re-run when course changes
-
     const handleNodeClick = (node: PathNode) => {
         if (activeNodeId === node.id) {
             setActiveNodeId(null);
         } else {
             setActiveNodeId(node.id);
-            setHeaderColor(node.baseColor);
-            setHeaderTitle(node.title);
-            setHeaderSubtitle(`BÖLÜM 1, DERS ${node.id}`);
         }
     };
 
@@ -407,6 +347,62 @@ const HomePage: React.FC<HomePageProps> = ({
         );
     }
 
+    const isDone = (n: PathNode) => !!(n.sectionId && currentCourse.progress?.completed?.[String(n.sectionId)]);
+    const homeworkSlideOf = (n: PathNode) => n.slides?.find((sl: any) => sl.type === 'homework');
+    const lessonSlidesOf = (n: PathNode) => (n.slides || []).filter((sl: any) => sl.type !== 'homework');
+    // Sıradaki iş: açık, bitmemiş ve içeriği olan ilk modül.
+    const nextNode = currentCourse.nodes.find((n) => !n.isLocked && !isDone(n) && (n.slides?.length ?? 0) > 0);
+    const openNode = (n: PathNode) => {
+        const hw = homeworkSlideOf(n);
+        if (n.type === 'homework' || (hw && lessonSlidesOf(n).length === 0)) {
+            if (hw) setActiveHomeworkSlide(hw);
+            return;
+        }
+        if (lessonSlidesOf(n).length > 0) handleOpenLesson(n.id);
+    };
+    const roadmapModules: RoadmapModule[] = currentCourse.nodes.map((n) => ({
+        key: String(n.id),
+        title: n.title,
+        stage: n.stage || 'ANLA',
+        xp: n.xp ?? 500,
+        slides: n.slides || [],
+        stars: n.stars ?? 0,
+        done: isDone(n),
+        isLocked: n.isLocked,
+        lessonNumber: n.lessonNumber,
+        lessonTopic: n.lessonTopic,
+    }));
+
+    // Açık modüllerdeki teslim edilmemiş ödevler
+    const activeHomeworks = currentCourse.nodes
+        .filter((n) => !n.isLocked)
+        .flatMap((n) => {
+            const hw = homeworkSlideOf(n);
+            return hw && !(currentCourse.progress?.submitted_homework || []).includes(String(hw.id))
+                ? [{ nodeId: n.id, lessonTitle: n.title, slide: hw }] : [];
+        });
+    const homeworkWidget = activeHomeworks.length === 0 ? null : (
+        <section className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4">
+            <h3 className="text-gray-700 font-black text-sm flex items-center gap-1.5 mb-3">
+                <FileText size={16} className="text-blue-500" /> Bekleyen ödevler ({activeHomeworks.length})
+            </h3>
+            <div className="space-y-2">
+                {activeHomeworks.map((hw) => (
+                    <button
+                        type="button"
+                        key={hw.nodeId}
+                        onClick={() => setActiveHomeworkSlide(hw.slide)}
+                        className="w-full text-left p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-2xl flex flex-col gap-1 transition-colors"
+                    >
+                        <span className="text-[11px] font-black text-blue-600 uppercase tracking-wide">{hw.lessonTitle}</span>
+                        <span className="font-bold text-gray-800 text-sm truncate">{hw.slide.homeworkConfig?.title || 'Ödev'}</span>
+                        <span className="text-xs font-black text-yellow-600 flex items-center gap-1"><Star size={12} className="fill-current" /> +{hw.slide.homeworkConfig?.points || 100} XP</span>
+                    </button>
+                ))}
+            </div>
+        </section>
+    );
+
     // Calculate dynamic styles for the Course Box to match the header
     const courseBoxStyle = {
         borderColor: currentCourse.themeColor,
@@ -434,316 +430,138 @@ const HomePage: React.FC<HomePageProps> = ({
     }
 
     return (
-        <div className="absolute inset-0 bg-white flex flex-col items-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-white flex flex-col overflow-y-auto overflow-x-hidden md:overflow-hidden">
             {showConcepts && activeCourseId && (
                 <MyConceptsModal courseId={activeCourseId} onClose={() => setShowConcepts(false)} />
             )}
 
-            {/* Header Row: Course info + Unit Header + Stats + XP Bar */}
-            <div className="w-full px-6 md:px-12 pt-6 flex flex-wrap justify-between items-center gap-4 z-30 relative">
-                {/* Left Side Container: Course Box + Unit Header + Live Join Button + Instructor Widget */}
-                    <div className="flex flex-wrap items-center gap-4 flex-1 min-w-0">
-                        {/* Course Info Box (Dropdown Enabled) */}
-                        <div className="relative" ref={courseDropdownRef}>
-                            <div
-                                className="w-20 h-20 rounded-2xl border-4 flex flex-col items-center justify-center bg-white shadow-sm shrink-0 transition-all duration-300 hover:-translate-y-1 hover:shadow-md cursor-pointer z-20 relative"
-                                style={courseBoxStyle}
-                                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                            >
-                                <CourseIcon name={currentCourse.icon} size={28} className="mb-0.5" />
-                                <span className="font-black text-[10px] uppercase tracking-wider font-display truncate max-w-[70px]">{currentCourse.title}</span>
-                                {/* Dropdown Indicator */}
-                                <div className="absolute top-1 right-1 opacity-50">
-                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round">
-                                        <path d="M6 9l6 6 6-6" />
-                                    </svg>
-                                </div>
-                            </div>
-
-                            {/* DROPDOWN MENU */}
-                            {isDropdownOpen && (
-                                <div className="absolute top-[110%] left-0 w-48 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                                    {(Object.values(courses) as CourseData[]).map((course) => (
-                                        <div
-                                            key={course.id}
-                                            className={`flex items-center gap-3 p-4 cursor-pointer transition-colors hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
-                                            onClick={() => handleCourseChange(course.id)}
-                                        >
-                                            <CourseIcon name={course.icon} size={22} className="text-gray-500" />
-                                            <span className={`font-black text-sm uppercase font-display ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>
-                                                {course.title}
-                                            </span>
-                                            {activeCourseId === course.id && (
-                                                <div className="ml-auto w-2 h-2 rounded-full bg-green-500"></div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Unit Header (Left) */}
-                        <div
-                            className="rounded-2xl p-4 text-white flex justify-between items-center shadow-md relative overflow-hidden group shrink-0 w-full max-w-[380px] h-20 transition-colors duration-500 ease-in-out border-b-4 border-black/10"
-                            style={{ backgroundColor: headerColor }}
-                        >
-                            <div className="absolute top-0 left-0 w-full h-1 bg-white/20"></div>
-
-                            <div className="relative z-10">
-                                <h2 className="text-[9px] font-black tracking-widest opacity-90 mb-0.5 uppercase font-display">{headerSubtitle}</h2>
-                                <h1 className="text-base font-black font-display tracking-tight drop-shadow-sm truncate max-w-[200px]">{headerTitle}</h1>
-                            </div>
-
-                            <button className="bg-white/20 hover:bg-white/30 text-white font-black px-4 py-2 rounded-xl text-xs transition-colors uppercase tracking-wider flex items-center gap-1.5 border-2 border-transparent">
-                                <BookOpen size={15} /> REHBER
-                            </button>
-                        </div>
-
-                        <button
-                            onClick={() => setShowConcepts(true)}
-                            className="h-20 px-5 shrink-0 bg-white border-2 border-gray-200 border-b-4 rounded-2xl flex flex-col items-center justify-center gap-0.5 shadow-sm hover:-translate-y-0.5 hover:border-indigo-300 transition-all"
-                            title="Neyi öğrendin, neye çalışmalısın?"
-                        >
-                            <Brain size={24} className="text-indigo-500" />
-                            <span className="text-[10px] font-black uppercase tracking-wider text-gray-600 font-display">Kazanımlarım</span>
-                        </button>
-
-                        {/* Prominent Live Join Lesson Button */}
-                        {isClassActive && (
-                            <button
-                                onClick={handleJoinLiveClass}
-                                className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black px-6 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-emerald-100 cursor-pointer animate-bounce h-20 shrink-0 select-none border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px] transition-all hover:scale-105"
-                            >
-                                <span className="flex h-3 w-3 relative">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
-                                </span>
-                                <div className="flex flex-col text-left">
-                                    <span className="text-[9px] font-black text-emerald-100 uppercase tracking-widest leading-none mb-1">Ders Başladı!</span>
-                                    <span className="text-xs font-black tracking-wide leading-none">DERSE KATIL</span>
-                                </div>
-                            </button>
-                        )}
-
-                        {/* Instructor Widget */}
-                        {currentCourse.instructor && (
-                            <div className="hidden xl:flex h-20 w-56 px-4.5 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3.5 shadow-sm shrink-0">
-                                <div className="relative shrink-0">
-                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl shadow-inner">
-                                        <UserRound size={20} className="text-indigo-500" />
-                                    </div>
-                                    {currentCourse.instructor.isOnline && (
-                                        <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-white rounded-full"></div>
-                                    )}
-                                </div>
-
-                                <div className="flex flex-col justify-center min-w-0 flex-1">
-                                    <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">Eğitmen</span>
-                                    <span className="text-sm font-black text-gray-800 font-display truncate leading-none mb-1.5">{currentCourse.instructor.name}</span>
-                                    <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full w-fit leading-none ${currentCourse.instructor.isOnline ? 'text-green-600 bg-green-50 border border-green-150' : 'text-gray-400 bg-gray-50 border border-gray-100'}`}>
-                                        {currentCourse.instructor.status}
-                                    </span>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* CLAN WIDGET (Restored Premium Gradient Style) */}
-                        <div
-                            ref={clanDropdownRef}
-                            className="hidden 2xl:flex h-20 px-5 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl items-center gap-4 shadow-sm shadow-indigo-200 relative group hover:scale-[1.02] transition-transform cursor-pointer border-b-4 border-indigo-700 shrink-0 select-none text-white font-sans"
-                            onClick={() => setIsClanDropdownOpen(!isClanDropdownOpen)}
-                        >
-                            <div className="absolute top-1/2 right-6 text-white/10 transform rotate-12 scale-[2.5] pointer-events-none">
-                                <Swords size={20} />
-                            </div>
-
-                            <div className="relative z-10">
-                                <div className="w-10 h-10 rounded-xl bg-white/20 border-2 border-white/30 flex items-center justify-center text-xl shadow-md backdrop-blur-sm">
-                                    <Rocket size={20} />
-                                </div>
-                            </div>
-
-                            <div className="flex flex-col justify-center relative z-10 text-white min-w-[120px]">
-                                <div className="flex items-center gap-2 mb-0.5">
-                                    <span className="font-black text-sm font-display leading-none truncate max-w-[140px]">{myClass.class_name || "Sınıf Bulunamadı"}</span>
-                                </div>
-                                <div className="flex items-center gap-2 text-indigo-100">
-                                    <Users size={10} />
-                                    <span className="text-[9px] font-bold uppercase tracking-wider">{myClass.class_name ? "Sınıfım" : "Sınıf Yok"}</span>
-                                </div>
-                            </div>
-
-                            <div className="h-10 w-px bg-white/20 relative z-10"></div>
-
-                            <div className="flex flex-col items-center justify-center relative z-10 text-white">
-                                <span className="text-[8px] font-bold text-indigo-200 uppercase tracking-widest mb-0.5">ÜYE</span>
-                                <span className="text-base font-black text-yellow-300 font-display leading-tight">{myClass.classmates.length}</span>
-                            </div>
-
-                            {/* SQUAD MEMBER DROPDOWN */}
-                            {isClanDropdownOpen && (
-                                <div className="absolute top-[110%] md:right-0 bg-white border-2 border-indigo-100 rounded-2xl shadow-xl z-[60] overflow-hidden w-64 animate-in fade-in slide-in-from-top-2 duration-200 cursor-default" onClick={(e) => e.stopPropagation()}>
-                                    <div className="p-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-                                        <span className="text-xs font-black text-indigo-800 uppercase tracking-wider">{myClass.class_name ? "Sınıf Arkadaşlarım" : "Sınıf Üyeleri"}</span>
-                                        <span className="text-[10px] font-bold bg-indigo-200 text-indigo-700 px-1.5 py-0.5 rounded">{myClass.classmates.length}</span>
-                                    </div>
-                                    <div className="max-h-60 overflow-y-auto">
-                                        {myClass.classmates.length > 0 ? (
-                                            myClass.classmates.map((member) => (
-                                                <div key={member.id} className="flex items-center gap-3 p-3 hover:bg-gray-50 transition-colors border-b last:border-0 border-gray-50">
-                                                    <div className="relative shrink-0">
-                                                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${member.avatarSeed}`} alt={member.name} className="w-8 h-8 rounded-lg bg-gray-100 border border-gray-150" />
-                                                        <div className={`absolute -bottom-1 -right-1 w-2.5 h-2.5 rounded-full border-2 border-white ${member.status === 'online' ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-                                                    </div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <h4 className="font-bold text-sm text-gray-800 truncate leading-tight mb-0.5">{member.name}</h4>
-                                                        <span className="text-[10px] text-gray-400 font-medium uppercase">{member.status === 'online' ? 'Çevrimiçi' : 'Çevrimdışı'}</span>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        ) : (
-                                            <div className="p-6 text-center text-xs text-gray-400 font-bold italic">Sınıf arkadaşı bulunamadı.</div>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Right Column: Stats + Widgets */}
-                    <div className="flex flex-col items-end relative z-50">
-                        <div className="flex flex-col gap-3 w-64">
-                            {/* REDESIGNED XP BAR (Dynamic values) */}
-                            <div className="w-full bg-white border-2 border-gray-200 border-b-4 rounded-2xl h-20 px-4.5 flex items-center justify-between shadow-sm hover:border-amber-300 transition-colors shrink-0">
-                                <div className="flex items-center gap-3 min-w-0">
-                                    <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-500 flex items-center justify-center shadow-inner shrink-0">
-                                        <Trophy size={20} />
-                                    </div>
-                                    <div className="flex flex-col min-w-0">
-                                        <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest leading-none mb-1">
-                                            <span className="inline-flex items-center gap-1"><LeagueIcon icon={userData?.progression?.league?.icon} color={userData?.progression?.league?.color} size={11} /> {userData?.progression?.league?.name ?? 'Bronz'} Lig · Lv {userData?.progression?.level ?? 1}</span>
-                                        </span>
-                                        <span className="text-sm font-black text-gray-800 font-display leading-none">{(userData?.xp ?? 0)} XP</span>
-                                    </div>
-                                </div>
-
-                                {/* Gerçek level ilerlemesi (backend progression) */}
-                                <div className="flex flex-col items-end gap-1 shrink-0">
-                                    <div className="w-24 bg-gray-100 border border-gray-200/50 rounded-full h-3 overflow-hidden shadow-inner">
-                                        <div
-                                            className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full transition-all duration-500"
-                                            style={{ width: `${Math.max(4, Math.min(100, userData?.progression?.progress_pct ?? 0))}%` }}
-                                        ></div>
-                                    </div>
-                                    <span className="text-[8px] font-bold text-gray-400 leading-none">
-                                        Lv {(userData?.progression?.level ?? 1) + 1}'e {userData?.progression?.xp_to_next_level ?? 0} XP
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* Right Sidebar Widgets */}
-                        <div className="absolute top-full mt-6 right-0 hidden xl:flex flex-col gap-6 w-64">
-                            {/* Öğretmenden gelenler: duyurular ve devam durumu */}
-                            <AnnouncementFeed />
-                            <AttendanceCard courseId={activeCourseId} />
-
-                            {/* Daily Quest Widget */}
-                            <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all group">
-                                <div 
-                                    className="flex justify-between items-center cursor-pointer select-none"
-                                    onClick={() => setIsQuestsExpanded(!isQuestsExpanded)}
+            {/* Üst şerit: kurs seçimi · kaldığın yerden devam · kazanımlar · canlı ders · XP */}
+            <div className="w-full px-4 md:px-8 pt-4 md:pt-6 flex flex-wrap items-stretch gap-3 z-30 relative">
+                {/* Kurs seçimi */}
+                <div className="relative shrink-0" ref={courseDropdownRef}>
+                    <button
+                        type="button"
+                        className="h-full min-h-16 px-3 md:px-4 rounded-2xl border-2 border-b-4 bg-white flex items-center gap-2 hover:-translate-y-0.5 transition-transform"
+                        style={courseBoxStyle}
+                        onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                        aria-haspopup="listbox"
+                        aria-expanded={isDropdownOpen}
+                    >
+                        <CourseIcon name={currentCourse.icon} size={28} />
+                        <span className="font-black text-sm font-display max-w-[160px] truncate hidden sm:block">{currentCourse.title}</span>
+                        {Object.keys(courses).length > 1 && <ChevronDown size={16} className="opacity-60" />}
+                    </button>
+                    {isDropdownOpen && (
+                        <div role="listbox" className="absolute top-[110%] left-0 w-56 bg-white border-2 border-gray-200 rounded-2xl shadow-xl z-50 overflow-hidden">
+                            {(Object.values(courses) as CourseData[]).map((course) => (
+                                <button
+                                    type="button"
+                                    role="option"
+                                    aria-selected={activeCourseId === course.id}
+                                    key={course.id}
+                                    className={`w-full flex items-center gap-3 p-4 text-left hover:bg-gray-50 border-b last:border-0 border-gray-100 ${activeCourseId === course.id ? 'bg-gray-50' : ''}`}
+                                    onClick={() => handleCourseChange(course.id)}
                                 >
-                                    <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5">
-                                        <Target size={16} className="text-green-500" /> Günlük Görevler
-                                    </h3>
-                                    <div className="text-gray-400 hover:text-gray-600">
-                                        {isQuestsExpanded ? <ChevronDown size={16} className="transform rotate-180 transition-transform duration-200" /> : <ChevronDown size={16} className="transition-transform duration-200" />}
-                                    </div>
-                                </div>
-                                
-                                {isQuestsExpanded && (
-                                    <div className="space-y-4 mt-4 animate-in fade-in duration-200">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-lg shadow-sm shrink-0"><Zap size={18} className="text-orange-500" /></div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="font-black text-gray-700 text-xs truncate">10 Puan kazan</span>
-                                                    <span className="font-bold text-orange-500 text-[10px]">{(userData?.xp ?? 0) % 10}/10</span>
-                                                </div>
-                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-100">
-                                                    <div 
-                                                        className="h-full bg-orange-400 rounded-full shadow-sm"
-                                                        style={{ width: `${Math.min(100, (((userData?.xp ?? 0) % 10) / 10) * 100)}%` }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-9 h-9 rounded-xl bg-green-100 border border-green-200 flex items-center justify-center text-lg shadow-sm shrink-0"><Target size={18} className="text-green-600" /></div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <span className="font-black text-gray-700 text-xs truncate">Hatasız ders</span>
-                                                    <span className="font-bold text-gray-400 text-[10px]">0/1</span>
-                                                </div>
-                                                <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden border border-gray-150">
-                                                    <div className="h-full bg-green-500 w-0 rounded-full"></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-
-                            {/* Active Homeworks Widget */}
-                            {(() => {
-                                if (!currentCourse || !currentCourse.nodes) return null;
-                                // Find all unsubmitted homeworks in unlocked nodes
-                                const activeHws = currentCourse.nodes
-                                    .filter(n => !n.isLocked && n.slides)
-                                    .flatMap(n => {
-                                        const hs = n.slides?.find((s: any) => s.type === 'homework');
-                                        if (hs && !(currentCourse.progress?.submitted_homework || []).includes(String(hs.id))) {
-                                            return [{
-                                                nodeId: n.id,
-                                                lessonTitle: n.title,
-                                                slide: hs
-                                            }];
-                                        }
-                                        return [];
-                                    });
-
-                                if (activeHws.length === 0) return null;
-
-                                return (
-                                    <div className="bg-white rounded-3xl border-2 border-gray-200 border-b-4 p-4 shadow-sm hover:shadow-md transition-all animate-in slide-in-from-bottom duration-300">
-                                        <h3 className="text-gray-700 font-black text-sm font-display tracking-tight uppercase flex items-center gap-1.5 mb-3">
-                                            <FileText size={16} className="text-blue-500" /> Aktif Ödevler ({activeHws.length})
-                                        </h3>
-                                        <div className="space-y-3">
-                                            {activeHws.map((hw, idx) => (
-                                                <div 
-                                                    key={idx}
-                                                    onClick={() => setActiveHomeworkSlide(hw.slide)}
-                                                    className="p-3 bg-blue-50/50 hover:bg-blue-50 border border-blue-100 hover:border-blue-300 rounded-2xl flex flex-col gap-1 cursor-pointer transition-all hover:shadow-sm"
-                                                >
-                                                    <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest leading-none">{hw.lessonTitle}</span>
-                                                    <h5 className="font-bold text-gray-800 text-xs truncate">{hw.slide.homeworkConfig?.title || 'Ödev Görevi'}</h5>
-                                                    <span className="text-[9px] font-black text-yellow-600 flex items-center gap-1 mt-1">
-                                                        <Star size={10} className="fill-current" /> +{hw.slide.homeworkConfig?.points || 100} XP
-                                                    </span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                );
-                            })()}
+                                    <CourseIcon name={course.icon} size={22} className="text-gray-500" />
+                                    <span className={`font-black text-sm font-display truncate ${activeCourseId === course.id ? 'text-gray-900' : 'text-gray-500'}`}>{course.title}</span>
+                                    {activeCourseId === course.id && <span className="ml-auto w-2 h-2 rounded-full bg-green-500 shrink-0" />}
+                                </button>
+                            ))}
                         </div>
-                    </div>
+                    )}
                 </div>
 
-            {/* Küçük ekranda sağ sütun görünmediği için en yeni duyuru burada */}
-            <LatestAnnouncementBanner className="xl:hidden mx-4 mt-4 relative z-30" />
+                {/* Kaldığın yerden devam et */}
+                {nextNode ? (
+                    <div
+                        className="flex-1 min-w-[220px] max-w-[460px] rounded-2xl px-4 py-3 text-white flex items-center justify-between gap-3 border-b-4 border-black/10 shadow-sm"
+                        style={{ backgroundColor: nextNode.baseColor }}
+                    >
+                        <div className="min-w-0">
+                            <p className="text-[11px] font-black tracking-wider uppercase opacity-90">Kaldığın yerden devam et</p>
+                            <p className="text-base font-black font-display truncate">{nextNode.title}</p>
+                            <p className="text-xs font-bold opacity-90">{nextNode.stage || 'Modül'} · +{nextNode.xp ?? 500} XP</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => openNode(nextNode)}
+                            className="shrink-0 bg-white font-black text-sm px-4 py-2.5 rounded-xl border-b-4 border-black/10 active:border-b-0 active:translate-y-1 transition-all flex items-center gap-1"
+                            style={{ color: nextNode.baseColor }}
+                        >
+                            Devam et <ChevronRight size={16} />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="flex-1 min-w-[220px] max-w-[460px] rounded-2xl px-4 py-3 bg-emerald-50 border-2 border-emerald-100 flex items-center gap-3">
+                        <CheckCircle2 size={28} className="text-emerald-500 shrink-0" />
+                        <div className="min-w-0">
+                            <p className="text-sm font-black text-emerald-800">
+                                {currentCourse.nodes.some((n) => n.isLocked) ? 'Açık modüllerin hepsini bitirdin' : 'Kursu tamamladın!'}
+                            </p>
+                            <p className="text-xs font-bold text-emerald-700/80">
+                                {currentCourse.nodes.some((n) => n.isLocked) ? 'Öğretmenin sıradaki modülü açıp hazırlayınca burada görünecek.' : 'İstediğin modülü tekrar edebilirsin.'}
+                            </p>
+                        </div>
+                    </div>
+                )}
+
+                <button
+                    type="button"
+                    onClick={() => setShowConcepts(true)}
+                    className="shrink-0 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl flex flex-col items-center justify-center gap-0.5 hover:-translate-y-0.5 hover:border-indigo-300 transition-all min-h-16"
+                    title="Neyi öğrendin, neye çalışmalısın?"
+                >
+                    <Brain size={22} className="text-indigo-500" />
+                    <span className="text-[11px] font-black uppercase tracking-wide text-gray-600">Kazanımlarım</span>
+                </button>
+
+                {isClassActive && (
+                    <button
+                        type="button"
+                        onClick={handleJoinLiveClass}
+                        className="shrink-0 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black px-5 rounded-2xl flex items-center gap-3 shadow-lg shadow-emerald-100 min-h-16 border-b-4 border-emerald-700 active:border-b-0 active:translate-y-[2px] transition-all hover:scale-105"
+                    >
+                        <span className="flex h-3 w-3 relative">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-white"></span>
+                        </span>
+                        <span className="flex flex-col text-left">
+                            <span className="text-[11px] font-black text-emerald-100 uppercase tracking-wider leading-none mb-1">Ders başladı</span>
+                            <span className="text-sm font-black leading-none">DERSE KATIL</span>
+                        </span>
+                    </button>
+                )}
+
+                {currentCourse.instructor && (
+                    <div className="hidden 2xl:flex min-h-16 px-4 bg-white border-2 border-gray-200 border-b-4 rounded-2xl items-center gap-3 shrink-0 max-w-[220px]">
+                        <span className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0"><UserRound size={20} className="text-indigo-500" /></span>
+                        <span className="min-w-0">
+                            <span className="block text-[11px] font-black text-gray-400 uppercase tracking-wider">Öğretmenin</span>
+                            <span className="block text-sm font-black text-gray-800 truncate">{currentCourse.instructor.name}</span>
+                        </span>
+                    </div>
+                )}
+
+                {/* XP ve seviye (sunucudaki ilerlemeden) */}
+                <div className="flex-1 min-w-[190px] sm:flex-none sm:w-72 sm:ml-auto bg-white border-2 border-gray-200 border-b-4 rounded-2xl min-h-16 px-4 py-2 flex items-center gap-3 shrink-0">
+                    <span className="w-10 h-10 rounded-xl bg-amber-50 text-amber-500 flex items-center justify-center shrink-0"><Trophy size={20} /></span>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-base font-black text-gray-800 font-display whitespace-nowrap">{(userData?.xp ?? 0).toLocaleString('tr-TR')} XP</span>
+                            <span className="flex items-center gap-1 text-[11px] font-black text-gray-500 whitespace-nowrap">
+                                <LeagueIcon icon={userData?.progression?.league?.icon} color={userData?.progression?.league?.color} size={12} />
+                                {userData?.progression?.league?.name ?? 'Bronz'} · Sv {userData?.progression?.level ?? 1}
+                            </span>
+                        </div>
+                        <div className="mt-1 w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                            <div className="h-full bg-gradient-to-r from-amber-400 to-orange-500 rounded-full" style={{ width: `${Math.max(4, Math.min(100, userData?.progression?.progress_pct ?? 0))}%` }} />
+                        </div>
+                        <span className="text-[11px] font-bold text-gray-400">Sonraki seviyeye {userData?.progression?.xp_to_next_level ?? 0} XP</span>
+                    </div>
+                </div>
+            </div>
+
+            <LatestAnnouncementBanner className="xl:hidden mx-4 mt-3 relative z-30" />
 
             {celebration && (
                 <div role="status" aria-live="polite"
@@ -753,8 +571,9 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
             )}
 
-            {/* Middle Section: Horizontal Path */}
-            <div className="w-full flex-1 flex items-center justify-center relative z-20">
+            <div className="flex-1 md:min-h-0 flex relative">
+            {/* Masaüstü: soldan sağa akan yol */}
+            <div className="hidden md:flex flex-1 min-w-0 items-center justify-center relative z-20">
                 <style>{`
                     .no-scrollbar::-webkit-scrollbar {
                         display: none;
@@ -852,7 +671,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             {node.title || "Ders Başlığı"}
                                                         </h3>
                                                         <span className="text-white/90 font-bold text-xs uppercase tracking-widest mb-4">
-                                                            DERS: {index + 1}/9
+                                                            {node.stage || 'Modül'} · {isDone(node) ? 'tamamlandı' : `+${node.xp ?? 500} XP`}
                                                         </span>
 
                                                         {node.type === 'homework' ? (
@@ -903,13 +722,16 @@ const HomePage: React.FC<HomePageProps> = ({
                                                             /* ── NORMAL DÜĞÜMLERİN BAŞLAT BUTONU ── */
                                                             <>
                                                                 <button
-                                                                    className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                                    className="w-full bg-white hover:bg-gray-50 text-center py-3.5 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                                                                    disabled={lessonSlidesOf(node).length === 0}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleOpenLesson(node.id);
                                                                     }}
                                                                 >
-                                                                    <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>BAŞLAT +10 PUAN</span>
+                                                                    <span className="font-black text-sm md:text-base uppercase tracking-wider" style={{ color: node.baseColor }}>
+                                                                        {moduleActionLabel(lessonSlidesOf(node).length, isDone(node), node.xp ?? 500)}
+                                                                    </span>
                                                                 </button>
 
                                                                 {/* Bu düğümde ayrıca homework slide varsa alt buton */}
@@ -1054,6 +876,38 @@ const HomePage: React.FC<HomePageProps> = ({
                         })()}
                     </div>
                 </div>
+            </div>
+
+            {/* Telefon: VS Code panelindeki gibi yukarıdan aşağı akan yol */}
+            <div className="md:hidden flex-1 min-w-0 pt-4">
+                <GamifiedRoadmapPath
+                    key={activeCourseId}
+                    courseTitle={currentCourse.title}
+                    modules={roadmapModules}
+                    activeKey={nextNode ? String(nextNode.id) : null}
+                    onSelectModule={(mod) => {
+                        const node = currentCourse.nodes.find((n) => String(n.id) === mod.key);
+                        if (node) openNode(node);
+                    }}
+                />
+                <div className="px-4 pb-8 -mt-16 space-y-4 relative z-10">
+                    <DailyQuests data={activity} />
+                    {homeworkWidget}
+                    <AttendanceCard courseId={activeCourseId} />
+                </div>
+            </div>
+
+            {/* Geniş ekranda sağ sütun: akışta, yolun üstüne binmez */}
+            <aside className="hidden xl:flex flex-col gap-5 w-72 shrink-0 overflow-y-auto no-scrollbar px-5 pb-6 pt-4 relative z-30">
+                <DailyQuests data={activity} />
+                {homeworkWidget}
+                <AnnouncementFeed />
+                <AttendanceCard courseId={activeCourseId} />
+                <div className="relative mt-auto self-center pointer-events-none select-none" aria-hidden="true">
+                    <span className="absolute top-2 right-6 text-2xl font-black text-sky-400 animate-zzz font-display">Z</span>
+                    <img src={MufiSleep} alt="" className="w-40 animate-breathe" />
+                </div>
+            </aside>
             </div>
 
 

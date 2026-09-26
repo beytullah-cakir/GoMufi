@@ -4,6 +4,7 @@
 Öğrenci:
   GET  /progress/courses/{id}              bitirdiği modüller, açık modül sınırı, teslim ettiği ödevler
   POST /progress/courses/{id}/complete     {node_id, stars?, via?}  modülü bitir (XP bir kez verilir)
+  GET  /progress/activity                  günlük seri ve günlük görevler
 
 Öğretmen:
   GET  /courses/{id}/classroom-settings    liderlik tablosu açık mı, şube başına açık modül sınırı
@@ -30,7 +31,7 @@ from sqlalchemy.orm.attributes import flag_modified
 import learning_store
 from auth.dependencies import get_current_teacher_id, get_current_user_info
 from connect_db import get_db
-from core import classroom, meb
+from core import classroom, meb, streak
 from models.course import Course
 from models.enrollment import Enrollment
 from models.homework_submission import HomeworkSubmission
@@ -73,6 +74,13 @@ def _module_xp(node: Dict[str, Any]) -> int:
     except (TypeError, ValueError):
         xp = DEFAULT_MODULE_XP
     return max(0, min(MAX_MODULE_XP, xp))
+
+
+def _has_content(course: Course, node_id: str) -> bool:
+    for note in course.notes or []:
+        if isinstance(note, dict) and str(note.get("id")) == node_id:
+            return bool(note.get("slides"))
+    return False
 
 
 async def _enrolled_course(db: AsyncSession, course_id: int, user_info: dict) -> Course:
@@ -178,6 +186,10 @@ async def complete_module(
     live = body.via == "live" and await _is_live(db, course_id)
     if not live and index > _open_index(state):
         raise HTTPException(status_code=409, detail="Bu modül henüz açılmadı.")
+    # İçeriği olmayan modül kendi başına bitirilemez (eskiden boş pencere açılıp
+    # "bitir"e basınca XP veriliyordu). Canlı derste öğretmen işlediyse sayılır.
+    if not live and not _has_content(course, body.node_id):
+        raise HTTPException(status_code=409, detail="Bu modülde henüz içerik yok.")
 
     existing = (await db.execute(
         select(ModuleProgress).where(ModuleProgress.course_id == course_id, ModuleProgress.student_id == student_id,
@@ -197,11 +209,21 @@ async def complete_module(
         ctx = await learning_store.course_context(db, course_id)
         if ctx and body.node_id in ctx.nodes:
             await learning_store.record_event(db, ctx, student_id, {"type": "module_completed", "node_id": body.node_id})
+    # Tekrar da sayılır: seri "bugün çalıştın mı" sorusudur, yeni XP şart değil.
+    await streak.record(db, student_id, modules=1, perfect=1 if body.stars >= 3 else 0, xp=xp_awarded)
     await db.commit()
 
     state = await _state(db, course, student_id)
     xp = (await db.execute(select(Student.xp).where(Student.id == student_id))).scalar() or 0
     return {**state, "open_until": _open_index(state), "xp_awarded": xp_awarded, "xp": xp}
+
+
+@router.get("/progress/activity")
+async def my_activity(user_info: dict = Depends(get_current_user_info), db: AsyncSession = Depends(get_db)):
+    """Günlük seri, son 7 gün ve bugünün görevleri (bkz. core/streak.py)."""
+    if user_info.get("role") != "student":
+        raise HTTPException(status_code=403, detail="Seri öğrenci hesaplarında tutulur.")
+    return await streak.summary(db, int(user_info["sub"]))
 
 
 # --- öğretmen: sınıf yönetimi ayarları ---------------------------------------------

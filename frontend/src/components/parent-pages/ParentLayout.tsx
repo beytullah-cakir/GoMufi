@@ -22,9 +22,9 @@ const ParentLayout: React.FC<ParentLayoutProps> = ({
     const initials = (firstname.charAt(0) + lastname.charAt(0)).toUpperCase();
 
     return (
-        <div className="flex h-screen bg-gray-50 font-sans text-gray-900">
+        <div className="flex flex-col md:flex-row h-[100dvh] bg-gray-50 font-sans text-gray-900">
             <ParentSidebar activePage={activePage} onNavigate={onNavigate} userData={userData} />
-            <div className="flex-1 overflow-auto relative">
+            <div className="flex-1 min-h-0 overflow-auto relative">
                 {/* Top Bar */}
                 <div className="sticky top-0 z-30 bg-white/80 backdrop-blur-md border-b border-gray-200 px-8 py-4 flex justify-between items-center">
                     <div className="flex items-center gap-8 flex-1">
