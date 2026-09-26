@@ -43,7 +43,7 @@ const CourseCopyModal: React.FC<{
         try {
             if (mode === 'course') {
                 const res = await api.post(`/courses/${source.id}/duplicate`, { title });
-                setResult(`“${res.data.title}” oluşturuldu. Yeni katılım kodu: ${res.data.enrollment_code}`);
+                setResult(`“${res.data.title}” oluşturuldu. Yeni sınıf kodu: ${res.data.classes?.[0]?.code ?? '—'}`);
             } else {
                 const res = await api.post(`/courses/${source.id}/copy-modules`, { target_course_id: targetId, node_ids: selected });
                 const target = courses.find((c) => c.id === targetId);

@@ -45,6 +45,7 @@ interface Course {
   instructor?: string;
   enrollment_code?: string;
   meeting_url?: string | null;
+  classes?: Array<{ id: string; name?: string; code?: string }>;
 }
 
 interface InstructorCoursesProps {
@@ -68,13 +69,13 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   const [courses, setCourses] = useState<Course[]>([]);
   const [liveSessionCourseIds, setLiveSessionCourseIds] = useState<Set<number>>(new Set());
   const [startingSessionId, setStartingSessionId] = useState<number | null>(null);
-  const [copiedCodeId, setCopiedCodeId] = useState<number | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const navigate = useNavigate();
 
-  const handleCopyCode = (courseId: number, code: string) => {
+  const handleCopyCode = (code: string) => {
     navigator.clipboard.writeText(code);
-    setCopiedCodeId(courseId);
-    setTimeout(() => setCopiedCodeId((prev) => (prev === courseId ? null : prev)), 1500);
+    setCopiedCode(code);
+    setTimeout(() => setCopiedCode((prev) => (prev === code ? null : prev)), 1500);
   };
 
   useEffect(() => {
@@ -109,6 +110,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
           curriculum: finalCurriculum,
           enrollment_code: c.enrollment_code,
           meeting_url: c.meeting_url || null,
+          classes: c.classes || [],
           color:
             c.category === "coding"
               ? "blue"
@@ -457,23 +459,25 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                       <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-xl">
                         Son güncelleme: {course.lastUpdated}
                       </span>
-                      {course.enrollment_code && (
+                      {/* Öğrenci her zaman bir şubeye katılır: her şubenin kendi kodu var */}
+                      {(course.classes || []).filter((cls) => cls.code).map((cls) => (
                         <button
+                          key={cls.id}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCopyCode(course.id, course.enrollment_code!);
+                            handleCopyCode(cls.code!);
                           }}
                           className="flex items-center gap-1.5 px-3 py-1 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest border-2 border-b-2 border-indigo-200 hover:bg-indigo-100 transition-colors cursor-pointer"
-                          title="Katılım kodunu kopyala"
+                          title={`${cls.name || 'Şube'} katılım kodunu kopyala`}
                         >
-                          {copiedCodeId === course.id ? (
+                          {copiedCode === cls.code ? (
                             <Check size={12} strokeWidth={3} />
                           ) : (
                             <Copy size={12} strokeWidth={3} />
                           )}
-                          KOD: {course.enrollment_code}
+                          {cls.name || 'Şube'}: {cls.code}
                         </button>
-                      )}
+                      ))}
                       {course.isLive &&
                         course.liveSessions &&
                         course.liveSessions.length > 0 && (

@@ -24,6 +24,7 @@ from core.config import settings
 import homework_rules
 import learning_store
 from models.teaching import HomeworkSubmissionVersion
+from core import classroom
 
 router = APIRouter()
 
@@ -226,32 +227,8 @@ async def enroll_by_code(
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
-    if user_info["role"] not in ["student", "admin"]:
-        raise HTTPException(status_code=403, detail="Sadece öğrenciler bir derse katılabilir.")
-
-    code = payload.code.strip().upper()
-    if not code:
-        raise HTTPException(status_code=400, detail="Kod boş olamaz.")
-
-    result = await db.execute(select(Course).where(Course.enrollment_code == code))
-    course = result.scalar_one_or_none()
-    if not course:
-        raise HTTPException(status_code=404, detail="Geçersiz kod. Lütfen eğitmeninizden doğru kodu alın.")
-
-    student_id = int(user_info["sub"])
-    existing = await db.execute(
-        select(Enrollment).where(
-            Enrollment.student_id == student_id,
-            Enrollment.course_id == course.id
-        )
-    )
-    if existing.scalars().first():
-        return {"message": "Zaten bu kursa kayıtlısınız.", "course_id": course.id, "course_title": course.title}
-
-    enrollment = Enrollment(student_id=student_id, course_id=course.id)
-    db.add(enrollment)
-    await db.commit()
-    return {"message": "Kursa başarıyla katıldınız!", "course_id": course.id, "course_title": course.title}
+    """Eski adres: /class/join ile aynı — öğrenci her zaman bir şubeye katılır."""
+    return await _join_with_code(db, user_info, payload.code)
 
 @router.get("/courses/{course_id}", response_model=CourseResponse)
 async def read_course(
@@ -330,6 +307,10 @@ async def read_my_courses(
         course.students_count = len(course.enrollments)
         if not course.enrollment_code:
             course.enrollment_code = await generate_enrollment_code(db)
+            updated = True
+        # Eski kurslar: şubesi yoksa "Genel" şubesi, kodsuz/çakışan şubeye tekil kod,
+        # tek şubeli kursta şubesiz kalmış öğrenciler şubeye.
+        if await classroom.ensure_classes(db, course, [e.student_id for e in course.enrollments]):
             updated = True
             
     if updated:
@@ -451,6 +432,8 @@ async def create_course(
             classes=course_data.classes if course_data.classes is not None else [],
             start_date=course_data.start_date
         )
+        # Her kursun en az bir şubesi ve tekil şube kodları olur (katılım şube koduyla).
+        await classroom.ensure_classes(db, new_course)
         db.add(new_course)
         await db.commit()
         # teacher ilişkisini eager-load ile tekrar çek — aksi halde response_model
@@ -517,6 +500,10 @@ async def update_course(
         if course_data.classes is not None:
             course.classes = course_data.classes
             flag_modified(course, "classes")
+            enrolled_ids = [sid for sid, in (await db.execute(
+                select(Enrollment.student_id).where(Enrollment.course_id == course.id)
+            )).all()]
+            await classroom.ensure_classes(db, course, enrolled_ids)
             
         if course_data.start_date is not None:
             course.start_date = course_data.start_date
@@ -1243,6 +1230,7 @@ async def duplicate_course(
         enrollment_code=await generate_enrollment_code(db),
         classes=[], start_date=None,
     )
+    await classroom.ensure_classes(db, new)          # yeni kurs "Genel" şubesi ve yeni kodla başlar
     db.add(new)
     await db.flush()
     for content in (await db.execute(
@@ -1347,76 +1335,36 @@ async def join_class(
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db)
 ):
+    return await _join_with_code(db, user_info, payload.code)
+
+
+async def _join_with_code(db: AsyncSession, user_info: dict, code: str):
+    """Tek katılım yolu: kod → şube. Öğrenci kursa kaydolur ve o şubeye girer
+    (başka şubedeyse oradan çıkar). Eski kurs kodu tek şubeli kursta çalışır."""
+    if user_info["role"] not in ["student", "admin"]:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler sınıfa katılabilir.")
     student_id = int(user_info["sub"])
-    role = user_info["role"]
-    if role not in ["student", "admin"]:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Sadece öğrenciler veya yöneticiler sınıfa katılabilir.")
-        
-    code_upper = payload.code.strip().upper()
-    if not code_upper:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Geçersiz katılım kodu.")
-        
-    # Tüm kursları ve sınıflarını çek
-    stmt = select(Course)
-    result = await db.execute(stmt)
-    courses = result.scalars().all()
-    
-    target_course = None
-    target_class = None
-    
-    for course in courses:
-        classes_list = course.classes or []
-        for cls in classes_list:
-            if cls.get("code", "").strip().upper() == code_upper:
-                target_course = course
-                target_class = cls
-                break
-        if target_course:
-            break
-            
-    if not target_course or not target_class:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Sınıf bulunamadı. Lütfen kodu kontrol edin.")
-        
-    # Öğrenciyi kursa kaydet (eğer kayıtlı değilse)
-    enrollment_stmt = select(Enrollment).where(
-        Enrollment.student_id == student_id,
-        Enrollment.course_id == target_course.id
-    )
-    enrollment_result = await db.execute(enrollment_stmt)
-    enrollment = enrollment_result.scalar_one_or_none()
-    
-    if not enrollment:
-        enrollment = Enrollment(student_id=student_id, course_id=target_course.id)
-        db.add(enrollment)
-        
-    # Öğrenciyi sınıfın student_ids listesine ekle
-    student_ids = target_class.get("student_ids") or []
-    student_id_str = str(student_id)
-    if not any(str(sid) == student_id_str for sid in student_ids):
-        student_ids.append(student_id)
-        target_class["student_ids"] = student_ids
-        
-        # Diğer sınıflardan bu öğrenciyi çıkar (Öğrenci sadece bir sınıfta olabilir)
-        for cls in target_course.classes:
-            if cls["id"] != target_class["id"]:
-                other_ids = cls.get("student_ids") or []
-                if any(str(sid) == student_id_str for sid in other_ids):
-                    cls["student_ids"] = [sid for sid in other_ids if str(sid) != student_id_str]
-                    
-        flag_modified(target_course, "classes")
-        
-    try:
-        await db.commit()
-        await db.refresh(target_course)
-        return {
-            "success": True, 
-            "message": f"'{target_class.get('name')}' sınıfına başarıyla katıldınız.",
-            "course_title": target_course.title,
-            "class_name": target_class.get("name")
-        }
-    except Exception as e:
-        await db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Sınıfa katılırken bir hata oluştu: {str(e)}")
+    course, target_class, error = await classroom.find_by_code(db, code)
+    if error:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=error)
+
+    enrolled = (await db.execute(
+        select(Enrollment).where(Enrollment.student_id == student_id, Enrollment.course_id == course.id)
+    )).scalar_one_or_none()
+    if not enrolled:
+        db.add(Enrollment(student_id=student_id, course_id=course.id))
+    already = student_id in classroom.class_student_ids(target_class)
+    classroom.place_student(course, target_class, student_id)
+    await db.commit()
+    learning_store._CONTEXT_CACHE.pop(course.id, None)
+    name = target_class.get("name") or "Şube"
+    return {
+        "success": True,
+        "message": f"Zaten '{name}' sınıfındasın." if enrolled and already else f"'{name}' sınıfına katıldın!",
+        "course_id": course.id,
+        "course_title": course.title,
+        "class_name": name,
+    }
 
 
 @router.get("/student/my-class/{course_id}")
