@@ -14,6 +14,7 @@ import QuestionIcon from '../../assets/sprites/Question.png';
 import BagIcon from '../../assets/sprites/Bag.png';
 import GrassIcon from '../../assets/sprites/grass.png';
 import MufiWave from '../../assets/sprites/mufi/wave.webp';
+import { ChestMarker, type Chest } from './rewards';
 
 /**
  * VS Code panelindeki oyunlaştırılmış yol haritası.
@@ -59,6 +60,9 @@ interface GamifiedRoadmapPathProps {
     amplitude?: number;
     /** Sıradaki modülün yanında Mufi dursun ("Sıradaki!"). */
     showGuide?: boolean;
+    /** Modül anahtarı → o modülden SONRA duran ödül sandığı. */
+    chests?: Record<string, Chest>;
+    onChestClick?: (chest: Chest) => void;
 }
 
 // StudentApp.tsx'teki `getNodeMetadata` ile aynı tablo. Orada anahtar tema adı
@@ -98,6 +102,8 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     isDark = false,
     amplitude = 1,
     showGuide = false,
+    chests,
+    onChestClick,
 }) => {
     // Balon kapalı başlar: artık yolun üstünde süzüldüğü için açık gelirse sıradaki düğümleri örterdi.
     const [selectedKey, setSelectedKey] = useState<string | null>(null);
@@ -201,6 +207,8 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                 style={{ transform: `translateX(${off}px)` }}
                             >
                                 <div
+                                    data-tour={activeKey === mod.key ? 'next-module' : undefined}
+                                    data-tour-top={64}
                                     className={`relative z-10 group w-36 transform hover:scale-105 transition-transform duration-200 ${
                                         isLocked ? 'grayscale opacity-75 pointer-events-none' : 'cursor-pointer'
                                     }`}
@@ -332,6 +340,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                 kaldı; yolun onu atlaması gerekmiyor, boşuna 96px boşluk
                                 bırakmasın diye `tail` sıfırlanıyor. */}
                             {idx < modules.length - 1 && (
+                                <div className="relative w-full">
                                 <Connector
                                     from={off}
                                     // Sıradaki modül bir ders ayıracıyla başlıyorsa yol
@@ -341,6 +350,19 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                     tail={NODE_TAIL}
                                     color={meta.baseColor}
                                 />
+                                {/* Ödül sandığı: yolun ortasında, yolun kıvrıldığı tarafın tersinde */}
+                                {chests?.[mod.key] && (
+                                    <div className="absolute z-20 -translate-x-1/2"
+                                         style={{ top: NODE_TAIL + PATH_H / 2 - 36, left: `calc(50% + ${off > 0 ? -Math.round(96 * amplitude) : Math.round(96 * amplitude)}px)` }}>
+                                        <ChestMarker chest={chests[mod.key]} onClick={() => onChestClick?.(chests[mod.key])} />
+                                    </div>
+                                )}
+                                </div>
+                            )}
+                            {idx === modules.length - 1 && chests?.[mod.key] && (
+                                <div className="relative w-full flex justify-center" style={{ paddingTop: NODE_TAIL + 24 }}>
+                                    <ChestMarker chest={chests[mod.key]} onClick={() => onChestClick?.(chests[mod.key])} />
+                                </div>
                             )}
                         </React.Fragment>
                     );

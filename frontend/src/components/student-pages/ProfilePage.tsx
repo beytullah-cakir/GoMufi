@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import api from "../../api";
 import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import Leaderboard from "./Leaderboard";
-import { Trophy, BookOpen, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, CheckCircle, Flame, KeyRound } from 'lucide-react';
+import { Trophy, BookOpen, Cloud, Star, Code, Zap, Heart, Music, Circle, Triangle, Hexagon, Sparkles, CheckCircle, Flame, KeyRound, Medal } from 'lucide-react';
 import { Card, CardTitle, ChunkyButton, DOTS_STYLE, IconTile, Mufi, MufiEmpty } from './ui';
 // Import the new character avatar
 import CharacterBody from "../../assets/sprites/CharacterProfile2.png";
@@ -10,6 +10,8 @@ import CharacterEyes from "../../assets/sprites/eyes.png";
 import CourseIcon from '../shared/CourseIcon';
 import { LeagueIcon } from '../shared/LeagueBadge';
 import { useActivity } from './DailyQuests';
+import { BadgeGrid, useBadges } from './rewards';
+import { restartTour } from './OnboardingTour';
 
 interface ProfilePageProps {
   userData?: any;
@@ -27,6 +29,13 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
   const [isBlinking, setIsBlinking] = useState(false);
   const [eyePosition, setEyePosition] = useState({ x: 0, y: 0 });
   const [profileData, setProfileData] = useState<any>(null);
+  const badges = useBadges(propUserData?.xp);
+  // Rozet kutlamasındaki "Rozetlerim" bağlantısı buraya iner.
+  React.useEffect(() => {
+    if (badges && window.location.hash === '#rozetler') {
+      document.getElementById('rozetler')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [badges]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Sync state with props
@@ -295,6 +304,20 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
               )}
             </Card>
 
+            <Card className="p-5 md:p-6" id="rozetler">
+              <CardTitle icon={Medal} tone="amber"
+                hint={badges ? `${badges.filter((b) => b.earned).length}/${badges.length} rozet kazandın` : undefined}>
+                Rozetlerim
+              </CardTitle>
+              {badges === null ? (
+                <div className="h-32 rounded-2xl bg-slate-50 animate-pulse" />
+              ) : badges.length === 0 ? (
+                <MufiEmpty compact pose="peek" title="Rozetler yüklenemedi" />
+              ) : (
+                <BadgeGrid badges={badges} />
+              )}
+            </Card>
+
             <Leaderboard />
           </div>
 
@@ -325,7 +348,16 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         </div>
       </div>
-      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 pb-10"><AccountPrivacyCard /></div>
+      <div className="max-w-5xl mx-auto px-4 md:px-6 pt-6 pb-10 space-y-4">
+        <Card as="div" className="p-4 flex items-center gap-3">
+          <Mufi pose="peek" className="w-12 shrink-0" />
+          <p className="flex-1 text-sm font-bold text-slate-500">Ana sayfanın nasıl çalıştığını unuttun mu? Mufi tekrar gezdirsin.</p>
+          <ChunkyButton variant="white" size="sm" onClick={() => { restartTour(profileData?.user_id); window.location.href = '/student/home'; }}>
+            Turu tekrar izle
+          </ChunkyButton>
+        </Card>
+        <AccountPrivacyCard />
+      </div>
     </div>
   );
 };

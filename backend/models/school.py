@@ -118,3 +118,20 @@ class StudentActivityDay(Base):
     perfect = Column(Integer, default=0, nullable=False)
     xp = Column(Integer, default=0, nullable=False)
     homework = Column(Integer, default=0, nullable=False)
+
+
+class RewardClaim(Base):
+    """Bir kez alınabilen ödüller: harita sandığı, günlük tekrar XP'si.
+
+    Anahtar ödülün kimliği ("chest:<kurs>:<sıra>", "review:<kurs>:<gün>");
+    tekillik kısıtı aynı ödülün iki kez alınmasını veritabanı düzeyinde engeller.
+    """
+    __tablename__ = "reward_claims"
+
+    id = Column(Integer, primary_key=True)
+    student_id = Column(Integer, ForeignKey("students.id", ondelete="CASCADE"), nullable=False)
+    key = Column(String(120), nullable=False)
+    xp = Column(Integer, default=0, nullable=False)
+    claimed_at = Column(DateTime, server_default=func.now(), nullable=False)
+
+    __table_args__ = (UniqueConstraint("student_id", "key", name="uq_reward_once"),)

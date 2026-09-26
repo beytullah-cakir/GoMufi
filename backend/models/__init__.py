@@ -15,6 +15,6 @@ from .teaching import (
     HelpRequest, TeacherNudge, TeacherAction, TeacherNote, ProvenanceReview,
     HomeworkSubmissionVersion, RubricTemplate, CourseSettings, ParentReport, RecordingConsent,
 )
-from .school import PasswordResetToken, AttendanceRecord, Announcement, NotificationLog, ModuleProgress, StudentActivityDay
+from .school import PasswordResetToken, AttendanceRecord, Announcement, NotificationLog, ModuleProgress, StudentActivityDay, RewardClaim
 from .platform import StoredFile, SlideTemplate, LoginAttempt, AccountSuspension, AdminAction
 from .organization import Organization, OrganizationMember, OrganizationInvite, Subscription

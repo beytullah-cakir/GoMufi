@@ -104,7 +104,7 @@ const HomeHero: React.FC<Props> = ({
                             </div>
                         )}
                     </div>
-                    <div className="ml-auto flex items-center gap-2">{tools}</div>
+                    <div className="ml-auto flex items-center gap-2" data-tour="tools">{tools}</div>
                 </div>
 
                 {/* Mufi ve konuşma balonu */}
@@ -152,7 +152,7 @@ const HomeHero: React.FC<Props> = ({
                                 <Radio size={20} className="animate-pulse" /> Canlı derse katıl
                             </ChunkyButton>
                         ) : nextNode ? (
-                            <button type="button" onClick={onContinue}
+                            <button type="button" onClick={onContinue} data-tour="continue"
                                     className="w-full lg:w-auto flex items-center gap-3 bg-white text-violet-700 rounded-2xl pl-3 pr-5 py-2.5 border-b-4 border-violet-200 active:border-b-0 active:translate-y-1 transition-all duration-75 text-left">
                                 <span className="w-10 h-10 rounded-xl bg-violet-500 text-white flex items-center justify-center shrink-0 border-b-4 border-violet-700"><Play size={18} className="fill-current ml-0.5" /></span>
                                 <span className="min-w-0">

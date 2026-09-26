@@ -1,5 +1,9 @@
 """
-Otomatik e-postalar — uygulama açıkken saatte bir çalışır (bkz. main_fastapi.lifespan).
+Otomatik e-postalar — uygulama açıkken çalışır (bkz. main_fastapi.lifespan).
+
+  Canlı ders:      dersin başlamasına 10 dakika kala şubedeki öğrencilere bir kez
+                   e-posta (dakikada bir bakılır; zil bildirimi istemcide, bkz.
+                   /student/upcoming-live).
 
   Ödev hatırlatma: son teslim tarihine 24 saatten az kalan ve henüz teslim
                    etmemiş öğrenciye bir kez e-posta.
@@ -32,6 +36,8 @@ from models.teacher import Teacher
 logger = logging.getLogger(__name__)
 
 REMIND_BEFORE = timedelta(hours=24)
+LIVE_REMIND_BEFORE = timedelta(minutes=10)
+LIVE_INTERVAL_SECONDS = 60
 DIGEST_EVERY = timedelta(hours=24)
 INTERVAL_SECONDS = 3600
 
@@ -136,6 +142,47 @@ async def submission_digests(db: AsyncSession, now: datetime) -> int:
     return sent
 
 
+async def live_reminders(db: AsyncSession, now: datetime) -> int:
+    """Başlamasına en fazla 10 dakika kalan (henüz başlamamış) canlı dersler için e-posta."""
+    from core import live_schedule
+
+    sent = 0
+    link = f"{settings.FRONTEND_URL.rstrip('/')}/student/my-courses"
+    for course in (await db.execute(select(Course))).scalars().all():
+        due = []
+        for entry in live_schedule.class_schedules(course):
+            for slot in entry["slots"]:
+                start = live_schedule.next_start(slot, now)
+                if start and now < start <= now + LIVE_REMIND_BEFORE:
+                    due.append((entry, start))
+        if not due:
+            continue
+        students = (await db.execute(
+            select(Student).join(Enrollment, Enrollment.student_id == Student.id).where(Enrollment.course_id == course.id)
+        )).scalars().all()
+        for entry, start in due:
+            for student in students:
+                if entry["student_ids"] is not None and student.id not in entry["student_ids"] and len(course.classes or []) > 1:
+                    continue
+                if not student.email:
+                    continue
+                if not await _claim(db, "live_soon", f"{course.id}:{entry['class_id']}:{start.isoformat()}:{student.id}"):
+                    continue
+                await db.commit()
+                name = (student.first_name or "").strip() or "Merhaba"
+                minutes = max(1, int((start - now).total_seconds() // 60))
+                subject = f"{course.title}: canlı ders {minutes} dakika sonra"
+                text, html_body = mailer.render(
+                    subject,
+                    [f"{name}, {course.title} canlı dersin {_fmt_due(start)} saatinde başlıyor.",
+                     "Bilgisayarını hazırla, VS Code'u aç ve derse zamanında katıl!"],
+                    ("Derse git", link),
+                )
+                if await mailer.send_email(student.email, subject, text, html_body):
+                    sent += 1
+    return sent
+
+
 async def run_once(db: AsyncSession, now: datetime | None = None) -> Dict[str, int]:
     now = now or datetime.utcnow()
     return {"homework_due": await homework_reminders(db, now), "submission_digest": await submission_digests(db, now)}
@@ -145,12 +192,17 @@ async def loop() -> None:
     from connect_db import SessionLocal
 
     await asyncio.sleep(60)
+    last_hourly = None
+    loop_ = asyncio.get_running_loop()
     while True:
         try:
             async with SessionLocal() as db:
-                result = await run_once(db)
+                result = {"live_soon": await live_reminders(db, datetime.utcnow())}
+                if last_hourly is None or loop_.time() - last_hourly >= INTERVAL_SECONDS:
+                    result.update(await run_once(db))
+                    last_hourly = loop_.time()
             if any(result.values()):
                 logger.info("Otomatik e-postalar gönderildi: %s", result)
         except Exception as exc:  # noqa: BLE001
             logger.warning("Otomatik e-posta turu başarısız: %s", exc)
-        await asyncio.sleep(INTERVAL_SECONDS)
+        await asyncio.sleep(LIVE_INTERVAL_SECONDS)
