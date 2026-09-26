@@ -73,6 +73,8 @@ const ScallopDivider: React.FC<{ className?: string; flip?: boolean }> = ({ clas
 
 const LandingPage: React.FC = () => {
     const navigate = useNavigate();
+    // Google girişi askıya alınmış bir hesaba denk geldiyse sunucu buraya ?error=hesap-askida ile döner.
+    const [suspended, setSuspended] = useState(() => new URLSearchParams(window.location.search).get('error') === 'hesap-askida');
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [joinCode, setJoinCode] = useState('');
     const [activePreviewTab, setActivePreviewTab] = useState<'roadmap' | 'editor' | 'live' | 'student'>('roadmap');
@@ -368,6 +370,12 @@ const LandingPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-700 selection:bg-purple-200">
+            {suspended && (
+                <div role="alert" className="fixed top-4 left-1/2 -translate-x-1/2 z-[500] max-w-md w-[calc(100%-2rem)] bg-rose-50 border-2 border-rose-200 text-rose-800 rounded-2xl px-4 py-3 text-sm font-bold shadow-lg flex items-start gap-3">
+                    <span className="flex-1">Hesabın askıya alındı. Okulunla ya da GoMufi destek ile iletişime geç.</span>
+                    <button onClick={() => setSuspended(false)} aria-label="Kapat" className="font-black">×</button>
+                </div>
+            )}
             <style>{`
                 .font-display { font-family: "Fredoka", "Nunito", ui-rounded, system-ui, sans-serif; }
 

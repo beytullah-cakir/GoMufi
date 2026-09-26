@@ -11,7 +11,7 @@ Masaüstü istemcinin çerez kavramı yok; token'ı gövdede alıp işletim sist
 `get_current_user_info` zaten `Authorization: Bearer` başlığını kabul ettiği için
 (bkz. auth/dependencies.py) diğer tüm uçlar bu token'la olduğu gibi çalışır.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 import redis.asyncio as redis
 from sqlalchemy import func
@@ -22,6 +22,7 @@ from auth.auth_request import LoginRequest
 from auth.dependencies import get_current_user_info
 from connect_db import get_db
 from core.config import settings
+from core import login_guard
 from core.security import create_access_token, is_admin_credentials, verify_password
 from models.student import Student
 from models.teacher import Teacher
@@ -39,15 +40,18 @@ class DeviceTokenResponse(BaseModel):
 
 
 @router.post("/auth/device-token", response_model=DeviceTokenResponse)
-async def issue_device_token(data: LoginRequest, db: AsyncSession = Depends(get_db)):
+async def issue_device_token(data: LoginRequest, request: Request, db: AsyncSession = Depends(get_db)):
     """E-posta + parola karşılığında Bearer token verir (çerez bırakmaz).
 
     Rolü istemci seçmez, sunucu bulur: eklenti kullanıcısı sadece e-posta ve
     parolasını girer, öğrenci mi öğretmen mi olduğunu bilmesi gerekmez.
     """
     expires_in = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    ip = login_guard.client_ip(request)
+    await login_guard.check(db, data.email, ip)
 
     if is_admin_credentials(data.email, data.password):
+        await login_guard.record(db, data.email, ip, True)
         return DeviceTokenResponse(
             access_token=create_access_token("admin", role="admin"),
             role="admin", user_id="admin", display_name="Yönetici", expires_in=expires_in,
@@ -58,6 +62,8 @@ async def issue_device_token(data: LoginRequest, db: AsyncSession = Depends(get_
     )
     student = res.scalars().first()
     if student and verify_password(data.password, student.password):
+        await login_guard.ensure_not_suspended(db, "student", student.id)
+        await login_guard.record(db, data.email, ip, True)
         return DeviceTokenResponse(
             access_token=create_access_token(str(student.id), role="student"),
             role="student",
@@ -71,6 +77,8 @@ async def issue_device_token(data: LoginRequest, db: AsyncSession = Depends(get_
     )
     teacher = res.scalars().first()
     if teacher and verify_password(data.password, teacher.password):
+        await login_guard.ensure_not_suspended(db, "teacher", teacher.id)
+        await login_guard.record(db, data.email, ip, True)
         return DeviceTokenResponse(
             access_token=create_access_token(str(teacher.id), role="teacher"),
             role="teacher",
@@ -80,6 +88,7 @@ async def issue_device_token(data: LoginRequest, db: AsyncSession = Depends(get_
         )
 
     # Hesabın var olup olmadığını sızdırmamak için tüm başarısızlıklar aynı yanıt.
+    await login_guard.record(db, data.email, ip, False)
     raise HTTPException(status_code=401, detail="E-posta veya parola hatalı.")
 
 

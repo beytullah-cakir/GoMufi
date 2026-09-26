@@ -87,16 +87,9 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
       }
     } catch (err: any) {
       console.error("Auth error:", err);
-      // Fallback for Demo/Preview if backend is not running
-      const isNetworkError = err.message === "Network Error" || !err.response;
-
-      if (isNetworkError) {
-        const confirmDemo = window.confirm("Backend bağlantısı sağlanamadı. Demo modunda devam etmek ister misiniz?");
-        if (confirmDemo) {
-          onLogin();
-          navigate(role === 'student' ? '/student' : role === 'teacher' ? '/instructor' : '/parent');
-          return;
-        }
+      if (err.message === "Network Error" || !err.response) {
+        alert("Sunucuya ulaşılamadı. İnternet bağlantını kontrol edip tekrar dene.");
+        return;
       }
 
       const errorMessage =
