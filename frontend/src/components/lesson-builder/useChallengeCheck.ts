@@ -158,6 +158,7 @@ export const useChallengeCheck = ({
                 detail: r.detail,
                 value: r.source?.value,
                 conceptId: r.source?.conceptId,
+                token: r.token,
             })),
         });
     }, [track, taskKey, courseId, client, openedAt]);
@@ -173,8 +174,9 @@ export const useChallengeCheck = ({
                 course_id: Number(courseId),
                 phase,
                 stage,
-                // Koçun tespiti (kavram + yanılgı) öğrencinin kaydına bu görevle yazılır.
-                task_key: track ? taskKey : undefined,
+                // Görev metni sunucuda bu anahtarla kurstan okunur; koçun tespiti
+                // (kavram + yanılgı) öğrencinin kaydına bu görevle yazılır.
+                task_key: taskKey,
                 task,
                 student_code: code,
                 attempt: tryNo,
@@ -192,7 +194,7 @@ export const useChallengeCheck = ({
         } finally {
             setCoachLoading(false);
         }
-    }, [courseId, stage, task, language, runtime, entry, track, taskKey]);
+    }, [courseId, stage, task, language, runtime, entry, taskKey]);
 
     /** Fonksiyon testlerini öğrencinin GERÇEK dosyalarıyla çalıştırır. */
     const runTests = useCallback(async (): Promise<CriterionResult[]> => {
@@ -230,7 +232,7 @@ export const useChallengeCheck = ({
     ): Promise<CriterionResult[]> => {
         const priorOk = prior.every(isAccepted);
         const verdicts = priorOk
-            ? await reviewRequirements(courseId, task, requirements, source, out)
+            ? await reviewRequirements(courseId, task, requirements, source, out, taskKey)
             : null;
         return requirements.map((req, i) => {
             const v = verdicts?.[i];
@@ -242,10 +244,10 @@ export const useChallengeCheck = ({
             }
             return {
                 id: `req:${i}`, kind: 'ai', label: req,
-                status: v.passed ? 'pass' : 'fail', detail: v.reason || undefined,
+                status: v.passed ? 'pass' : 'fail', detail: v.reason || undefined, token: v.token,
             };
         });
-    }, [courseId, task, requirements]);
+    }, [courseId, task, requirements, taskKey]);
 
     const handleCheck = useCallback(async () => {
         setStatus('running');
@@ -309,7 +311,7 @@ export const useChallengeCheck = ({
         if (criteria.length) {
             const outcome = await evaluate(
                 criteria, source, result.stdout,
-                makeAIJudge(courseId, task, source, result.stdout),
+                makeAIJudge(courseId, task, source, result.stdout, taskKey),
                 language,
             );
             collected.push(...outcome.results);
@@ -355,7 +357,7 @@ export const useChallengeCheck = ({
     }, [
         runtime, language, stdin, entry, attempt, criteria, checkMode, tests, requirements,
         courseId, task, xp, askCoach, runTests, reviewProject, onCodeRead, onChecked, onSolved,
-        track, recordCheck,
+        track, recordCheck, taskKey,
     ]);
 
     const failedCheck = checks.find((c) => c.status === 'fail')

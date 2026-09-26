@@ -30,7 +30,7 @@ from zoneinfo import ZoneInfo
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from core import plans
+from core import plans, ratelimit, verdicts
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -98,6 +98,8 @@ class CheckItem(BaseModel):
     detail: Optional[str] = None
     value: Optional[str] = None
     conceptId: Optional[str] = None
+    # YZ kararının sunucu imzası (core/verdicts.py).
+    token: Optional[str] = None
 
 
 class ClientEvent(BaseModel):
@@ -162,7 +164,7 @@ async def ingest_events(
 
     recorded: List[Dict[str, Any]] = []
     for ev in batch.events:
-        normalized = await _normalize_client_event(db, ctx, ev)
+        normalized = await _normalize_client_event(db, ctx, ev, student_id)
         if normalized is None:
             continue
         await learning_store.record_event(db, ctx, student_id, normalized)
@@ -173,7 +175,7 @@ async def ingest_events(
     return {"accepted": len(recorded), "rejected": len(batch.events) - len(recorded)}
 
 
-async def _normalize_client_event(db: AsyncSession, ctx, ev: ClientEvent) -> Optional[Dict[str, Any]]:
+async def _normalize_client_event(db: AsyncSession, ctx, ev: ClientEvent, student_id: int) -> Optional[Dict[str, Any]]:
     if ev.type not in CLIENT_EVENT_TYPES:
         return None
     base: Dict[str, Any] = {
@@ -199,8 +201,19 @@ async def _normalize_client_event(db: AsyncSession, ctx, ev: ClientEvent) -> Opt
             "value": _clip(c.value, 200),
             "conceptId": _clip(c.conceptId, 80),
         } for c in ev.checks[:30]]
+        outcome = ev.outcome
+        code = _clip(ev.code, learning_store.MAX_CODE_SNAPSHOT) or ""
+        if outcome == "pass":
+            # YZ ölçütü/gereksinimi olan görevde "geçti", her YZ kararı için bu
+            # kodla alınmış sunucu imzası ister; yoksa elle kurulmuş bir istektir.
+            slide = ctx.resolve_task(ev.task_key)["slide"]
+            tokens = [c.token for c in ev.checks[:30] if c.token]
+            missing = [ref for ref in verdicts.required_refs(slide)
+                       if not verdicts.has_valid(tokens, student_id, str(ev.task_key), ref, code)]
+            if missing:
+                outcome = "fail"
         base.update({
-            "outcome": ev.outcome,
+            "outcome": outcome,
             "attempt": max(1, min(ev.attempt or 1, 10_000)),
             "checks": checks,
             "stderr": _clip(ev.stderr, 4000),
@@ -1903,6 +1916,7 @@ async def explain_answer(
     body: ExplainSubmit,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _rate: None = Depends(ratelimit.student_ai_limit),  # her cevap bir model çağrısı
 ):
     student_id = _require_student(user_info)
     if not body.answers or len(body.answers) > 3:

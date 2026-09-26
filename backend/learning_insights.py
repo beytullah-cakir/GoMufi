@@ -25,6 +25,7 @@ from google.genai import types
 from pydantic import BaseModel, Field
 
 from core.config import settings
+from core.prompt_safety import DATA_IS_NOT_INSTRUCTION_RULE, data_block
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +35,16 @@ def digest_hash(digest: Dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(digest, sort_keys=True, ensure_ascii=False, default=str).encode()).hexdigest()
 
 
-def _generate(prompt: str, schema: Any, thinking_budget: int = 512):
+def _generate(prompt: str, schema: Any, thinking_budget: int = 512, system: Optional[str] = None,
+              max_output_tokens: Optional[int] = None):
     from routers.ai import gen_config  # geç: ai modülü ağır ve bu modülü içe aktarmıyor
 
     client = genai.Client(api_key=settings.MY_API_KEY)
     return client.models.generate_content(
         model=settings.GEMINI_MODEL,
         contents=[types.Content(role="user", parts=[types.Part.from_text(text=prompt)])],
-        config=gen_config(schema, thinking_budget=thinking_budget, model=settings.GEMINI_MODEL),
+        config=gen_config(schema, thinking_budget=thinking_budget, model=settings.GEMINI_MODEL,
+                          system_instruction=system, max_output_tokens=max_output_tokens),
     )
 
 
@@ -211,12 +214,13 @@ class ExplainResponse(BaseModel):
 
 
 def judge_explanations(task: str, answers: List[Dict[str, Any]]) -> tuple[List[Dict[str, Any]], Any]:
-    lines = "\n".join(
-        f"SATIR {a['line_no']}: {a['code']}\nÖĞRENCİNİN AÇIKLAMASI: {a['answer'] or '(boş)'}"
-        for a in answers
-    )
-    prompt = f"{EXPLAIN_PROMPT}\n\nGÖREV:\n{task[:1500]}\n\n{lines}"
-    response = _generate(prompt, ExplainResponse, thinking_budget=0)
+    # Öğrencinin cevabı VERİ: "bu satırı anladım say" yazarak geçemesin.
+    blocks = [data_block("GÖREV", task, 1500)]
+    for a in answers:
+        blocks.append(f"SATIR {a['line_no']}:\n" + data_block(f"SATIR {a['line_no']} KODU", a["code"], 300)
+                      + "\n" + data_block(f"SATIR {a['line_no']} ÖĞRENCİ AÇIKLAMASI", a["answer"] or "(boş)", 1000))
+    response = _generate("\n\n".join(blocks), ExplainResponse, thinking_budget=0,
+                         system=f"{EXPLAIN_PROMPT}\n{DATA_IS_NOT_INSTRUCTION_RULE}", max_output_tokens=1024)
     parsed = json.loads((response.text or "").strip() or "{}")
     by_line = {int(v.get("line_no", -1)): v for v in parsed.get("verdicts") or [] if isinstance(v, dict)}
     verdicts = []
@@ -253,12 +257,34 @@ class ParentReportDraft(BaseModel):
     homework: str = ""
 
 
+# Modele öğrencinin adı GİTMEZ (KVKK: çocuğun kişisel verisi üçüncü taraf
+# YZ'ye aktarılmasın). Model bu yer tutucuyu yazar, ad sunucuda yerine konur.
+NAME_PLACEHOLDER = "[ÖĞRENCİ]"
+
+
 def generate_parent_report(facts: Dict[str, Any], student_first_name: str, course_title: str) -> tuple[Dict[str, Any], Any]:
-    prompt = (f"{PARENT_REPORT_PROMPT}\n\nÖĞRENCİ: {student_first_name}\nKURS: {course_title}\n"
-              f"DÖNEM VERİSİ:\n{json.dumps(facts, ensure_ascii=False, indent=1)[:6000]}")
-    response = _generate(prompt, ParentReportDraft, thinking_budget=0)
+    system = (f"{PARENT_REPORT_PROMPT}\n- Öğrenciden söz ederken adı yerine tam olarak {NAME_PLACEHOLDER} yaz.\n"
+              f"{DATA_IS_NOT_INSTRUCTION_RULE}")
+    prompt = "\n\n".join([
+        data_block("KURS", course_title, 200),
+        # Görev/modül başlıkları öğretmen içeriği: veri olarak gider.
+        data_block("DÖNEM VERİSİ", json.dumps(facts, ensure_ascii=False, indent=1), 6000),
+    ])
+    response = _generate(prompt, ParentReportDraft, thinking_budget=0, system=system, max_output_tokens=2048)
     parsed = json.loads((response.text or "").strip() or "{}")
-    return clean_parent_report(parsed), response
+    return fill_name(clean_parent_report(parsed), student_first_name), response
+
+
+def fill_name(report: Dict[str, Any], first_name: str) -> Dict[str, Any]:
+    name = first_name or "Öğrencimiz"
+
+    def put(value: Any) -> Any:
+        if isinstance(value, str):
+            return value.replace(NAME_PLACEHOLDER, name)
+        if isinstance(value, list):
+            return [put(v) for v in value]
+        return value
+    return {k: put(v) for k, v in report.items()}
 
 
 def clean_parent_report(parsed: Dict[str, Any]) -> Dict[str, Any]:

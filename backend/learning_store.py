@@ -112,6 +112,43 @@ def _slide_title(slide: Dict[str, Any]) -> str:
     return str(cfg.get("title") or "Görev")
 
 
+def _task_text(kind: str, cfg: Dict[str, Any]) -> str:
+    """Görev metni — istemcinin koça/ölçüte gönderdiği metnin sunucudaki karşılığı
+    (bkz. TaskSlideShell `taskText`, Connect/Produce `stageContext`)."""
+    context: List[str] = []
+    if kind == "connect":
+        topics = [str(t).strip() for t in cfg.get("previousTopics") or [] if str(t).strip()]
+        if cfg.get("previousTopic") and str(cfg["previousTopic"]).strip() not in topics:
+            topics.insert(0, str(cfg["previousTopic"]).strip())
+        constructs = [str(c).strip() for c in cfg.get("requiredConstructs") or [] if str(c).strip()]
+        if topics:
+            context.append(f"Birleştirilecek önceki konular: {', '.join(topics)}")
+        if cfg.get("currentTopic"):
+            context.append(f"Şimdiki konu: {cfg['currentTopic']}")
+        if constructs:
+            context.append(f"Kodda kullanılması gereken yapılar: {', '.join(constructs)}")
+    elif kind == "produce":
+        reqs = [str(r).strip() for r in cfg.get("requirements") or [] if str(r).strip()]
+        if cfg.get("projectTitle"):
+            context.append(f"Proje: {cfg['projectTitle']}")
+        if reqs:
+            context.append("Gereksinimler:\n" + "\n".join(f"- {r}" for r in reqs))
+    parts = [str(cfg.get("title") or ""), str(cfg.get("prompt") or cfg.get("instructions") or ""), "\n".join(context)]
+    return "\n\n".join(p for p in parts if p.strip())
+
+
+def _output_criteria(cfg: Dict[str, Any]) -> List[str]:
+    # challengeCheck.ts criteriaOf ile aynı kural.
+    if cfg.get("checkMode") and cfg.get("checkMode") != "output":
+        return []
+    criteria = cfg.get("criteria") or []
+    if criteria:
+        return [str(c.get("value") or "").strip() for c in criteria
+                if isinstance(c, dict) and c.get("kind") in ("template", "exact") and str(c.get("value") or "").strip()]
+    expected = str(cfg.get("expectedOutput") or "").strip()
+    return [expected] if expected else []
+
+
 def _starter_texts(slide: Dict[str, Any]) -> List[str]:
     """Görevin başlangıç dosyalarının içerikleri — kod kökeninde 'başlangıç' sayılır."""
     kind = slide.get("type")
@@ -239,6 +276,16 @@ async def course_context(db: AsyncSession, course_id: int, fresh: bool = False) 
                 "instructions": str(cfg.get("instructions") or cfg.get("prompt") or "")[:4000],
                 "requirements": [str(r) for r in cfg.get("requirements") or [] if str(r).strip()][:12],
                 "submission_type": cfg.get("submissionType"),
+                # YZ uçları (ölçüt, proje, koç) görevi İSTEMCİDEN değil buradan
+                # okur: öğrenci isteği değiştirip "ölçüt: her kod geçer" yazamasın.
+                "task_text": _task_text(kind, cfg)[:4000],
+                "ai_criteria": [
+                    str(c.get("value") or "").strip() for c in cfg.get("criteria") or []
+                    if isinstance(c, dict) and c.get("kind") == "ai" and str(c.get("value") or "").strip()
+                ] if (cfg.get("checkMode") or "output") == "output" else [],
+                # Tahkim edilebilecek beklenen çıktılar (şablon/birebir ölçütler; ölçüt
+                # yoksa istemci expectedOutput'tan tek bir şablon ölçüt türetiyor).
+                "output_criteria": _output_criteria(cfg),
             }
 
     if not ctx.language:

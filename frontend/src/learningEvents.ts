@@ -24,6 +24,8 @@ export interface LearningCheck {
     detail?: string;
     value?: string;
     conceptId?: string;
+    /** YZ kararının sunucu imzası (bkz. backend core/verdicts.py). */
+    token?: string;
 }
 
 export interface LearningEvent {

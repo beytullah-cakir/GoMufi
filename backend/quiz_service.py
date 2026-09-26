@@ -7,6 +7,7 @@ import re
 from google import genai
 from google.genai import types
 from core.config import settings
+from core.prompt_safety import SAFETY_SETTINGS
 
 
 def generate_quiz_question(topic: str, difficulty: str = "Orta", question_type: str = "multiple-choice"):
@@ -38,7 +39,9 @@ Kurallar:
             model=settings.GEMINI_MODEL,
             contents=prompt,
             config=types.GenerateContentConfig(
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                safety_settings=SAFETY_SETTINGS,  # öğrenciye giden metin: bkz. routers/ai.py
+                max_output_tokens=2048,
             ),
         )
         raw_text = response.text.strip()
