@@ -15,6 +15,8 @@ export interface CourseProgress {
     completed: Record<string, { stars: number; source: 'self' | 'live' }>;
     unlocked_until: number | null;
     open_until: number;
+    /** Öğretmenin henüz onaylamadığı ilk YZ modülünün sırası (öncesine kadar açık). */
+    review_block?: number | null;
     submitted_homework: string[];
     leaderboard_enabled: boolean;
 }

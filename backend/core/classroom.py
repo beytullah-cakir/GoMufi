@@ -186,3 +186,50 @@ def place_student(course: Course, target: Dict[str, Any], student_id: int) -> No
         cls["student_ids"] = ids
     course.classes = classes
     flag_modified(course, "classes")
+
+
+# --- YZ içeriği için öğretmen onayı --------------------------------------------------
+# Arka planda YZ ile üretilen modüller "onay bekliyor" olarak işaretlenir
+# (curriculum düğümünde aiReview="pending"). Öğretmen onaylayana kadar öğrenci
+# o modülü ve sonrasını açamaz, slaytlarını da alamaz. Bayrak sunucunun
+# sorumluluğunda: kurs kaydedilirken istemci bayrağı düşürse de korunur, yalnızca
+# onay ucu kaldırır.
+
+AI_REVIEW_KEY = "aiReview"
+AI_REVIEW_PENDING = "pending"
+
+
+def pending_review_ids(course: Course) -> set:
+    return {str(n.get("id")) for n in course.curriculum or []
+            if isinstance(n, dict) and n.get(AI_REVIEW_KEY) == AI_REVIEW_PENDING}
+
+
+def keep_review_flags(old_curriculum: Optional[List[Any]], new_curriculum: List[Any]) -> List[Any]:
+    """Kaydedilen müfredatta onay bayraklarını eski halinden alır (istemci değiştiremez)."""
+    pending = {str(n.get("id")) for n in old_curriculum or []
+               if isinstance(n, dict) and n.get(AI_REVIEW_KEY) == AI_REVIEW_PENDING}
+    out = []
+    for node in new_curriculum:
+        if isinstance(node, dict):
+            node = {k: v for k, v in node.items() if k != AI_REVIEW_KEY}
+            if str(node.get("id")) in pending:
+                node[AI_REVIEW_KEY] = AI_REVIEW_PENDING
+        out.append(node)
+    return out
+
+
+def student_notes(notes: List[Any], student_id: int, pending_ids: set) -> List[Any]:
+    """Öğrenciye giden ders içeriği: onay bekleyen modülün slaytları yok,
+    belirli öğrencilere atanmış tekrar görevleri yalnızca onlara."""
+    out = []
+    for note in notes or []:
+        if isinstance(note, dict) and isinstance(note.get("slides"), list):
+            if str(note.get("id")) in pending_ids:
+                note = {**note, "slides": []}
+            else:
+                note = {**note, "slides": [
+                    s for s in note["slides"]
+                    if not (isinstance(s, dict) and s.get("assignedTo")) or student_id in s["assignedTo"]
+                ]}
+        out.append(note)
+    return out

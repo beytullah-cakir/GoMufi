@@ -1207,6 +1207,23 @@ const InstructorRoadmapBuilder: React.FC = () => {
     return "ÜRET";
   };
 
+  // YZ ile üretilen modüller öğretmen onaylayana kadar öğrenciye kapalı (backend: core/classroom.py).
+  const pendingReview = sections.filter((s) => s.aiReview === "pending");
+  const approveAIModules = async (nodeIds: Array<string | number> = []) => {
+    try {
+      const res = await api.post(`/courses/${courseId}/ai-review/approve`, { node_ids: nodeIds.map(String) });
+      const approved = new Set<string>(res.data.approved || []);
+      setSections((prev) => prev.map((s) => {
+        if (!approved.has(String(s.id))) return s;
+        const { aiReview: _approved, ...rest } = s;
+        return rest as SectionNode;
+      }));
+    } catch (error) {
+      console.error("YZ modülleri onaylanamadı:", error);
+      alert("Onaylanamadı, tekrar deneyin.");
+    }
+  };
+
   const handleSave = async () => {
     setIsSaving(true);
     try {
@@ -1602,6 +1619,20 @@ const InstructorRoadmapBuilder: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {pendingReview.length > 0 && (
+        <div className="mx-6 mt-3 px-5 py-3 bg-amber-50 border-2 border-amber-200 rounded-2xl flex flex-wrap items-center justify-between gap-3 z-40">
+          <p className="text-sm font-bold text-amber-800">
+            <b>{pendingReview.length} modül</b> yapay zekâ ile üretildi. İçeriği kontrol edip onaylayana kadar öğrenciler bu modülleri açamaz.
+          </p>
+          <button
+            onClick={() => void approveAIModules()}
+            className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-wide rounded-xl shadow-sm"
+          >
+            Tümünü onayla
+          </button>
+        </div>
+      )}
 
       {/* Main Roadmap Path Container */}
       <div
@@ -2098,6 +2129,11 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           TASLAK
                         </span>
                       )}
+                      {section.aiReview === "pending" && (
+                        <span className="text-[8px] font-black text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full mt-1 tracking-wider uppercase shrink-0" title="Yapay zekâ üretti; onaylayana kadar öğrencilere kapalı">
+                          ONAY BEKLİYOR
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -2124,6 +2160,15 @@ const InstructorRoadmapBuilder: React.FC = () => {
                           <span>İçeriği Düzenle</span>
                         </button>
                       )
+                    )}
+                    {activeNodeId === section.id && section.aiReview === "pending" && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); void approveAIModules([section.id]); }}
+                        className="mt-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg"
+                        title="İçeriği kontrol ettim; öğrencilere açılabilir"
+                      >
+                        Kontrol ettim, onayla
+                      </button>
                     )}
                   </div>
                 </div>
