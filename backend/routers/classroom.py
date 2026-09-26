@@ -5,6 +5,7 @@
   GET  /progress/courses/{id}              bitirdiği modüller, açık modül sınırı, teslim ettiği ödevler
   POST /progress/courses/{id}/complete     {node_id, stars?, via?}  modülü bitir (XP bir kez verilir)
   GET  /progress/activity                  günlük seri ve günlük görevler
+  POST /progress/courses/{id}/chests/{k}/open  haritadaki k. ödül sandığını aç (bir kez)
 
 Öğretmen:
   GET  /courses/{id}/classroom-settings    liderlik tablosu açık mı, şube başına açık modül sınırı
@@ -37,7 +38,7 @@ from models.enrollment import Enrollment
 from models.homework_submission import HomeworkSubmission
 from models.lesson_content import LessonContent
 from models.live_session import LiveSession
-from models.school import ModuleProgress
+from models.school import ModuleProgress, RewardClaim
 from models.student import Student
 
 router = APIRouter(tags=["classroom"])
@@ -45,6 +46,11 @@ router = APIRouter(tags=["classroom"])
 DEFAULT_MODULE_XP = 500
 MAX_MODULE_XP = 1000
 LIVE_PREFIX = "gomufi_session:"
+# Haritada her CHEST_EVERY modülden sonra bir ödül sandığı durur; önündeki
+# bütün modüller bitince açılır. İçinden çıkan XP öğrenciye göre sabittir
+# (yenileyip "daha iyisini" çekmek yok) ama öğrenciden öğrenciye değişir.
+CHEST_EVERY = 3
+CHEST_XP = (30, 50, 80)
 
 
 class CompleteIn(BaseModel):
@@ -159,8 +165,10 @@ async def _state(db: AsyncSession, course: Course, student_id: int) -> Dict[str,
             HomeworkSubmission.course_id == course.id, HomeworkSubmission.student_id == student_id)
     )).all()})
     pending = classroom.pending_review_ids(course)
+    order = [str(n.get("id")) for n in modules]
     return {
-        "order": [str(n.get("id")) for n in modules],
+        "order": order,
+        "chests": await _chests(db, course.id, student_id, order, completed),
         # YZ modülü öğretmen onaylayana kadar kapalı (ve sonrası da)
         "review_block": next((i for i, n in enumerate(modules, start=1) if str(n.get("id")) in pending), None),
         "completed": completed,
@@ -168,6 +176,33 @@ async def _state(db: AsyncSession, course: Course, student_id: int) -> Dict[str,
         "submitted_homework": submitted,
         "leaderboard_enabled": settings["leaderboard_enabled"],
     }
+
+
+def _chest_xp(course_id: int, student_id: int, index: int) -> int:
+    import hashlib
+
+    digest = hashlib.sha256(f"chest:{course_id}:{student_id}:{index}".encode()).digest()
+    return CHEST_XP[digest[0] % len(CHEST_XP)]
+
+
+async def _chests(db: AsyncSession, course_id: int, student_id: int, order: List[str],
+                  completed: Dict[str, Any]) -> List[Dict[str, Any]]:
+    opened = {key: xp for key, xp in (await db.execute(
+        select(RewardClaim.key, RewardClaim.xp).where(
+            RewardClaim.student_id == student_id, RewardClaim.key.like(f"chest:{course_id}:%"))
+    )).all()}
+    out = []
+    for k in range(1, len(order) // CHEST_EVERY + 1):
+        before = order[:k * CHEST_EVERY]
+        key = f"chest:{course_id}:{k}"
+        out.append({
+            "index": k,
+            "after": before[-1],
+            "ready": all(n in completed for n in before),
+            "opened": key in opened,
+            "xp": opened.get(key),
+        })
+    return out
 
 
 def _open_index(state: Dict[str, Any]) -> int:
@@ -244,6 +279,42 @@ async def complete_module(
     state = await _state(db, course, student_id)
     xp = (await db.execute(select(Student.xp).where(Student.id == student_id))).scalar() or 0
     return {**state, "open_until": _open_index(state), "xp_awarded": xp_awarded, "xp": xp}
+
+
+@router.post("/progress/courses/{course_id}/chests/{index}/open")
+async def open_chest(
+    course_id: int,
+    index: int,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sandığı aç: önündeki modüllerin hepsi bitmiş olmalı; XP bir kez verilir."""
+    from sqlalchemy.dialects.postgresql import insert
+
+    course = await _enrolled_course(db, course_id, user_info)
+    student_id = int(user_info["sub"])
+    state = await _state(db, course, student_id)
+    chest = next((c for c in state["chests"] if c["index"] == index), None)
+    if not chest:
+        raise HTTPException(status_code=404, detail="Sandık bulunamadı.")
+    if not chest["ready"]:
+        raise HTTPException(status_code=409, detail="Bu sandık için önündeki modülleri bitirmelisin.")
+    if chest["opened"]:
+        raise HTTPException(status_code=409, detail="Bu sandığı zaten açtın.")
+    xp = _chest_xp(course_id, student_id, index)
+    claimed = (await db.execute(
+        insert(RewardClaim).values(student_id=student_id, key=f"chest:{course_id}:{index}", xp=xp,
+                                   claimed_at=datetime.utcnow())
+        .on_conflict_do_nothing(constraint="uq_reward_once").returning(RewardClaim.id)
+    )).first()
+    if not claimed:
+        raise HTTPException(status_code=409, detail="Bu sandığı zaten açtın.")
+    await db.execute(update(Student).where(Student.id == student_id).values(xp=Student.xp + xp))
+    await streak.record(db, student_id, xp=xp)
+    await db.commit()
+    state = await _state(db, course, student_id)
+    total = (await db.execute(select(Student.xp).where(Student.id == student_id))).scalar() or 0
+    return {**state, "open_until": _open_index(state), "xp_awarded": xp, "xp": total}
 
 
 @router.get("/progress/activity")

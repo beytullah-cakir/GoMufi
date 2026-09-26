@@ -19,6 +19,10 @@ import HomeHero, { mufiLine } from './HomeHero';
 import { HomeworkCard, NotificationBell, collectHomework, useHomeworkStatus, type HomeworkItem } from './studentFeed';
 import { VSCodeGuideModal, VSCodeStatusChip, shouldAutoOpenGuide, useVSCodeStatus } from './VSCodeStatus';
 import { ChunkyButton, Mufi, MufiEmpty, MufiTipCard } from './ui';
+import { ChestMarker, ChestModal, type Chest } from './rewards';
+import { ReviewCard, ReviewModal, useReviewPlan } from './ReviewSession';
+import { LiveSoonBanner, useUpcomingLive } from './liveReminder';
+import OnboardingTour, { shouldShowTour } from './OnboardingTour';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -71,6 +75,15 @@ const HomePage: React.FC<HomePageProps> = ({
     const [activeNodeId, setActiveNodeId] = useState<number | null>(null);
     // "Kazanımlarım": öğrencinin kendi kazanım haritası (neyi öğrendim, neye çalışmalıyım).
     const [showConcepts, setShowConcepts] = useState(false);
+    // Haritada tıklanan ödül sandığı
+    const [openChest, setOpenChest] = useState<Chest | null>(null);
+    // "Zorlandığım konular" tekrarı (XP değişince plan tazelenir: yeni yanlışlar, bugünün durumu)
+    const [showReview, setShowReview] = useState(false);
+    const reviewPlan = useReviewPlan(activeCourseId, userData?.xp);
+    // Canlı ders hatırlatması (şerit + zil)
+    const upcomingLive = useUpcomingLive();
+    // İlk giriş turu (bir kez; profilden yeniden başlatılabilir)
+    const [tourOpen, setTourOpen] = useState(() => shouldShowTour(userData?.user_id));
 
     // Refs for outside click detection
     const nodesContainerRef = useRef<HTMLDivElement>(null);
@@ -455,6 +468,18 @@ const HomePage: React.FC<HomePageProps> = ({
         lessonTopic: n.lessonTopic,
     }));
 
+    // Ödül sandıkları: sunucu sandığı müfredat kimliğine göre verir, harita düğüm kimliğiyle çalışır.
+    const chestsByKey: Record<string, Chest> = {};
+    for (const chest of currentCourse.progress?.chests || []) {
+        const node = currentCourse.nodes.find((n) => String(n.sectionId) === chest.after);
+        if (node) chestsByKey[String(node.id)] = chest;
+    }
+    const chestRemaining = (chest: Chest) => {
+        const order = currentCourse.progress?.order || [];
+        const upTo = order.indexOf(chest.after);
+        return order.slice(0, upTo + 1).filter((id) => !currentCourse.progress?.completed?.[id]).length;
+    };
+
     // Ödevlerim (tüm kurslar) ve Mufi'nin cümlesi
     const homework = collectHomework(courses, homeworkStatus);
     const openHomework = (hw: HomeworkItem) => {
@@ -500,6 +525,28 @@ const HomePage: React.FC<HomePageProps> = ({
                 <MyConceptsModal courseId={activeCourseId} onClose={() => setShowConcepts(false)} />
             )}
 
+            {tourOpen && (
+                <OnboardingTour userId={userData?.user_id} name={userData?.first_name || 'kaşif'} onClose={() => setTourOpen(false)} />
+            )}
+
+            {showReview && reviewPlan && (
+                <ReviewModal
+                    courseId={activeCourseId}
+                    plan={reviewPlan}
+                    onClose={(xp) => { setShowReview(false); if (xp) void refreshUserData?.(); }}
+                />
+            )}
+
+            {openChest && (
+                <ChestModal
+                    courseId={activeCourseId}
+                    chest={openChest}
+                    remaining={chestRemaining(openChest)}
+                    onOpened={(result) => onProgress(activeCourseId, result)}
+                    onClose={(opened) => { setOpenChest(null); if (opened) void refreshUserData?.(); }}
+                />
+            )}
+
             {showGuide && (
                 <VSCodeGuideModal state={vscode.state} recheck={vscode.recheck} onClose={() => setShowGuide(false)} />
             )}
@@ -526,10 +573,14 @@ const HomePage: React.FC<HomePageProps> = ({
                             onOpenHomework={openHomework}
                             onOpenMessages={() => navigate('/student/ask')}
                             onDark
+                            live={upcomingLive}
                         />
                     </>}
                 />
             </div>
+
+            <LiveSoonBanner items={upcomingLive} live={isClassActive} onJoin={handleJoinLiveClass}
+                            className="mx-4 md:mx-8 mt-3 relative z-30" />
 
             <LatestAnnouncementBanner className="xl:hidden mx-4 mt-3 relative z-30" />
 
@@ -556,7 +607,7 @@ const HomePage: React.FC<HomePageProps> = ({
 
             <div className="flex-1 md:min-h-0 flex relative">
             {/* Masaüstü: soldan sağa akan yol ("Yatay" seçiliyse) */}
-            <div className={`hidden ${mapLayout === 'horizontal' ? 'md:flex' : ''} flex-1 min-w-0 items-center justify-center relative z-20`}>
+            <div data-tour="map" className={`hidden ${mapLayout === 'horizontal' ? 'md:flex' : ''} flex-1 min-w-0 items-center justify-center relative z-20`}>
                 <style>{`
                     .no-scrollbar::-webkit-scrollbar {
                         display: none;
@@ -620,6 +671,8 @@ const HomePage: React.FC<HomePageProps> = ({
                                         {/* Node Container */}
                                         <div
                                             data-node-id={node.id}
+                                            data-tour={nextNode?.id === node.id ? 'next-module' : undefined}
+                                            data-tour-top={64}
                                             className={`relative z-10 group cursor-pointer transform hover:scale-105 transition-transform duration-200 ${node.curve === 'up' ? 'mt-32' : '-mt-12'} ${node.isLocked ? 'grayscale opacity-75 pointer-events-none' : ''}`}
                                             onClick={() => !node.isLocked && handleNodeClick(node)}
                                         >
@@ -847,7 +900,12 @@ const HomePage: React.FC<HomePageProps> = ({
                                         {/* Connector */}
                                         {index < currentNodes.length - 1 && (
                                             // STANDARD CONNECTOR
-                                            <div className="w-40 h-20 -mx-4 relative z-0 flex items-center justify-center">
+                                            <div className={`w-40 h-20 -mx-4 relative flex items-center justify-center ${chestsByKey[String(node.id)] ? 'z-20' : 'z-0'}`}>
+                                                {chestsByKey[String(node.id)] && (
+                                                    <div className={`absolute left-1/2 -translate-x-1/2 z-20 ${node.curve === 'down' ? '-top-24' : 'top-20'}`}>
+                                                        <ChestMarker chest={chestsByKey[String(node.id)]} onClick={() => setOpenChest(chestsByKey[String(node.id)])} />
+                                                    </div>
+                                                )}
                                                 <svg className="w-full h-full overflow-visible" viewBox="0 0 120 100" fill="none">
                                                     <path
                                                         d={
@@ -876,6 +934,11 @@ const HomePage: React.FC<HomePageProps> = ({
                                                     style={{ left: '90%', top: node.curve === 'down' ? '70%' : '35%', transform: `translate(0, ${index % 3 !== 0 ? '-5px' : '5px'})` }} />
                                             </div>
                                         )}
+                                        {index === currentNodes.length - 1 && chestsByKey[String(node.id)] && (
+                                            <div className="ml-10 relative z-20">
+                                                <ChestMarker chest={chestsByKey[String(node.id)]} onClick={() => setOpenChest(chestsByKey[String(node.id)])} />
+                                            </div>
+                                        )}
                                     </React.Fragment>
                                 );
                             });
@@ -887,7 +950,7 @@ const HomePage: React.FC<HomePageProps> = ({
             {/* Dikey yol: telefonda her zaman, geniş ekranda "Dikey" seçiliyse */}
             {/* xl:pl-80 = sağ sütunun genişliği: yol sütunun değil SAYFANIN ortasında dursun. */}
             <div className={`${mapLayout === 'vertical' ? '' : 'md:hidden'} flex-1 min-w-0 pt-4 md:pt-2 xl:pl-80`}>
-                <div className="w-full max-w-2xl mx-auto">
+                <div className="w-full max-w-2xl mx-auto" data-tour="map">
                     <GamifiedRoadmapPath
                         key={`${activeCourseId}-${isWide ? 'w' : 'n'}`}
                         courseTitle={currentCourse.title}
@@ -895,6 +958,8 @@ const HomePage: React.FC<HomePageProps> = ({
                         amplitude={isWide ? 1.7 : 1}
                         showGuide={isWide}
                         modules={roadmapModules}
+                        chests={chestsByKey}
+                        onChestClick={setOpenChest}
                         activeKey={nextNode ? String(nextNode.id) : null}
                         onSelectModule={(mod) => {
                             const node = currentCourse.nodes.find((n) => String(n.id) === mod.key);
@@ -904,6 +969,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
                 <div className="xl:hidden px-4 pb-8 -mt-16 space-y-4 relative z-10 max-w-2xl mx-auto">
                     <DailyQuests data={activity} />
+                    <ReviewCard plan={reviewPlan} onStart={() => setShowReview(true)} />
                     {homeworkWidget}
                     <AttendanceCard courseId={activeCourseId} />
                 </div>
@@ -912,6 +978,7 @@ const HomePage: React.FC<HomePageProps> = ({
             {/* Geniş ekranda sağ sütun: akışta, yolun üstüne binmez */}
             <aside className="hidden xl:flex flex-col gap-5 w-80 shrink-0 self-start sticky top-0 max-h-[100dvh] overflow-y-auto no-scrollbar px-5 pb-6 pt-4 z-30">
                 <DailyQuests data={activity} />
+                <ReviewCard plan={reviewPlan} onStart={() => setShowReview(true)} />
                 {homeworkWidget}
                 <AnnouncementFeed />
                 <AttendanceCard courseId={activeCourseId} />

@@ -51,6 +51,7 @@ const NavItem: React.FC<NavItemProps> = ({
     <button
       type="button"
       onClick={onClick}
+      data-nav={label}
       className={`flex items-center gap-4 mb-2 rounded-2xl cursor-pointer transition-all duration-75 group relative border-2 border-b-4 select-none
       ${
         isActive
@@ -379,7 +380,7 @@ const MobileNav: React.FC<SidebarProps & { onLogout: () => void }> = ({
         {tabs.map((item) => {
           const active = item.id === activePage;
           return (
-            <button key={item.id} type="button" onClick={() => go(item.id)}
+            <button key={item.id} type="button" onClick={() => go(item.id)} data-nav={item.label}
                     className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 relative ${active ? accent : "text-gray-400"}`}>
               <span className={`w-12 h-7 rounded-full flex items-center justify-center ${active ? accentBg : ""}`}>
                 <item.icon size={20} strokeWidth={active ? 2.75 : 2.25} />

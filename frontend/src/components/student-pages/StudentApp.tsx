@@ -10,6 +10,7 @@ import AskQuestionPage from './AskQuestionPage';
 import StudentClassesPage from './StudentClassesPage';
 import { useUnreadMessages } from '../../messaging/useUnreadMessages';
 import { applyProgress, fetchProgress, type CourseProgress } from '../../progress';
+import { StudentCelebrations } from './rewards';
 
 
 // Import Types
@@ -367,6 +368,12 @@ function StudentApp() {
 
     return (
         <>
+            {/* Seviye atlama ve yeni rozet kutlamaları (canlı derste bölmesin) */}
+            <StudentCelebrations
+                userData={userData}
+                paused={isLiveSessionJoined}
+                onSeeBadges={() => navigate('/student/profile#rozetler')}
+            />
             <div className="flex flex-col md:flex-row h-[100dvh] bg-white font-sans text-gray-900 overflow-hidden">
                 {activePage !== 'Builder' && !isLiveSessionJoined && (
                     <Sidebar

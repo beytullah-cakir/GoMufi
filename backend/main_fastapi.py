@@ -20,7 +20,7 @@ from core.config import settings
 from routers import profile, courses, student_auth, teacher_auth, oauth, builder, utils
 from routers import quiz, ws, admin, ai, device_auth, devices, concepts, analytics, teacher_home, messages, live_teaching, rubrics, gradebook
 from routers import parent_reports, parent_portal
-from routers import password_reset, attendance, announcements, classroom, files, account, admin_ops, organizations
+from routers import password_reset, attendance, announcements, classroom, files, account, admin_ops, organizations, student_extras
 from core.ws_manager import manager
 
 # Logging seviyesi env'den kontrol edilebilir
@@ -219,6 +219,7 @@ app.include_router(attendance.router)
 app.include_router(announcements.router)
 # Öğrenci modül ilerlemesi (sunucuda) ve öğretmenin sınıf ayarları (liderlik, tempo)
 app.include_router(classroom.router)
+app.include_router(student_extras.router)
 app.include_router(files.router)
 app.include_router(account.router)
 app.include_router(admin_ops.router)

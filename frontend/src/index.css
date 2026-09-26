@@ -80,6 +80,9 @@ body, button, input, select, textarea, .font-sans {
   --animate-slide-up: slideUpBottom 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   --animate-wiggle: wiggle 1s ease-in-out 2;
   --animate-bob: bob 2.4s ease-in-out infinite;
+  --animate-pop-in: pop-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  --animate-chest-shake: chest-shake 0.9s ease-in-out infinite;
+  --animate-rays: rays 12s linear infinite;
 }
 
 /* Custom Utilities */
@@ -265,6 +268,34 @@ body, button, input, select, textarea, .font-sans {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-6px); }
 }
+/* Kutlamalar: seviye atlama, sandık, rozet */
+@keyframes pop-in {
+  0% { transform: scale(0.4); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes chest-shake {
+  0%, 60%, 100% { transform: rotate(0deg) translateY(0); }
+  10% { transform: rotate(-8deg) translateY(-2px); }
+  20% { transform: rotate(8deg) translateY(-4px); }
+  30% { transform: rotate(-6deg) translateY(-2px); }
+  40% { transform: rotate(4deg) translateY(0); }
+}
+@keyframes rays {
+  to { transform: rotate(360deg); }
+}
+@keyframes confetti-fall {
+  0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0), 110vh, 0) rotate(var(--spin, 540deg)); opacity: 0.9; }
+}
+.confetti-piece {
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 14px;
+  border-radius: 3px;
+  animation: confetti-fall var(--fall, 2.8s) cubic-bezier(0.25, 0.6, 0.4, 1) var(--delay, 0s) forwards;
+}
 @media (prefers-reduced-motion: reduce) {
-  .animate-wiggle, .animate-bob { animation: none; }
+  .animate-wiggle, .animate-bob, .animate-chest-shake, .animate-rays { animation: none; }
+  .confetti-piece { display: none; }
 }

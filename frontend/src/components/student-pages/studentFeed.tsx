@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Bell, CalendarClock, CheckCircle2, ChevronRight, ClipboardList, Megaphone, MessageCircle, Star, X } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle2, ChevronRight, ClipboardList, Megaphone, MessageCircle, Radio, Star, X } from 'lucide-react';
+import { minutesUntil, startLabel, type UpcomingLive } from './liveReminder';
 import api from '../../api';
 import type { CourseData } from '../../types';
 import type { AnnouncementView } from '../shared/SchoolNotices';
@@ -192,13 +193,22 @@ export const NotificationBell: React.FC<{
     onOpenHomework: (item: HomeworkItem) => void;
     onOpenMessages: () => void;
     onDark?: boolean;
-}> = ({ homework, unreadMessages, onOpenHomework, onOpenMessages, onDark }) => {
+    /** Önümüzdeki canlı dersler: bir saat kala zilde görünür. */
+    live?: UpcomingLive[];
+}> = ({ homework, unreadMessages, onOpenHomework, onOpenMessages, onDark, live = [] }) => {
     const [open, setOpen] = useState(false);
     const [seenAt, setSeenAt] = useState(readSeen);
     // "Şimdi" render sırasında okunmaz; zil açıldıkça tazelenir.
     const [now, setNow] = useState(() => Date.now());
     const [announcements, setAnnouncements] = useState<AnnouncementView[]>([]);
     const ref = useRef<HTMLDivElement>(null);
+
+    // Canlı ders geri sayımı zil kapalıyken de ilerlesin.
+    useEffect(() => {
+        if (!live.length) return;
+        const timer = setInterval(() => setNow(Date.now()), 60_000);
+        return () => clearInterval(timer);
+    }, [live.length]);
 
     useEffect(() => {
         api.get('/announcements/me').then((r) => setAnnouncements(r.data?.announcements || [])).catch(() => undefined);
@@ -233,6 +243,16 @@ export const NotificationBell: React.FC<{
                 }
             }
         }
+        for (const item of live) {
+            const left = minutesUntil(item, now);
+            if (left > -60 && left <= 60) {
+                list.push({ id: `live-${item.course_id}-${item.start}`, icon: Radio, tone: 'bg-rose-100 text-rose-600',
+                            title: left > 0 ? `Canlı ders ${left} dk sonra` : 'Canlı ders başladı',
+                            text: item.course_title + (item.class_name ? ` · ${item.class_name}` : ''),
+                            when: `Başlangıç: ${startLabel(item)}`,
+                            at: new Date(item.start).getTime() - 60 * 60_000 });
+            }
+        }
         for (const a of announcements) {
             const at = a.created_at ? new Date(a.created_at).getTime() : 0;
             if (now - at < WINDOW_MS) {
@@ -240,7 +260,7 @@ export const NotificationBell: React.FC<{
             }
         }
         return list.sort((a, b) => b.at - a.at);
-    }, [homework, unreadMessages, announcements, onOpenHomework, onOpenMessages, now]);
+    }, [homework, unreadMessages, announcements, onOpenHomework, onOpenMessages, now, live]);
 
     const fresh = notices.filter((n) => n.id === 'msg' || n.at > seenAt).length;
 

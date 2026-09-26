@@ -1,5 +1,6 @@
 import api from './api';
 import type { PathNode } from './types';
+import type { Chest } from './components/student-pages/rewards';
 
 /**
  * Öğrencinin modül ilerlemesi — sunucuda, hesaba bağlı.
@@ -19,6 +20,8 @@ export interface CourseProgress {
     review_block?: number | null;
     submitted_homework: string[];
     leaderboard_enabled: boolean;
+    /** Haritadaki ödül sandıkları (her 3 modülde bir; bkz. routers/classroom.py) */
+    chests?: Chest[];
 }
 
 export interface CompleteResult extends CourseProgress {
