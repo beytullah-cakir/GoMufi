@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Lock, Sparkles } from 'lucide-react';
 import ButtonCyan from '../../assets/sprites/ButtonCyan.png';
 import ButtonPurple from '../../assets/sprites/ButtonPurple.png';
@@ -81,7 +81,7 @@ const OFFSETS = [0, 36, 52, 36, 0, -36, -52, -36];
 // yıldızlar (140→172px). Yani her düğümün altında akışta yer kaplamayan ama
 // dolu olan ~96px'lik bir şerit var. Noktalı yol bu şeridin İÇİNE girmemeli —
 // sitede de yol düğümlerin yanından geçer, başlığın üstünden değil.
-const NODE_TAIL = 128;
+const NODE_TAIL = 84;
 // Yolun kendisine ayrılan yükseklik (sonraki düğümün süzülen ikonu buraya taşar).
 const PATH_H = 116;
 
@@ -99,7 +99,17 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     amplitude = 1,
     showGuide = false,
 }) => {
-    const [selectedKey, setSelectedKey] = useState<string | null>(activeKey || null);
+    // Balon kapalı başlar: artık yolun üstünde süzüldüğü için açık gelirse sıradaki düğümleri örterdi.
+    const [selectedKey, setSelectedKey] = useState<string | null>(null);
+    // Balon dışına tıklayınca kapansın.
+    useEffect(() => {
+        if (!selectedKey) return;
+        const close = (e: MouseEvent) => {
+            if (!(e.target as HTMLElement).closest?.(`[data-module-key="${selectedKey}"]`)) setSelectedKey(null);
+        };
+        document.addEventListener('mousedown', close);
+        return () => document.removeEventListener('mousedown', close);
+    }, [selectedKey]);
 
     const metaOf = (stage: string) => STAGE_META[stage] || STAGE_META['ANLA'];
     const offsetOf = (index: number) => Math.round(OFFSETS[index % OFFSETS.length] * amplitude);
@@ -187,7 +197,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                 büyümesi ölürdü. */}
                             <div
                                 data-module-key={mod.key}
-                                className="relative flex justify-center w-full"
+                                className={`relative flex justify-center w-full ${isSelected ? 'z-40' : ''}`}
                                 style={{ transform: `translateX(${off}px)` }}
                             >
                                 <div
@@ -200,7 +210,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                     }}
                                 >
                                     {/* Yıldızlar */}
-                                    <div className="absolute top-35 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
+                                    <div className="absolute top-[5.9rem] left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
                                         {[0, 1, 2].map((i) => (
                                             <svg
                                                 key={i}
@@ -228,7 +238,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                     <img src={meta.button} alt="" className="w-36 relative z-10" />
 
                                     {/* Modül adı: okunur hap etiket (eskiden konturlu yazıydı, zor okunuyordu) */}
-                                    <div className="absolute top-[10.9rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
+                                    <div className="absolute top-[8rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
                                         <span
                                             className={`px-3 py-1 rounded-xl border-2 border-b-4 text-sm font-black text-center leading-tight line-clamp-2 max-w-[13rem] shadow-sm ${isDark ? 'bg-slate-900' : 'bg-white'}`}
                                             style={{ borderColor: isLocked ? '#cbd5e1' : meta.strokeColor, color: isLocked ? '#64748b' : meta.strokeColor }}
@@ -283,60 +293,39 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
 
                                     </div>
                                 </div>
-                            </div>
-
-                            {/* Balon kart.
-                                Sitede kart düğümün üstünde HAVADA durur; orada bolca boş
-                                yatay alan var. Dar ve dikey panelde havada duran kart ya
-                                bir üstteki ya bir alttaki düğümün üzerine biniyordu — bu
-                                yüzden burada AKIŞA giriyor: açıldığında yer açar, hiçbir
-                                şeyin üstünü örtmez. */}
-                            {isSelected && !isLocked && (
-                                <div
-                                    className="relative w-full flex justify-center z-30 animate-slide-up"
-                                    style={{ marginTop: NODE_TAIL + 8 }}
-                                >
-                                    <div className="relative w-[248px]">
-                                        {/* Zemin + parıltı */}
-                                        <div
-                                            className="absolute inset-0 rounded-3xl overflow-hidden shadow-xl border-x-2 border-t-2 border-b-[6px]"
-                                            style={{ backgroundColor: meta.baseColor, borderColor: meta.strokeColor }}
-                                        >
-                                            <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl" />
-                                            <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl" />
-                                            <Sparkles size={24} className="absolute top-4 right-6 text-white/30" />
-                                        </div>
-
-                                        {/* Kuyruk yukarı, düğümün gerçek yatay konumuna bakar */}
-                                        <div
-                                            className="absolute -top-2 w-6 h-6 -translate-x-1/2 rotate-45 rounded-sm"
-                                            style={{ backgroundColor: meta.baseColor, left: `calc(50% + ${off}px)` }}
-                                        />
-
-                                        <div className="relative z-10 p-5 flex flex-col items-start text-left">
-                                            <h3 className="text-white font-black font-display text-lg leading-snug mb-1 drop-shadow-md pr-6">
-                                                {mod.title}
-                                            </h3>
-                                            <span className="text-white/90 font-bold text-[10px] uppercase tracking-widest mb-4">
-                                                {mod.stage} · {mod.slides.length} slayt · {mod.done ? 'tamamlandı' : `+${mod.xp} XP`}
-                                            </span>
-
-                                            <button
-                                                className="w-full bg-white hover:bg-gray-50 text-center py-3 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:active:translate-y-0"
-                                                disabled={mod.slides.length === 0}
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    onSelectModule(mod);
-                                                }}
+                                {/* Balon kart: yolun ÜSTÜNDE süzülür, yolu aşağı itmez
+                                    (eskiden akışa giriyor ve açılınca harita kayıyordu). */}
+                                {isSelected && !isLocked && (
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-[11rem] z-50 w-[248px] animate-slide-up">
+                                        <div className="relative w-full">
+                                            <div
+                                                className="absolute inset-0 rounded-3xl overflow-hidden shadow-2xl border-x-2 border-t-2 border-b-[6px]"
+                                                style={{ backgroundColor: meta.baseColor, borderColor: meta.strokeColor }}
                                             >
-                                                <span className="font-black text-sm uppercase tracking-wider" style={{ color: meta.baseColor }}>
-                                                    {moduleActionLabel(mod.slides.length, mod.done ?? stars > 0, mod.xp)}
+                                                <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl" />
+                                                <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl" />
+                                                <Sparkles size={24} className="absolute top-4 right-6 text-white/30" />
+                                            </div>
+                                            <div className="absolute -top-2 left-1/2 w-6 h-6 -translate-x-1/2 rotate-45 rounded-sm" style={{ backgroundColor: meta.baseColor }} />
+                                            <div className="relative z-10 p-5 flex flex-col items-start text-left">
+                                                <h3 className="text-white font-black font-display text-lg leading-snug mb-1 drop-shadow-md pr-6">{mod.title}</h3>
+                                                <span className="text-white/90 font-bold text-[10px] uppercase tracking-widest mb-4">
+                                                    {mod.stage} · {mod.slides.length} slayt · {mod.done ? 'tamamlandı' : `+${mod.xp} XP`}
                                                 </span>
-                                            </button>
+                                                <button
+                                                    className="w-full bg-white hover:bg-gray-50 text-center py-3 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:active:translate-y-0"
+                                                    disabled={mod.slides.length === 0}
+                                                    onClick={(e) => { e.stopPropagation(); onSelectModule(mod); }}
+                                                >
+                                                    <span className="font-black text-sm uppercase tracking-wider" style={{ color: meta.baseColor }}>
+                                                        {moduleActionLabel(mod.slides.length, mod.done ?? stars > 0, mod.xp)}
+                                                    </span>
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
 
                             {/* Bağlayıcı: noktalı yol + çimenler.
                                 Kart açıkken başlık/yıldız şeridi zaten kartın üstünde
@@ -349,7 +338,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                     // düğüme değil, ortadaki ayıraç kartına iner.
                                     to={modules[idx + 1].lessonTopic ? 0 : offsetOf(idx + 1)}
                                     index={idx}
-                                    tail={isSelected && !isLocked ? 8 : NODE_TAIL}
+                                    tail={NODE_TAIL}
                                     color={meta.baseColor}
                                 />
                             )}

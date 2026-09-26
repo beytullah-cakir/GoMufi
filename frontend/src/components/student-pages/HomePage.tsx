@@ -18,7 +18,7 @@ import DailyQuests, { useActivity } from './DailyQuests';
 import HomeHero, { mufiLine } from './HomeHero';
 import { HomeworkCard, NotificationBell, collectHomework, useHomeworkStatus, type HomeworkItem } from './studentFeed';
 import { VSCodeGuideModal, VSCodeStatusChip, shouldAutoOpenGuide, useVSCodeStatus } from './VSCodeStatus';
-import { ChunkyButton, Mufi, MufiEmpty } from './ui';
+import { ChunkyButton, Mufi, MufiEmpty, MufiTipCard } from './ui';
 
 /**
  * Bir düğümün ait olduğu "Ders" içindeki kardeş modülleri (ANLA/UYGULA/BİRLEŞTİR/ÜRET/...)
@@ -625,7 +625,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                         >
                                             {/* Stars Rendering */}
                                             {node.stars !== undefined && (
-                                                <div className="absolute top-35 left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
+                                                <div className="absolute top-[5.9rem] left-1/2 -translate-x-1/2 flex gap-1 z-30 items-start">
                                                     {[0, 1, 2].map((i) => (
                                                         <svg
                                                             key={i}
@@ -646,7 +646,7 @@ const HomePage: React.FC<HomePageProps> = ({
                                             )}
 
                                             {/* Modül adı: okunur hap etiket (eskiden dış çizgili yazı butonun üstüne biniyordu) */}
-                                            <div className="absolute top-[11.25rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
+                                            <div className="absolute top-[8.2rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
                                                 <span
                                                     className="px-3 py-1 rounded-xl bg-white border-2 border-b-4 text-sm font-black text-center leading-tight line-clamp-2 max-w-[13rem] shadow-sm"
                                                     style={{ borderColor: node.isLocked ? '#cbd5e1' : node.strokeColor, color: node.isLocked ? '#64748b' : node.strokeColor }}
@@ -914,6 +914,7 @@ const HomePage: React.FC<HomePageProps> = ({
                 {homeworkWidget}
                 <AnnouncementFeed />
                 <AttendanceCard courseId={activeCourseId} />
+                <MufiTipCard />
             </aside>
             </div>
 
