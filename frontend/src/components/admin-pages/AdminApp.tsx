@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '../Sidebar';
-import { Bot, BookOpen, HelpCircle, History, LayoutDashboard, ShieldAlert, UserCog, Users } from 'lucide-react';
+import { Bot, BookOpen, Building2, HelpCircle, History, LayoutDashboard, ShieldAlert, UserCog, Users } from 'lucide-react';
 import api from '../../api';
 import AdminPanel from './AdminPanel';
 import AdminOverview from './AdminOverview';
 import AdminAccounts from './AdminAccounts';
+import AdminOrganizations from './AdminOrganizations';
 import { AdminAudit, AdminSecurity } from './AdminSecurity';
 import InstructorMetrics from '../instructor-pages/InstructorMetrics';
 
@@ -14,6 +15,7 @@ const PAGES: Record<string, string> = {
     Overview: '/admin',
     Accounts: '/admin/users',
     UserEdit: '/admin/users/edit',
+    Organizations: '/admin/organizations',
     Courses: '/admin/courses',
     Quizzes: '/admin/quizzes',
     AI: '/admin/ai',
@@ -60,6 +62,7 @@ function AdminApp() {
         { id: 'Overview', label: 'Genel Bakış', icon: LayoutDashboard },
         { id: 'Accounts', label: 'Hesaplar', icon: Users, section: 'Kullanıcılar' },
         { id: 'UserEdit', label: 'Ekle / Düzenle', icon: UserCog, section: 'Kullanıcılar' },
+        { id: 'Organizations', label: 'Kurumlar ve Paketler', icon: Building2, section: 'Kullanıcılar' },
         { id: 'Courses', label: 'Kurslar', icon: BookOpen, section: 'İçerik' },
         { id: 'Quizzes', label: 'Soru Bankası', icon: HelpCircle, section: 'İçerik' },
         { id: 'AI', label: 'YZ Maliyeti', icon: Bot, section: 'İşletme' },
@@ -94,6 +97,7 @@ function AdminApp() {
                 {activePage === 'Accounts' && (
                     <AdminAccounts onEdit={(email) => navigate(`${PAGES.UserEdit}${email ? `?q=${encodeURIComponent(email)}` : ''}`)} />
                 )}
+                {activePage === 'Organizations' && <AdminOrganizations />}
                 {activePage === 'UserEdit' && <AdminPanel key={`users-${search}`} initialTab="users" initialSearch={search} hideTabs />}
                 {activePage === 'Courses' && <AdminPanel initialTab="courses" hideTabs />}
                 {activePage === 'Quizzes' && <AdminPanel initialTab="quizzes" hideTabs />}
