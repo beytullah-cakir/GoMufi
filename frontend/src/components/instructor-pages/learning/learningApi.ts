@@ -302,6 +302,23 @@ export interface Misconceptions {
     questions: QuestionStat[];
 }
 
+/** MEB kazanım raporu: öğretmenin eşlediği her kazanımda sınıfın durumu. */
+export interface MebOutcomeRow {
+    code: string;
+    text: string;
+    modules: string[];
+    concepts: string[];
+    counts: Record<MasteryStatus, number>;
+    completed_all: number;
+    students: Array<{ id: number; name: string; status: MasteryStatus; completed: number }>;
+}
+
+export interface MebReport {
+    outcomes: MebOutcomeRow[];
+    student_count: number;
+    unmapped_modules: string[];
+}
+
 export type ActionKind = 'reteach' | 'practice_task' | 'talk' | 'check_code' | 'other';
 export type ActionVerdict = 'iyilesti' | 'degismedi' | 'kotulesti' | 'veri_bekleniyor';
 
@@ -427,6 +444,8 @@ export const learningApi = {
         api.get<InsightState>(`${base(c)}/insights`, { params: studentId ? { student_id: studentId } : {} }).then((r) => r.data),
     createInsight: (c: number, studentId?: number, force = false) =>
         api.post<InsightState>(`${base(c)}/insights`, { student_id: studentId ?? null, force }).then((r) => r.data),
+    mebReport: (c: number, s?: Scope) =>
+        api.get<MebReport>(`${base(c)}/meb-report`, q({ classId: s?.classId })).then((r) => r.data),
     misconceptions: (c: number, s?: Scope) =>
         api.get<Misconceptions>(`${base(c)}/misconceptions`, q(s)).then((r) => r.data),
     practiceTask: (c: number, conceptId: string, misconception?: string) =>

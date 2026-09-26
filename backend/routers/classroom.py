@@ -30,7 +30,7 @@ from sqlalchemy.orm.attributes import flag_modified
 import learning_store
 from auth.dependencies import get_current_teacher_id, get_current_user_info
 from connect_db import get_db
-from core import classroom
+from core import classroom, meb
 from models.course import Course
 from models.enrollment import Enrollment
 from models.homework_submission import HomeworkSubmission
@@ -292,3 +292,47 @@ async def approve_ai_modules(
         flag_modified(course, "curriculum")
         await db.commit()
     return {"approved": approved, "pending": sorted(classroom.pending_review_ids(course))}
+
+
+# --- MEB kazanım eşlemesi ------------------------------------------------------------
+
+class MebIn(BaseModel):
+    outcomes: List[Dict[str, Any]] = []
+    mapping: Dict[str, List[str]] = {}
+
+
+class MebParseIn(BaseModel):
+    text: str = Field(default="", max_length=60_000)
+
+
+def _meb_out(course: Course, value: Dict[str, Any]) -> Dict[str, Any]:
+    modules = _modules(course)
+    return {
+        **meb.clean(value["outcomes"], value["mapping"], [str(n.get("id")) for n in modules]),
+        "modules": [{"id": str(n.get("id")), "index": i, "title": n.get("title") or f"Modül {i}"}
+                    for i, n in enumerate(modules, start=1)],
+    }
+
+
+@router.get("/courses/{course_id}/meb-outcomes")
+async def get_meb_outcomes(
+    course_id: int, teacher_id: int = Depends(get_current_teacher_id), db: AsyncSession = Depends(get_db),
+):
+    course = await _own_course(db, course_id, teacher_id)
+    return _meb_out(course, await meb.load(db, course_id))
+
+
+@router.put("/courses/{course_id}/meb-outcomes")
+async def put_meb_outcomes(
+    course_id: int, body: MebIn, teacher_id: int = Depends(get_current_teacher_id), db: AsyncSession = Depends(get_db),
+):
+    course = await _own_course(db, course_id, teacher_id)
+    value = _meb_out(course, {"outcomes": body.outcomes, "mapping": body.mapping})
+    await meb.save(db, course_id, {"outcomes": value["outcomes"], "mapping": value["mapping"]})
+    return value
+
+
+@router.post("/meb-outcomes/parse")
+async def parse_meb_outcomes(body: MebParseIn, teacher_id: int = Depends(get_current_teacher_id)):
+    """Öğretim programından yapıştırılan metni kazanım listesine çevirir (kaydetmez)."""
+    return {"outcomes": meb.parse_outcomes(body.text)}

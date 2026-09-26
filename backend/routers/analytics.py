@@ -52,6 +52,7 @@ from models.learning import (
     CodeEditChunk, CodeProvenance, ConceptMastery, LearningEvent, LearningInsight, TaskProgress,
 )
 from models.lesson_content import LessonContent
+from models.school import ModuleProgress
 from models.quiz import Quiz
 from models.student import Student
 from models.teaching import HelpRequest
@@ -728,6 +729,62 @@ async def concept_matrix(
             "student_id": sid, "student": name, "cells": cells.get(sid, {}),
         } for sid, name in sorted(students.items(), key=lambda kv: kv[1])],
     }
+
+
+# --- okuma: MEB kazanım raporu ------------------------------------------------------
+
+@router.get("/courses/{course_id}/meb-report")
+async def meb_report(
+    course_id: int,
+    class_id: Optional[str] = None,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Öğretmenin eşlediği her MEB kazanımında sınıfın durumu.
+
+    Kazanımın durumu, eşlendiği modüllerin ölçtüğü kavramlardaki hakimiyetten
+    gelir (kazanım haritasıyla aynı eşikler); modül eşlenmiş ama kavram etiketi
+    yoksa yalnızca modülü bitirenler sayılır.
+    """
+    from core import meb
+
+    ctx = await _load_course(db, course_id, user_info)
+    scope = await _scope(db, ctx, course_id, class_id)
+    stored = await meb.load(db, course_id)
+    value = meb.clean(stored["outcomes"], stored["mapping"], list(ctx.node_order))
+    mastery: Dict[int, Dict[str, ConceptMastery]] = defaultdict(dict)
+    for m in (await db.execute(select(ConceptMastery).where(ConceptMastery.course_id == course_id))).scalars().all():
+        if scope.keep(m.student_id):
+            mastery[m.student_id][m.concept_id] = m
+    done: Dict[int, set] = defaultdict(set)
+    for sid, node_id in (await db.execute(
+        select(ModuleProgress.student_id, ModuleProgress.node_id).where(ModuleProgress.course_id == course_id)
+    )).all():
+        done[sid].add(str(node_id))
+
+    rows = []
+    for outcome in value["outcomes"]:
+        nodes = [n for n in ctx.node_order if outcome["code"] in value["mapping"].get(n, [])]
+        concepts = sorted({c for n in nodes for c in ctx.nodes[n].get("concepts") or [] if c in ctx.concepts})
+        counts = Counter()
+        students = []
+        for sid, name in sorted(scope.students.items(), key=lambda kv: kv[1]):
+            found = [mastery[sid][c] for c in concepts if c in mastery[sid]]
+            status = (mastery_status(sum(m.score for m in found) / len(found), sum(m.evidence_weight for m in found))
+                      if found else "veri_az")
+            completed = sum(1 for n in nodes if n in done[sid])
+            counts[status] += 1
+            students.append({"id": sid, "name": name, "status": status, "completed": completed})
+        rows.append({
+            **outcome,
+            "modules": [ctx.nodes[n]["title"] for n in nodes],
+            "concepts": [_concept_label(ctx, c) for c in concepts],
+            "counts": {k: counts.get(k, 0) for k in STATUS_LABELS},
+            "completed_all": sum(1 for st in students if nodes and st["completed"] == len(nodes)),
+            "students": students,
+        })
+    return {"statuses": STATUS_LABELS, "outcomes": rows, "student_count": len(scope.students),
+            "unmapped_modules": [ctx.nodes[n]["title"] for n in ctx.node_order if n not in value["mapping"]]}
 
 
 # --- okuma: görevler ------------------------------------------------------------

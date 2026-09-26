@@ -10,6 +10,7 @@ import ConceptMapTab from './ConceptMapTab';
 import HomeworkTab from './HomeworkTab';
 import { PracticeTaskModal, type PracticeTarget } from './InsightCard';
 import MisconceptionsTab from './MisconceptionsTab';
+import MebReportCard from './MebReportCard';
 import OverviewTab from './OverviewTab';
 import StudentsTab, { StudentProfileView } from './StudentsTab';
 import TasksTab, { TaskDetailView } from './TasksTab';
@@ -220,7 +221,10 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
                     <MisconceptionsTab courseId={courseId} refreshKey={refreshKey} scope={scope}
                                        onOpenStudent={openStudent} onPractice={setPractice} />
                 ) : tab === 'concepts' ? (
-                    <ConceptMapTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={openPractice} scope={scope} />
+                    <div className="space-y-6">
+                        <MebReportCard courseId={courseId} refreshKey={refreshKey} scope={scope} onOpenStudent={openStudent} />
+                        <ConceptMapTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={openPractice} scope={scope} />
+                    </div>
                 ) : tab === 'tasks' ? (
                     taskKey
                         ? <TaskDetailView courseId={courseId} taskKey={taskKey} refreshKey={refreshKey} onBack={() => setTaskKey(null)}
