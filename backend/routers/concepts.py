@@ -15,6 +15,7 @@ import logging
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from core import plans
 from pydantic import BaseModel
 from google import genai
 from sqlalchemy import select
@@ -167,6 +168,7 @@ async def draft_dictionary_api(
     req: DraftDictionaryRequest,
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """
     Sözlüğü olmayan bir dil için TASLAK üretir. KAYDETMEZ.

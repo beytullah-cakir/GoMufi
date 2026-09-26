@@ -14,20 +14,21 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Response
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, distinct, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from auth.dependencies import get_current_user_info
 from connect_db import get_db
-from core import accounts, login_guard, mailer, storage
+from core import accounts, login_guard, mailer, plans, storage
 from core.config import settings
 from models.ai_usage_log import AIUsageLog
 from models.course import Course
 from models.enrollment import Enrollment
 from models.learning import LearningEvent
 from models.parent import Parent
+from models.organization import Organization, OrganizationInvite, OrganizationMember, Subscription
 from models.platform import AccountSuspension, AdminAction, LoginAttempt
 from models.school import ModuleProgress
 from models.student import Student
@@ -280,3 +281,176 @@ async def clear_lock(email: str, _: dict = Depends(_admin), db: AsyncSession = D
     await db.execute(delete(LoginAttempt).where(LoginAttempt.email == email, LoginAttempt.success.is_(False)))
     await db.commit()
     return {"unlocked": email}
+
+
+# --- kurumlar ve paketler ----------------------------------------------------------
+# Ödeme entegrasyonu yok: kurum paketleri ve pilotlar buradan elle verilir.
+
+class OrgIn(BaseModel):
+    name: str = Field(min_length=2, max_length=200)
+    kind: str = Field(default="okul", pattern="^(okul|dershane|kurs)$")
+    city: Optional[str] = Field(default=None, max_length=80)
+    admin_email: Optional[str] = Field(default=None, max_length=255)
+
+
+def _sub_out(s: Subscription) -> Dict[str, Any]:
+    now = datetime.utcnow()
+    return {"id": s.id, "owner_type": s.owner_type, "owner_id": s.owner_id, "plan": s.plan,
+            "plan_label": plans.PLANS.get(s.plan, {}).get("label", s.plan),
+            "starts_at": _iso(s.starts_at), "ends_at": _iso(s.ends_at), "pool_credits": s.pool_credits, "note": s.note,
+            "active": s.starts_at <= now and (s.ends_at is None or s.ends_at > now)}
+
+
+@router.get("/organizations")
+async def list_organizations(_: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    orgs = (await db.execute(select(Organization).order_by(Organization.created_at.desc()))).scalars().all()
+    counts = dict((await db.execute(select(OrganizationMember.organization_id, func.count(OrganizationMember.id))
+                                    .group_by(OrganizationMember.organization_id))).all())
+    since = plans.month_start()
+    out = []
+    for o in orgs:
+        sub = await plans.active_subscription(db, "organization", o.id)
+        ids = await plans.org_teacher_ids(db, o.id)
+        used = plans.credits_of(sum((await plans.usage_usd(db, ids, since)).values()))
+        admins = (await db.execute(select(Teacher).join(OrganizationMember, OrganizationMember.teacher_id == Teacher.id)
+                                   .where(OrganizationMember.organization_id == o.id, OrganizationMember.role == "admin"))).scalars().all()
+        out.append({"id": o.id, "name": o.name, "kind": o.kind, "city": o.city, "created_at": _iso(o.created_at),
+                    "teachers": counts.get(o.id, 0), "students": await plans.student_count(db, ids),
+                    "admins": [{"id": a.id, "name": f"{a.first_name or ''} {a.last_name or ''}".strip(), "email": a.email} for a in admins],
+                    "subscription": _sub_out(sub) if sub else None, "credits_used": used})
+    return {"organizations": out}
+
+
+@router.post("/organizations")
+async def create_organization(body: OrgIn, background: BackgroundTasks, _: dict = Depends(_admin),
+                              db: AsyncSession = Depends(get_db)):
+    from routers.organizations import create_invite
+    org = Organization(name=body.name.strip(), kind=body.kind, city=(body.city or "").strip() or None)
+    db.add(org)
+    await db.commit()
+    invited = None
+    if body.admin_email:
+        invited = (await create_invite(db, org, body.admin_email, "admin", None, background)).email
+    return {"id": org.id, "name": org.name, "admin_invited": invited}
+
+
+@router.get("/organizations/{org_id}")
+async def organization_detail(org_id: int, _: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Kurum bulunamadı.")
+    members = (await db.execute(select(OrganizationMember, Teacher).join(Teacher, Teacher.id == OrganizationMember.teacher_id)
+                                .where(OrganizationMember.organization_id == org_id))).all()
+    invites = (await db.execute(select(OrganizationInvite).where(
+        OrganizationInvite.organization_id == org_id, OrganizationInvite.accepted_at.is_(None)))).scalars().all()
+    subs = (await db.execute(select(Subscription).where(Subscription.owner_type == "organization", Subscription.owner_id == org_id)
+                             .order_by(Subscription.starts_at.desc()))).scalars().all()
+    return {
+        "organization": {"id": org.id, "name": org.name, "kind": org.kind, "city": org.city},
+        "members": [{"teacher_id": t.id, "name": f"{t.first_name or ''} {t.last_name or ''}".strip(), "email": t.email,
+                     "role": m.role} for m, t in members],
+        "invites": [{"id": i.id, "email": i.email, "role": i.role, "expires_at": _iso(i.expires_at)} for i in invites],
+        "subscriptions": [_sub_out(s) for s in subs],
+    }
+
+
+@router.put("/organizations/{org_id}")
+async def update_organization(org_id: int, body: OrgIn, _: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Kurum bulunamadı.")
+    org.name, org.kind, org.city = body.name.strip(), body.kind, (body.city or "").strip() or None
+    await db.commit()
+    return {"id": org.id}
+
+
+@router.delete("/organizations/{org_id}")
+async def delete_organization(org_id: int, _: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    """Kurumu siler: öğretmen hesapları ve kursları KALIR, yalnızca kurum bağı ve kurum paketi gider."""
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Kurum bulunamadı.")
+    await db.execute(delete(Subscription).where(Subscription.owner_type == "organization", Subscription.owner_id == org_id))
+    await db.delete(org)
+    await db.commit()
+    return {"deleted": True}
+
+
+class OrgInviteIn(BaseModel):
+    email: str = Field(max_length=255)
+    role: str = Field(default="admin", pattern="^(admin|teacher)$")
+
+
+@router.post("/organizations/{org_id}/invites")
+async def invite_to_organization(org_id: int, body: OrgInviteIn, background: BackgroundTasks, _: dict = Depends(_admin),
+                                 db: AsyncSession = Depends(get_db)):
+    from routers.organizations import create_invite
+    org = await db.get(Organization, org_id)
+    if not org:
+        raise HTTPException(status_code=404, detail="Kurum bulunamadı.")
+    row = await create_invite(db, org, body.email, body.role, None, background)
+    return {"invited": row.email}
+
+
+class SubscriptionIn(BaseModel):
+    owner_type: str = Field(pattern="^(teacher|organization)$")
+    owner_id: Optional[int] = None
+    teacher_email: Optional[str] = Field(default=None, max_length=255)
+    plan: str
+    months: Optional[int] = Field(default=None, ge=1, le=60)       # boşsa süresiz
+    pool_credits: Optional[int] = Field(default=None, ge=0, le=10_000_000)
+    note: Optional[str] = Field(default=None, max_length=300)
+
+
+@router.get("/subscriptions")
+async def list_subscriptions(_: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    subs = (await db.execute(select(Subscription).order_by(Subscription.created_at.desc()).limit(200))).scalars().all()
+    teacher_names = {t.id: (f"{t.first_name or ''} {t.last_name or ''}".strip() or t.email) for t in (await db.execute(
+        select(Teacher).where(Teacher.id.in_([s.owner_id for s in subs if s.owner_type == "teacher"] or [-1])))).scalars().all()}
+    org_names = {o.id: o.name for o in (await db.execute(
+        select(Organization).where(Organization.id.in_([s.owner_id for s in subs if s.owner_type == "organization"] or [-1])))).scalars().all()}
+    return {"subscriptions": [{**_sub_out(s), "owner_name": (teacher_names if s.owner_type == "teacher" else org_names).get(s.owner_id)}
+                              for s in subs],
+            "plans": {k: v["label"] for k, v in plans.PLANS.items() if k != "free"}}
+
+
+@router.post("/subscriptions")
+async def create_subscription(body: SubscriptionIn, _: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    if body.plan not in plans.PLANS or body.plan == "free":
+        raise HTTPException(status_code=400, detail="Geçersiz paket.")
+    owner_id = body.owner_id
+    if body.owner_type == "teacher":
+        if body.plan == "kurum":
+            raise HTTPException(status_code=400, detail="Kurum paketi kuruma verilir.")
+        if owner_id is None and body.teacher_email:
+            owner_id = (await db.execute(select(Teacher.id).where(
+                func.lower(Teacher.email) == body.teacher_email.strip().lower()))).scalar()
+        if owner_id is None or not await db.get(Teacher, owner_id):
+            raise HTTPException(status_code=404, detail="Öğretmen bulunamadı.")
+    elif owner_id is None or not await db.get(Organization, owner_id):
+        raise HTTPException(status_code=404, detail="Kurum bulunamadı.")
+    now = datetime.utcnow()
+    # Aynı sahibin etkin paketi yenisiyle değişir
+    for old in (await db.execute(select(Subscription).where(
+            Subscription.owner_type == body.owner_type, Subscription.owner_id == owner_id))).scalars().all():
+        if old.ends_at is None or old.ends_at > now:
+            old.ends_at = now
+    sub = Subscription(owner_type=body.owner_type, owner_id=owner_id, plan=body.plan, starts_at=now,
+                       ends_at=now + timedelta(days=30 * body.months) if body.months else None,
+                       pool_credits=body.pool_credits if body.owner_type == "organization" else None,
+                       note=(body.note or "").strip() or None)
+    db.add(sub)
+    await db.commit()
+    return _sub_out(sub)
+
+
+@router.delete("/subscriptions/{sub_id}")
+async def end_subscription(sub_id: int, _: dict = Depends(_admin), db: AsyncSession = Depends(get_db)):
+    sub = await db.get(Subscription, sub_id)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Paket bulunamadı.")
+    now = datetime.utcnow()
+    if sub.ends_at is None or sub.ends_at > now:
+        sub.ends_at = now
+    await db.commit()
+    return _sub_out(sub)

@@ -24,7 +24,7 @@ from core.config import settings
 import homework_rules
 import learning_store
 from models.teaching import HomeworkSubmissionVersion
-from core import classroom
+from core import classroom, plans
 
 router = APIRouter()
 
@@ -1214,25 +1214,15 @@ class DuplicateCourseRequest(BaseModel):
     title: Optional[str] = None
 
 
-@router.post("/courses/{course_id}/duplicate", response_model=TeacherCourseResponse)
-async def duplicate_course(
-    course_id: int,
-    payload: DuplicateCourseRequest,
-    teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db),
-):
-    """Kursun kopyası: müfredat, ders içerikleri ve quizler. Öğrenciler, şubeler,
-    teslimler ve canlı ders tarihleri KOPYALANMAZ — yeni dönem temiz başlar."""
+async def clone_course(db: AsyncSession, src: Course, teacher_id: int, title: str) -> Course:
+    """Kursun içerik kopyası (müfredat, ders içerikleri, quizler) — öğrenci, şube, teslim
+    ve tarih KOPYALANMAZ. Commit etmez. Kurumdan ayrılan öğretmenin kurslarını kurumda
+    bırakmak için de kullanılır (routers/organizations.py)."""
     import copy as _copy
-    src = (await db.execute(
-        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
-    )).scalar_one_or_none()
-    if not src:
-        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz.")
 
     new = Course(
         teacher_id=teacher_id,
-        title=(payload.title or "").strip()[:200] or f"{src.title} (kopya)",
+        title=title,
         description=src.description, category=src.category, progress=0,
         learning_outcomes=_copy.deepcopy(src.learning_outcomes or []),
         requirements=_copy.deepcopy(src.requirements or []),
@@ -1246,14 +1236,32 @@ async def duplicate_course(
     db.add(new)
     await db.flush()
     for content in (await db.execute(
-        select(LessonContent).where(LessonContent.course_id == course_id)
+        select(LessonContent).where(LessonContent.course_id == src.id)
     )).scalars().all():
         db.add(LessonContent(course_id=new.id, node_id=content.node_id, title=content.title,
                              slides=_copy.deepcopy(content.slides or [])))
-    for q in (await db.execute(select(Quiz).where(Quiz.course_id == course_id))).scalars().all():
+    for q in (await db.execute(select(Quiz).where(Quiz.course_id == src.id))).scalars().all():
         db.add(Quiz(course_id=new.id, section_id=q.section_id, node_id=q.node_id, topic=q.topic,
                     difficulty=q.difficulty, question_text=q.question_text, options=_copy.deepcopy(q.options),
                     correct_answer=q.correct_answer, explanation=q.explanation, question_type=q.question_type))
+    return new
+
+
+@router.post("/courses/{course_id}/duplicate", response_model=TeacherCourseResponse)
+async def duplicate_course(
+    course_id: int,
+    payload: DuplicateCourseRequest,
+    teacher_id: int = Depends(get_current_teacher_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Kursun kopyası: müfredat, ders içerikleri ve quizler. Öğrenciler, şubeler,
+    teslimler ve canlı ders tarihleri KOPYALANMAZ — yeni dönem temiz başlar."""
+    src = (await db.execute(
+        select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id)
+    )).scalar_one_or_none()
+    if not src:
+        raise HTTPException(status_code=404, detail="Kurs bulunamadı veya bu kursun eğitmeni değilsiniz.")
+    new = await clone_course(db, src, teacher_id, (payload.title or "").strip()[:200] or f"{src.title} (kopya)")
     await db.commit()
     result = await db.execute(select(Course).where(Course.id == new.id).options(joinedload(Course.teacher)))
     new = result.scalar_one()
@@ -1364,6 +1372,7 @@ async def _join_with_code(db: AsyncSession, user_info: dict, code: str):
         select(Enrollment).where(Enrollment.student_id == student_id, Enrollment.course_id == course.id)
     )).scalar_one_or_none()
     if not enrolled:
+        await plans.ensure_student_capacity(db, course, student_id)
         db.add(Enrollment(student_id=student_id, course_id=course.id))
     already = student_id in classroom.class_student_ids(target_class)
     classroom.place_student(course, target_class, student_id)

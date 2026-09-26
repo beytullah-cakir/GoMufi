@@ -30,6 +30,7 @@ from zoneinfo import ZoneInfo
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
+from core import plans
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1220,6 +1221,7 @@ async def tag_course_concepts(
     course_id: int,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """Kavram etiketi olmayan düğümlere kazanım ve kavram bağlar.
 
@@ -1549,6 +1551,7 @@ async def create_insight(
     body: InsightRequest,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """YZ yorumu üretir. Aynı veriyle ve 24 saat içinde tekrar istenirse model çağrılmaz."""
     ctx = await _load_course(db, course_id, user_info)
@@ -1618,6 +1621,7 @@ async def practice_task(
     body: PracticeRequest,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """Sınıfın zorlandığı kavram için Uygula görevi TASLAĞI. Derse eklenmez; öğretmen onaylar."""
     ctx = await _load_course(db, course_id, user_info)
