@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import MufiWave from '../../assets/sprites/mufi/wave.webp';
 import MufiPeek from '../../assets/sprites/mufi/peek.webp';
 import MufiSleep from '../../assets/sprites/mufi/sleep.webp';
@@ -118,4 +118,30 @@ export const MufiEmpty: React.FC<{ pose?: MufiPose; title: string; text?: React.
 export const DOTS_STYLE: React.CSSProperties = {
     backgroundImage: 'radial-gradient(rgba(255,255,255,0.18) 1.5px, transparent 1.5px)',
     backgroundSize: '18px 18px',
+};
+
+const TIPS = [
+    'Hata mesajının son satırı genelde en önemlisidir. Önce onu oku!',
+    'Kodun çalışmadıysa bir satırını yorum yapıp tekrar dene; sorunu daraltırsın.',
+    'Takıldığında 10 dakikadan fazla bekleme: Soru Sor\'dan öğretmenine yaz.',
+    'Her gün biraz çalışmak, haftada bir çok çalışmaktan daha kalıcıdır.',
+    'Değişkenlere anlamlı isimler ver: x yerine yas, toplam_puan gibi.',
+    'Bir görevi bitirince "Tekrar et" ile yıldızlarını 3\'e tamamlayabilirsin.',
+    'print() en iyi dedektif arkadaşın: değerleri ekrana yazdırıp kontrol et.',
+];
+
+/** Sağ sütunun her zaman dolu olan kartı: günün ipucu (gün boyunca aynı kalır). */
+export const MufiTipCard: React.FC = () => {
+    const [tip] = useState(() => TIPS[Math.floor(Date.now() / 86_400_000) % TIPS.length]);
+    return (
+        <Card className="p-4 bg-gradient-to-br from-violet-50 to-white">
+            <div className="flex items-start gap-3">
+                <Mufi pose="peek" className="w-14 shrink-0" />
+                <div className="min-w-0">
+                    <p className="text-xs font-black uppercase tracking-wider text-violet-500">Mufi'nin ipucu</p>
+                    <p className="text-sm font-bold text-slate-600 mt-1">{tip}</p>
+                </div>
+            </div>
+        </Card>
+    );
 };
