@@ -153,8 +153,8 @@ export const TaskLiveAssist: React.FC<{ courseId: number | string; taskKey: stri
 
             {!solved && help && !help.open && !composing && (
                 <button onClick={() => setComposing(true)}
-                        className="self-start flex items-center gap-1.5 text-[11px] font-black px-3 py-1.5 rounded-xl bg-white border-2 border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-600">
-                    <Hand size={13} /> Yardım istiyorum
+                        className="self-start flex items-center gap-1.5 text-sm font-black h-10 px-4 rounded-2xl bg-white border-2 border-b-4 border-slate-200 text-slate-600 hover:border-rose-300 hover:text-rose-600 active:translate-y-0.5 active:border-b-2 transition-all duration-75">
+                    <Hand size={15} /> Öğretmenden yardım iste
                 </button>
             )}
 

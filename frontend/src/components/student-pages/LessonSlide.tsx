@@ -711,7 +711,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
         if (slide.type === 'challenge') {
             return (
-                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                <div className="w-full h-full relative overflow-hidden">
                     <ChallengeSlideBuilder
                         slide={slide}
                         updateSlide={(updates) => {
@@ -733,7 +733,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
         if (slide.type === 'connect') {
             return (
-                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                <div className="w-full h-full relative overflow-hidden">
                     <ConnectSlideBuilder
                         slide={slide}
                         updateSlide={(updates) => {
@@ -750,7 +750,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
 
         if (slide.type === 'produce') {
             return (
-                <div className="w-full h-full relative overflow-hidden bg-slate-50 rounded-2xl border-2 border-gray-100 shadow-md">
+                <div className="w-full h-full relative overflow-hidden">
                     <ProduceSlideBuilder
                         slide={slide}
                         updateSlide={(updates) => {
