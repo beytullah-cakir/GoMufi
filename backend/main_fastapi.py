@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from core.csrf import CSRFMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import text
@@ -136,10 +137,13 @@ _allowed_origins = [
     "https://www.gomufi.com",
     "https://gomufi.com",
     "https://go-mufi.vercel.app",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://0.0.0.0:5173",
 ]
+# Yerel geliştirme kökenleri yalnızca canlı olmayan ortamda: canlıda çerezli
+# istekleri yerel ağdaki herhangi bir sayfaya açmak gereksiz risk.
+_dev_origin_regex = None
+if not settings.IS_PRODUCTION:
+    _allowed_origins += ["http://localhost:5173", "http://127.0.0.1:5173", "http://0.0.0.0:5173"]
+    _dev_origin_regex = r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?"
 
 # FRONTEND_URL production'da tanımlıysa ve listede yoksa ekle
 _frontend_url = settings.FRONTEND_URL
@@ -151,19 +155,25 @@ _render_url = os.getenv("RENDER_EXTERNAL_URL")
 if _render_url and _render_url not in _allowed_origins:
     _allowed_origins.append(_render_url)
 
+if settings.BACKEND_URL and settings.BACKEND_URL.rstrip("/") not in _allowed_origins:
+    _allowed_origins.append(settings.BACKEND_URL.rstrip("/"))
+
 logger.info(f"CORS allowed origins: {_allowed_origins}")
+
+# CSRF: çerezli değiştirici istekler yalnızca izinli kökenlerden (bkz. core/csrf.py).
+# CORS'tan önce eklenir; böylece CORS en dışta kalır ve ret yanıtı da CORS başlığı taşır.
+app.add_middleware(CSRFMiddleware, allowed_origins=_allowed_origins, allowed_regex=_dev_origin_regex)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_allowed_origins,
-    allow_origin_regex=r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?",
+    allow_origin_regex=_dev_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Yüklenen dosyalar (builder/upload-image ve upload-chat-file bu yolu döndürür).
-# NOT: Bu dizin container içinde kalıcı DEĞİLDİR — kalıcılık için object storage gerekir.
+# Eski yüklemeler (yenileri veritabanında, /files altında — bkz. routers/files.py).
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 os.makedirs(os.path.join(_static_dir, "uploads"), exist_ok=True)
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
