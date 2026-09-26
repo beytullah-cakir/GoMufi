@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LogOut, ChevronLeft, ChevronRight, Backpack, Presentation, Users, ShieldCheck } from 'lucide-react';
+import { LogOut, ChevronLeft, ChevronRight, Backpack, Presentation, Users, ShieldCheck, Menu, X } from 'lucide-react';
 import posthog from "posthog-js";
 import api from "../api";
 
@@ -167,11 +167,19 @@ const Sidebar: React.FC<SidebarProps> = ({
   };
 
   return (
+    <>
+    <MobileNav
+      role={role}
+      activePage={activePage}
+      onNavigate={onNavigate}
+      items={items}
+      userData={userData}
+      onLogout={handleLogout}
+    />
     <div
-      className={`relative h-screen bg-white border-r-2 border-gray-200 flex flex-col transition-all duration-300 ease-in-out z-[100] shrink-0 box-border ${
+      className={`relative h-screen bg-white border-r-2 border-gray-200 hidden md:flex flex-col transition-all duration-300 ease-in-out z-[100] shrink-0 box-border ${
         isCollapsed ? "w-24" : "w-64"
       }`}
-      style={{ display: "flex", flexDirection: "column", height: "100vh" }}
     >
       {/* Logo Area */}
       <div
@@ -222,12 +230,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span className="block px-4 py-1.5 text-[9px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-50 mb-1">
               PANEL SEÇİMİ
             </span>
-            {[
-              { label: "Öğrenci Paneli", path: "/student", Icon: Backpack },
-              { label: "Eğitmen Paneli", path: "/instructor", Icon: Presentation },
-              { label: "Ebeveyn Paneli", path: "/parent", Icon: Users },
-              { label: "Yönetici Paneli", path: "/admin", Icon: ShieldCheck }
-            ].map(panel => (
+            {PANELS.map(panel => (
               <button
                 key={panel.path}
                 type="button"
@@ -333,6 +336,102 @@ const Sidebar: React.FC<SidebarProps> = ({
         </button>
       </div>
     </div>
+    </>
+  );
+};
+
+const PANELS = [
+  { label: "Öğrenci Paneli", path: "/student", Icon: Backpack },
+  { label: "Eğitmen Paneli", path: "/instructor", Icon: Presentation },
+  { label: "Ebeveyn Paneli", path: "/parent", Icon: Users },
+  { label: "Yönetici Paneli", path: "/admin", Icon: ShieldCheck },
+];
+
+/**
+ * Telefon görünümü (md altı): yan menü yerine alt sekme çubuğu. İlk dört öğe
+ * sekme olur; kalanlar, seri, panel seçimi ve çıkış "Menü" sayfasındadır.
+ * Yerleşim kapsayıcısı telefonda flex-col olduğundan çubuk akışta en alta oturur.
+ */
+const MobileNav: React.FC<SidebarProps & { onLogout: () => void }> = ({
+  role, activePage, onNavigate, items, userData, onLogout,
+}) => {
+  const [open, setOpen] = useState(false);
+  const tabs = items.slice(0, 4);
+  const rest = items.filter((i) => !tabs.includes(i));
+  const restActive = rest.some((i) => i.id === activePage);
+  const isAdmin = role === "admin" || userData?.role === "admin";
+  const accent = role === "parent" ? "text-purple-600" : "text-sky-600";
+  const accentBg = role === "parent" ? "bg-purple-100" : "bg-sky-100";
+
+  const go = (id: string) => { setOpen(false); onNavigate(id); };
+
+  return (
+    <nav className="md:hidden order-last shrink-0 relative z-[100] bg-white border-t-2 border-gray-200 pb-[env(safe-area-inset-bottom)]">
+      <div className="flex">
+        {tabs.map((item) => {
+          const active = item.id === activePage;
+          return (
+            <button key={item.id} type="button" onClick={() => go(item.id)}
+                    className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 relative ${active ? accent : "text-gray-400"}`}>
+              <span className={`w-12 h-7 rounded-full flex items-center justify-center ${active ? accentBg : ""}`}>
+                <item.icon size={20} strokeWidth={active ? 2.75 : 2.25} />
+              </span>
+              <span className="text-[11px] font-black truncate max-w-full px-1">{item.label}</span>
+              {!!item.badgeCount && (
+                <span className="absolute top-1 left-1/2 ml-2 bg-red-500 text-white text-[10px] font-black min-w-4 h-4 px-1 rounded-full flex items-center justify-center">{item.badgeCount}</span>
+              )}
+            </button>
+          );
+        })}
+        <button type="button" onClick={() => setOpen(true)}
+                className={`flex-1 min-w-0 flex flex-col items-center gap-0.5 pt-2 pb-1.5 ${restActive ? accent : "text-gray-400"}`}>
+          <span className={`w-12 h-7 rounded-full flex items-center justify-center ${restActive ? accentBg : ""}`}><Menu size={20} /></span>
+          <span className="text-[11px] font-black">Menü</span>
+        </button>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-[200] flex flex-col justify-end" role="dialog" aria-modal="true" aria-label="Menü">
+          <button type="button" aria-label="Kapat" className="absolute inset-0 bg-black/40" onClick={() => setOpen(false)} />
+          <div className="relative bg-white rounded-t-3xl p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] space-y-1 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <img src={MufiLogo} alt="" className="w-9 h-9 object-contain" />
+                <span className="font-black text-gray-800">{userData?.first_name || "GoMufi"}</span>
+                {role === "student" && (
+                  <span className="flex items-center gap-1 text-sm font-black text-orange-500" title="Günlük seri">
+                    <img src={FireIcon} alt="" className="w-5 h-5" /> {userData?.streak ?? 0} gün
+                  </span>
+                )}
+              </div>
+              <button type="button" onClick={() => setOpen(false)} aria-label="Kapat" className="p-2 rounded-xl text-gray-400 hover:bg-gray-100"><X size={20} /></button>
+            </div>
+            {rest.map((item) => (
+              <button key={item.id} type="button" onClick={() => go(item.id)}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-sm font-black ${item.id === activePage ? `${accentBg} ${accent}` : "text-gray-600 hover:bg-gray-50"}`}>
+                <item.icon size={20} /> {item.label}
+                {!!item.badgeCount && <span className="ml-auto bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center">{item.badgeCount}</span>}
+              </button>
+            ))}
+            {isAdmin && (
+              <div className="pt-2 mt-2 border-t border-gray-100">
+                <p className="px-4 py-1 text-[11px] font-black uppercase tracking-widest text-gray-400">Panel seçimi</p>
+                {PANELS.map((p) => (
+                  <button key={p.path} type="button" onClick={() => { window.location.href = p.path; }}
+                          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-bold text-gray-600 hover:bg-gray-50">
+                    <p.Icon size={18} /> {p.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button type="button" onClick={onLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 mt-2 rounded-2xl text-sm font-black text-red-500 bg-red-50">
+              <LogOut size={20} /> Çıkış Yap
+            </button>
+          </div>
+        </div>
+      )}
+    </nav>
   );
 };
 

@@ -83,7 +83,7 @@ function AdminApp() {
     const search = new URLSearchParams(location.search).get('q') || '';
 
     return (
-        <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
+        <div className="flex flex-col md:flex-row h-[100dvh] bg-white font-sans text-gray-900 overflow-hidden">
             <Sidebar
                 role="admin"
                 activePage={activePage}
@@ -92,7 +92,7 @@ function AdminApp() {
                 userData={userData}
             />
 
-            <div className="flex-1 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar bg-gray-50/40">
+            <div className="flex-1 min-h-0 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar bg-gray-50/40">
                 {activePage === 'Overview' && <AdminOverview onNavigate={go} />}
                 {activePage === 'Accounts' && (
                     <AdminAccounts onEdit={(email) => navigate(`${PAGES.UserEdit}${email ? `?q=${encodeURIComponent(email)}` : ''}`)} />

@@ -10,7 +10,7 @@ from models.parent import Parent
 from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
-from core import gamification
+from core import gamification, streak
 from pydantic import BaseModel
 from typing import Optional
 
@@ -54,7 +54,7 @@ async def get_profile(
             "student_code": student.student_code if student else "ADMIN",
             "grade_level": "Yönetici",
             "education_level": "Yönetici",
-            "streak": student.streak if student else 99,
+            "streak": (await streak.current(db, student.id)) if student else 0,
             "xp": student.xp if student else 99999,
             "expertises": teacher.expertises if teacher else "Tümü",
             "bio": teacher.bio if teacher else "Sistem Yöneticisi",
@@ -99,7 +99,7 @@ async def get_profile(
             "student_code": student.student_code,
             "grade_level": student.grade_level,
             "education_level": student.education_level,
-            "streak": student.streak,
+            "streak": await streak.current(db, student.id),
             "xp": student.xp,
             # Level ve lig, XP'den TÜRETİLİR (core/gamification.py) — tek kaynak
             "progression": gamification.level_progress(student.xp),
@@ -322,7 +322,7 @@ async def get_parent_student_detail(
         "grade_level": student.grade_level,
         "education_level": student.education_level,
         "xp": student.xp,
-        "streak": student.streak,
+        "streak": await streak.current(db, student.id),
         "courses": [
             {
                 "id": c.id,
@@ -361,8 +361,11 @@ async def update_student_stats(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found")
     
-    student.xp = (student.xp or 0) + max(0, min(MAX_GAME_XP_PER_CALL, stats.xp_gain))
-    
+    gain = max(0, min(MAX_GAME_XP_PER_CALL, stats.xp_gain))
+    student.xp = (student.xp or 0) + gain
+    if gain and user["role"] == "student":
+        await streak.record(db, student_id, xp=gain)
+
     await db.commit()
     await db.refresh(student)
 

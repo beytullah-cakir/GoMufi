@@ -39,6 +39,8 @@ export interface RoadmapModule {
     xp: number;
     slides: any[];
     stars?: number;
+    /** Sunucuda bitmiş sayılıyor mu (düğme "Tekrar et" olur) */
+    done?: boolean;
     isLocked?: boolean;
     lessonNumber?: number;
     lessonTopic?: string;
@@ -75,6 +77,10 @@ const OFFSETS = [0, 36, 52, 36, 0, -36, -52, -36];
 const NODE_TAIL = 96;
 // Yolun kendisine ayrılan yükseklik (sonraki düğümün süzülen ikonu buraya taşar).
 const PATH_H = 116;
+
+/** Modül balonundaki düğmenin yazısı; ana sayfadaki yatay yolla aynı kural. */
+export const moduleActionLabel = (slideCount: number, done: boolean, xp: number) =>
+    slideCount === 0 ? 'Henüz içerik yok' : done ? 'Tekrar et' : `Başlat · +${xp} XP`;
 
 export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     courseTitle,
@@ -275,18 +281,19 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                                 {mod.title}
                                             </h3>
                                             <span className="text-white/90 font-bold text-[10px] uppercase tracking-widest mb-4">
-                                                {mod.stage} · {mod.slides.length} SLAYT · +{mod.xp} XP
+                                                {mod.stage} · {mod.slides.length} slayt · {mod.done ? 'tamamlandı' : `+${mod.xp} XP`}
                                             </span>
 
                                             <button
-                                                className="w-full bg-white hover:bg-gray-50 text-center py-3 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                                                className="w-full bg-white hover:bg-gray-50 text-center py-3 rounded-2xl shadow-lg border-b-[4px] border-black/5 active:border-b-0 active:translate-y-[4px] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed disabled:active:translate-y-0"
+                                                disabled={mod.slides.length === 0}
                                                 onClick={(e) => {
                                                     e.stopPropagation();
                                                     onSelectModule(mod);
                                                 }}
                                             >
                                                 <span className="font-black text-sm uppercase tracking-wider" style={{ color: meta.baseColor }}>
-                                                    BAŞLAT +10 PUAN
+                                                    {moduleActionLabel(mod.slides.length, mod.done ?? stars > 0, mod.xp)}
                                                 </span>
                                             </button>
                                         </div>

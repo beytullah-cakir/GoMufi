@@ -7,7 +7,6 @@ import HomePage from './HomePage';
 import ProfilePage from './ProfilePage';
 import ContentPage from './ContentPage';
 import AskQuestionPage from './AskQuestionPage';
-import MufiSleep from '../../assets/sprites/MufiSleep.png';
 import StudentClassesPage from './StudentClassesPage';
 import { useUnreadMessages } from '../../messaging/useUnreadMessages';
 import { applyProgress, fetchProgress, type CourseProgress } from '../../progress';
@@ -216,7 +215,6 @@ function StudentApp() {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const [activePage, setActivePage] = useState('Ana Sayfa');
     // "Soru Sor!" rozeti: öğretmenden gelen okunmamış cevaplar.
     const unreadMessages = useUnreadMessages();
     const [activeCourseId, setActiveCourseId] = useState<string>('');
@@ -232,7 +230,9 @@ function StudentApp() {
         }
     };
 
-    // Page to Path mapping
+    // Sayfa ↔ adres. Etkin sayfa ADRESTEN türetilir: eskiden ayrı bir durumda
+    // tutulup iki effect ile eşitleniyordu; doğrudan açılan ya da yenilenen
+    // /student/my-courses gibi adresler bu yüzden hep ana sayfaya düşüyordu.
     const pageToPath: Record<string, string> = {
         'Ana Sayfa': '/student/home',
         'Kurslarım': '/student/my-courses',
@@ -241,7 +241,6 @@ function StudentApp() {
         'PROFILIM': '/student/profile',
         'Sınıflarım': '/student/my-classes',
     };
-
     const pathToPage: Record<string, string> = {
         '/student/home': 'Ana Sayfa',
         '/student/my-courses': 'Kurslarım',
@@ -249,25 +248,12 @@ function StudentApp() {
         '/student/profile': 'Profilim',
         '/student/my-classes': 'Sınıflarım',
     };
-
-    // Effect to sync URL -> State (Handle browser back/forward and initial load)
-    useEffect(() => {
-        const page = pathToPage[location.pathname];
-        if (page) {
-            setActivePage(page);
-        } else {
-            // /student ya da artık olmayan eski adresler (katalog, sepet) ana sayfaya düşer
-            setActivePage('Ana Sayfa');
-        }
-    }, [location.pathname]);
-
-    // Effect to sync State -> URL (Update URL when user clicks menu)
-    useEffect(() => {
-        const targetPath = pageToPath[activePage] || '/student/home';
-        if (location.pathname !== targetPath) {
-            navigate(targetPath);
-        }
-    }, [activePage]);
+    // /student ya da artık olmayan eski adresler (katalog, sepet) ana sayfa sayılır
+    const activePage = pathToPage[location.pathname.replace(/\/+$/, '')] || 'Ana Sayfa';
+    const setActivePage = (page: string) => {
+        const target = pageToPath[page] || '/student/home';
+        if (location.pathname !== target) navigate(target);
+    };
 
     // --- Kayıtlı kurslar (öğrenci kursa öğretmenin verdiği katılım koduyla girer) ---
     const [enrolledCourses, setEnrolledCourses] = useState<any[]>([]);
@@ -381,7 +367,7 @@ function StudentApp() {
 
     return (
         <>
-            <div className="flex flex-row h-screen bg-white font-sans text-gray-900 overflow-hidden">
+            <div className="flex flex-col md:flex-row h-[100dvh] bg-white font-sans text-gray-900 overflow-hidden">
                 {activePage !== 'Builder' && !isLiveSessionJoined && (
                     <Sidebar
                         role="student"
@@ -392,7 +378,7 @@ function StudentApp() {
                     />
                 )}
 
-                <div className="flex-1 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar">
+                <div className="flex-1 min-h-0 flex flex-col relative w-full overflow-y-auto overflow-x-hidden custom-scrollbar">
                     {activePage === 'Ana Sayfa' ? (
                         <HomePage
                             currentCourse={currentCourse}
@@ -445,19 +431,6 @@ function StudentApp() {
                 </div>
             </div>
 
-            {/* Sleeping User Widget (Global Fixed - Outside App Layout) */}
-            {activePage === 'Ana Sayfa' && (
-                <div className="fixed bottom-0 right-0 z-[90] pointer-events-none origin-bottom-right m-0 p-0">
-                    <div className="relative">
-                        <div className="absolute top-2 right-12 z-20 flex flex-col items-center">
-                            <span className="text-3xl font-black text-sky-400 animate-zzz font-display leading-none">Z</span>
-                            <span className="text-2xl font-black text-sky-400/80 animate-zzz font-display absolute -top-4 -right-4 leading-none" style={{ animationDelay: '1s' }}>z</span>
-                            <span className="text-xl font-black text-sky-400/60 animate-zzz font-display absolute -top-8 -right-6 leading-none" style={{ animationDelay: '2s' }}>z</span>
-                        </div>
-                        <img src={MufiSleep} alt="Sleeping Mufi" className="w-56 animate-breathe drop-shadow-2xl relative z-10 block" />
-                    </div>
-                </div>
-            )}
         </>
     );
 }
