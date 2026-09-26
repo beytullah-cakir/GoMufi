@@ -42,8 +42,10 @@ router = APIRouter(prefix="/messages", tags=["messages"])
 MAX_BODY = 4000
 MAX_TOPIC = 200
 PAGE_SIZE = 200
-# Yalnızca kendi yükleme ucumuzun (/builder/upload-chat-file) döndürdüğü adresler.
-_UPLOAD_URL = re.compile(r"^https?://[^\s\"'<>]+/static/uploads/[A-Za-z0-9._-]+$")
+# Yalnızca kendi yükleme ucumuzun (/builder/upload-chat-file) döndürdüğü adresler
+# (eski yüklemeler /static/uploads altında; yenileri veritabanında, /files altında).
+_UPLOAD_URL = re.compile(
+    r"^https?://[^\s\"'<>]+/(static/uploads/[A-Za-z0-9._-]+|files/[0-9a-f-]{36}\.[a-z0-9]{1,10})$")
 
 
 # --- kimlik ---------------------------------------------------------------------

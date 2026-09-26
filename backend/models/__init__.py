@@ -16,3 +16,4 @@ from .teaching import (
     HomeworkSubmissionVersion, RubricTemplate, CourseSettings, ParentReport, RecordingConsent,
 )
 from .school import PasswordResetToken, AttendanceRecord, Announcement, NotificationLog, ModuleProgress
+from .platform import StoredFile, SlideTemplate, LoginAttempt, AccountSuspension, AdminAction

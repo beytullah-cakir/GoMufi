@@ -1,3 +1,5 @@
+import os
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from core.config import settings
@@ -13,10 +15,11 @@ if DATABASE_URL and DATABASE_URL.startswith("postgresql://"):
 if not DATABASE_URL:
     raise ValueError("DATABASE_URL ortam değişkeni ayarlanmamış!")
 
-# connect_db.py (Güncellenmiş Kısım)
+# SQL günlüğü yalnızca açıkça istenirse (SQL_ECHO=1): açık olduğunda her sorgu
+# parametreleriyle (e-posta, parola özeti, mesaj metni) log'a düşüyordu — KVKK.
 engine = create_async_engine(
-    DATABASE_URL, 
-    echo=True,
+    DATABASE_URL,
+    echo=os.getenv("SQL_ECHO", "").lower() in ("1", "true"),
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
