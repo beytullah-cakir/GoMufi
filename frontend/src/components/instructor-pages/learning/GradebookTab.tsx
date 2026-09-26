@@ -66,8 +66,12 @@ table{border-collapse:collapse;width:100%;font-size:12px}th,td{border:1px solid 
 <p>${new Date().toLocaleString('tr-TR')} · Önerilen not, ağırlıklı ortalamadır; veri olmayan bileşen ortalamaya girmez.
 ${book.missing_as_zero ? 'Süresi dolmuş ve teslim edilmemiş ödevler 0 sayıldı.' : ''}</p>
 <table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-<script>window.onload=function(){window.print()}</script></body></html>`);
+</body></html>`);
     win.document.close();
+    // Satır içi <script> yerine buradan: sitenin CSP'si yeni pencereye de geçer
+    // ve satır içi script'i engeller.
+    win.focus();
+    win.print();
 }
 
 const GradebookTab: React.FC<{ courseId: number; courseTitle: string; refreshKey: number; scope: Scope; onOpenStudent: (id: number) => void }> = ({

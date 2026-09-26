@@ -1,6 +1,6 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 from core.ws_manager import manager
-from core import live_routes
+from core import live_routes, origins
 from core.security import decode_access_token
 import json
 import logging
@@ -27,6 +27,17 @@ async def _authenticated_session(websocket: WebSocket) -> str | None:
     Bağlantıyı doğrular ve kanal anahtarını ("<rol>:<id>") döner.
     Doğrulanamazsa bağlantıyı kapatır ve None döner.
     """
+    # Siteler arası WebSocket ele geçirme (CSWSH): canlıda çerez SameSite=None;
+    # başka bir site öğrencinin tarayıcısında bu adrese bağlanırsa çerez de
+    # gider ve o site öğrencinin canlı ders mesajlarını okuyup onun adına
+    # yazabilirdi. Tarayıcı Origin başlığını her zaman gönderir: kimlik ÇEREZDEN
+    # geliyorsa köken izinli olmalı. (?token= ile gelen istemci — ör. eklenti —
+    # token'ı zaten kendisi biliyor.)
+    from_cookie = bool(websocket.cookies.get("access_token"))
+    origin = websocket.headers.get("origin")
+    if from_cookie and origin and not origins.is_allowed(origin):
+        await websocket.close(code=WS_POLICY_VIOLATION, reason="Origin not allowed")
+        return None
     payload = decode_access_token(_extract_token(websocket))
     if not payload:
         await websocket.close(code=WS_POLICY_VIOLATION, reason="Not authenticated")

@@ -134,30 +134,10 @@ app.add_middleware(
 )
 
 # 3. CORS
-_allowed_origins = [
-    "https://www.gomufi.com",
-    "https://gomufi.com",
-    "https://go-mufi.vercel.app",
-]
-# Yerel geliştirme kökenleri yalnızca canlı olmayan ortamda: canlıda çerezli
-# istekleri yerel ağdaki herhangi bir sayfaya açmak gereksiz risk.
-_dev_origin_regex = None
-if not settings.IS_PRODUCTION:
-    _allowed_origins += ["http://localhost:5173", "http://127.0.0.1:5173", "http://0.0.0.0:5173"]
-    _dev_origin_regex = r"http://(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|172\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+)(:\d+)?"
-
-# FRONTEND_URL production'da tanımlıysa ve listede yoksa ekle
-_frontend_url = settings.FRONTEND_URL
-if _frontend_url and _frontend_url not in _allowed_origins:
-    _allowed_origins.append(_frontend_url)
-
-# Render.com backend URL'si de CORS listesine ekle (SSR/proxy senaryoları için)
-_render_url = os.getenv("RENDER_EXTERNAL_URL")
-if _render_url and _render_url not in _allowed_origins:
-    _allowed_origins.append(_render_url)
-
-if settings.BACKEND_URL and settings.BACKEND_URL.rstrip("/") not in _allowed_origins:
-    _allowed_origins.append(settings.BACKEND_URL.rstrip("/"))
+# İzinli kökenler tek yerde (CORS, CSRF ve WebSocket aynı listeyi kullanır).
+from core import origins as _origins
+_allowed_origins = _origins.allowed_origins()
+_dev_origin_regex = _origins.dev_origin_regex()
 
 logger.info(f"CORS allowed origins: {_allowed_origins}")
 

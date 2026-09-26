@@ -10,7 +10,11 @@ from models.parent import Parent
 from models.enrollment import Enrollment
 from models.course import Course
 from schemas.user import ProfileUpdate, LinkStudentRequest
-from core import gamification, streak
+from core import gamification, login_guard, streak
+from models.platform import LoginAttempt
+from datetime import datetime, timedelta
+
+LINK_ATTEMPTS_PER_HOUR = 10
 from pydantic import BaseModel
 from typing import Optional
 
@@ -206,23 +210,37 @@ async def update_profile(
 @router.post("/profile/link-student")
 async def link_student(
     data: LinkStudentRequest,
+    request: Request,
     user=Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     if user["role"] != "parent":
         raise HTTPException(status_code=403, detail="Sadece ebeveynler öğrenci bağlayabilir")
-    
-    # Find student by code
-    result = await db.execute(select(Student).where(Student.student_code == data.student_code.upper()))
-    student = result.scalars().first()
-    
-    if not student:
-        raise HTTPException(status_code=404, detail="Geçersiz öğrenci kodu")
-    
-    if student.parent_id:
-        raise HTTPException(status_code=400, detail="Bu öğrenci zaten başka bir ebeveyne bağlı")
-    
-    student.parent_id = int(user["user_id"])
+
+    # Kod deneme yanılmayla bulunamasın: veli başına saatte sınırlı YANLIŞ deneme.
+    # Kayıt giriş denemeleri tablosunda, ayırt edici bir anahtarla tutuluyor
+    # (yönetici güvenlik sayfasında da görünür).
+    parent_id = int(user["user_id"])
+    key = f"veli-bagla:{parent_id}"
+    since = datetime.utcnow() - timedelta(hours=1)
+    failures = (await db.execute(
+        select(func.count(LoginAttempt.id)).where(
+            LoginAttempt.email == key, LoginAttempt.success.is_(False), LoginAttempt.created_at >= since)
+    )).scalar() or 0
+    if failures >= LINK_ATTEMPTS_PER_HOUR:
+        raise HTTPException(status_code=429, detail="Çok fazla yanlış kod denendi. Bir saat sonra tekrar dene.")
+
+    code = (data.student_code or "").strip().upper()[:32]
+    student = (await db.execute(select(Student).where(Student.student_code == code))).scalars().first() if code else None
+
+    # Kodun geçerli olup olmadığı ile "başka veliye bağlı" durumu AYNI yanıtı
+    # verir: aksi hâlde geçerli kodlar ayırt edilebilirdi.
+    if not student or (student.parent_id and student.parent_id != parent_id):
+        db.add(LoginAttempt(email=key, ip=login_guard.client_ip(request), success=False, created_at=datetime.utcnow()))
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Kod geçersiz ya da bu öğrenci başka bir veliye bağlı.")
+
+    student.parent_id = parent_id
     await db.commit()
     
     return {"message": f"Öğrenci ({student.first_name} {student.last_name}) başarıyla bağlandı"}

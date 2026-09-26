@@ -2,6 +2,7 @@ import React from 'react';
 import type { Slide, SlideElement } from './types';
 import { layoutElements } from './grid';
 import { Image as ImageIcon, Video as VideoIcon, Check } from 'lucide-react';
+import { safeHtml } from '../../security/sanitize';
 
 interface SlideThumbnailProps {
     slide: Slide;
@@ -74,7 +75,7 @@ const SlideThumbnail: React.FC<SlideThumbnailProps> = ({ slide, width = 128, hei
                             <div className="flex justify-center mb-8 w-full px-2">
                                 <div className="bg-white border-2 border-gray-200 border-b-4 rounded-3xl p-6 shadow-sm text-center w-full">
                                     <span className="text-gray-400 font-bold text-lg uppercase tracking-widest block mb-2">BÖLÜM 1</span>
-                                    <h1 className="text-4xl font-black text-gray-700 font-display text-center line-clamp-2 leading-tight" dangerouslySetInnerHTML={{ __html: slide.gameConfig.questions[0].text || 'Yeni Soru' }}></h1>
+                                    <h1 className="text-4xl font-black text-gray-700 font-display text-center line-clamp-2 leading-tight" dangerouslySetInnerHTML={safeHtml(slide.gameConfig.questions[0].text || 'Yeni Soru')}></h1>
                                 </div>
                             </div>
 
@@ -204,7 +205,7 @@ const ThumbnailElement: React.FC<{ el: SlideElement }> = ({ el }) => {
     if (el.type === 'text') {
         return (
             <div style={style} className="overflow-hidden">
-                <span dangerouslySetInnerHTML={{ __html: el.content }} style={{ transformOrigin: 'left top' }} />
+                <span dangerouslySetInnerHTML={safeHtml(el.content)} style={{ transformOrigin: 'left top' }} />
             </div>
         );
     }
@@ -212,7 +213,7 @@ const ThumbnailElement: React.FC<{ el: SlideElement }> = ({ el }) => {
     if (el.type === 'sticky') {
         return (
             <div style={{ ...style, flexDirection: 'column', padding: '10px' }} className="shadow-sm">
-                <span dangerouslySetInnerHTML={{ __html: el.content }} style={{ fontSize: '0.8em' }} />
+                <span dangerouslySetInnerHTML={safeHtml(el.content)} style={{ fontSize: '0.8em' }} />
             </div>
         );
     }
@@ -229,7 +230,7 @@ const ThumbnailElement: React.FC<{ el: SlideElement }> = ({ el }) => {
                 justifyContent: 'center',
                 padding: '5px'
             }}>
-                <span dangerouslySetInnerHTML={{ __html: el.content }} style={{ fontSize: '0.8em', width: '100%', textAlign: 'center' }} />
+                <span dangerouslySetInnerHTML={safeHtml(el.content)} style={{ fontSize: '0.8em', width: '100%', textAlign: 'center' }} />
             </div>
         );
     }
