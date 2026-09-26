@@ -1,32 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
-import {
-    Calendar as CalendarIcon,
-    Clock,
-    Video,
-    MessageCircle,
-    MoreHorizontal,
-    Zap,
-    Users,
-    Shield,
-    Play,
-    CheckCircle,
-    Lock,
-    Star,
-    Layout,
-    TrendingUp,
-    Award,
-    ChevronRight,
-    ChevronDown,
-    Target,
-    Cloud,
-    Circle,
-    Triangle,
-    Hexagon,
-    Sparkles,
-    Info
-} from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Video, MessageCircle, MoreHorizontal, Zap, Users, Shield, Play, CheckCircle, Lock, Star, Layout, TrendingUp, Award, ChevronRight, ChevronDown, Target, Cloud, Circle, Triangle, Hexagon, Sparkles, Info, UserRound } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import CourseInfoModal from '../shared/CourseInfoModal';
@@ -891,7 +866,7 @@ const ContentPage: React.FC<ContentPageProps> = ({ enrolledCourses, onOpenJoinMo
                         </h3>
                         <div className="flex items-center gap-4 mb-5">
                             <div className="w-14 h-14 bg-gray-100 rounded-2xl border-2 border-gray-200 flex items-center justify-center text-3xl shadow-sm">
-                                👩‍🏫
+                                <UserRound size={28} className="text-gray-500" />
                             </div>
                             <h4 className="font-black text-gray-800 text-lg">{activeCourseData?.instructor || "Öğretmen"}</h4>
                         </div>

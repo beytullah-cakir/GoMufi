@@ -15,14 +15,15 @@ LEVEL_STEP = 25
 # Sonsuz döngü koruması — pratikte ulaşılmaz bir tavan.
 MAX_LEVEL = 200
 
-# Lig kademeleri: (başlangıç_level, ad, emoji, renk). Level bu banda göre lige eşlenir.
+# Lig kademeleri: (başlangıç_level, ad, ikon, renk). Level bu banda göre lige eşlenir.
+# İkon adı arayüzdeki ikon setine eşlenir (frontend/src/components/shared/LeagueBadge.tsx).
 LEAGUES: List[Tuple[int, str, str, str]] = [
-    (1, "Bronz", "🥉", "#cd7f32"),
-    (5, "Gümüş", "🥈", "#9ca3af"),
-    (10, "Altın", "🥇", "#f59e0b"),
-    (20, "Platin", "💠", "#22d3ee"),
-    (35, "Elmas", "💎", "#60a5fa"),
-    (55, "Efsane", "👑", "#a855f7"),
+    (1, "Bronz", "medal", "#cd7f32"),
+    (5, "Gümüş", "medal", "#9ca3af"),
+    (10, "Altın", "medal", "#f59e0b"),
+    (20, "Platin", "shield", "#22d3ee"),
+    (35, "Elmas", "gem", "#60a5fa"),
+    (55, "Efsane", "crown", "#a855f7"),
 ]
 
 
@@ -52,8 +53,8 @@ def league_for_level(level: int) -> Dict[str, Any]:
             chosen = band
         else:
             break
-    start_level, name, emoji, color = chosen
-    return {"name": name, "emoji": emoji, "color": color, "tier_start_level": start_level}
+    start_level, name, icon, color = chosen
+    return {"name": name, "icon": icon, "color": color, "tier_start_level": start_level}
 
 
 def level_progress(xp: int) -> Dict[str, Any]:

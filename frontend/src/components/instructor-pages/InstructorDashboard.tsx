@@ -1,27 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import {
-  AlertTriangle,
-  BookOpen,
-  Brain,
-  Calendar,
-  CheckCircle,
-  ChevronRight,
-  ClipboardCheck,
-  Clock,
-  Flame,
-  GraduationCap,
-  Hand,
-  LifeBuoy,
-  MessageSquare,
-  Microscope,
-  Play,
-  Plus,
-  Sparkles,
-  TrendingUp,
-  UserPlus,
-  Users,
-  Video,
-} from "lucide-react";
+import { AlertTriangle, BookOpen, Brain, Calendar, CheckCircle, ChevronRight, ClipboardCheck, Clock, Flame, GraduationCap, Hand, LifeBuoy, MessageSquare, Microscope, Play, Plus, Sparkles, TrendingUp, UserPlus, Users, Video, CheckCircle2, Upload, FileText, Flag, Radio, CalendarClock } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
 
@@ -108,13 +86,13 @@ const TODO_META: Record<HomeTodo["kind"], { icon: React.ElementType; box: string
   live: { icon: Video, box: "bg-emerald-50 text-emerald-600 border-emerald-200" },
 };
 
-const ACTIVITY_META: Record<HomeActivity["kind"], { icon: string; dot: string }> = {
-  solved: { icon: "✅", dot: "bg-emerald-500" },
-  submitted: { icon: "📤", dot: "bg-cyan-500" },
-  homework: { icon: "📝", dot: "bg-indigo-500" },
-  module: { icon: "🏁", dot: "bg-purple-500" },
-  joined: { icon: "🎓", dot: "bg-sky-500" },
-  help: { icon: "🙋", dot: "bg-rose-500" },
+const ACTIVITY_META: Record<HomeActivity["kind"], { icon: React.ElementType; tone: string; dot: string }> = {
+  solved: { icon: CheckCircle2, tone: "text-emerald-500", dot: "bg-emerald-500" },
+  submitted: { icon: Upload, tone: "text-cyan-500", dot: "bg-cyan-500" },
+  homework: { icon: FileText, tone: "text-indigo-500", dot: "bg-indigo-500" },
+  module: { icon: Flag, tone: "text-purple-500", dot: "bg-purple-500" },
+  joined: { icon: GraduationCap, tone: "text-sky-500", dot: "bg-sky-500" },
+  help: { icon: Hand, tone: "text-rose-500", dot: "bg-rose-500" },
 };
 
 /** "5 dk önce" — sunucu UTC yazıyor (saat dilimi eki olmadan). */
@@ -234,7 +212,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
             Eğitmen Paneli
           </span>
           <h1 className="text-3xl font-black text-white tracking-tight font-display mt-3">
-            Hoş Geldiniz, {firstName}! 👋
+            Hoş Geldiniz, {firstName}!
           </h1>
           <p className="text-sm text-indigo-200 mt-1 font-bold">{headline}</p>
         </div>
@@ -262,7 +240,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
           <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div>
               <span className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full mb-2 ${upcomingSession.isActive ? "bg-white/20 animate-pulse" : "bg-white/10"}`}>
-                {upcomingSession.isActive ? "🔴 DERS SAATİ" : "📅 YAKLAŞAN DERS"}
+                {upcomingSession.isActive ? <><Radio size={12} /> DERS SAATİ</> : <><CalendarClock size={12} /> YAKLAŞAN DERS</>}
               </span>
               <h2 className="text-2xl font-black mb-1 font-display">{upcomingSession.courseTitle}</h2>
               <div className="flex items-center gap-2 text-white/80">
@@ -305,7 +283,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
             {!home && !homeError && <p className="text-sm text-gray-400 font-bold text-center py-6">Yükleniyor…</p>}
             {home && todos.length === 0 && (
               <p className="text-sm text-emerald-700 font-black bg-emerald-50 border-2 border-emerald-100 rounded-2xl px-5 py-4">
-                Bekleyen bir iş yok: takılan öğrenci, değerlendirme bekleyen teslim ya da okunmamış mesaj görünmüyor. 🎉
+                Bekleyen bir iş yok: takılan öğrenci, değerlendirme bekleyen teslim ya da okunmamış mesaj görünmüyor.
               </p>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -468,7 +446,7 @@ const InstructorDashboard: React.FC<InstructorDashboardProps> = ({ userData, cou
                   >
                     <div className={`absolute -left-[31px] top-1 w-4 h-4 rounded-full border-2 border-white ${meta.dot} group-hover:scale-125 transition-transform`} />
                     <div className="flex items-start gap-3 min-w-0">
-                      <span className="text-lg shrink-0 leading-none">{meta.icon}</span>
+                      <meta.icon size={18} className={`shrink-0 ${meta.tone}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-baseline justify-between gap-2">
                           <h5 className="text-xs font-black text-gray-800 group-hover:text-indigo-600 truncate">{act.student}</h5>

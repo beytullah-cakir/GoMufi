@@ -1,4 +1,5 @@
 import React from 'react';
+import { Sparkles } from 'lucide-react';
 import GrassIcon from "../../assets/sprites/grass.png";
 import ButtonCyan from "../../assets/sprites/ButtonCyan.png";
 import ButtonPurple from "../../assets/sprites/ButtonPurple.png";
@@ -169,7 +170,7 @@ const LiveLessonStudent: React.FC<LiveLessonStudentProps> = ({
                                                     {/* Glow Shapes */}
                                                     <div className="absolute -top-12 -right-12 w-48 h-48 bg-white opacity-20 rounded-full blur-3xl"></div>
                                                     <div className="absolute bottom-0 -left-10 w-32 h-32 bg-white opacity-10 rounded-full blur-2xl"></div>
-                                                    <div className="absolute top-4 right-6 text-white/30 text-2xl animate-pulse">✨</div>
+                                                    <Sparkles size={24} className="absolute top-4 right-6 text-white/30 animate-pulse" />
                                                 </div>
 
                                                 {/* Tail */}

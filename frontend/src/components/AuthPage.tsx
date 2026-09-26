@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
-import { Music, Star, Award, ChevronRight, ArrowLeft } from "lucide-react";
+import { Music, Star, Award, ChevronRight, ArrowLeft, EyeOff, Backpack, Presentation, Users } from 'lucide-react';
 import api, { getApiBaseUrl } from "../api";
 import LogoText from "../assets/sprites/GoMufiLogo_Final.png";
 import Paw from "../assets/sprites/Paw.png";
 import MufiMascot from "../assets/sprites/MufiMascot.png";
 import { useNavigate, useLocation } from "react-router-dom";
 import techData from "../data/technologies.json";
+import NamedIcon from './shared/NamedIcon';
 
 interface AuthPageProps {
   onLogin: () => void;
@@ -168,11 +169,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
               <div className="bg-white/90 backdrop-blur-md px-8 py-4 rounded-3xl rounded-bl-sm shadow-xl border border-white/50">
                 <p className="font-extrabold text-gray-800 whitespace-nowrap text-sm md:text-lg tracking-tight">
                   {!role
-                    ? "Karakterini Seç! 👉"
+                    ? "Karakterini Seç!"
                     : role === "student"
-                      ? "Hazır mısın? 🔥"
+                      ? "Hazır mısın?"
                       : role === "teacher"
-                        ? "Hoşgeldiniz Hocam ✨"
+                        ? "Hoşgeldiniz Hocam"
                         : "Hoşgeldiniz!"}
                 </p>
               </div>
@@ -186,8 +187,8 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                 }`}
             >
               <div className="bg-gray-900/90 backdrop-blur-md px-6 py-3 rounded-2xl rounded-bl-none shadow-2xl border border-gray-700">
-                <p className="font-bold text-white whitespace-nowrap text-sm">
-                  🙈 Bakmıyorum!
+                <p className="font-bold text-white whitespace-nowrap text-sm flex items-center gap-2">
+                  <EyeOff size={16} /> Bakmıyorum!
                 </p>
               </div>
             </div>
@@ -222,7 +223,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-green-300 hover:scale-[1.02] transition-all duration-300"
                   >
                     <div className="w-16 h-16 bg-green-50 text-green-500 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-green-100 transition-colors">
-                      🎒
+                      <Backpack size={30} />
                     </div>
                     <div className="ml-5 text-left flex-1">
                       <h3 className="font-black text-gray-800 text-xl group-hover:text-green-600">
@@ -240,7 +241,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-cyan-300 hover:scale-[1.02] transition-all duration-300"
                   >
                     <div className="w-16 h-16 bg-cyan-50 text-cyan-500 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-cyan-100 transition-colors">
-                      👨‍🏫
+                      <Presentation size={30} />
                     </div>
                     <div className="ml-5 text-left flex-1">
                       <h3 className="font-black text-gray-800 text-xl group-hover:text-cyan-600">
@@ -259,7 +260,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                     className="group relative flex items-center p-5 rounded-3xl bg-white border border-gray-100 shadow-sm hover:shadow-lg hover:border-purple-300 hover:scale-[1.02] transition-all duration-300"
                   >
                     <div className="w-16 h-16 bg-purple-50 text-purple-500 rounded-2xl flex items-center justify-center text-3xl group-hover:bg-purple-100 transition-colors">
-                      👨‍👩‍👧‍👦
+                      <Users size={30} />
                     </div>
                     <div className="ml-5 text-left flex-1">
                       <h3 className="font-black text-gray-800 text-xl group-hover:text-purple-600">
@@ -420,7 +421,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
                             <option value="" disabled>Uzmanlık Alanı / Branş Seçin</option>
                             {techData.languages.map((tech) => (
                               <option key={tech.label} value={tech.label}>
-                                {tech.emoji} {tech.label}
+                                <NamedIcon name={tech.icon} size={14} /> {tech.label}
                               </option>
                             ))}
                           </select>

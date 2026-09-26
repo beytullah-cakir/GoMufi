@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, Trash2, Clock, Check, Puzzle, Eye, ArrowRight, EyeOff, Layout, ListOrdered, FolderClosed, Image, CalendarRange, X } from 'lucide-react';
+import { Plus, Trash2, Clock, Check, Puzzle, Eye, ArrowRight, EyeOff, Layout, ListOrdered, FolderClosed, Image, CalendarRange, X, Presentation } from 'lucide-react';
 import type { Slide } from './types';
 import { useSlideAnswerTarget } from './slideAnswerContext';
 import { trackLearningEvent, type GameItem } from '../../learningEvents';
@@ -727,8 +727,8 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                 <div className="max-w-4xl mx-auto w-full p-8 pb-12 flex flex-col items-center justify-start min-h-[450px]">
                     {/* Teacher Mode answer key indicator banner */}
                     {previewRole === 'teacher' && (
-                        <div className="bg-amber-100 border-2 border-amber-300 text-amber-800 rounded-2xl px-6 py-2.5 text-xs font-black uppercase tracking-widest mb-6 animate-pulse w-max mx-auto shadow-sm">
-                            👨‍🏫 ÖĞRETMEN ÖNİZLEMESİ: CEVAP ANAHTARI AKTİF
+                        <div className="bg-amber-100 border-2 border-amber-300 text-amber-800 rounded-2xl px-6 py-2.5 text-xs font-black uppercase tracking-widest mb-6 animate-pulse w-max mx-auto shadow-sm flex items-center gap-2">
+                            <Presentation size={14} /> ÖĞRETMEN ÖNİZLEMESİ: CEVAP ANAHTARI AKTİF
                         </div>
                     )}
                     <div className="bg-white rounded-3xl border-2 border-b-8 border-slate-200 shadow-xl w-full p-8 text-center relative overflow-visible">

@@ -425,9 +425,9 @@ const AddSlideModal: React.FC<AddSlideModalProps> = ({ isOpen, onClose, onAddSli
                                                         y: 130,
                                                         width: 860,
                                                         height: 480,
-                                                        content: '🎯 GÖREV: Sağ taraftaki Kod Editörünü kullanarak ekrana "Merhaba GoMufi" yazdıran Python kodunu oluşturun ve çalıştırın.',
+                                                        content: 'GÖREV: Sağ taraftaki Kod Editörünü kullanarak ekrana "Merhaba GoMufi" yazdıran Python kodunu oluşturun ve çalıştırın.',
                                                         extra: {
-                                                            title: '🎯 Challenge (Mini Görev)',
+                                                            title: 'Challenge (Mini Görev)',
                                                             submittedText: '',
                                                             submittedCode: '# Çözüm kodunuzu buraya yazın\n',
                                                             submittedFile: '',

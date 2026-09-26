@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { LogOut, ChevronLeft, ChevronRight } from "lucide-react";
+import { LogOut, ChevronLeft, ChevronRight, Backpack, Presentation, Users, ShieldCheck } from 'lucide-react';
 import posthog from "posthog-js";
 import api from "../api";
 
@@ -223,10 +223,10 @@ const Sidebar: React.FC<SidebarProps> = ({
               PANEL SEÇİMİ
             </span>
             {[
-              { label: "🎒 Öğrenci Paneli", path: "/student" },
-              { label: "👨‍🏫 Eğitmen Paneli", path: "/instructor" },
-              { label: "👨‍👩‍👧‍👦 Ebeveyn Paneli", path: "/parent" },
-              { label: "🛡️ Yönetici Paneli", path: "/admin" }
+              { label: "Öğrenci Paneli", path: "/student", Icon: Backpack },
+              { label: "Eğitmen Paneli", path: "/instructor", Icon: Presentation },
+              { label: "Ebeveyn Paneli", path: "/parent", Icon: Users },
+              { label: "Yönetici Paneli", path: "/admin", Icon: ShieldCheck }
             ].map(panel => (
               <button
                 key={panel.path}
@@ -235,13 +235,13 @@ const Sidebar: React.FC<SidebarProps> = ({
                   setIsAdminMenuOpen(false);
                   window.location.href = panel.path;
                 }}
-                className={`w-full text-left px-4 py-2.5 font-black text-[11px] uppercase tracking-wider transition-all duration-75 block
+                className={`w-full text-left px-4 py-2.5 font-black text-[11px] uppercase tracking-wider transition-all duration-75 flex items-center gap-2
                   ${window.location.pathname.startsWith(panel.path)
                     ? "bg-sky-100 text-sky-600 border-l-4 border-sky-400"
                     : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
                   }`}
               >
-                {panel.label}
+                <panel.Icon size={14} className="shrink-0" /> {panel.label}
               </button>
             ))}
           </div>

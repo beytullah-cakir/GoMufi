@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2, Send, ExternalLink, Users } from 'lucide-react';
+import { BookOpen, X, ChevronLeft, ChevronRight, Check, Settings, Play, ArrowRight, Maximize2, Minimize2, Send, ExternalLink, Users, Target, Zap, Puzzle, Rocket, Brain, FileText, PartyPopper, Flame, Star, AlertTriangle, Gamepad2, Trophy, Hourglass, UserRound } from 'lucide-react';
 import CanvasElement from '../lesson-builder/CanvasElement';
 import ConnectorRenderer from '../lesson-builder/ConnectorRenderer';
 import { layoutElements, modeForWidth } from '../lesson-builder/grid';
@@ -19,6 +19,7 @@ import { SlideAnswerContext } from '../lesson-builder/slideAnswerContext';
 import LiveBoardOverlay, { type BoardView } from './LiveBoardOverlay';
 import { useWebSocketEvent } from '../../hooks/useWebSocket';
 import { useWebSocket } from '../../hooks/useWebSocket';
+import RankMedal from '../shared/RankMedal';
 
 interface LessonSlideProps {
     isOpen: boolean;
@@ -102,13 +103,13 @@ const STAGE_ORDER = ['ANLA', 'UYGULA', 'BİRLEŞTİR', 'ÜRET', 'QUIZ', 'ÖDEV']
 const CORE_STAGES = ['ANLA', 'UYGULA', 'BİRLEŞTİR', 'ÜRET'];
 
 // Aşamalar arası geçiş ekranı metinleri
-const STAGE_INFO: Record<string, { emoji: string; done: string; desc: string; next: string }> = {
-    ANLA: { emoji: '🎯', done: 'Anlama bölümü tamamlandı!', desc: 'Konunun ne olduğunu artık biliyorsun.', next: 'Şimdi öğrendiklerini uygulamaya hazır mısın?' },
-    UYGULA: { emoji: '⚡', done: 'Uygulama bölümü tamamlandı!', desc: 'Kendi ellerinle denedin, harikasın!', next: 'Şimdi bilgini birleştirmeye hazır mısın?' },
-    'BİRLEŞTİR': { emoji: '🧩', done: 'Birleştirme bölümü tamamlandı!', desc: 'Parçaları bir araya getirdin.', next: 'Şimdi kendi eserini üretmeye hazır mısın?' },
-    'ÜRET': { emoji: '🚀', done: 'Üretme bölümü tamamlandı!', desc: 'Öğrendiklerinle bir şey ürettin!', next: 'Bir sonraki adıma hazır mısın?' },
-    QUIZ: { emoji: '🧠', done: 'Quiz tamamlandı!', desc: 'Bilgini test ettin.', next: 'Devam etmeye hazır mısın?' },
-    'ÖDEV': { emoji: '📝', done: 'Ödev bölümüne geldin!', desc: 'Öğrendiklerini pekiştirme zamanı.', next: 'Ödevi teslim etmeye hazır mısın?' },
+const STAGE_INFO: Record<string, { icon: React.ElementType; done: string; desc: string; next: string }> = {
+    ANLA: { icon: Target, done: 'Anlama bölümü tamamlandı!', desc: 'Konunun ne olduğunu artık biliyorsun.', next: 'Şimdi öğrendiklerini uygulamaya hazır mısın?' },
+    UYGULA: { icon: Zap, done: 'Uygulama bölümü tamamlandı!', desc: 'Kendi ellerinle denedin, harikasın!', next: 'Şimdi bilgini birleştirmeye hazır mısın?' },
+    'BİRLEŞTİR': { icon: Puzzle, done: 'Birleştirme bölümü tamamlandı!', desc: 'Parçaları bir araya getirdin.', next: 'Şimdi kendi eserini üretmeye hazır mısın?' },
+    'ÜRET': { icon: Rocket, done: 'Üretme bölümü tamamlandı!', desc: 'Öğrendiklerinle bir şey ürettin!', next: 'Bir sonraki adıma hazır mısın?' },
+    QUIZ: { icon: Brain, done: 'Quiz tamamlandı!', desc: 'Bilgini test ettin.', next: 'Devam etmeye hazır mısın?' },
+    'ÖDEV': { icon: FileText, done: 'Ödev bölümüne geldin!', desc: 'Öğrendiklerini pekiştirme zamanı.', next: 'Ödevi teslim etmeye hazır mısın?' },
 };
 
 // Türkçe yönelme eki (-a/-e/-ya/-ye) ile "X'YA GEÇ" üretir
@@ -1053,10 +1054,10 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         </h2>
                         <span className="w-px h-4 bg-slate-200 shrink-0" />
                         <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-orange-500 shrink-0 bg-orange-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-orange-200" title="Günlük seri">
-                            🔥 {streakVal}<span className="hidden sm:inline text-[9px] text-orange-400/80 font-bold">gün</span>
+                            <Flame size={13} /> {streakVal}<span className="hidden sm:inline text-[9px] text-orange-400/80 font-bold">gün</span>
                         </span>
                         <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-amber-500 shrink-0 bg-amber-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-200" title="Toplam XP">
-                            ⭐ {xpVal}<span className="hidden sm:inline text-[9px] text-amber-400/80 font-bold">XP</span>
+                            <Star size={13} className="fill-current" /> {xpVal}<span className="hidden sm:inline text-[9px] text-amber-400/80 font-bold">XP</span>
                         </span>
                     </div>
 
@@ -1373,7 +1374,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             {showCatchUpAlert && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
                     <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-                        <span className="text-4xl mb-3">⚠️</span>
+                        <AlertTriangle size={40} className="text-amber-500 mb-3" />
                         <h3 className="font-black text-gray-800 text-lg mb-2">Öğretmen Sonraki Aşamaya Geçti</h3>
                         <p className="text-gray-500 font-bold text-xs mb-6">Öğretmen yeni bir etkinliğe/slayta geçti. Yetişmek ister misiniz yoksa buradaki çalışmanızı tamamlayacak mısınız?</p>
                         <div className="flex flex-col gap-2.5 w-full">
@@ -1397,7 +1398,7 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             {/* ── Aşamalar arası geçiş / kutlama ekranı ── */}
             {stageTransition && (() => {
                 const info = STAGE_INFO[stageTransition.from] || {
-                    emoji: '🎉',
+                    icon: PartyPopper,
                     done: `${stageTransition.from} bölümü tamamlandı!`,
                     desc: 'Harika iş çıkardın!',
                     next: 'Devam etmeye hazır mısın?',
@@ -1418,14 +1419,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                                 className="mx-auto w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-4xl mb-4 shadow-md border-2 border-b-4"
                                 style={{ backgroundColor: `${fromColor.bg}1a`, borderColor: fromColor.border }}
                             >
-                                {info.emoji}
+                                <info.icon size={36} style={{ color: fromColor.border }} />
                             </div>
                             <h2 className="text-2xl font-black text-slate-800 font-display mb-1.5">{info.done}</h2>
                             <p className="text-sm font-bold text-slate-500 mb-4">{info.desc}</p>
 
                             {moduleXp != null && moduleXp > 0 && (
                                 <div className="inline-flex items-center gap-1.5 bg-amber-50 border-2 border-b-4 border-amber-200 border-b-amber-300 text-amber-600 font-black rounded-2xl px-4 py-2 mb-5 text-sm">
-                                    ⭐ +{moduleXp} XP
+                                    <Star size={16} className="fill-current" /> +{moduleXp} XP
                                 </div>
                             )}
 
@@ -1547,7 +1548,7 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
             {/* Header */}
             <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-4 relative z-10">
                 <div className="flex items-center gap-3">
-                    <span className="text-3xl">🎮</span>
+                    <Gamepad2 size={30} className="text-indigo-400" />
                     <div className="text-left">
                         <span className="text-[10px] font-black text-indigo-400 uppercase tracking-widest block font-display">
                             Canlı Soru Paneli (Soru {currentQuestionIndex + 1}/{questions.length})
@@ -1575,18 +1576,17 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                 {/* Left Side: Leaderboard / Winners */}
                 <div className="w-1/3 flex flex-col bg-slate-950/40 rounded-2xl p-6 border border-slate-800/60 min-h-0 overflow-y-auto custom-scrollbar">
                     <h3 className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-4 flex items-center gap-2 font-display">
-                        🏆 LİDERLİK TABLOSU
+                        <Trophy size={14} /> LİDERLİK TABLOSU
                     </h3>
 
                     {leaderboard.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                            <span className="text-4xl animate-bounce mb-3">⏳</span>
+                            <Hourglass size={40} className="animate-bounce mb-3 text-slate-400" />
                             <p className="text-xs text-slate-400 font-bold">Öğrenci katılımı bekleniyor...</p>
                         </div>
                     ) : (
                         <div className="space-y-3">
                             {leaderboard.map((student, idx) => {
-                                const medal = idx === 0 ? '🥇' : idx === 1 ? '🥈' : idx === 2 ? '🥉' : null;
                                 return (
                                     <div
                                         key={student.id}
@@ -1600,8 +1600,8 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                                             }`}
                                     >
                                         <div className="flex items-center gap-3 min-w-0">
-                                            <span className="w-6 text-center text-xs font-black text-indigo-400 font-display">
-                                                {medal || `#${idx + 1}`}
+                                            <span className="w-6 flex justify-center text-xs font-black text-indigo-400 font-display">
+                                                {idx < 3 ? <RankMedal rank={idx + 1} size={20} /> : `#${idx + 1}`}
                                             </span>
                                             <span className="font-extrabold text-sm text-slate-100 truncate">
                                                 {student.name}
@@ -1627,7 +1627,7 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                 {/* Right Side: Active Student Statuses */}
                 <div className="flex-1 flex flex-col bg-slate-950/40 rounded-2xl p-6 border border-slate-800/60 min-h-0 overflow-y-auto custom-scrollbar">
                     <h3 className="text-xs font-black text-indigo-300 uppercase tracking-wider mb-4 flex justify-between font-display">
-                        <span>👥 SINIF DURUMU (SORU {currentQuestionIndex + 1})</span>
+                        <span className="flex items-center gap-2"><Users size={14} /> SINIF DURUMU (SORU {currentQuestionIndex + 1})</span>
                         <span className="text-slate-450 text-[10px]">
                             {students.filter(s => s.hasAnswered).length} / {students.length} Yanıtladı
                         </span>
@@ -1635,7 +1635,7 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
 
                     {students.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
-                            <span className="text-5xl mb-3">👥</span>
+                            <Users size={48} className="mb-3" />
                             <p className="text-sm font-bold">Derse katılan aktif öğrenci bulunmuyor.</p>
                         </div>
                     ) : (
@@ -1649,7 +1649,7 @@ const TeacherGameDashboard: React.FC<TeacherGameDashboardProps> = ({
                                         }`}
                                 >
                                     <div className="flex items-center gap-3">
-                                        <span className="text-2xl">👤</span>
+                                        <UserRound size={24} className="text-slate-400" />
                                         <div>
                                             <h4 className="font-extrabold text-sm text-slate-100">{s.name}</h4>
                                             <div className="text-[10px] text-slate-400 font-bold mt-0.5 flex items-center gap-1.5">

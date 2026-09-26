@@ -51,7 +51,7 @@ const ParentDashboard: React.FC<ParentDashboardProps> = ({ userData, teachersDat
         <div className="space-y-8 animate-fade-in">
             <div className="bg-gradient-to-r from-purple-600 to-indigo-600 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-xl shadow-purple-200">
                 <div className="relative z-10">
-                    <h2 className="text-3xl font-black mb-2">Hoşgeldin, {userData?.first_name || 'Sayın Veli'}! 👋</h2>
+                    <h2 className="text-3xl font-black mb-2">Hoşgeldin, {userData?.first_name || 'Sayın Veli'}!</h2>
                     <p className="text-purple-100 font-medium text-lg max-w-xl">{headline}</p>
                 </div>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -mr-16 -mt-16"></div>

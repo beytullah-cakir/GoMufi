@@ -303,9 +303,9 @@ def _clean(msg: MessageIn) -> Dict[str, Any]:
 
 def _preview(clean: Dict[str, Any]) -> str:
     if clean["kind"] == "image":
-        return "📷 Görsel"
+        return "Görsel"
     if clean["kind"] == "file":
-        return f"📁 {clean['file_name'] or 'Dosya'}"
+        return f"Dosya: {clean['file_name'] or 'dosya'}"
     return clean["body"][:200]
 
 

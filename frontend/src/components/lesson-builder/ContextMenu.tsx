@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload, ChevronDown } from 'lucide-react';
+import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload, ChevronDown, Minimize2, Crop, MoveVertical } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
 
 interface ColorPickerProps {
@@ -503,10 +503,10 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                                     className="px-2.5 py-1 text-[11px] font-bold rounded bg-gray-800 border border-gray-600 hover:bg-gray-700 text-gray-200 flex items-center gap-1.5 transition-colors shadow-sm cursor-pointer"
                                     title="Görsel Hizalama / Sığdırma Ayarları"
                                 >
-                                    <span>
-                                        {firstEl.extra?.objectFit === 'contain' ? '🎯 Sığdır' :
-                                         firstEl.extra?.objectFit === 'fill' ? '↕️ Uzat' :
-                                         '🖼️ Kırp'}
+                                    <span className="flex items-center gap-1">
+                                        {firstEl.extra?.objectFit === 'contain' ? <><Minimize2 className="w-3 h-3" /> Sığdır</> :
+                                         firstEl.extra?.objectFit === 'fill' ? <><MoveVertical className="w-3 h-3" /> Uzat</> :
+                                         <><Crop className="w-3 h-3" /> Kırp</>}
                                     </span>
                                     <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${showImageFitDropdown ? 'rotate-180' : ''}`} />
                                 </button>
@@ -528,7 +528,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                                                 firstEl.extra?.objectFit === 'contain' ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
                                             }`}
                                         >
-                                            <span className="flex items-center gap-1.5">🎯 Sığdır</span>
+                                            <span className="flex items-center gap-1.5"><Minimize2 className="w-3 h-3" /> Sığdır</span>
                                             <span className="text-[9px] text-gray-400 font-normal">Oranı Koru</span>
                                         </button>
                                         <button
@@ -540,7 +540,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                                                 (!firstEl.extra?.objectFit || firstEl.extra?.objectFit === 'cover') ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
                                             }`}
                                         >
-                                            <span className="flex items-center gap-1.5">🖼️ Kırp</span>
+                                            <span className="flex items-center gap-1.5"><Crop className="w-3 h-3" /> Kırp</span>
                                             <span className="text-[9px] text-gray-400 font-normal">Doldur</span>
                                         </button>
                                         <button
@@ -552,7 +552,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                                                 firstEl.extra?.objectFit === 'fill' ? 'bg-indigo-600 text-white' : 'text-gray-200 hover:bg-gray-800'
                                             }`}
                                         >
-                                            <span className="flex items-center gap-1.5">↕️ Uzat</span>
+                                            <span className="flex items-center gap-1.5"><MoveVertical className="w-3 h-3" /> Uzat</span>
                                             <span className="text-[9px] text-gray-400 font-normal">Kutuya Yay</span>
                                         </button>
                                     </div>

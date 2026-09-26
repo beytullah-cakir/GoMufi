@@ -70,7 +70,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
     challenge: {
         stage: 'UYGULA',
         slug: 'uygula',
-        badge: '🎯 UYGULA · KODLAMA GÖREVİ',
+        badge: 'UYGULA · KODLAMA GÖREVİ',
         icon: Target,
         promptLabel: 'Görev Yönergesi',
         promptPlaceholder: 'Öğrencinin yapması gereken kodlama görevi...',
@@ -81,7 +81,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
         sentLabel: 'Görev Gönderildi',
         reviewTitle: 'Öğrenci Görev Teslimleri',
         emptyReview: 'Henüz öğrenci görev teslimi bulunmuyor.',
-        starterComment: 'Kodunu buraya yaz 👇',
+        starterComment: 'Kodunu buraya yaz',
         theme: {
             card: 'border-cyan-300 border-b-cyan-500',
             divider: 'border-cyan-100',
@@ -116,7 +116,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
     connect: {
         stage: 'BİRLEŞTİR',
         slug: 'birlestir',
-        badge: '🧩 BİRLEŞTİR · SENTEZ GÖREVİ',
+        badge: 'BİRLEŞTİR · SENTEZ GÖREVİ',
         icon: GitMerge,
         promptLabel: 'Sentez Yönergesi',
         promptPlaceholder: 'Önceki ve şimdiki konuyu birleştiren görev yönergesi...',
@@ -127,7 +127,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
         sentLabel: 'Görev Gönderildi',
         reviewTitle: 'Öğrenci Görev Teslimleri',
         emptyReview: 'Henüz öğrenci görev teslimi bulunmuyor.',
-        starterComment: 'Kodunu buraya yaz 👇',
+        starterComment: 'Kodunu buraya yaz',
         theme: {
             card: 'border-emerald-300 border-b-emerald-500',
             divider: 'border-emerald-100',
@@ -162,7 +162,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
     produce: {
         stage: 'ÜRET',
         slug: 'uret',
-        badge: '🚀 ÜRET · PROJE GÖREVİ',
+        badge: 'ÜRET · PROJE GÖREVİ',
         icon: Rocket,
         promptLabel: 'Proje Senaryosu & Yönerge',
         promptPlaceholder: 'Öğrencinin yapmasını istediğiniz projenin senaryosu...',
@@ -173,7 +173,7 @@ export const STAGE_META: Record<TaskKind, StageMeta> = {
         sentLabel: 'Proje Gönderildi',
         reviewTitle: 'Öğrenci Proje Teslimleri',
         emptyReview: 'Henüz öğrenci proje teslimi bulunmuyor.',
-        starterComment: 'Proje kodunu buraya yaz 👇',
+        starterComment: 'Proje kodunu buraya yaz',
         theme: {
             card: 'border-amber-300 border-b-amber-500',
             divider: 'border-amber-100',

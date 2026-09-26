@@ -1,10 +1,12 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Trophy, Loader2 } from 'lucide-react';
 import api from '../../api';
+import RankMedal from '../shared/RankMedal';
+import { LeagueIcon } from '../shared/LeagueBadge';
 
 interface LeagueInfo {
   name: string;
-  emoji: string;
+  icon: string;
   color: string;
 }
 
@@ -32,9 +34,6 @@ interface LeaderboardData {
   me: LeaderEntry | null;
 }
 
-const medal = (rank: number) =>
-  rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : null;
-
 const avatarColors = ['bg-pink-400', 'bg-blue-400', 'bg-purple-400', 'bg-emerald-400', 'bg-amber-400', 'bg-cyan-400'];
 
 const EntryRow: React.FC<{ e: LeaderEntry }> = ({ e }) => (
@@ -45,8 +44,8 @@ const EntryRow: React.FC<{ e: LeaderEntry }> = ({ e }) => (
   >
     <div className="flex items-center gap-3 min-w-0">
       <div className="w-7 text-center shrink-0">
-        {medal(e.rank) ? (
-          <span className="text-lg">{medal(e.rank)}</span>
+        {e.rank <= 3 ? (
+          <RankMedal rank={e.rank} size={20} className="mx-auto" />
         ) : (
           <span className="text-xs font-black text-gray-400">{e.rank}</span>
         )}
@@ -61,7 +60,7 @@ const EntryRow: React.FC<{ e: LeaderEntry }> = ({ e }) => (
           {e.display_name} {e.is_me && <span className="text-amber-500">(Sen)</span>}
         </h4>
         <span className="text-[11px] font-bold text-gray-400">
-          {e.league.emoji} {e.league.name} · Lv {e.level}
+          <span className="inline-flex items-center gap-1"><LeagueIcon icon={e.league.icon} color={e.league.color} size={12} /> {e.league.name} · Lv {e.level}</span>
         </span>
       </div>
     </div>
@@ -154,7 +153,7 @@ const Leaderboard: React.FC = () => {
         </div>
       ) : !data || data.entries.length === 0 ? (
         <div className="py-8 text-center text-xs font-bold text-gray-400">
-          Henüz sıralama verisi yok. XP kazanmaya başla! 🚀
+          Henüz sıralama verisi yok. XP kazanmaya başla!
         </div>
       ) : (
         <>

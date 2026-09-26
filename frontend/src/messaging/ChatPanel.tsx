@@ -127,7 +127,7 @@ const ChatPanel: React.FC<Props> = ({ role, heading, subheading, target }) => {
             if (!prev) return prev;
             const found = prev.find((c) => c.id === id);
             if (!found) return prev;
-            const preview = msg.kind === 'image' ? '📷 Görsel' : msg.kind === 'file' ? `📁 ${msg.file_name || 'Dosya'}` : msg.body;
+            const preview = msg.kind === 'image' ? 'Görsel' : msg.kind === 'file' ? `Dosya: ${msg.file_name || 'dosya'}` : msg.body;
             return [{ ...found, last_preview: preview, last_message_at: msg.created_at, unread: 0 },
                 ...prev.filter((c) => c.id !== id)];
         });
