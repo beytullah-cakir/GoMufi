@@ -7,7 +7,7 @@ from sqlalchemy.future import select
 from models.student import Student
 from models.teacher import Teacher
 from connect_db import get_db
-from core.login_guard import ensure_not_suspended
+from core.login_guard import ensure_not_suspended, ensure_session_valid
 
 
 async def get_current_user(request: Request, db: AsyncSession = Depends(get_db)):
@@ -63,6 +63,7 @@ async def get_current_user(request: Request, db: AsyncSession = Depends(get_db))
             }
 
         await ensure_not_suspended(db, role, sub)
+        await ensure_session_valid(db, role, sub, payload.get("iat"))
         return {
             "user_id": sub,
             "role": role
@@ -124,7 +125,10 @@ async def get_current_user_info(request: Request, db: AsyncSession = Depends(get
                 "role": "admin",
                 "type": "access"
             }
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
         await ensure_not_suspended(db, role, payload.get("sub"))
+        await ensure_session_valid(db, role, payload.get("sub"), payload.get("iat"))
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")
@@ -176,7 +180,10 @@ async def get_current_teacher_id(request: Request, db: AsyncSession = Depends(ge
                 await db.commit()
                 await db.refresh(teacher)
             return teacher.id
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
         await ensure_not_suspended(db, role, user_id)
+        await ensure_session_valid(db, role, user_id, payload.get("iat"))
         return int(user_id)
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token expired")

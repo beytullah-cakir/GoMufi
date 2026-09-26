@@ -9,10 +9,11 @@ import api from '../api';
  * Eklenti bu sayfayı `?state=<rastgele>` ile açar. Öğrenci sitede zaten oturum
  * açmış olduğu için tek tık yeter — parola VS Code'a hiç girilmez.
  *
- * ONAY NEDEN ELLE: `state` yalnızca eklentinin ürettiği bir değer; otomatik
- * onaylasaydık kötü niyetli bir sayfa öğrenciyi bu adrese yönlendirip kendi
- * `state`'ini onaylatabilir ve hesabına erişen bir token elde edebilirdi.
- * Tıklama, kullanıcının gerçekten bağlanmak istediğinin kanıtıdır.
+ * ONAY NEDEN KODLA: `state` yalnızca eklentinin ürettiği bir değer. Tek tıkla
+ * onay yetmiyordu: saldırgan kendi `state`'iyle bir bağlantı gönderip öğrenciye
+ * "Onayla"ya bastırırsa hesaba erişen token saldırgana giderdi. Artık öğrenci
+ * KENDİ VS Code'unda gördüğü 8 karakterlik kodu yazıyor; kendisi başlatmadığı
+ * bir bağlantıda elinde böyle bir kod yok. Kodu sunucu doğrular.
  */
 const VSCodeConnectPage: React.FC = () => {
     const [params] = useSearchParams();
@@ -20,6 +21,8 @@ const VSCodeConnectPage: React.FC = () => {
 
     const [durum, setDurum] = useState<'hazir' | 'gonderiliyor' | 'tamam' | 'hata'>('hazir');
     const [hata, setHata] = useState<string>('');
+    const [kod, setKod] = useState('');
+    const temizKod = kod.toUpperCase().replace(/[^A-Z0-9]/g, '');
 
     useEffect(() => {
         if (!state || state.length < 32) {
@@ -31,7 +34,7 @@ const VSCodeConnectPage: React.FC = () => {
     const onayla = async () => {
         setDurum('gonderiliyor');
         try {
-            await api.post('/auth/device-approve', { state });
+            await api.post('/auth/device-approve', { state, code: temizKod });
             setDurum('tamam');
         } catch (e: any) {
             setDurum('hata');
@@ -82,13 +85,26 @@ const VSCodeConnectPage: React.FC = () => {
                             VS Code’u bağla
                         </h1>
                         <p className="mt-2 text-sm font-medium leading-relaxed text-slate-500">
-                            VS Code eklentisi hesabına bağlanmak istiyor. Onayladıktan sonra
-                            ödevlerini VS Code’da açabilir ve kodu kendi bilgisayarında
-                            çalıştırabilirsin.
+                            VS Code eklentisi hesabına bağlanmak istiyor. VS Code’un sağ altında
+                            gördüğün <b>8 karakterlik kodu</b> buraya yaz.
                         </p>
+                        <label className="block mt-5 text-left">
+                            <span className="text-xs font-black uppercase tracking-wider text-slate-500">VS Code’daki kod</span>
+                            <input
+                                value={kod}
+                                onChange={(e) => setKod(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter' && temizKod.length === 8) void onayla(); }}
+                                placeholder="ABCD-EFGH"
+                                maxLength={12}
+                                autoFocus
+                                autoComplete="off"
+                                spellCheck={false}
+                                className="mt-1 w-full rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-3 text-center font-mono text-2xl font-black tracking-[0.3em] uppercase outline-none focus:border-indigo-400 focus:bg-white"
+                            />
+                        </label>
                         <button
                             onClick={onayla}
-                            disabled={durum === 'gonderiliyor'}
+                            disabled={durum === 'gonderiliyor' || temizKod.length !== 8}
                             className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl border-b-4 border-indigo-800 bg-indigo-600 py-3.5 font-display text-[13px] font-black uppercase tracking-widest text-white transition-all hover:bg-indigo-700 active:translate-y-[3px] active:border-b-0 disabled:opacity-60"
                         >
                             {durum === 'gonderiliyor'
@@ -96,7 +112,7 @@ const VSCodeConnectPage: React.FC = () => {
                                 : 'Bağlantıyı Onayla'}
                         </button>
                         <p className="mt-3 text-[11px] font-bold text-slate-400">
-                            Bu isteği sen başlatmadıysan bu sayfayı kapat.
+                            VS Code’da böyle bir kod görmüyorsan bu sayfayı kapat — birisi hesabına erişmeye çalışıyor olabilir.
                         </p>
                     </>
                 )}

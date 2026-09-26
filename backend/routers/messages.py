@@ -36,6 +36,7 @@ from models.messaging import Conversation, Message
 from models.parent import Parent
 from models.student import Student
 from models.teacher import Teacher
+from models.platform import StoredFile
 
 router = APIRouter(prefix="/messages", tags=["messages"])
 
@@ -301,6 +302,26 @@ def _clean(msg: MessageIn) -> Dict[str, Any]:
             "file_name": (msg.file_name or "").strip()[:255] or None if kind != "text" else None}
 
 
+async def _check_attachment(db: AsyncSession, clean: Dict[str, Any], actor: Tuple[str, int], user_info: dict) -> None:
+    """Mesaja eklenen dosya gönderenin KENDİ yüklediği dosya olmalı.
+
+    Dosya erişimi "dosyanın paylaşıldığı konuşmanın tarafları" kuralıyla
+    veriliyor (bkz. routers/files.py). Başkasının dosya adresini kendi mesajına
+    yazan biri bu kuralla o dosyayı açabilirdi.
+    """
+    url = clean.get("file_url")
+    if not url or user_info.get("role") == "admin":
+        return
+    match = re.search(r"/files/([0-9a-f-]{36})\.", url)
+    if not match:
+        return  # eski /static/uploads adresleri: sahip bilgisi yok, herkese açık görseller
+    row = await db.get(StoredFile, match.group(1))
+    role, uid = actor
+    owner_role = "teacher" if (row and row.owner_role in ("teacher", "instructor")) else (row.owner_role if row else None)
+    if not row or row.kind != "chat" or owner_role != role or row.owner_id != uid:
+        raise HTTPException(status_code=400, detail="Bu dosya eklenemez; önce kendin yükle.")
+
+
 def _preview(clean: Dict[str, Any]) -> str:
     if clean["kind"] == "image":
         return "Görsel"
@@ -344,6 +365,7 @@ async def create_conversation(
     actor = await _actor(db, user_info)
     role, uid = actor
     clean = _clean(body)
+    await _check_attachment(db, clean, actor, user_info)
     course = await _course(db, body.course_id)
 
     if role == "student":
@@ -431,7 +453,9 @@ async def send_message(
 ):
     actor = await _actor(db, user_info)
     conv = await _conversation_for(db, conv_id, actor)
-    msg = await _append(db, conv, actor, _clean(body))
+    clean = _clean(body)
+    await _check_attachment(db, clean, actor, user_info)
+    msg = await _append(db, conv, actor, clean)
     await db.commit()
     await _notify(db, conv, actor, msg)
     return {"message": _message_out(msg)}

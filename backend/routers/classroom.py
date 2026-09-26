@@ -124,6 +124,20 @@ async def _is_live(db: AsyncSession, course_id: int) -> bool:
     )).first() is not None
 
 
+async def _live_index(db: AsyncSession, course_id: int) -> Optional[int]:
+    """Şu an canlı olan dersin işlediği modül sırası (oturum başlığı "gomufi_session:N")."""
+    title = (await db.execute(
+        select(LiveSession.title).where(LiveSession.course_id == course_id, LiveSession.status == "live")
+        .order_by(LiveSession.id.desc()).limit(1)
+    )).scalar()
+    if not title or not title.startswith(LIVE_PREFIX):
+        return None
+    try:
+        return int(title.split(":")[1])
+    except (IndexError, ValueError):
+        return None
+
+
 async def _state(db: AsyncSession, course: Course, student_id: int) -> Dict[str, Any]:
     modules = _modules(course)
     rows = {r.node_id: r for r in (await db.execute(
@@ -191,7 +205,13 @@ async def complete_module(
     if body.node_id not in state["order"]:
         raise HTTPException(status_code=404, detail="Modül bulunamadı.")
     index = state["order"].index(body.node_id) + 1
-    live = body.via == "live" and await _is_live(db, course_id)
+    # "Canlı derste bitti": yalnızca öğretmenin ŞU AN işlediği modüle kadar.
+    # Eskiden ders canlıyken öğrenci via=live diyerek sırası gelmemiş bütün
+    # modülleri bitirip XP toplayabiliyordu.
+    live = False
+    if body.via == "live":
+        live_index = await _live_index(db, course_id)
+        live = live_index is not None and index <= live_index
     if not live and index > _open_index(state):
         raise HTTPException(status_code=409, detail="Bu modül henüz açılmadı.")
     # İçeriği olmayan modül kendi başına bitirilemez (eskiden boş pencere açılıp

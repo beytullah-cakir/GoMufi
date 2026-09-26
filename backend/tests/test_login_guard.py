@@ -39,11 +39,26 @@ def login(client, password, email=EMAIL, ip="10.99.0.1", path="/student/login"):
 def test_bes_hatali_denemeden_sonra_kilit(client, seeded):
     for _ in range(5):
         assert login(client, "yanlis").status_code == 401
-    # Doğru şifre bile 15 dakika kabul edilmez; başka IP'den de.
-    r = login(client, "dogru-sifre-123", ip="10.99.0.2")
+    # Aynı IP'den doğru şifre bile 15 dakika kabul edilmez.
+    r = login(client, "dogru-sifre-123")
     assert r.status_code == 429 and "15 dakika" in r.json()["detail"]
     # Öğretmen girişi ve eklenti girişi aynı sayacı paylaşır.
     assert login(client, "yanlis", path="/auth/device-token").status_code == 429
+    # Ama başka biri (başka IP) öğrencinin hesabını böyle kilitleyemez.
+    assert login(client, "dogru-sifre-123", ip="10.99.0.2").status_code == 200
+
+
+def test_dagitik_denemede_eposta_toplam_siniri(client, seeded):
+    for i in range(login_guard.MAX_PER_EMAIL):
+        login(client, "yanlis", ip=f"10.97.{i // 250}.{i % 250}")
+    assert login(client, "dogru-sifre-123", ip="10.96.0.1").status_code == 429
+
+
+def test_sahte_forwarded_for_ip_sinirini_atlatamaz(client, seeded):
+    """İstemcinin yazdığı soldaki değerler değil, vekilin eklediği sağdaki değer sayılır."""
+    for i in range(login_guard.MAX_PER_IP):
+        login(client, "yanlis", email=f"yok{i}@test.local", ip=f"1.2.3.{i}, 10.99.7.7")
+    assert login(client, "dogru-sifre-123", ip="9.9.9.9, 10.99.7.7").status_code == 429
 
 
 def test_basarili_giris_sayaci_sifirlar(client, seeded):

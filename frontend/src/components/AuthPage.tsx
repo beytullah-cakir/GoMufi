@@ -92,8 +92,11 @@ const AuthPage: React.FC<AuthPageProps> = ({ onLogin }) => {
         return;
       }
 
-      const errorMessage =
-        err.response?.data?.detail || "Bir hata oluştu. Lütfen tekrar deneyin.";
+      // Alan doğrulama hataları (422) bir liste olarak gelir: "şifre en az 8 karakter" gibi.
+      const detail = err.response?.data?.detail;
+      const errorMessage = Array.isArray(detail)
+        ? detail.map((d: any) => (d?.loc?.includes('email') ? 'Geçerli bir e-posta adresi gir.' : String(d?.msg || '').replace(/^Value error, /, ''))).join('\n')
+        : detail || "Bir hata oluştu. Lütfen tekrar deneyin.";
       alert(errorMessage);
     } finally {
       setIsLoading(false);

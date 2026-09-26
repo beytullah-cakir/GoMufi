@@ -13,6 +13,9 @@ Masaüstü istemcinin çerez kavramı yok; token'ı gövdede alıp işletim sist
 """
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+import hashlib
+import hmac
+import time
 import redis.asyncio as redis
 from sqlalchemy import func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -108,8 +111,13 @@ async def renew_device_token(user=Depends(get_current_user_info)):
     kaldirilmasi.
     """
     role = user.get("role", "student")
+    # Kayan oturumun da bir sonu var: gerçek girişten en fazla MAX_SESSION_DAYS
+    # gün. Yoksa çalınan bir token durmadan tazelenip hiç ölmezdi.
+    auth_time = int(user.get("auth_time") or user.get("iat") or 0)
+    if not auth_time or time.time() - auth_time > MAX_SESSION_DAYS * 86_400:
+        raise HTTPException(status_code=401, detail="Oturum süresi doldu. Lütfen tekrar giriş yap.")
     return DeviceTokenResponse(
-        access_token=create_access_token(str(user["sub"]), role=role),
+        access_token=create_access_token(str(user["sub"]), role=role, auth_time=auth_time),
         role=role,
         user_id=str(user["sub"]),
         display_name=user.get("name") or user.get("email") or "GoMufi kullanicisi",
@@ -127,6 +135,8 @@ async def renew_device_token(user=Depends(get_current_user_info)):
 # silinir, boylece ayni baglanti adresi ikinci kez kullanilamaz.
 
 DEVICE_AUTH_TTL = 300  # 5 dakika
+# Eklentide oturum, tarayıcıdaki onaydan en fazla bu kadar gün sonra yeniden giriş ister.
+MAX_SESSION_DAYS = 30
 
 _auth_redis: redis.Redis | None = None
 
@@ -145,6 +155,23 @@ def _state_key(state: str) -> str:
 class ApproveRequest(BaseModel):
     # Yuksek entropi bekleniyor; kisa bir deger tahmin edilebilir olurdu.
     state: str = Field(min_length=32, max_length=128)
+    # VS Code'un ekranda gösterdiği eşleşme kodu (bkz. pairing_code).
+    code: str = Field(min_length=4, max_length=20)
+
+
+_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def pairing_code(state: str) -> str:
+    """`state`ten türeyen 8 karakterlik eşleşme kodu (eklenti aynısını hesaplar).
+
+    OLTALAMAYA KARŞI: saldırgan kendi ürettiği `state` ile bir onay bağlantısı
+    gönderip öğrenciye "Onayla"ya bastırırsa token saldırgana giderdi. Artık
+    onay için öğrencinin KENDİ VS Code'unda gördüğü kodu yazması gerekiyor;
+    kendisi başlatmadığı bir bağlantıda elinde kod yoktur.
+    """
+    digest = hashlib.sha256(state.encode()).digest()
+    return "".join(_CODE_ALPHABET[b % 32] for b in digest[:8])
 
 
 @router.post("/auth/device-approve")
@@ -154,6 +181,10 @@ async def approve_device(payload: ApproveRequest, user=Depends(get_current_user_
     Kimlik SITE oturumundan gelir (cerez); eklenti burada hicbir sey kanitlamaz,
     yalnizca urettigi `state` ile sonucu yoklar.
     """
+    typed = "".join(ch for ch in payload.code.upper() if ch.isalnum())
+    if not hmac.compare_digest(typed, pairing_code(payload.state)):
+        raise HTTPException(status_code=400, detail="Kod eşleşmedi. VS Code'da görünen kodu gir.")
+
     role = user.get("role", "student")
     token = create_access_token(str(user["sub"]), role=role)
 

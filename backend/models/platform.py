@@ -84,3 +84,16 @@ class AdminAction(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
 
     __table_args__ = (Index("ix_admin_actions_created", "created_at"),)
+
+
+class SessionReset(Base):
+    """Bu andan ÖNCE verilmiş token'lar geçersiz (şifre değişti, oturumlar kapatıldı).
+
+    JWT'ler sunucuda tutulmuyor; tek tek iptal edilemiyorlar. Bunun yerine
+    kullanıcı başına bir "şu andan önceki token'ları kabul etme" işareti.
+    """
+    __tablename__ = "session_resets"
+
+    role = Column(String(10), primary_key=True)
+    user_id = Column(Integer, primary_key=True)
+    after = Column(DateTime, nullable=False)

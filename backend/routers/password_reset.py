@@ -18,7 +18,7 @@ import secrets
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -26,6 +26,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from connect_db import get_db
 from core import mailer
 from core.config import settings
+from core import login_guard, ratelimit
 from core.security import hash_password
 from models.school import PasswordResetToken
 from models.student import Student
@@ -91,8 +92,12 @@ async def _valid_token(db: AsyncSession, token: str) -> Optional[PasswordResetTo
 async def forgot_password(
     body: ForgotPasswordRequest,
     background: BackgroundTasks,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ):
+    # E-posta bombardımanına karşı IP başına sınır (hesap başına sınır aşağıda).
+    # Okul ağında sınıf tek IP'den çıktığı için gevşek; hesap başına saatlik sınır ayrıca var.
+    await ratelimit.check("forgot", login_guard.client_ip(request), per_minute=20, per_day=200)
     email = body.email.strip().lower()
     # Admin hesabı ortam değişkenlerinden gelir; buradan şifresi değiştirilemez.
     if settings.ADMIN_EMAIL and email == settings.ADMIN_EMAIL.lower():
@@ -150,6 +155,8 @@ async def reset_password(body: ResetPasswordRequest, db: AsyncSession = Depends(
 
     now = datetime.utcnow()
     account.password = hash_password(body.password)
+    # Şifre değişti: başka cihazlardaki (belki çalınmış) oturumlar kapanır.
+    await login_guard.reset_sessions(db, row.role, row.user_id)
     await db.execute(
         update(PasswordResetToken)
         .where(PasswordResetToken.role == row.role, PasswordResetToken.user_id == row.user_id,

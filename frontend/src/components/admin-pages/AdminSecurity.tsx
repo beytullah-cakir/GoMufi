@@ -10,7 +10,7 @@ import api from '../../api';
 interface Security {
     failed_by_email: Array<{ email: string; count: number; last: string | null; locked: boolean }>;
     failed_by_ip: Array<{ ip: string; count: number; emails: number }>;
-    limits: { per_email: number; per_ip: number; window_minutes: number };
+    limits: { per_email: number; per_email_ip?: number; per_ip: number; window_minutes: number };
 }
 interface AuditItem { id: number; action: string; summary: string | null; target: string | null; at: string | null }
 
@@ -38,7 +38,7 @@ export const AdminSecurity: React.FC = () => {
             <div>
                 <h1 className="text-3xl font-black text-gray-800 font-display">Güvenlik</h1>
                 <p className="text-gray-500 text-sm font-semibold">
-                    Aynı e-postaya {data.limits.per_email}, aynı IP'den {data.limits.per_ip} hatalı denemeden sonra giriş {data.limits.window_minutes} dakika kilitlenir.
+                    Aynı e-posta aynı IP'den {data.limits.per_email_ip ?? 5} kez, bir e-posta toplamda {data.limits.per_email} kez ya da bir IP {data.limits.per_ip} kez hatalı denenirse giriş {data.limits.window_minutes} dakika kilitlenir.
                 </p>
             </div>
             <div className="grid lg:grid-cols-2 gap-4">

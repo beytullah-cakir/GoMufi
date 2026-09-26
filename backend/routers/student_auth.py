@@ -8,7 +8,7 @@ from connect_db import get_db
 from models.student import Student
 from models.teacher import Teacher
 from core.config import settings
-from core import login_guard
+from core import login_guard, ratelimit
 import jwt
 
 
@@ -18,8 +18,12 @@ router = APIRouter()
 @router.post("/student/register")
 async def register_user(
     data: StudentRegisterRequest,
-    db: AsyncSession = Depends(get_db)
+    request: Request,
+    db: AsyncSession = Depends(get_db),
 ):
+    # Toplu sahte hesap açmaya karşı IP başına sınır. Okulda bütün sınıf tek bir
+    # IP'den çıkıyor (NAT): 30 öğrencinin aynı anda kayıt olabilmesi gerekiyor.
+    await ratelimit.check("register", login_guard.client_ip(request), per_minute=40, per_day=400)
     try:
         # Check if email already exists
         check_query = select(Student).where(func.lower(Student.email) == func.lower(data.email))
@@ -45,7 +49,7 @@ async def register_user(
     except Exception as e:
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Kayıt sırasında bir hata oluştu. Lütfen tekrar dene.")
 
 
 @router.post("/student/login")
