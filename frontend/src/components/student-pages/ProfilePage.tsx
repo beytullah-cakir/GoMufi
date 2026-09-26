@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import api from "../../api";
+import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 import Leaderboard from "./Leaderboard";
 import {
   Settings,
@@ -1079,6 +1080,7 @@ const ProfilePage: React.FC<ProfilePageProps> = ({
           </div>
         )}
       </div>
+      <div className="max-w-5xl mx-auto px-4 pb-10"><AccountPrivacyCard /></div>
     </div>
   );
 };

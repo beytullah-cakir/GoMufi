@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Lock, Bell, Moon, Languages, HelpCircle, LogOut, Save, Loader2, CheckCircle2 } from 'lucide-react';
 import posthog from 'posthog-js';
 import api from '../../api';
+import AccountPrivacyCard from '../shared/AccountPrivacyCard';
 
 interface ParentSettingsProps {
     userData: any;
@@ -134,6 +135,7 @@ const ParentSettings: React.FC<ParentSettingsProps> = ({ userData }) => {
                     </div>
                 </form>
             </div>
+            <div className="mt-6"><AccountPrivacyCard /></div>
         </div>
     );
 };

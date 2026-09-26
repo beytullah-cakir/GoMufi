@@ -117,12 +117,20 @@ async def send_email(to: str, subject: str, text: str, html_body: str) -> bool:
             outbox.append(mail)
             del outbox[:-OUTBOX_LIMIT]
             # Gövdede şifre sıfırlama linki olabilir; canlı ortam loguna yazılmaz.
-            logger.info("E-posta sağlayıcısı yok; gönderilmedi → %s | %s%s", to, subject,
+            logger.info("E-posta sağlayıcısı yok; gönderilmedi → %s | %s%s", _masked(to), subject,
                         "" if settings.IS_PRODUCTION else f"\n{text}")
         return True
     except Exception as exc:  # noqa: BLE001
-        logger.warning("E-posta gönderilemedi (%s → %s): %s", kind, to, exc)
+        logger.warning("E-posta gönderilemedi (%s → %s): %s", kind, _masked(to), exc)
         return False
+
+
+def _masked(address: str) -> str:
+    """Canlı ortam loglarında e-posta adresi açık yazılmaz (KVKK): ece.yilmaz@okul.k12.tr → e***@okul.k12.tr"""
+    if not settings.IS_PRODUCTION or "@" not in address:
+        return address
+    local, domain = address.split("@", 1)
+    return f"{local[:1]}***@{domain}"
 
 
 async def send_many(recipients: Sequence[str], subject: str, text: str, html_body: str) -> int:
