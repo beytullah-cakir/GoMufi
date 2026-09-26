@@ -15,6 +15,7 @@ import {
   Copy,
   Check,
   Settings2,
+  Landmark,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import AddCourseModal from "./AddCourseModal";
@@ -25,6 +26,7 @@ import CourseInfoModal from "../shared/CourseInfoModal";
 import CourseCopyModal from "./CourseCopyModal";
 import MeetingLinkModal from "./MeetingLinkModal";
 import ClassroomSettingsModal from "./ClassroomSettingsModal";
+import MebOutcomesModal from "./MebOutcomesModal";
 
 interface Course {
   id: number;
@@ -61,6 +63,7 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
   const [copySource, setCopySource] = useState<Course | null>(null);
   const [meetingCourse, setMeetingCourse] = useState<Course | null>(null);
   const [settingsCourse, setSettingsCourse] = useState<Course | null>(null);
+  const [mebCourse, setMebCourse] = useState<Course | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [infoCourseId, setInfoCourseId] = useState<number | string | null>(
@@ -575,6 +578,17 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              setMebCourse(course);
+                              setOpenMenuId(null);
+                            }}
+                            className="w-full text-left px-3 py-2 text-[10px] text-indigo-600 hover:bg-indigo-50 font-black uppercase tracking-wider transition-colors rounded-xl flex items-center gap-2 cursor-pointer"
+                          >
+                            <Landmark size={14} />
+                            MEB Kazanımları
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               setMeetingCourse(course);
                               setOpenMenuId(null);
                             }}
@@ -667,6 +681,9 @@ const InstructorCourses: React.FC<InstructorCoursesProps> = ({ coursesData, refr
 
       {settingsCourse && (
         <ClassroomSettingsModal course={settingsCourse} onClose={() => setSettingsCourse(null)} />
+      )}
+      {mebCourse && (
+        <MebOutcomesModal course={mebCourse} onClose={() => setMebCourse(null)} />
       )}
       {meetingCourse && (
         <MeetingLinkModal
