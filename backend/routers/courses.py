@@ -25,6 +25,7 @@ import homework_rules
 import learning_store
 from models.teaching import HomeworkSubmissionVersion
 from core import classroom, plans, streak
+from core.permissions import ensure_course_access
 
 router = APIRouter()
 
@@ -157,6 +158,15 @@ class TeacherStudentResponse(BaseModel):
 
 
 
+def _class_for_student(cls: Any, student_id: int) -> Any:
+    """Öğrenciye giden şube: katılım kodu yok; öğrenci listesinde yalnızca kendisi
+    (kendi şubesini bulabilsin diye) — diğer öğrencilerin kimlikleri gitmez."""
+    if not isinstance(cls, dict):
+        return cls
+    ids = [sid for sid in (cls.get("student_ids") or []) if str(sid) == str(student_id)]
+    return {**{k: v for k, v in cls.items() if k != "code"}, "student_ids": ids}
+
+
 def student_view_of_courses(db: AsyncSession, courses: List[Course], student_id: int) -> List[Course]:
     """Öğrenciye giden kurs: katılım kodları gizli, yalnızca ona atanan tekrar görevleri.
 
@@ -166,10 +176,7 @@ def student_view_of_courses(db: AsyncSession, courses: List[Course], student_id:
     db.expunge_all()
     for course in courses:
         course.enrollment_code = None
-        course.classes = [
-            {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
-            for cls in course.classes or []
-        ]
+        course.classes = [_class_for_student(cls, student_id) for cls in course.classes or []]
         course.notes = classroom.student_notes(course.notes, student_id, classroom.pending_review_ids(course))
     return courses
 
@@ -254,6 +261,10 @@ async def read_course(
     db: AsyncSession = Depends(get_db),
     user_info: dict = Depends(get_current_user_info)
 ):
+    # Yalnızca kursun öğretmeni, kayıtlı öğrencisi ve yönetici. Eskiden giriş
+    # yapmış HERKES (başka öğretmenler, kayıtsız öğrenciler, veliler) bütün
+    # slaytları, ödevleri ve şubelerdeki öğrenci kimliklerini okuyabiliyordu.
+    await ensure_course_access(db, course_id, user_info)
     result = await db.execute(
         select(Course).where(Course.id == course_id).options(joinedload(Course.teacher), joinedload(Course.enrollments))
     )
@@ -303,10 +314,9 @@ async def read_course(
     if role != "admin" and course.teacher_id != user_id:
         # Katılım kodları yalnızca kursun öğretmenine görünür: kodu bilen kursa katılabilir.
         course_dict["enrollment_code"] = None
-        course_dict["classes"] = [
-            {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
-            for cls in course.classes or []
-        ]
+        # Öğrenci şube adını ve programını görür; katılım kodu ve diğer
+        # öğrencilerin kimlikleri gitmez.
+        course_dict["classes"] = [_class_for_student(cls, user_id) for cls in course.classes or []]
         # Onay bekleyen YZ modülleri boş; atanmış tekrar görevleri yalnızca ilgili öğrencilere.
         course_dict["notes"] = classroom.student_notes(course_dict["notes"], user_id, classroom.pending_review_ids(course))
 

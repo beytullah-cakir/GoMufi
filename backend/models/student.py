@@ -1,7 +1,20 @@
-import uuid
+import secrets
 from sqlalchemy import Column, DateTime, Integer, String, func, ForeignKey
 from sqlalchemy.orm import relationship
 from connect_db import Base
+
+# Karışabilecek harfler (0/O, 1/I) yok: veli kodu elle yazıyor.
+_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def new_student_code() -> str:
+    """Veli bağlantı kodu: ST- + 10 karakter (~50 bit).
+
+    Eskiden ST- + 6 onaltılık karakterdi (~16 milyon ihtimal): herkes Google ile
+    veli hesabı açıp kodları deneyerek başka bir çocuğa kendini bağlayabilirdi.
+    """
+    return "ST-" + "".join(secrets.choice(_CODE_ALPHABET) for _ in range(10))
+
 
 class Student(Base):
     __tablename__ = "students"
@@ -15,7 +28,7 @@ class Student(Base):
     grade_level = Column(String)
     education_level = Column(String)
     password = Column(String)
-    student_code = Column(String, unique=True, index=True, default=lambda: f"ST-{str(uuid.uuid4())[:6].upper()}")
+    student_code = Column(String, unique=True, index=True, default=new_student_code)
     parent_id = Column(Integer, ForeignKey("parents.id"), nullable=True)
     
     # Gamification fields

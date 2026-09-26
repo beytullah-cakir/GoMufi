@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Bold, Italic, Underline, Grid, Trash2, Frame, AlignLeft, AlignCenter, AlignRight, ArrowUpToLine, ArrowDownToLine, FoldVertical, Minus, Spline, CornerDownRight, Upload, ChevronDown, Minimize2, Crop, MoveVertical } from 'lucide-react';
 import type { SlideElement, ElementStyle } from './types';
+import { sanitizeHtml } from '../../security/sanitize';
 
 interface ColorPickerProps {
     id: string; // ID of the representative element (or "multi")
@@ -292,7 +293,9 @@ const ContextMenu: React.FC<ContextMenuProps> = ({
                                                     // Strip existing color formatting to allow global override
                                                     let newContent = el.content;
                                                     const div = document.createElement('div');
-                                                    div.innerHTML = el.content;
+                                                    // Temizlenmiş içerik: ayrık bir div'e bile basılan
+                                                    // <img onerror> çalışır.
+                                                    div.innerHTML = sanitizeHtml(el.content);
                                                     const styledEls = div.querySelectorAll('*');
                                                     styledEls.forEach((node) => {
                                                         if (node instanceof HTMLElement) {

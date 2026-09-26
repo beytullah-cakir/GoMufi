@@ -204,9 +204,9 @@ const ParentStudents: React.FC<ParentStudentsProps> = ({ userData, onSelectStude
                                     type="text"
                                     value={studentCode}
                                     onChange={(e) => setStudentCode(e.target.value.toUpperCase())}
-                                    placeholder="Örn: ST-A1B2C3"
+                                    placeholder="Örn: ST-K7M2QX9A4B"
                                     className="w-full px-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-black text-xl tracking-widest focus:border-purple-400 focus:bg-white outline-none transition-all placeholder:text-gray-300 placeholder:tracking-normal"
-                                    maxLength={10}
+                                    maxLength={16}
                                     autoFocus
                                 />
                                 {linkError && <p className="text-red-500 text-xs font-bold ml-1">{linkError}</p>}

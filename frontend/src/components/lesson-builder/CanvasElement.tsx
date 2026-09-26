@@ -5,6 +5,7 @@ import { usePyodide } from "../../hooks/usePyodide";
 import MultipleChoiceWidget from "./MultipleChoiceWidget";
 import type { SlideElement, ElementStyle } from "./types";
 import api from "../../api";
+import { safeHtml, safeUrl } from '../../security/sanitize';
 
 interface CanvasElementProps {
   el: SlideElement;
@@ -230,19 +231,9 @@ interface FileWidgetProps {
     updateElement: (id: string, updates: Partial<SlideElement>) => void;
 }
 
-const formatUrl = (url: string) => {
-    if (!url) return '#';
-    // If it's a local static path, don't prepend https://
-    if (url.startsWith('/') || url.startsWith('blob:') || url.startsWith('data:')) {
-        return url;
-    }
-    // Check if it already has a protocol
-    if (/^[a-zA-Z][a-zA-Z\d.+\-]*:/.test(url)) {
-        return url;
-    }
-    // Prepend https://
-    return `https://${url}`;
-};
+// Öğretmen içeriğinden gelen adres: `javascript:` gibi çalıştırılabilir
+// şemalar atılır (bkz. security/sanitize.ts).
+const formatUrl = (url: string) => safeUrl(url);
 
 const FileWidget: React.FC<FileWidgetProps> = ({ el, isPreview, updateElement }) => {
     const [fileName, setFileName] = useState(el.content || 'Kaynak_Dokuman.pdf');
@@ -2139,7 +2130,7 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
   }, [isEditing]);
 
   const htmlContent = React.useMemo(
-    () => ({ __html: el.content }),
+    () => safeHtml(el.content),
     [el.content],
   );
 
@@ -2182,7 +2173,8 @@ const CanvasElement: React.FC<CanvasElementProps> = ({
     const regExp =
       /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
     const match = url.match(regExp);
-    return match && match[2].length === 11 ? match[2] : null;
+    // Yalnızca gerçek bir video kimliği: adres iframe'e gömülüyor.
+    return match && /^[\w-]{11}$/.test(match[2]) ? match[2] : null;
   };
 
   return (

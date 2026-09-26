@@ -67,3 +67,20 @@ def test_tanimsiz_mesaj_ve_sahte_hedef_yayinlanmaz(client):
         ws.send_json({"type": "ping"})
         # Önceki iki mesaj düştüyse ilk gelen cevap pong olmalı.
         assert ws.receive_json() == {"type": "pong"}
+
+
+def test_baska_siteden_cerezle_baglanti_reddedilir(client):
+    """CSWSH: kötü niyetli bir site öğrencinin çereziyle WebSocket açamaz."""
+    client.cookies.set("access_token", create_access_token("42", role="student"))
+    with pytest.raises(WebSocketDisconnect) as exc:
+        with client.websocket_connect("/ws", headers={"Origin": "https://kotu-site.example"}) as ws:
+            ws.send_json({"type": "ping"})
+            ws.receive_json()
+    assert exc.value.code == WS_POLICY_VIOLATION
+
+
+def test_izinli_siteden_cerezle_baglanilir(client):
+    client.cookies.set("access_token", create_access_token("42", role="student"))
+    with client.websocket_connect("/ws", headers={"Origin": "https://gomufi.com"}) as ws:
+        ws.send_json({"type": "ping"})
+        assert ws.receive_json() == {"type": "pong"}
