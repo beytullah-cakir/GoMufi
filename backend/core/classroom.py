@@ -71,3 +71,118 @@ def unlock_limit(settings: Dict[str, Any], class_id: Optional[str]) -> Optional[
     if class_id is not None and str(class_id) in limits:
         return limits[str(class_id)]
     return limits.get("*")
+
+
+# --- şubeler ve katılım kodu ------------------------------------------------------
+# Tek katılım yolu: öğrenci her zaman bir ŞUBEYE katılır. Her kursun en az bir şubesi
+# vardır (öğretmen tanımlamazsa "Genel"). Kodlar sunucuda, tüm kurslarda tekil üretilir
+# — eskiden tarayıcıda Math.random() ile üretiliyor, çakışma kontrol edilmiyordu.
+
+CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"  # karışabilecek 0/O, 1/I hariç
+DEFAULT_CLASS_NAME = "Genel"
+
+
+async def used_codes(db: AsyncSession, course_id: Optional[int] = None) -> set:
+    """Bu kursun KULLANAMAYACAĞI kodlar.
+
+    Çakışmada kod eski kursta (küçük kimlik) kalır, yenisi değişir: öğretmenin
+    öğrencilere çoktan dağıttığı bir kodu geçersiz kılmamak için. Kursların
+    kendi (eski) katılım kodları da şube koduyla karışmasın diye dolu sayılır.
+    """
+    codes = set()
+    for other_id, enrollment_code, classes in (await db.execute(
+        select(Course.id, Course.enrollment_code, Course.classes)
+    )).all():
+        if enrollment_code:
+            codes.add(enrollment_code.upper())
+        if other_id == course_id or (course_id is not None and other_id > course_id):
+            continue
+        for cls in classes or []:
+            if isinstance(cls, dict) and cls.get("code"):
+                codes.add(str(cls["code"]).strip().upper())
+    return codes
+
+
+def new_code(taken: set) -> str:
+    import random
+
+    for _ in range(50):
+        code = "".join(random.choices(CODE_ALPHABET, k=6))
+        if code not in taken:
+            taken.add(code)
+            return code
+    raise RuntimeError("Katılım kodu üretilemedi")
+
+
+async def ensure_classes(db: AsyncSession, course: Course, enrolled_ids: Optional[List[int]] = None) -> bool:
+    """Kursun şubelerini tutarlı hale getirir; bir şey değiştiyse True (çağıran commit eder).
+
+    - Şube yoksa "Genel" şubesi açılır.
+    - Kodu olmayan ya da başka bir şubeyle çakışan şubeye yeni tekil kod verilir.
+    - Tek şubeli kursta şubesiz kalmış kayıtlı öğrenciler o şubeye alınır (eskiden
+      kurs koduyla katılan öğrenci hiçbir şubeye düşmüyordu).
+    """
+    import uuid
+
+    changed = False
+    classes = [dict(c) for c in (course.classes or []) if isinstance(c, dict)]
+    if not classes:
+        classes = [{"id": "c_genel", "name": DEFAULT_CLASS_NAME, "student_ids": [], "schedule": []}]
+        changed = True
+    taken = await used_codes(db, course.id)
+    seen: set = set()
+    for cls in classes:
+        if cls.get("id") is None:
+            cls["id"] = f"c_{uuid.uuid4().hex[:8]}"
+            changed = True
+        code = str(cls.get("code") or "").strip().upper()
+        if not code or code in taken or code in seen:
+            code = new_code(taken | seen)
+            changed = True
+        if cls.get("code") != code:
+            cls["code"] = code
+            changed = True
+        seen.add(code)
+        cls.setdefault("student_ids", [])
+        cls.setdefault("schedule", [])
+    if enrolled_ids and len(classes) == 1:
+        placed = {sid for c in classes for sid in class_student_ids(c)}
+        missing = [sid for sid in enrolled_ids if sid not in placed]
+        if missing:
+            classes[0]["student_ids"] = list(classes[0].get("student_ids") or []) + missing
+            changed = True
+    if changed:
+        course.classes = classes
+        flag_modified(course, "classes")
+    return changed
+
+
+async def find_by_code(db: AsyncSession, code: str):
+    """Kod → (kurs, şube). Şube kodu önceliklidir; eski kurs kodu tek şubeli kursta o şubeye gider."""
+    code = (code or "").strip().upper()
+    if not code:
+        return None, None, "Kod boş olamaz."
+    for course in (await db.execute(select(Course))).scalars().all():
+        for cls in course.classes or []:
+            if isinstance(cls, dict) and str(cls.get("code") or "").strip().upper() == code:
+                return course, cls, None
+    course = (await db.execute(select(Course).where(Course.enrollment_code == code))).scalar_one_or_none()
+    if not course:
+        return None, None, "Kod bulunamadı. Öğretmeninden sınıfının katılım kodunu iste."
+    await ensure_classes(db, course)
+    classes = [c for c in course.classes or [] if isinstance(c, dict)]
+    if len(classes) == 1:
+        return course, classes[0], None
+    return None, None, "Bu kursun birden fazla şubesi var; öğretmeninden kendi şubenin kodunu iste."
+
+
+def place_student(course: Course, target: Dict[str, Any], student_id: int) -> None:
+    """Öğrenciyi şubeye alır, diğer şubelerden çıkarır (öğrenci tek şubede olur)."""
+    classes = [dict(c) for c in course.classes or [] if isinstance(c, dict)]
+    for cls in classes:
+        ids = [sid for sid in cls.get("student_ids") or [] if str(sid) != str(student_id)]
+        if str(cls.get("id")) == str(target.get("id")):
+            ids.append(student_id)
+        cls["student_ids"] = ids
+    course.classes = classes
+    flag_modified(course, "classes")

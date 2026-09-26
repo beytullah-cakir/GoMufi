@@ -39,24 +39,9 @@ const InstructorClasses: React.FC = () => {
     const fetchCoursesAndData = async () => {
         setIsLoading(true);
         try {
+            // Şube kodlarını sunucu üretir (tekil); kodsuz şube kalmaz.
             const coursesRes = await api.get("/teacher/content");
-            const updatedCourses = coursesRes.data.map((course: Course) => {
-                if (course.classes && course.classes.length > 0) {
-                    let hasMissingCode = false;
-                    const classesWithCodes = course.classes.map(cls => {
-                        if (!cls.code) {
-                            hasMissingCode = true;
-                            return { ...cls, code: Math.random().toString(36).substring(2, 8).toUpperCase() };
-                        }
-                        return cls;
-                    });
-                    if (hasMissingCode) {
-                        api.put(`/update_course/${course.id}`, { classes: classesWithCodes }).catch(console.error);
-                        return { ...course, classes: classesWithCodes };
-                    }
-                }
-                return course;
-            });
+            const updatedCourses: Course[] = coursesRes.data;
             setCourses(updatedCourses);
             if (updatedCourses.length > 0 && !selectedCourseId) {
                 setSelectedCourseId(updatedCourses[0].id);
@@ -110,9 +95,10 @@ const InstructorClasses: React.FC = () => {
                 schedule: updatedClasses.flatMap(c => c.schedule || [])
             };
             
-            await api.put(`/update_course/${selectedCourseId}`, payload);
-            
-            setCourses(prev => prev.map(c => c.id === selectedCourseId ? { ...c, ...payload } : c));
+            // Yeni şubenin kodu sunucuda üretilir; kaydedilen hâli geri yaz.
+            const res = await api.put(`/update_course/${selectedCourseId}`, payload);
+            const saved = { classes: res.data.classes || updatedClasses, schedule: res.data.schedule || payload.schedule };
+            setCourses(prev => prev.map(c => c.id === selectedCourseId ? { ...c, ...saved } : c));
         } catch (err) {
             console.error("Failed to update classes", err);
             alert("Sınıflar kaydedilirken bir hata oluştu.");
@@ -122,13 +108,11 @@ const InstructorClasses: React.FC = () => {
     const handleAddClass = () => {
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
         const nextLetter = alphabet[activeClasses.length] || String(activeClasses.length + 1);
-        const code = Math.random().toString(36).substring(2, 8).toUpperCase();
         const newClass: ClassModel = {
             id: `c_${Date.now()}`,
             name: `${nextLetter} Sınıfı`,
             schedule: [],
             student_ids: [],
-            code: code
         };
         handleUpdateClasses([...activeClasses, newClass]);
     };

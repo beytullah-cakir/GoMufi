@@ -703,7 +703,11 @@ def test_kurs_ve_modul_kopyalama(auth_as, seeded, db_query):
     dup = teacher.post(f"/courses/{COURSE}/duplicate", json={"title": "Python Atölyesi — 2. dönem"})
     assert dup.status_code == 200, dup.text
     new_id = dup.json()["id"]
-    assert dup.json()["students_count"] == 0 and dup.json()["classes"] == []
+    # Şubeler ve öğrencileri kopyalanmaz: kopya boş bir "Genel" şubesi ve yeni kodla başlar.
+    new_classes = dup.json()["classes"]
+    assert dup.json()["students_count"] == 0 and len(new_classes) == 1
+    assert new_classes[0]["name"] == "Genel" and new_classes[0]["student_ids"] == []
+    assert new_classes[0]["code"] not in {c["code"] for c in CLASSES}
     assert db_query("SELECT count(*) FROM lesson_contents WHERE course_id=%s", (new_id,)) == [(2,)]
     assert db_query("SELECT count(*) FROM enrollments WHERE course_id=%s", (new_id,)) == [(0,)]
     assert auth_as(OTHER_TEACHER, "teacher").post(f"/courses/{COURSE}/duplicate", json={}).status_code == 404
