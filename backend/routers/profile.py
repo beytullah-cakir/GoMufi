@@ -60,6 +60,8 @@ async def get_profile(
             "education_level": "Yönetici",
             "streak": (await streak.current(db, student.id)) if student else 0,
             "xp": student.xp if student else 99999,
+            # Öğrenci panelini önizleyen yönetici de seviye/lig görsün (yoksa arayüz "Seviye 1" gösteriyordu).
+            "progression": gamification.level_progress(student.xp if student else 99999),
             "expertises": teacher.expertises if teacher else "Tümü",
             "bio": teacher.bio if teacher else "Sistem Yöneticisi",
         }
