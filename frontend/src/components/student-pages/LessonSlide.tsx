@@ -20,6 +20,9 @@ import LiveBoardOverlay, { type BoardView } from './LiveBoardOverlay';
 import { useWebSocketEvent } from '../../hooks/useWebSocket';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import RankMedal from '../shared/RankMedal';
+import MufiWaveImg from '../../assets/sprites/mufi/wave.webp';
+import MufiBuildImg from '../../assets/sprites/mufi/build.webp';
+import MufiPeekImg from '../../assets/sprites/mufi/peek.webp';
 
 interface LessonSlideProps {
     isOpen: boolean;
@@ -645,10 +648,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
     const renderSlideContent = () => {
         if (!localSlides || localSlides.length === 0) {
             return (
-                <div className="flex flex-col items-center justify-center text-center p-8 select-text">
-                    <BookOpen className="w-16 h-16 text-indigo-500 mb-4 animate-bounce" />
-                    <h2 className="text-3xl font-bold text-gray-800 mb-2">Ders İçeriği Boş</h2>
-                    <p className="text-gray-600">Bu ders için henüz slayt eklenmemiş.</p>
+                <div className="flex flex-col items-center justify-center text-center p-8 select-text bg-white rounded-[2rem] border-2 border-b-8 border-slate-200 max-w-md w-full">
+                    <img src={MufiBuildImg} alt="" className="w-32 mb-3" />
+                    <h2 className="text-2xl font-black text-slate-800 mb-1">Bu ders hazırlanıyor</h2>
+                    <p className="text-sm font-bold text-slate-500 mb-5">Öğretmenin slaytları ekleyince burada göreceksin. Şimdilik haritaya dönebilirsin.</p>
+                    <button onClick={onClose}
+                            className="h-12 px-6 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white font-black border-b-4 border-violet-700 active:translate-y-1 active:border-b-0 transition-all duration-75">
+                        Haritaya dön
+                    </button>
                 </div>
             );
         }
@@ -1036,117 +1043,119 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 <div className="absolute bottom-[-15%] left-[20%] w-[45rem] h-[45rem] bg-indigo-400/5 rounded-full filter blur-[140px] opacity-70 animate-blob animation-delay-4000" />
             </div>
 
-            {/* ── Learning-player üst bar ── */}
-            <div className="absolute top-2 md:top-4 left-2 md:left-6 right-2 md:right-6 z-50 flex items-center justify-between gap-1.5 md:gap-3">
-                {/* SOL: Geri + Başlık + Streak + XP + Stepper */}
-                <div className="flex items-center gap-1.5 md:gap-3 min-w-0 flex-1 md:flex-initial">
+            {/* ── Üst çubuk: çıkış · aşama rozeti + başlık · ders yolu · seri/XP ──
+                Eskiden iki ayrı çıkış düğmesi (geri + kırmızı X) ve her modülü büyük
+                harfle sayan uzun bir şerit vardı; şimdi tek çıkış, tek bakışta
+                "neredeyim" (aşama rozeti) ve altında slayt ilerlemesi. */}
+            <div className="absolute top-0 inset-x-0 z-50 px-2 md:px-6 pt-2 md:pt-4 pb-2 select-none">
+                <div className="flex items-center gap-2 md:gap-3">
                     <button
                         onClick={onClose}
                         title="Dersten çık"
-                        className="w-8 h-8 md:w-10 md:h-10 shrink-0 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-700 hover:text-rose-500 rounded-xl flex items-center justify-center shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
+                        aria-label="Dersten çık"
+                        className={`w-10 h-10 md:w-11 md:h-11 shrink-0 rounded-2xl border-2 border-b-4 flex items-center justify-center active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer ${
+                            isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white' : 'bg-white border-slate-200 text-slate-500 hover:text-rose-500 hover:border-rose-200'}`}
                     >
-                        <ChevronLeft className="w-4 h-4 md:w-5 md:h-5 stroke-[3]" />
+                        <X className="w-5 h-5 stroke-[3]" />
                     </button>
 
-                    <div className="flex items-center gap-1.5 md:gap-3 bg-white/90 backdrop-blur-md border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-xl md:rounded-2xl px-2 md:px-3 py-1 md:py-2 shadow-md min-w-0 flex-1 md:flex-initial">
-                        <h2 className="text-xs md:text-sm font-black text-gray-800 leading-tight truncate min-w-0" title={lessonTitle}>
+                    <div className={`flex items-center gap-2.5 min-w-0 rounded-2xl border-2 border-b-4 pl-1.5 pr-3 py-1.5 ${isDark ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+                        {!isHwSlide && (
+                            <span
+                                className="shrink-0 px-2.5 pt-1.5 pb-1 leading-none rounded-xl text-white text-[11px] md:text-xs font-black uppercase tracking-wider border-b-4"
+                                style={{ backgroundColor: getStageColor(currentBubbleTitle).bg, borderColor: 'rgba(0,0,0,0.18)' }}
+                            >
+                                {currentBubbleTitle}
+                            </span>
+                        )}
+                        <h2 className={`text-sm md:text-base font-black leading-tight truncate min-w-0 ${isDark ? 'text-white' : 'text-slate-800'}`} title={lessonTitle}>
                             {lessonTitle || 'Ders'}
                         </h2>
-                        <span className="w-px h-4 bg-slate-200 shrink-0" />
-                        <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-orange-500 shrink-0 bg-orange-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-orange-200" title="Günlük seri">
-                            <Flame size={13} /> {streakVal}<span className="hidden sm:inline text-[9px] text-orange-400/80 font-bold">gün</span>
-                        </span>
-                        <span className="flex items-center gap-1 text-[10px] md:text-xs font-black text-amber-500 shrink-0 bg-amber-50 px-1.5 md:px-2 py-0.5 rounded-lg border border-amber-200" title="Toplam XP">
-                            <Star size={13} className="fill-current" /> {xpVal}<span className="hidden sm:inline text-[9px] text-amber-400/80 font-bold">XP</span>
-                        </span>
                     </div>
 
-                    {/* Bölüm Stepper — tam kanonik yol haritası, salt gösterim */}
-                    {displayStages.length > 0 && !isHwSlide && (
-                        <div className="hidden lg:flex items-center gap-1 bg-white/90 backdrop-blur-xl border border-gray-200/80 rounded-2xl px-2 py-1.5 shadow-lg max-w-full select-none">
+                    {/* Ders yolu: bu dersin modülleri küçük adımlar hâlinde (salt gösterim) */}
+                    {displayStages.length > 1 && !isHwSlide && (
+                        <div className={`hidden lg:flex items-center gap-1 rounded-2xl border-2 px-2 py-1.5 ${isDark ? 'bg-slate-800/80 border-slate-700' : 'bg-white/90 border-slate-200'}`} aria-label="Dersin aşamaları">
                             {displayStages.map((stageName, sIdx) => {
                                 const state = sIdx < currentStageIdx ? 'done' : sIdx === currentStageIdx ? 'current' : 'upcoming';
-                                const isActive = state === 'current';
-                                const isPresent = isModuleMode || presentStages.has(stageName);
-
-                                const stageColor = getStageColor(stageName);
-
+                                const color = getStageColor(stageName);
                                 return (
-                                    <div
-                                        key={`${stageName}-${sIdx}`}
-                                        style={{
-                                            backgroundColor: isActive ? stageColor.bg : 'transparent',
-                                            boxShadow: isActive ? `0 4px 12px ${stageColor.shadow}` : 'none',
-                                        }}
-                                        className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl transition-all duration-300 shrink-0 ${
-                                            isActive
-                                                ? 'text-white font-black scale-[1.02]'
-                                                : state === 'done'
-                                                ? 'text-slate-600 font-bold'
-                                                : `text-slate-400 font-bold ${isPresent ? '' : 'opacity-45'}`
-                                        }`}
-                                        title={isPresent ? stageName : `${stageName} (bu derste yok)`}
-                                    >
-                                        {isActive ? (
-                                            <div className="w-2.5 h-2.5 rounded-full bg-white shrink-0 shadow-sm" />
-                                        ) : state === 'done' ? (
-                                            <div className="w-4 h-4 rounded-full bg-emerald-500 shrink-0 flex items-center justify-center">
-                                                <Check className="w-2.5 h-2.5 text-white stroke-[4]" />
-                                            </div>
-                                        ) : (
-                                            <div className={`w-2.5 h-2.5 rounded-full border-2 shrink-0 border-slate-300 ${isPresent ? '' : 'border-dashed'}`} />
-                                        )}
-                                        <span className="text-xs uppercase tracking-wider">{stageName}</span>
-                                    </div>
+                                    <React.Fragment key={`${stageName}-${sIdx}`}>
+                                        {sIdx > 0 && <span className={`w-3 h-0.5 rounded-full ${state === 'upcoming' ? 'bg-slate-200' : 'bg-emerald-400'}`} />}
+                                        <span
+                                            title={stageName}
+                                            className={`flex items-center justify-center rounded-full transition-all ${state === 'current' ? 'px-2.5 h-6 text-[10px] font-black text-white uppercase tracking-wider' : 'w-6 h-6'}`}
+                                            style={{
+                                                backgroundColor: state === 'current' ? color.bg : state === 'done' ? '#10b981' : 'transparent',
+                                                border: state === 'upcoming' ? '2px solid #cbd5e1' : 'none',
+                                            }}
+                                        >
+                                            {state === 'current' ? stageName : state === 'done' ? <Check className="w-3.5 h-3.5 text-white stroke-[4]" /> : null}
+                                        </span>
+                                    </React.Fragment>
                                 );
                             })}
                         </div>
                     )}
-                </div>
 
-                {/* SAĞ: Mod Pili + Kapat */}
-                <div className="flex items-center gap-1.5 md:gap-2 shrink-0">
-                    {previewRole === 'student' && !isHwSlide && (
-                        <span className="text-[10px] md:text-xs font-black uppercase tracking-wider px-2 md:px-3 py-1 md:py-1.5 bg-emerald-50 border-2 border-b-4 border-emerald-300 text-emerald-600 rounded-xl flex items-center gap-1 shadow-sm">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            <span>Kendi hızında</span>
+                    <div className="ml-auto flex items-center gap-1.5 md:gap-2 shrink-0">
+                        {previewRole === 'student' && !isHwSlide && (
+                            <span className={`hidden sm:flex text-xs font-black px-3 h-10 md:h-11 rounded-2xl border-2 border-b-4 items-center gap-1.5 ${
+                                isLive ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-emerald-50 border-emerald-200 text-emerald-700'}`}>
+                                <span className={`w-2 h-2 rounded-full ${isLive ? 'bg-rose-500' : 'bg-emerald-500'} animate-pulse`} />
+                                {isLive ? 'Canlı ders' : 'Kendi hızında'}
+                            </span>
+                        )}
+                        <span className="flex items-center gap-1 text-sm font-black text-orange-600 bg-orange-50 border-2 border-b-4 border-orange-200 h-10 md:h-11 px-2.5 rounded-2xl" title="Günlük seri">
+                            <Flame size={16} className="fill-orange-300" /> {streakVal}
                         </span>
-                    )}
+                        <span className="hidden sm:flex items-center gap-1 text-sm font-black text-amber-600 bg-amber-50 border-2 border-b-4 border-amber-200 h-10 md:h-11 px-2.5 rounded-2xl" title="Toplam XP">
+                            <Star size={16} className="fill-current" /> {xpVal.toLocaleString('tr-TR')}
+                        </span>
 
-                    {previewRole === 'teacher' && (
-                        <button
-                            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-                            className={`h-8 md:h-10 px-2.5 md:px-3 border-2 border-b-4 flex items-center gap-1.5 rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer text-[10px] md:text-xs font-black ${
-                                isSettingsOpen ? 'bg-indigo-600 border-indigo-800 text-white' : 'bg-white border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600'}`}
-                            title="Ders Kontrol Paneli ve Canlı Görev Panosu (yalnızca senin ekranında)"
-                        >
-                            <Settings className="w-4 h-4" />
-                            <span className="hidden md:inline">{isTaskSlide ? 'Canlı Pano' : 'Kontrol'}</span>
-                        </button>
-                    )}
+                        {previewRole === 'teacher' && (
+                            <button
+                                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                                className={`h-10 md:h-11 px-3 border-2 border-b-4 flex items-center gap-1.5 rounded-2xl active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer text-xs font-black ${
+                                    isSettingsOpen ? 'bg-violet-500 border-violet-700 text-white' : 'bg-white border-slate-200 text-slate-600 hover:text-violet-600'}`}
+                                title="Ders Kontrol Paneli ve Canlı Görev Panosu (yalnızca senin ekranında)"
+                            >
+                                <Settings className="w-4 h-4" />
+                                <span className="hidden md:inline">{isTaskSlide ? 'Canlı Pano' : 'Kontrol'}</span>
+                            </button>
+                        )}
 
-                    {!isEmbeddedInVSCode() && (
-                        <button
-                            onClick={toggleFullscreen}
-                            className="w-8 h-8 md:w-10 md:h-10 bg-white hover:bg-slate-50 border-2 border-b-4 border-slate-200 border-b-slate-300 text-slate-600 hover:text-indigo-600 flex items-center justify-center rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer"
-                            title={isFullscreen ? "Tam Ekrandan Çık" : "Tam Ekran Yap"}
-                        >
-                            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
-                        </button>
-                    )}
-
-                    <button
-                        onClick={onClose}
-                        className="w-8 h-8 md:w-10 md:h-10 bg-rose-500 hover:bg-rose-600 border-2 border-b-4 border-rose-700 text-white flex items-center justify-center rounded-xl shadow-md active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer shrink-0"
-                        title="Kapat"
-                    >
-                        <X className="w-4 h-4 md:w-5 md:h-5 stroke-[3]" />
-                    </button>
+                        {!isEmbeddedInVSCode() && (
+                            <button
+                                onClick={toggleFullscreen}
+                                className={`hidden sm:flex w-10 h-10 md:w-11 md:h-11 border-2 border-b-4 items-center justify-center rounded-2xl active:translate-y-[2px] active:border-b-2 transition-all duration-75 cursor-pointer ${
+                                    isDark ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-500 hover:text-violet-600'}`}
+                                title={isFullscreen ? 'Tam ekrandan çık' : 'Tam ekran'}
+                            >
+                                {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                            </button>
+                        )}
+                    </div>
                 </div>
+
+                {/* Slayt ilerlemesi: her slayt bir parça (çok slaytta tek çubuk) */}
+                {!isHwSlide && totalSlides > 1 && (
+                    <div className="mt-2 md:mt-3 flex items-center gap-1 max-w-3xl mx-auto" aria-label={`Slayt ${stepNum} / ${totalSlides}`}>
+                        {totalSlides <= 24 ? Array.from({ length: totalSlides }, (_, i) => (
+                            <span key={i} className={`h-2.5 flex-1 rounded-full transition-colors duration-300 ${i < stepNum ? '' : isDark ? 'bg-slate-700' : 'bg-slate-200'}`}
+                                  style={i < stepNum ? { backgroundColor: getStageColor(currentBubbleTitle).bg } : undefined} />
+                        )) : (
+                            <span className={`h-2.5 flex-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-200'}`}>
+                                <span className="block h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, backgroundColor: getStageColor(currentBubbleTitle).bg }} />
+                            </span>
+                        )}
+                        <span className={`ml-2 text-xs font-black tabular-nums shrink-0 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>{stepNum}/{totalSlides}</span>
+                    </div>
+                )}
             </div>
 
             {/* Full Screen Slide Content */}
-            <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4 md:px-10 pt-14 md:pt-20 pb-16 md:pb-24 z-10">
+            <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4 md:px-10 pt-24 md:pt-28 pb-24 md:pb-28 z-10">
                 <LiveLessonContext.Provider value={{ timer: taskTimer, live: isLive }}>
                     {/* Öğrencinin slayttaki soru/oyun cevapları öğrenme kaydına gider (öğretmen önizlemesi hariç) */}
                     <SlideAnswerContext.Provider value={previewRole === 'teacher' || !courseId ? null
@@ -1169,62 +1178,51 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                 />
             )}
 
-            {/* Small Floating Bottom Navigation Overlay (Floating Island) */}
-            {!isGameSlide && !isHwSlide && (
-                <div className="absolute bottom-2 md:bottom-4 left-1/2 -translate-x-1/2 z-50 flex items-center justify-between gap-1.5 md:gap-4 bg-white/95 backdrop-blur-xl border-2 border-b-4 border-slate-200/90 border-b-slate-300/90 rounded-2xl px-2.5 md:px-4 py-1.5 md:py-2 shadow-xl select-none pointer-events-auto w-[calc(100%-1rem)] max-w-md md:w-auto">
-                    {/* ← Önceki */}
-                    <button
-                        onClick={handlePrev}
-                        disabled={isPrevDisabled}
-                        className={`group flex items-center gap-1 px-2.5 md:px-4 py-1 md:py-1.5 border-2 border-b-4 border-slate-200 border-b-slate-300 rounded-xl font-black text-[10px] md:text-xs uppercase tracking-wider text-slate-700 bg-slate-50 hover:bg-slate-100 hover:text-slate-900 active:translate-y-[2px] active:border-b-2 transition-all duration-75 shadow-sm ${
-                            isPrevDisabled ? 'opacity-30 pointer-events-none' : 'cursor-pointer'
-                        }`}
-                    >
-                        <ChevronLeft className="w-3.5 h-3.5 stroke-[3] group-hover:-translate-x-0.5 transition-transform text-slate-500" />
-                        <span>Önceki</span>
-                    </button>
+            {/* ── Alt çubuk: geri · Mufi'nin cümlesi · tek büyük eylem ── */}
+            {!isGameSlide && !isHwSlide && (() => {
+                const cheer = isTaskLocked ? 'Görevi çöz, sonra devam edelim!'
+                    : isTaskPending ? 'Hazırsan görevini gönder!'
+                    : isTryCodeSlide ? 'Kodu VS Code\'da dene, ne olacak bakalım!'
+                    : isLastSlide ? 'Son slayt! Bitirmeye hazır mısın?'
+                    : ['Harika gidiyorsun!', 'Süpersin, devam!', 'Çok güzel, bir sonrakine!', 'Az kaldı!'][currentSlide % 4];
+                const ctaVariant = isTaskLocked ? 'bg-slate-200 border-slate-300 text-slate-500'
+                    : isTaskPending ? 'bg-cyan-500 hover:bg-cyan-600 border-cyan-700 text-white'
+                    : isTryCodeSlide || isLastSlide ? 'bg-emerald-500 hover:bg-emerald-600 border-emerald-700 text-white'
+                    : 'bg-violet-500 hover:bg-violet-600 border-violet-700 text-white';
+                return (
+                    <div className={`absolute bottom-0 inset-x-0 z-50 border-t-2 ${isDark ? 'bg-slate-900/95 border-slate-800' : 'bg-white/95 border-slate-200'} backdrop-blur-md pb-[env(safe-area-inset-bottom)]`}>
+                        <div className="max-w-5xl mx-auto flex items-center gap-2 md:gap-4 px-3 md:px-6 py-2.5 md:py-3">
+                            <button
+                                onClick={handlePrev}
+                                disabled={isPrevDisabled}
+                                className={`flex items-center gap-1.5 h-11 md:h-12 px-3 md:px-5 rounded-2xl border-2 border-b-4 font-black text-sm active:translate-y-[2px] active:border-b-2 transition-all duration-75 ${
+                                    isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                } ${isPrevDisabled ? 'opacity-40 pointer-events-none' : 'cursor-pointer'}`}
+                                aria-label="Önceki slayt"
+                            >
+                                <ChevronLeft className="w-5 h-5 stroke-[3]" />
+                                <span className="hidden sm:inline">Geri</span>
+                            </button>
 
-                    {/* Adım sayacı + gerçek progress bar */}
-                    <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
-                        <span className="text-[10px] md:text-xs font-black text-slate-600 tabular-nums shrink-0">
-                            {stepNum} <span className="text-slate-300">/</span> {totalSlides}
-                        </span>
-                        <div className="w-14 sm:w-20 md:w-36 h-2 bg-slate-100 rounded-full overflow-hidden border border-slate-200 shrink-0 p-0.5 shadow-inner">
-                            <div
-                                className="h-full bg-gradient-to-r from-emerald-400 via-teal-500 to-indigo-500 rounded-full transition-all duration-500 shadow-sm"
-                                style={{ width: `${Math.max(6, progressPct)}%` }}
-                            />
+                            <div className="flex-1 min-w-0 flex items-center justify-center gap-2">
+                                <img src={MufiWaveImg} alt="" className="hidden md:block w-11 animate-bob" />
+                                <p className={`hidden md:block text-sm font-black truncate ${isDark ? 'text-slate-300' : 'text-slate-600'}`}>{cheer}</p>
+                            </div>
+
+                            <button
+                                onClick={handleCtaAction}
+                                disabled={isNextDisabled || isTaskLocked}
+                                title={isTaskLocked ? 'Görevi kontrol edip çöz ya da slayttaki düğmeyle gönder.' : undefined}
+                                className={`flex items-center justify-center gap-2 h-11 md:h-12 px-5 md:px-8 min-w-[9rem] md:min-w-[12rem] rounded-2xl border-b-4 font-black text-sm md:text-base active:translate-y-1 active:border-b-0 transition-all duration-75 ${ctaVariant} ${
+                                    isNextDisabled ? 'opacity-40 pointer-events-none' : isTaskLocked ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                            >
+                                <span className="truncate">{ctaLabel}</span>
+                                <CtaIcon className="w-5 h-5 stroke-[3] shrink-0" />
+                            </button>
                         </div>
                     </div>
-
-                    {/* Bağlama duyarlı CTA (Görevi Gönder / Dersi Bitir / Devam Et) */}
-                    <button
-                        onClick={handleCtaAction}
-                        disabled={isNextDisabled || isTaskLocked}
-                        title={isTaskLocked ? 'Görevi kontrol edip çöz ya da slayttaki düğmeyle gönder.' : undefined}
-                        className={`group flex items-center gap-1.5 px-3 md:px-5 py-1.5 md:py-2 text-white rounded-xl font-black text-[11px] md:text-xs uppercase tracking-wider transition-all duration-75 shadow-md border-2 border-b-4 active:border-b-2 active:translate-y-[2px] ${
-                            isNextDisabled ? 'opacity-30 pointer-events-none bg-gray-300 border-gray-400'
-                                : isTaskLocked ? 'opacity-60 cursor-not-allowed'
-                                : 'cursor-pointer'
-                        } ${
-                            isTaskPending
-                                ? 'bg-gradient-to-r from-cyan-500 to-sky-600 border-cyan-700 hover:from-cyan-400 hover:to-sky-500 shadow-cyan-200'
-                                : isTryCodeSlide
-                                ? 'bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 border-emerald-700 hover:from-emerald-400 hover:to-teal-500 shadow-emerald-200'
-                                : isLastSlide
-                                ? 'bg-gradient-to-r from-emerald-500 to-green-600 border-emerald-700 hover:from-emerald-400 hover:to-green-500 shadow-emerald-200'
-                                : 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 border-indigo-800 hover:from-indigo-500 hover:to-pink-400 shadow-indigo-200'
-                        }`}
-                    >
-                        {isTaskPending ? (
-                            <Send className="w-3.5 h-3.5 fill-current stroke-[2]" />
-                        ) : (
-                            <CtaIcon className="w-3.5 h-3.5 stroke-[3] group-hover:translate-x-0.5 transition-transform" />
-                        )}
-                        <span>{ctaLabel}</span>
-                    </button>
-                </div>
-            )}
+                );
+            })()}
 
             {/* Collapsible Control Drawer Panel for Teacher */}
             {isSettingsOpen && previewRole === 'teacher' && (
@@ -1373,20 +1371,20 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             {/* Teacher advanced slides catch-up warning alert modal overlay for student */}
             {showCatchUpAlert && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-gray-100 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
-                        <AlertTriangle size={40} className="text-amber-500 mb-3" />
-                        <h3 className="font-black text-gray-800 text-lg mb-2">Öğretmen Sonraki Aşamaya Geçti</h3>
+                    <div className="bg-white rounded-[2rem] p-6 max-w-sm w-full shadow-2xl border-2 border-b-8 border-slate-200 flex flex-col items-center text-center animate-in zoom-in-95 duration-200">
+                        <img src={MufiPeekImg} alt="" className="w-20 mb-2" />
+                        <h3 className="font-black text-slate-800 text-lg mb-2">Öğretmenin ilerledi</h3>
                         <p className="text-gray-500 font-bold text-xs mb-6">Öğretmen yeni bir etkinliğe/slayta geçti. Yetişmek ister misiniz yoksa buradaki çalışmanızı tamamlayacak mısınız?</p>
                         <div className="flex flex-col gap-2.5 w-full">
                             <button
                                 onClick={handleCatchUp}
-                                className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-xl shadow-md transition-all active:scale-98 cursor-pointer border-b-[3px] border-emerald-700 active:border-b-0"
+                                className="w-full h-12 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl transition-all duration-75 cursor-pointer border-b-4 border-emerald-700 active:translate-y-1 active:border-b-0"
                             >
                                 Yetiş (Devam Et)
                             </button>
                             <button
                                 onClick={handleStayAndFinish}
-                                className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-655 font-black rounded-xl transition-all active:scale-98 cursor-pointer border-b-[3px] border-gray-300 active:border-b-0"
+                                className="w-full h-12 bg-white hover:bg-slate-50 text-slate-600 font-black rounded-2xl transition-all duration-75 cursor-pointer border-2 border-b-4 border-slate-200 active:translate-y-1 active:border-b-2"
                             >
                                 Önceki Etkinliği Bitir
                             </button>
@@ -1414,12 +1412,14 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
                         }}
                     >
                         <div className="relative w-full max-w-md bg-white rounded-[2.5rem] border-2 border-b-[8px] border-slate-200 border-b-slate-300 shadow-2xl p-8 text-center animate-in zoom-in-95 slide-in-from-bottom-4 duration-300">
-                            {/* Emoji rozeti */}
-                            <div
-                                className="mx-auto w-20 h-20 rounded-[1.5rem] flex items-center justify-center text-4xl mb-4 shadow-md border-2 border-b-4"
-                                style={{ backgroundColor: `${fromColor.bg}1a`, borderColor: fromColor.border }}
-                            >
-                                <info.icon size={36} style={{ color: fromColor.border }} />
+                            {/* Mufi kutluyor; aşamanın simgesi yanında rozet */}
+                            <div className="relative mx-auto w-32 mb-3">
+                                <img src={MufiWaveImg} alt="" className="w-32 animate-bob" />
+                                <span className="absolute -right-2 top-2 w-12 h-12 rounded-2xl flex items-center justify-center border-2 border-b-4 bg-white"
+                                      style={{ borderColor: fromColor.border }}>
+                                    <info.icon size={24} style={{ color: fromColor.bg }} />
+                                </span>
+                                <PartyPopper className="absolute -left-4 top-0 w-8 h-8 text-amber-400 -rotate-12" />
                             </div>
                             <h2 className="text-2xl font-black text-slate-800 font-display mb-1.5">{info.done}</h2>
                             <p className="text-sm font-bold text-slate-500 mb-4">{info.desc}</p>
