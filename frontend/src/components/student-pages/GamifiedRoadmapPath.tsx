@@ -13,6 +13,7 @@ import TrophyIcon from '../../assets/sprites/Trophy.png';
 import QuestionIcon from '../../assets/sprites/Question.png';
 import BagIcon from '../../assets/sprites/Bag.png';
 import GrassIcon from '../../assets/sprites/grass.png';
+import MufiWave from '../../assets/sprites/mufi/wave.webp';
 
 /**
  * VS Code panelindeki oyunlaştırılmış yol haritası.
@@ -54,6 +55,10 @@ interface GamifiedRoadmapPathProps {
     /** Kurs başlığı şeridi. Ana sayfada kahraman alanı kursu zaten gösterdiği için kapatılır. */
     showHeader?: boolean;
     isDark?: boolean;
+    /** Yılan dalgasının genişliği (1 = dar panel). Geniş ekranda yol daha rahat kıvrılır. */
+    amplitude?: number;
+    /** Sıradaki modülün yanında Mufi dursun ("Sıradaki!"). */
+    showGuide?: boolean;
 }
 
 // StudentApp.tsx'teki `getNodeMetadata` ile aynı tablo. Orada anahtar tema adı
@@ -76,7 +81,7 @@ const OFFSETS = [0, 36, 52, 36, 0, -36, -52, -36];
 // yıldızlar (140→172px). Yani her düğümün altında akışta yer kaplamayan ama
 // dolu olan ~96px'lik bir şerit var. Noktalı yol bu şeridin İÇİNE girmemeli —
 // sitede de yol düğümlerin yanından geçer, başlığın üstünden değil.
-const NODE_TAIL = 96;
+const NODE_TAIL = 128;
 // Yolun kendisine ayrılan yükseklik (sonraki düğümün süzülen ikonu buraya taşar).
 const PATH_H = 116;
 
@@ -91,11 +96,21 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
     onSelectModule,
     activeKey,
     isDark = false,
+    amplitude = 1,
+    showGuide = false,
 }) => {
     const [selectedKey, setSelectedKey] = useState<string | null>(activeKey || null);
 
     const metaOf = (stage: string) => STAGE_META[stage] || STAGE_META['ANLA'];
-    const offsetOf = (index: number) => OFFSETS[index % OFFSETS.length];
+    const offsetOf = (index: number) => Math.round(OFFSETS[index % OFFSETS.length] * amplitude);
+
+    // Ders başlığındaki "2/4 modül": dersin modülleri, bir sonraki ders başlığına kadar.
+    const lessonProgress = (start: number) => {
+        let end = start + 1;
+        while (end < modules.length && !modules[end].lessonTopic) end++;
+        const group = modules.slice(start, end);
+        return { done: group.filter((m) => m.done).length, total: group.length };
+    };
     const headMeta = metaOf(modules[0]?.stage || 'ANLA');
 
     return (
@@ -132,18 +147,33 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                 aktığından çizgi de yatay. */}
                             {mod.lessonTopic && (
                                 <>
-                                    <div className="w-full relative z-10 flex items-center justify-center pt-6 pb-2">
-                                        <div className="absolute left-0 right-0 top-1/2 border-t-2 border-dashed border-gray-300 opacity-50 -z-10" />
-                                        <div className={`p-4 rounded-2xl shadow-lg border-2 flex flex-col items-center transform hover:scale-105 transition-all z-10 w-40 ${
-                                            isDark ? 'bg-slate-900 border-indigo-900' : 'bg-white border-indigo-100'
-                                        }`}>
-                                            <span className="text-[10px] font-black text-gray-400 tracking-[0.2em] uppercase mb-1 shrink-0">
-                                                DERS {mod.lessonNumber || 1}
-                                            </span>
-                                            <span className={`text-sm font-black font-display tracking-tight text-center leading-tight ${isDark ? 'text-white' : 'text-gray-800'}`}>
-                                                {mod.lessonTopic}
-                                            </span>
-                                        </div>
+                                    <div className="w-full relative z-10 flex items-center justify-center pt-6 pb-2 px-2">
+                                        {(() => {
+                                            const lp = lessonProgress(idx);
+                                            const complete = lp.total > 0 && lp.done === lp.total;
+                                            return (
+                                                <div className={`w-full max-w-[22rem] rounded-3xl border-2 border-b-[6px] px-4 py-3 flex items-center gap-3 transform hover:-translate-y-0.5 transition-transform ${
+                                                    isDark ? 'bg-slate-900 border-indigo-900' : 'bg-white border-slate-200'
+                                                }`}>
+                                                    <span className="w-11 h-11 rounded-2xl flex flex-col items-center justify-center shrink-0 text-white border-b-4"
+                                                          style={{ backgroundColor: meta.baseColor, borderColor: meta.strokeColor }}>
+                                                        <span className="text-[9px] font-black uppercase leading-none opacity-90">Ders</span>
+                                                        <span className="text-lg font-black font-display leading-none">{mod.lessonNumber || 1}</span>
+                                                    </span>
+                                                    <div className="min-w-0 flex-1 text-left">
+                                                        <p className={`text-sm md:text-base font-black font-display leading-tight line-clamp-2 ${isDark ? 'text-white' : 'text-slate-800'}`}>{mod.lessonTopic}</p>
+                                                        <div className="flex items-center gap-2 mt-1.5">
+                                                            <div className={`h-2 flex-1 rounded-full overflow-hidden ${isDark ? 'bg-slate-700' : 'bg-slate-100'}`}>
+                                                                <div className="h-full rounded-full bg-emerald-500" style={{ width: `${lp.total ? (lp.done / lp.total) * 100 : 0}%` }} />
+                                                            </div>
+                                                            <span className={`text-[11px] font-black shrink-0 ${complete ? 'text-emerald-600' : 'text-slate-400'}`}>
+                                                                {complete ? 'Bitti ✓' : `${lp.done}/${lp.total}`}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
                                     </div>
 
                                     {/* Ayıraçtan düğüme inen yol (builder'da da ayrı bir bağlayıcı) */}
@@ -156,6 +186,7 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                 elemanda olsaydı satır içi stil sınıfı ezer ve hover
                                 büyümesi ölürdü. */}
                             <div
+                                data-module-key={mod.key}
                                 className="relative flex justify-center w-full"
                                 style={{ transform: `translateX(${off}px)` }}
                             >
@@ -196,6 +227,25 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                     {/* Kaide sprite'ı */}
                                     <img src={meta.button} alt="" className="w-36 relative z-10" />
 
+                                    {/* Modül adı: okunur hap etiket (eskiden konturlu yazıydı, zor okunuyordu) */}
+                                    <div className="absolute top-[10.9rem] left-1/2 -translate-x-1/2 z-30 w-56 flex justify-center pointer-events-none">
+                                        <span
+                                            className={`px-3 py-1 rounded-xl border-2 border-b-4 text-sm font-black text-center leading-tight line-clamp-2 max-w-[13rem] shadow-sm ${isDark ? 'bg-slate-900' : 'bg-white'}`}
+                                            style={{ borderColor: isLocked ? '#cbd5e1' : meta.strokeColor, color: isLocked ? '#64748b' : meta.strokeColor }}
+                                            title={mod.title}
+                                        >
+                                            {mod.title}
+                                        </span>
+                                    </div>
+
+                                    {/* Sıradaki modül: Mufi yanında bekliyor (yolun dışa kıvrıldığı tarafın tersinde) */}
+                                    {showGuide && activeKey === mod.key && !isLocked && (
+                                        <div className={`absolute top-6 z-30 flex flex-col items-center pointer-events-none ${off > 0 ? '-left-20' : '-right-20'}`}>
+                                            <span className="mb-1 px-2 py-0.5 rounded-lg bg-violet-500 text-white text-[11px] font-black whitespace-nowrap border-b-2 border-violet-700">Sıradaki!</span>
+                                            <img src={MufiWave} alt="" className="w-16 animate-bob drop-shadow" />
+                                        </div>
+                                    )}
+
                                     {/* Yer gölgesi — süzülen ikondan bağımsız nabız atar */}
                                     <div className="absolute inset-0 flex items-center justify-center z-15 pointer-events-none">
                                         <div
@@ -231,24 +281,6 @@ export const GamifiedRoadmapPath: React.FC<GamifiedRoadmapPathProps> = ({
                                             />
                                         )}
 
-                                        <div
-                                            className="absolute top-[105%] flex flex-col items-center justify-start animate-float z-20 w-52"
-                                            style={{ animationDelay: `${idx * 0.5 * -1}s` }}
-                                        >
-                                            <span
-                                                className="text-lg font-black tracking-wide select-none text-center line-clamp-2 leading-tight max-w-[200px] px-1 break-words"
-                                                style={{
-                                                    fontFamily: "'Fredoka', sans-serif",
-                                                    color: 'white',
-                                                    WebkitTextStroke: `1.5px ${meta.strokeColor}`,
-                                                    paintOrder: 'stroke fill',
-                                                    textShadow: `2px 2px 0px ${meta.strokeColor}`,
-                                                }}
-                                                title={mod.title}
-                                            >
-                                                {mod.title?.toUpperCase()}
-                                            </span>
-                                        </div>
                                     </div>
                                 </div>
                             </div>

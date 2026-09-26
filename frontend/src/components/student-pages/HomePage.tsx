@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { openMeetingLink, rememberMeetingLink } from '../../meetingLink';
 import { AnnouncementFeed, AttendanceCard, LatestAnnouncementBanner } from '../shared/SchoolNotices';
 import MyConceptsModal from './MyConceptsModal';
-import { Zap, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Lock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Zap, FileText, PartyPopper, Sparkles, CheckCircle2, FolderOpen, Lock, ChevronLeft, ChevronRight, Rows3, Columns3 } from 'lucide-react';
 import { useWebSocket } from '../../hooks/useWebSocket';
 import GameOverlay from './GameOverlay';
 import LessonSlide from './LessonSlide';
@@ -74,6 +74,40 @@ const HomePage: React.FC<HomePageProps> = ({
 
     // Refs for outside click detection
     const nodesContainerRef = useRef<HTMLDivElement>(null);
+    const nextNodeIdForScroll = currentCourse?.nodes.find((n) =>
+        !n.isLocked && !(n.sectionId && currentCourse.progress?.completed?.[String(n.sectionId)]) && (n.slides?.length ?? 0) > 0)?.id;
+
+    // Harita yönü: dikey (varsayılan, telefondaki gibi) ya da yatay. Tercih bu tarayıcıda kalır.
+    const [mapLayout, setMapLayout] = useState<'vertical' | 'horizontal'>(() => {
+        try { return localStorage.getItem('gomufi.mapLayout') === 'horizontal' ? 'horizontal' : 'vertical'; } catch { return 'vertical'; }
+    });
+    const chooseLayout = (next: 'vertical' | 'horizontal') => {
+        setMapLayout(next);
+        try { localStorage.setItem('gomufi.mapLayout', next); } catch { /* yalnızca bu oturum */ }
+    };
+    // Geniş ekranda dikey yol daha geniş kıvrılır ve yanında Mufi durur.
+    const [isWide, setIsWide] = useState(() => window.matchMedia('(min-width: 768px)').matches);
+    useEffect(() => {
+        const mq = window.matchMedia('(min-width: 768px)');
+        const onChange = () => setIsWide(mq.matches);
+        mq.addEventListener('change', onChange);
+        return () => mq.removeEventListener('change', onChange);
+    }, []);
+
+    // Dikey yol: sıradaki modül ekranın altında kalıyorsa açılışta ona in.
+    useEffect(() => {
+        if (mapLayout !== 'vertical' || nextNodeIdForScroll == null) return;
+        // İlk birkaç modüldeyken karşılama alanı görünür kalsın; yol uzadıkça kaydır.
+        const position = currentCourse?.nodes.findIndex((n) => n.id === nextNodeIdForScroll) ?? -1;
+        if (position < 3) return;
+        const frame = requestAnimationFrame(() => {
+            const el = document.querySelector<HTMLElement>(`[data-module-key="${nextNodeIdForScroll}"]`);
+            if (el && el.getBoundingClientRect().top > window.innerHeight - 160) {
+                el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+            }
+        });
+        return () => cancelAnimationFrame(frame);
+    }, [mapLayout, activeCourseId, nextNodeIdForScroll]);
 
     // Yatay yol: hangi kenarda devamı var (oklar ve kenar solması için)
     const [mapEdges, setMapEdges] = useState({ left: false, right: false });
@@ -507,9 +541,22 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
             )}
 
+            {/* Yol görünümü seçimi (geniş ekran) */}
+            <div className="hidden md:flex justify-end px-8 pt-4 relative z-30">
+                <div className="inline-flex bg-white p-1 rounded-2xl border-2 border-slate-200" role="radiogroup" aria-label="Harita görünümü">
+                    {([['vertical', 'Dikey', Rows3], ['horizontal', 'Yatay', Columns3]] as const).map(([key, label, Icon]) => (
+                        <button key={key} type="button" role="radio" aria-checked={mapLayout === key}
+                                onClick={() => chooseLayout(key)}
+                                className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors ${mapLayout === key ? 'bg-violet-500 text-white' : 'text-slate-400 hover:text-slate-600'}`}>
+                            <Icon size={14} /> {label}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
             <div className="flex-1 md:min-h-0 flex relative">
-            {/* Masaüstü: soldan sağa akan yol */}
-            <div className="hidden md:flex flex-1 min-w-0 items-center justify-center relative z-20">
+            {/* Masaüstü: soldan sağa akan yol ("Yatay" seçiliyse) */}
+            <div className={`hidden ${mapLayout === 'horizontal' ? 'md:flex' : ''} flex-1 min-w-0 items-center justify-center relative z-20`}>
                 <style>{`
                     .no-scrollbar::-webkit-scrollbar {
                         display: none;
@@ -837,20 +884,24 @@ const HomePage: React.FC<HomePageProps> = ({
                 </div>
             </div>
 
-            {/* Telefon: VS Code panelindeki gibi yukarıdan aşağı akan yol */}
-            <div className="md:hidden flex-1 min-w-0 pt-4">
-                <GamifiedRoadmapPath
-                    key={activeCourseId}
-                    courseTitle={currentCourse.title}
-                    showHeader={false}
-                    modules={roadmapModules}
-                    activeKey={nextNode ? String(nextNode.id) : null}
-                    onSelectModule={(mod) => {
-                        const node = currentCourse.nodes.find((n) => String(n.id) === mod.key);
-                        if (node) openNode(node);
-                    }}
-                />
-                <div className="px-4 pb-8 -mt-16 space-y-4 relative z-10">
+            {/* Dikey yol: telefonda her zaman, geniş ekranda "Dikey" seçiliyse */}
+            <div className={`${mapLayout === 'vertical' ? '' : 'md:hidden'} flex-1 min-w-0 pt-4 md:pt-2`}>
+                <div className="w-full max-w-2xl mx-auto">
+                    <GamifiedRoadmapPath
+                        key={`${activeCourseId}-${isWide ? 'w' : 'n'}`}
+                        courseTitle={currentCourse.title}
+                        showHeader={false}
+                        amplitude={isWide ? 1.7 : 1}
+                        showGuide={isWide}
+                        modules={roadmapModules}
+                        activeKey={nextNode ? String(nextNode.id) : null}
+                        onSelectModule={(mod) => {
+                            const node = currentCourse.nodes.find((n) => String(n.id) === mod.key);
+                            if (node) openNode(node);
+                        }}
+                    />
+                </div>
+                <div className="xl:hidden px-4 pb-8 -mt-16 space-y-4 relative z-10 max-w-2xl mx-auto">
                     <DailyQuests data={activity} />
                     {homeworkWidget}
                     <AttendanceCard courseId={activeCourseId} />
@@ -858,7 +909,7 @@ const HomePage: React.FC<HomePageProps> = ({
             </div>
 
             {/* Geniş ekranda sağ sütun: akışta, yolun üstüne binmez */}
-            <aside className="hidden xl:flex flex-col gap-5 w-80 shrink-0 overflow-y-auto no-scrollbar px-5 pb-6 pt-4 relative z-30">
+            <aside className="hidden xl:flex flex-col gap-5 w-80 shrink-0 self-start sticky top-0 max-h-[100dvh] overflow-y-auto no-scrollbar px-5 pb-6 pt-4 z-30">
                 <DailyQuests data={activity} />
                 {homeworkWidget}
                 <AnnouncementFeed />
