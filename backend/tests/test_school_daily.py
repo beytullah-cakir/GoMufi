@@ -295,12 +295,29 @@ def test_ogretmene_gunluk_teslim_ozeti(db_query, seeded):
     assert "1 yeni ödev teslimi" in mails_to(seeded, f"t{TEACHER}@test.local")[-1].subject
 
 
-def test_veli_raporu_veliye_eposta_gider(auth_as, seeded):
+def _send_report(auth_as):
     teacher = auth_as(TEACHER, "teacher")
     draft = teacher.post(f"/analytics/courses/{COURSE}/students/{ECE}/parent-reports",
                          json={"use_ai": False, "teacher_note": "Derse katılımı çok iyi."})
     assert draft.status_code == 200, draft.text
     rid = draft.json()["report"]["id"]
-    assert teacher.post(f"/analytics/parent-reports/{rid}/send").status_code == 200
+    r = teacher.post(f"/analytics/parent-reports/{rid}/send")
+    assert r.status_code == 200
+    return r.json()
+
+
+def test_veli_raporu_veliye_eposta_gider(auth_as, seeded, db_query):
+    """E-posta kopyası ücretli pakette (core/plans.py); ücretsizde rapor veli uygulamasına gider."""
+    db_query("INSERT INTO subscriptions (owner_type, owner_id, plan) VALUES ('teacher', %s, 'pro')", (TEACHER,), fetch=False)
+    try:
+        assert _send_report(auth_as)["email_sent"] is True
+    finally:
+        db_query("DELETE FROM subscriptions WHERE owner_type = 'teacher' AND owner_id = %s", (TEACHER,), fetch=False)
     mails = mails_to(seeded, f"p{PARENT}@test.local")
     assert len(mails) == 1 and "Derse katılımı çok iyi." in mails[0].text and "Python Atölyesi" in mails[0].subject
+
+
+def test_ucretsiz_pakette_veli_raporu_yalnizca_uygulamada(auth_as, seeded):
+    out = _send_report(auth_as)
+    assert out["email_sent"] is False and "ücretli" in out["email_note"]
+    assert mails_to(seeded, f"p{PARENT}@test.local") == []

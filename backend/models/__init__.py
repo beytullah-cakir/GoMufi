@@ -17,3 +17,4 @@ from .teaching import (
 )
 from .school import PasswordResetToken, AttendanceRecord, Announcement, NotificationLog, ModuleProgress
 from .platform import StoredFile, SlideTemplate, LoginAttempt, AccountSuspension, AdminAction
+from .organization import Organization, OrganizationMember, OrganizationInvite, Subscription

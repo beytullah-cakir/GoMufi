@@ -31,6 +31,12 @@ LABELS: Dict[str, str] = {
     "PUT /admin/quizzes/{quiz_id}": "Soru güncellendi",
     "DELETE /admin/quizzes/{quiz_id}": "Soru silindi",
     "DELETE /admin/security/lock": "Giriş kilidi kaldırıldı",
+    "POST /admin/organizations": "Kurum oluşturuldu",
+    "PUT /admin/organizations/{org_id}": "Kurum güncellendi",
+    "DELETE /admin/organizations/{org_id}": "Kurum silindi",
+    "POST /admin/organizations/{org_id}/invites": "Kuruma davet gönderildi",
+    "POST /admin/subscriptions": "Paket verildi",
+    "DELETE /admin/subscriptions/{sub_id}": "Paket sonlandırıldı",
 }
 
 

@@ -4,6 +4,7 @@ main_fastapi.py'den buraya taşındı.
 """
 import asyncio
 from fastapi import APIRouter, Request, HTTPException, Depends, status
+from core import plans
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from connect_db import get_db
@@ -23,6 +24,7 @@ async def generate_quiz(
     request: Request,
     teacher_id: int = Depends(get_current_teacher_id),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     data = await request.json()
     topic = data.get("topic")

@@ -20,6 +20,7 @@ from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from core import plans
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -182,6 +183,7 @@ async def create_draft(
     body: DraftIn,
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """Dönem taslağı: sayılar toplanır, YZ (ya da şablon) yazar. Gönderilmez — öğretmen onaylar."""
     course = await ensure_course_owner(db, course_id, user_info)
@@ -288,11 +290,15 @@ async def send_report(
         pass
     # Veli uygulamayı açmasa da raporu görsün.
     parent_email = (await db.execute(select(Parent.email).where(Parent.id == student.parent_id))).scalar()
-    if parent_email:
+    # Rapor veli uygulamasına her pakette gider; e-posta kopyası ücretli paketlerde.
+    teacher_id = (await db.execute(select(Course.teacher_id).where(Course.id == row.course_id))).scalar()
+    email_allowed = teacher_id is None or (await plans.entitlements(db, teacher_id)).parent_report_email
+    if parent_email and email_allowed:
         course_title = (await db.execute(select(Course.title).where(Course.id == row.course_id))).scalar() or "GoMufi"
         text, html_body = report_email(row, student, course_title)
         background.add_task(mailer.send_email, parent_email, f"GoMufi dönem raporu · {course_title}", text, html_body)
-    return {"report": _out(row)}
+    return {"report": _out(row), "email_sent": bool(parent_email and email_allowed),
+            "email_note": None if email_allowed else "Rapor veli uygulamasına gönderildi. E-posta kopyası ücretli paketlerde."}
 
 
 @router.delete("/parent-reports/{report_id}")

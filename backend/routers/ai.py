@@ -11,6 +11,7 @@ import io
 import logging
 from typing import List, Optional, Any, Dict, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Form, File, UploadFile, BackgroundTasks
+from core import plans
 from pydantic import BaseModel
 from google import genai
 from google.genai import types
@@ -1194,7 +1195,8 @@ knowledge of the subject. Obey in this order:
 async def generate_roadmap_api(
     req: GenerateRoadmapRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         # Load templates
@@ -1646,7 +1648,8 @@ async def suggest_raw_topics_api(
     audience: str = Form(...),
     pdf_file: Optional[UploadFile] = File(None),
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         pdf_text = ""
@@ -1741,7 +1744,8 @@ Expected JSON Structure:
 async def distribute_topics_into_lessons_api(
     req: DistributeTopicsRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -1809,7 +1813,8 @@ Expected JSON Structure:
 async def expand_topics_api(
     req: ExpandTopicsRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -1898,7 +1903,8 @@ class EnrichTopicsResponse(BaseModel):
 async def enrich_topics_api(
     req: EnrichTopicsRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """
     Konu başlıklarına KAZANIM ve KAVRAM bağlar.
@@ -2036,7 +2042,8 @@ Return ONLY valid JSON. No markdown.
 async def generate_roadmap_structure_api(
     req: GenerateRoadmapRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -2129,7 +2136,8 @@ Audience: {req.audience}
 async def suggest_lesson_modules_api(
     req: SuggestLessonModulesRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -2201,7 +2209,8 @@ Expected JSON Structure:
 async def suggest_lesson_title_api(
     req: SuggestLessonTitleRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -2269,7 +2278,8 @@ Expected JSON Structure:
 async def suggest_level_details_api(
     req: SuggestLevelDetailsRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     try:
         client = genai.Client(api_key=settings.MY_API_KEY)
@@ -2326,7 +2336,8 @@ Expected JSON Structure:
 async def generate_lesson_slides_api(
     req: GenerateLessonSlidesRequest,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     
     try:
@@ -3330,7 +3341,8 @@ async def start_background_generation_api(
     req: StartBackgroundGenerationRequest,
     background_tasks: BackgroundTasks,
     teacher_id: int = Depends(get_current_teacher_id),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     res = await db.execute(select(Course).where(Course.id == course_id, Course.teacher_id == teacher_id))
     course = res.scalars().first()
@@ -4006,6 +4018,7 @@ async def evaluate_homework_api(
     file: Optional[UploadFile] = File(None),
     user_info: dict = Depends(get_current_user_info),
     db: AsyncSession = Depends(get_db),
+    _credit: None = Depends(plans.ai_credit_guard),  # öğretmenin YZ kredisi (core/plans.py)
 ):
     """Öğrenci ödevini Gemini ile değerlendirir ve kullanımı loglar."""
     if submission_type not in ("text", "code", "image", "file"):
