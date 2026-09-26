@@ -164,15 +164,26 @@ export default InsightCard;
  * Tekrar görevi: sınıfın zorlandığı kavram için Uygula görevi TASLAĞI üretir.
  * Öğretmen görmeden derse hiçbir şey eklenmez; modülü öğretmen seçer.
  */
+/** Tekrar görevi isteği: kavram; "Neyi anlamadılar?"dan geldiyse hedef yanılgı ve o öğrenciler. */
+export interface PracticeTarget {
+    conceptId: string;
+    misconception?: string;
+    students?: Array<{ id: number; name: string }>;
+}
+
 export const PracticeTaskModal: React.FC<{
     courseId: number;
     conceptId: string;
+    misconception?: string;
+    students?: Array<{ id: number; name: string }>;
     onClose: () => void;
-}> = ({ courseId, conceptId, onClose }) => {
+}> = ({ courseId, conceptId, misconception, students, onClose }) => {
     const [attempt, setAttempt] = useState(0);
     const { data, error, loading } = useLoad<PracticeDraft>(
-        () => learningApi.practiceTask(courseId, conceptId), [courseId, conceptId, attempt],
+        () => learningApi.practiceTask(courseId, conceptId, misconception), [courseId, conceptId, misconception, attempt],
     );
+    // Yanılgısı olan öğrencilere özel görev: sınıfın geri kalanı görmez.
+    const [onlyThem, setOnlyThem] = useState(Boolean(students?.length));
     const [nodeId, setNodeId] = useState<string>('');
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState<string | null>(null);
@@ -185,8 +196,11 @@ export const PracticeTaskModal: React.FC<{
         setSaving(true);
         setSaveError(null);
         try {
-            const res = await learningApi.applyPracticeTask(courseId, target, data.slide, conceptId);
-            setSaved(res.node);
+            const ids = onlyThem && students?.length ? students.map((st) => st.id) : [];
+            const res = await learningApi.applyPracticeTask(courseId, target, data.slide, conceptId, ids);
+            setSaved(res.assigned_to?.length
+                ? `"${res.node}" modülüne yalnızca ${res.assigned_to.length} öğrenci için eklendi.`
+                : `"${res.node}" modülünün sonuna eklendi.`);
         } catch (err) {
             setSaveError(errorText(err, 'Görev eklenemedi.'));
         } finally {
@@ -239,9 +253,18 @@ export const PracticeTaskModal: React.FC<{
                             <p className="text-[10.5px] font-bold text-gray-400">
                                 Ekledikten sonra ders oluşturucuda açıp düzenleyebilir, beklenen çıktıyı çözümünle doğrulayabilirsin.
                             </p>
+                            {students && students.length > 0 && !saved && (
+                                <label className="flex items-start gap-2 text-xs font-bold text-gray-600 cursor-pointer">
+                                    <input type="checkbox" checked={onlyThem} onChange={(e) => setOnlyThem(e.target.checked)} className="mt-0.5" />
+                                    <span>
+                                        Yalnızca bu yanılgıya düşen {students.length} öğrenciye ata
+                                        <span className="block font-bold text-gray-400">{students.map((st) => st.name).join(', ')}</span>
+                                    </span>
+                                </label>
+                            )}
                             {saved ? (
                                 <p className="flex items-center gap-2 text-sm font-black text-emerald-700 bg-emerald-50 rounded-xl px-3 py-2">
-                                    <Check size={16} /> "{saved}" modülünün sonuna eklendi. Etkisi "Yapılanlar" kartında izlenir.
+                                    <Check size={16} /> {saved} Etkisi "Yapılanlar" kartında izlenir.
                                 </p>
                             ) : (
                                 <div className="flex flex-wrap items-center gap-2">

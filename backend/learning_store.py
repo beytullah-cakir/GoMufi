@@ -64,6 +64,12 @@ class CourseContext:
     concepts: Dict[str, Dict[str, Any]] = field(default_factory=dict)
     # Şubeler (Sınıflarım): [{id, name, student_ids: set}] — analizde süzgeç.
     classes: List[Dict[str, Any]] = field(default_factory=list)
+    # Slayt kimliği → modül kimliği (her slayt; oyun slaytı cevabı doğrulamak için)
+    slide_nodes: Dict[str, str] = field(default_factory=dict)
+    # "<slayt>:<eleman>" → çoktan seçmeli soru: {node_id, slide_id, element_id, question,
+    #   multiple, options: [{id, text, correct, misconception}]} — cevabın doğruluğu ve
+    #   yanlış şıkkın yanılgısı istemciden değil buradan okunur.
+    questions: Dict[str, Dict[str, Any]] = field(default_factory=dict)
 
     @property
     def known_concepts(self) -> List[str]:
@@ -181,6 +187,31 @@ async def course_context(db: AsyncSession, course_id: int, fresh: bool = False) 
         for slide in slides:
             if not isinstance(slide, dict) or slide.get("id") is None:
                 continue
+            ctx.slide_nodes[str(slide["id"])] = node_id
+            # Çoktan seçmeli sorular: slayttaki soru elemanları ve QUIZ oyunu slaytının soruları
+            found = []
+            for el in slide.get("elements") or []:
+                if isinstance(el, dict) and el.get("type") == "multiple_choice" and el.get("id") is not None:
+                    extra = el.get("extra") or {}
+                    found.append((el["id"], el.get("content") or extra.get("title"), extra.get("options")))
+            game = slide.get("gameConfig") or {}
+            if slide.get("type") == "game":
+                for q in game.get("questions") or []:
+                    if isinstance(q, dict) and q.get("id") is not None and (q.get("type") or "multiple_choice") == "multiple_choice":
+                        found.append((q["id"], q.get("text"), q.get("options")))
+            for element_id, question, options in found:
+                ctx.questions[f"{slide['id']}:{element_id}"] = {
+                    "node_id": node_id,
+                    "slide_id": str(slide["id"]),
+                    "element_id": str(element_id),
+                    "question": str(question or "Soru")[:300],
+                    "options": [{
+                        "id": str(o.get("id")),
+                        "text": str(o.get("text") or "")[:200],
+                        "correct": bool(o.get("isCorrect")),
+                        "misconception": (str(o.get("misconception") or "").strip()[:200] or None),
+                    } for o in options or [] if isinstance(o, dict) and o.get("id") is not None],
+                }
             kind = slide.get("type")
             if kind not in ("challenge", "connect", "produce", "homework", "HOMEWORK"):
                 continue

@@ -65,7 +65,8 @@ MAX_CHUNKS_PER_BATCH = 20
 MAX_OPS_PER_CHUNK = 5000
 MAX_OP_TEXT = 20_000
 MAX_BASE_TEXT = 100_000
-CLIENT_EVENT_TYPES = {"check", "hint_opened", "quiz_answer", "module_completed"}
+CLIENT_EVENT_TYPES = {"check", "hint_opened", "quiz_answer", "module_completed", "slide_answer"}
+MAX_GAME_ITEMS = 30
 CHECK_OUTCOMES = {"pass", "fail", "error", "ran"}
 EDIT_KINDS = {"t", "a", "p", "c", "l", "b", "e", "f", "u", "r"}
 _SAFE_FILE = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
@@ -111,6 +112,22 @@ class ClientEvent(BaseModel):
     question_id: Optional[int] = None
     correct: Optional[bool] = None
     answer: Optional[str] = None
+    # slide_answer: çoktan seçmeli (element_id + selected) ya da slayt oyunu (items)
+    slide_id: Optional[str] = None
+    element_id: Optional[str] = None
+    selected: List[str] = Field(default_factory=list)
+    items: List["GameItem"] = Field(default_factory=list)
+
+
+class GameItem(BaseModel):
+    """Oyunda öğrencinin bir öğeyi nereye koyduğu: "değişken" → "fonksiyon tanımı" (doğrusu …)."""
+    item: str = ""
+    chosen: Optional[str] = None
+    expected: Optional[str] = None
+    correct: bool = False
+
+
+ClientEvent.model_rebuild()
 
 
 class EventBatch(BaseModel):
@@ -218,6 +235,80 @@ async def _normalize_client_event(db: AsyncSession, ctx, ev: ClientEvent) -> Opt
             return None
         base.update({"node_id": str(ev.node_id), "stage": "MODÜL"})
 
+    elif ev.type == "slide_answer":
+        return _normalize_slide_answer(ctx, ev, base)
+
+    return base
+
+
+def _normalize_slide_answer(ctx, ev: ClientEvent, base: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Ders slaytındaki soru ya da oyun cevabı — "öğrenci neyi yanlış anladı" sinyali.
+
+    Çoktan seçmeli: istemci yalnızca SEÇTİĞİ şıkları gönderir; doğruluk ve yanlış
+    şıkkın temsil ettiği yanılgı sunucudaki sorudan okunur (öğretmen/YZ yazar).
+    Oyun (eşleştirme, sıralama, kategori…): öğe başına sonuç istemciden gelir;
+    slaytın kursa ait olduğu doğrulanır, metinler kırpılır.
+    """
+    if ev.element_id:
+        q = ctx.questions.get(f"{ev.slide_id}:{ev.element_id}")
+        if not q:
+            return None
+        options = {o["id"]: o for o in q["options"]}
+        selected = [str(s) for s in ev.selected[:10] if str(s) in options]
+        if not selected:
+            return None
+        correct_ids = {o["id"] for o in q["options"] if o["correct"]}
+        correct = set(selected) == correct_ids
+        wrong = [options[s] for s in selected if s not in correct_ids]
+        misconception = next((o["misconception"] for o in wrong if o["misconception"]), None)
+        node = ctx.nodes.get(q["node_id"])
+        base.update({
+            "node_id": q["node_id"] if node else None,
+            "stage": node["stage"] if node else None,
+            "outcome": "pass" if correct else "fail",
+            "correct": correct,
+            "misconception": misconception,
+            "details": {
+                "kind": "mcq",
+                "slide_id": q["slide_id"],
+                "element_id": q["element_id"],
+                "question": q["question"],
+                "selected": selected,
+                "selected_text": [options[s]["text"] for s in selected],
+                "correct": correct,
+                "misconception": misconception,
+            },
+        })
+        return base
+
+    node_id = ctx.slide_nodes.get(str(ev.slide_id)) if ev.slide_id else None
+    if node_id is None or not ev.items:
+        return None
+    items = [{
+        "item": _clip(i.item, 120) or "",
+        "chosen": _clip(i.chosen, 120),
+        "expected": _clip(i.expected, 120),
+        "correct": bool(i.correct),
+    } for i in ev.items[:MAX_GAME_ITEMS]]
+    right = sum(1 for i in items if i["correct"])
+    mistakes = [i for i in items if not i["correct"] and i["chosen"]]
+    node = ctx.nodes.get(node_id)
+    base.update({
+        "node_id": node_id if node else None,
+        "stage": node["stage"] if node else None,
+        "outcome": "pass" if right == len(items) else "fail",
+        "correct": right == len(items),
+        "score": right / len(items),
+        "details": {
+            "kind": "game",
+            "slide_id": str(ev.slide_id),
+            "question": _clip(ev.answer, 200),
+            "total": len(items),
+            "right": right,
+            # "değişken" yerine "fonksiyon" konduysa bu bir karıştırma: yanılgının adayı
+            "mistakes": mistakes[:10],
+        },
+    })
     return base
 
 
@@ -1444,12 +1535,17 @@ async def create_insight(
 
 class PracticeRequest(BaseModel):
     concept_id: str
+    # "Neyi anlamadılar?" listesinden açıldıysa görev önce bu yanılgıyı hedefler.
+    misconception: Optional[str] = Field(default=None, max_length=300)
 
 
 class PracticeApply(BaseModel):
     node_id: str
     slide: Dict[str, Any]
     concept_id: Optional[str] = None
+    # Boşsa görev sınıfın tamamına; doluysa yalnızca bu öğrencilere görünür
+    # ("Neyi anlamadılar?" listesinde yanılgısı olanlara).
+    student_ids: List[int] = Field(default_factory=list)
 
 
 def _practice_nodes(ctx, concept_id: str) -> List[str]:
@@ -1479,6 +1575,9 @@ async def practice_task(
         )
     )).all()
     misconceptions = [m for m, _ in Counter(r[0] for r in rows).most_common(5)]
+    focus = (body.misconception or "").strip()
+    if focus:
+        misconceptions = [focus] + [m for m in misconceptions if m.casefold() != focus.casefold()][:4]
     nodes = _practice_nodes(ctx, body.concept_id) or list(ctx.node_order)
     node_title = ctx.nodes[nodes[0]]["title"] if nodes else None
 
@@ -1519,6 +1618,12 @@ async def apply_practice_task(
     # İstemciden gelen slayt olduğu gibi yazılmaz: görev kurucusundan geçer.
     config = body.slide.get("challengeConfig") if isinstance(body.slide, dict) else None
     slide = _build_challenge_slide(json.dumps(config or {}, ensure_ascii=False))
+    if body.student_ids:
+        enrolled = set(await _students(db, course_id))
+        assigned = sorted({int(s) for s in body.student_ids if int(s) in enrolled})
+        if not assigned:
+            raise HTTPException(status_code=400, detail="Seçilen öğrenciler bu kursa kayıtlı değil.")
+        slide["assignedTo"] = assigned
 
     content = (await db.execute(
         select(LessonContent).where(LessonContent.course_id == course_id, LessonContent.node_id == body.node_id)
@@ -1537,7 +1642,130 @@ async def apply_practice_task(
         )
     await db.commit()
     await learning_store.course_context(db, course_id, fresh=True)
-    return {"ok": True, "slide_id": slide["id"], "node_id": body.node_id, "node": node["title"]}
+    return {"ok": True, "slide_id": slide["id"], "node_id": body.node_id, "node": node["title"],
+            "assigned_to": slide.get("assignedTo") or []}
+
+
+# --- "Neyi anlamadılar?" -------------------------------------------------------------
+
+SOURCE_LABELS = {"mcq": "soru", "game": "oyun", "coach": "koç", "homework": "ödev"}
+
+
+@router.get("/courses/{course_id}/misconceptions")
+async def misconceptions(
+    course_id: int,
+    class_id: Optional[str] = None,
+    since: Optional[str] = None,
+    user_info: dict = Depends(get_current_user_info),
+    db: AsyncSession = Depends(get_db),
+):
+    """Sınıfın yanlış anladıkları, tek listede.
+
+    Kaynaklar: ders slaytındaki soruda seçilen yanlış şıkkın yanılgısı, oyunda
+    karıştırılan eşleşmeler, YZ koçunun etiketi, ödev değerlendirmesinin zayıflıkları.
+    Öğrenci SAYISINA göre sıralanır (aynı öğrencinin on denemesi on öğrenci sayılmaz).
+
+    Sorular: her slayt sorusunun İLK denemedeki doğru oranı ve seçilen yanlış şıklar —
+    öğrenci doğru cevabı gördükten sonra tekrar deneyebildiği için ilk deneme sayılır.
+    """
+    ctx = await _load_course(db, course_id, user_info)
+    scope = await _scope(db, ctx, course_id, class_id, since)
+    query = select(
+        LearningEvent.student_id, LearningEvent.event_type, LearningEvent.node_id,
+        LearningEvent.concept_ids, LearningEvent.details, LearningEvent.created_at,
+    ).where(
+        LearningEvent.course_id == course_id,
+        LearningEvent.event_type.in_(("slide_answer", "coach", "homework_review")),
+        LearningEvent.student_id.in_(list(scope.students) or [-1]),
+    ).order_by(LearningEvent.created_at.asc())
+    if scope.since:
+        query = query.where(LearningEvent.created_at >= scope.since)
+
+    groups: Dict[str, Dict[str, Any]] = {}
+
+    def note(label: Optional[str], student_id: int, source: str, node_id: Optional[str],
+             concept_id: Optional[str], example: Optional[str]):
+        label = (label or "").strip()
+        if not label:
+            return
+        key = label.casefold()
+        g = groups.setdefault(key, {"label": label, "students": set(), "sources": Counter(),
+                                    "nodes": set(), "concepts": Counter(), "examples": []})
+        g["students"].add(student_id)
+        g["sources"][source] += 1
+        if node_id and node_id in ctx.nodes:
+            g["nodes"].add(node_id)
+        if concept_id and concept_id in ctx.concepts:
+            g["concepts"][concept_id] += 1
+        if example and example not in g["examples"] and len(g["examples"]) < 3:
+            g["examples"].append(example)
+
+    first_answer: Dict[tuple, Dict[str, Any]] = {}
+    for student_id, kind, node_id, concept_ids, details, _at in (await db.execute(query)).all():
+        details = details or {}
+        _, primary = ctx.node_concepts(node_id)
+        concept = primary or next((c for c in concept_ids or [] if c in ctx.concepts), None)
+        if kind == "slide_answer" and details.get("kind") == "mcq":
+            key = (details.get("slide_id"), details.get("element_id"), student_id)
+            first_answer.setdefault(key, details)
+            if not details.get("correct"):
+                note(details.get("misconception"), student_id, "mcq", node_id, concept, details.get("question"))
+        elif kind == "slide_answer" and details.get("kind") == "game":
+            for m in details.get("mistakes") or []:
+                if m.get("chosen"):
+                    label = f"“{m.get('item')}” ile “{m.get('chosen')}” karıştırılıyor"
+                    note(label, student_id, "game", node_id, concept, details.get("question"))
+        elif kind == "coach":
+            note(details.get("misconception"), student_id, "coach", node_id, concept, None)
+        elif kind == "homework_review":
+            for w in details.get("weaknesses") or []:
+                note(w.get("misconception"), student_id, "homework", node_id,
+                     w.get("conceptId") if w.get("conceptId") in ctx.concepts else concept, None)
+
+    out = []
+    for g in sorted(groups.values(), key=lambda g: (-len(g["students"]), g["label"])):
+        concept_id = g["concepts"].most_common(1)[0][0] if g["concepts"] else None
+        out.append({
+            "label": g["label"],
+            "student_count": len(g["students"]),
+            "students": [{"id": sid, "name": scope.students.get(sid, f"Öğrenci #{sid}")}
+                         for sid in sorted(g["students"], key=lambda s: scope.students.get(s, ""))],
+            "sources": {SOURCE_LABELS[k]: v for k, v in g["sources"].items()},
+            "modules": [ctx.nodes[n]["title"] for n in sorted(g["nodes"], key=lambda n: ctx.nodes[n]["order"])],
+            "concept_id": concept_id,
+            "concept": ctx.concepts[concept_id]["label"] if concept_id else None,
+            "examples": g["examples"],
+        })
+
+    questions = []
+    by_question: Dict[tuple, List[Dict[str, Any]]] = defaultdict(list)
+    for (slide_id, element_id, _sid), details in first_answer.items():
+        by_question[(slide_id, element_id)].append(details)
+    for (slide_id, element_id), answers in by_question.items():
+        q = ctx.questions.get(f"{slide_id}:{element_id}")
+        if not q:
+            continue
+        correct = sum(1 for a in answers if a.get("correct"))
+        chosen: Counter = Counter()
+        for a in answers:
+            if not a.get("correct"):
+                for opt in a.get("selected") or []:
+                    chosen[opt] += 1
+        options = {o["id"]: o for o in q["options"]}
+        questions.append({
+            "slide_id": slide_id,
+            "element_id": element_id,
+            "question": q["question"],
+            "module": ctx.nodes.get(q["node_id"], {}).get("title"),
+            "answered": len(answers),
+            "first_try_correct": correct,
+            "correct_rate": round(correct / len(answers), 3),
+            "wrong_choices": [{
+                "text": options[o]["text"], "misconception": options[o]["misconception"], "students": n,
+            } for o, n in chosen.most_common() if o in options and not options[o]["correct"]],
+        })
+    questions.sort(key=lambda q: (q["correct_rate"], -q["answered"]))
+    return {"misconceptions": out, "questions": questions, "classes": scope.classes}
 
 
 # --- "Kodunu açıkla" ------------------------------------------------------------------

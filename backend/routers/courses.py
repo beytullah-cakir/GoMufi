@@ -157,6 +157,31 @@ class TeacherStudentResponse(BaseModel):
 
 
 
+def student_view_of_courses(db: AsyncSession, courses: List[Course], student_id: int) -> List[Course]:
+    """Öğrenciye giden kurs: katılım kodları gizli, yalnızca ona atanan tekrar görevleri.
+
+    Nesneler oturumdan ayrılır — aşağıdaki değişiklikler yanlışlıkla veritabanına
+    yazılmasın (yalnızca bu yanıt için süzülüyor).
+    """
+    db.expunge_all()
+    for course in courses:
+        course.enrollment_code = None
+        course.classes = [
+            {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
+            for cls in course.classes or []
+        ]
+        notes = []
+        for note in course.notes or []:
+            if isinstance(note, dict) and isinstance(note.get("slides"), list):
+                note = {**note, "slides": [
+                    s for s in note["slides"]
+                    if not (isinstance(s, dict) and s.get("assignedTo")) or student_id in s["assignedTo"]
+                ]}
+            notes.append(note)
+        course.notes = notes
+    return courses
+
+
 @router.get("/my-content", response_model=List[CourseResponse])
 async def read_my_content(
     user_info: dict = Depends(get_current_user_info),
@@ -176,7 +201,8 @@ async def read_my_content(
         courses = result.unique().scalars().all()
         for course in courses:
             course.students_count = len(course.enrollments)
-        return await populate_course_notes(courses, db)
+        courses = await populate_course_notes(courses, db)
+        return student_view_of_courses(db, courses, user_id)
     elif role == "teacher":
         result = await db.execute(
             select(Course)
@@ -288,6 +314,13 @@ async def read_course(
         course_dict["classes"] = [
             {k: v for k, v in cls.items() if k != "code"} if isinstance(cls, dict) else cls
             for cls in course.classes or []
+        ]
+        # Belirli öğrencilere atanmış tekrar görevleri yalnızca onlara
+        course_dict["notes"] = [
+            {**n, "slides": [s for s in n["slides"] if not (isinstance(s, dict) and s.get("assignedTo"))
+                             or user_id in s["assignedTo"]]}
+            if isinstance(n, dict) and isinstance(n.get("slides"), list) else n
+            for n in course_dict["notes"] or []
         ]
 
     return course_dict

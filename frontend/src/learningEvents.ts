@@ -27,7 +27,7 @@ export interface LearningCheck {
 }
 
 export interface LearningEvent {
-    type: 'check' | 'hint_opened' | 'quiz_answer' | 'module_completed';
+    type: 'check' | 'hint_opened' | 'quiz_answer' | 'module_completed' | 'slide_answer';
     task_key?: string;
     node_id?: string;
     outcome?: 'pass' | 'fail' | 'error' | 'ran';
@@ -40,7 +40,15 @@ export interface LearningEvent {
     question_id?: number;
     correct?: boolean;
     answer?: string;
+    /** slide_answer: çoktan seçmeli (element_id + selected) ya da oyun (items) */
+    slide_id?: string;
+    element_id?: string;
+    selected?: string[];
+    items?: GameItem[];
 }
+
+/** Oyunda öğrencinin bir öğeyi nereye koyduğu: item → chosen (doğrusu expected). */
+export interface GameItem { item: string; chosen?: string | null; expected?: string | null; correct: boolean }
 
 const FLUSH_DELAY_MS = 3000;
 const MAX_BATCH = 20;

@@ -73,6 +73,8 @@ export interface QuizOption {
     id: string;
     text: string;
     isCorrect: boolean;
+    /** Yanlış şık: bu şıkkı seçen öğrencinin hangi yanılgıya düştüğü (öğretmene gösterilir). */
+    misconception?: string;
 }
 
 export interface QuizQuestion {

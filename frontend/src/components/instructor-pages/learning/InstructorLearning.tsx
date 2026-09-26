@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { BookCheck, Brain, ClipboardList, LayoutDashboard, Loader2, RefreshCw, Tags, Users, Microscope, Table2 } from 'lucide-react';
+import { BookCheck, Brain, ClipboardList, HelpCircle, LayoutDashboard, Loader2, RefreshCw, Tags, Users, Microscope, Table2 } from 'lucide-react';
 import api from '../../../api';
 import { useWebSocket } from '../../../hooks/useWebSocket';
 import { errorText, learningApi, type Scope } from './learningApi';
@@ -8,7 +8,8 @@ import GradebookTab from './GradebookTab';
 import CodeReplayModal from './CodeReplayModal';
 import ConceptMapTab from './ConceptMapTab';
 import HomeworkTab from './HomeworkTab';
-import { PracticeTaskModal } from './InsightCard';
+import { PracticeTaskModal, type PracticeTarget } from './InsightCard';
+import MisconceptionsTab from './MisconceptionsTab';
 import OverviewTab from './OverviewTab';
 import StudentsTab, { StudentProfileView } from './StudentsTab';
 import TasksTab, { TaskDetailView } from './TasksTab';
@@ -21,10 +22,11 @@ import TasksTab, { TaskDetailView } from './TasksTab';
  * öğretmene haber veriyor (WebSocket), açık sekme birkaç saniye içinde yenileniyor.
  */
 
-type Tab = 'overview' | 'concepts' | 'tasks' | 'students' | 'homework' | 'gradebook';
+type Tab = 'overview' | 'misconceptions' | 'concepts' | 'tasks' | 'students' | 'homework' | 'gradebook';
 
 const TABS: Array<{ id: Tab; label: string; icon: React.ElementType }> = [
     { id: 'overview', label: 'Genel Bakış', icon: LayoutDashboard },
+    { id: 'misconceptions', label: 'Neyi Anlamadılar?', icon: HelpCircle },
     { id: 'concepts', label: 'Kazanım Haritası', icon: Brain },
     { id: 'tasks', label: 'Görevler', icon: ClipboardList },
     { id: 'students', label: 'Öğrenciler', icon: Users },
@@ -67,7 +69,7 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
     const [studentId, setStudentId] = useState<number | null>(paramStudent);
     const [taskKey, setTaskKey] = useState<string | null>(params.get('task'));
     const [replay, setReplay] = useState<{ studentId: number; name: string; taskKey: string } | null>(null);
-    const [practice, setPractice] = useState<string | null>(null);
+    const [practice, setPractice] = useState<PracticeTarget | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const [tagging, setTagging] = useState(false);
     const [notice, setNotice] = useState<string | null>(null);
@@ -100,6 +102,7 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
 
     const openStudent = (id: number) => { setTaskKey(null); setStudentId(id); setTab('students'); };
     const openTask = (key: string) => { setStudentId(null); setTaskKey(key); setTab('tasks'); };
+    const openPractice = (conceptId: string) => setPractice({ conceptId });
     const openReplay = (sid: number, name: string, key: string) => setReplay({ studentId: sid, name, taskKey: key });
 
     const tagConcepts = async () => {
@@ -212,9 +215,12 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
                     <p className="text-sm font-bold text-gray-400">Kurs bulunamadı.</p>
                 ) : tab === 'overview' ? (
                     <OverviewTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent}
-                                 onOpenTask={openTask} onPractice={setPractice} onReplay={openReplay} scope={scope} />
+                                 onOpenTask={openTask} onPractice={openPractice} onReplay={openReplay} scope={scope} />
+                ) : tab === 'misconceptions' ? (
+                    <MisconceptionsTab courseId={courseId} refreshKey={refreshKey} scope={scope}
+                                       onOpenStudent={openStudent} onPractice={setPractice} />
                 ) : tab === 'concepts' ? (
-                    <ConceptMapTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={setPractice} scope={scope} />
+                    <ConceptMapTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={openPractice} scope={scope} />
                 ) : tab === 'tasks' ? (
                     taskKey
                         ? <TaskDetailView courseId={courseId} taskKey={taskKey} refreshKey={refreshKey} onBack={() => setTaskKey(null)}
@@ -224,10 +230,10 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
                     studentId
                         ? <StudentProfileView courseId={courseId} studentId={studentId} refreshKey={refreshKey}
                                               onBack={() => setStudentId(null)} onOpenTask={openTask}
-                                              onReplay={openReplay} onPractice={setPractice} />
+                                              onReplay={openReplay} onPractice={openPractice} />
                         : <StudentsTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} scope={scope} />
                 ) : tab === 'homework' ? (
-                    <HomeworkTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={setPractice} scope={scope} />
+                    <HomeworkTab courseId={courseId} refreshKey={refreshKey} onOpenStudent={openStudent} onPractice={openPractice} scope={scope} />
                 ) : (
                     <GradebookTab courseId={courseId} courseTitle={courses.find((c) => c.id === courseId)?.title || 'Kurs'}
                                   refreshKey={refreshKey} scope={scope} onOpenStudent={openStudent} />
@@ -239,7 +245,8 @@ const InstructorLearning: React.FC<{ coursesData?: any[] }> = ({ coursesData }) 
                                  taskKey={replay.taskKey} onClose={() => setReplay(null)} />
             )}
             {practice && courseId && (
-                <PracticeTaskModal courseId={courseId} conceptId={practice} onClose={() => setPractice(null)} />
+                <PracticeTaskModal courseId={courseId} conceptId={practice.conceptId} misconception={practice.misconception}
+                                   students={practice.students} onClose={() => setPractice(null)} />
             )}
         </div>
     );

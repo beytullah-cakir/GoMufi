@@ -92,6 +92,9 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
   const [selectedAnswerIds, setSelectedAnswerIds] = useState<string[]>([]);
   const [textAnswer, setTextAnswer] = useState("");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  // Öğretmenin slayta yazdığı QUIZ sorularının geldiği oyun slaytı: cevaplar
+  // "slide_answer" olarak kaydedilir, doğruluk ve yanılgı sunucuda hesaplanır.
+  const [gameSlideId, setGameSlideId] = useState<string | null>(null);
 
   const { sendMessage, lastMessage } = useWebSocket();
   const [allAnswers, setAllAnswers] = useState<Record<string, { 
@@ -150,6 +153,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
                 timeLimit: q.timeLimit || 30
               }));
               hasCustomGame = true;
+              setGameSlideId(gameSlide.id != null ? String(gameSlide.id) : null);
             }
           } catch (notesErr) {
             console.warn("Course notes fetch failed, falling back to quiz_by_node:", notesErr);
@@ -283,17 +287,23 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
     }
   }, [lastMessage, courseId, currentQuestionIndex, nextQuestion]);
 
-  const submitAnswer = useCallback((correct: boolean, timeRemaining: number) => {
+  const submitAnswer = useCallback((correct: boolean, timeRemaining: number, selected: string[] = []) => {
     setIsCorrect(correct);
     setPhase("result");
 
-    // Öğrenme kaydı: yalnızca veritabanındaki quiz soruları (sayısal kimlik)
-    // modülün kavramlarına bağlanabiliyor; öğretmenin slayta elle yazdığı oyun
-    // sorularının kalıcı bir kimliği yok. Süre dolması da yanlış cevap sayılır.
+    // Öğrenme kaydı. Veritabanındaki quiz soruları (sayısal kimlik) modülün
+    // kavramlarına bağlanır; slayttaki QUIZ soruları (metin kimlik) seçilen
+    // şıklarla gönderilir, yanlış şıkkın yanılgısı öğretmene düşer.
+    // Süre dolması da yanlış cevap sayılır.
     const question = questions[currentQuestionIndex];
     if (!isPreviewMode && sectionId && typeof question?.id === 'number') {
       trackLearningEvent(courseId, {
         type: 'quiz_answer', node_id: sectionId, question_id: question.id, correct,
+      });
+    } else if (!isPreviewMode && gameSlideId && question?.id != null && selected.length > 0
+               && (question.type === 'multiple_choice' || question.type === 'true_false')) {
+      trackLearningEvent(courseId, {
+        type: 'slide_answer', slide_id: gameSlideId, element_id: String(question.id), selected,
       });
     }
 
@@ -334,7 +344,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
         }
       };
     });
-  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate, questions, sectionId]);
+  }, [currentQuestionIndex, courseId, isPreviewMode, userData, sendMessage, onStatsUpdate, questions, sectionId, gameSlideId]);
 
   // Phase Management
   useEffect(() => {
@@ -376,7 +386,7 @@ const MatchingGame: React.FC<MatchingGameProps> = ({
       correct = true;
     }
 
-    submitAnswer(correct, timer);
+    submitAnswer(correct, timer, selectedAnswerIds);
   }, [currentQuestion, selectedAnswerIds, textAnswer, timer, submitAnswer]);
 
   // Game Timer
