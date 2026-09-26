@@ -227,7 +227,7 @@ async def _student_view(db: AsyncSession, student_id: int) -> Dict[str, Any]:
 
 @router.get("/me")
 async def my_attendance(user_info: dict = Depends(get_current_user_info), db: AsyncSession = Depends(get_db)):
-    if user_info.get("role") != "student":
+    if user_info.get("role") not in ("student", "admin"):  # yönetici: öğrenci paneli önizlemesi
         raise HTTPException(status_code=403, detail="Bu sayfa öğrencilere özeldir.")
     return await _student_view(db, int(user_info["sub"]))
 

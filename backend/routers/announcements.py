@@ -154,7 +154,7 @@ async def delete_announcement(
 @router.get("/me")
 async def my_announcements(user_info: dict = Depends(get_current_user_info), db: AsyncSession = Depends(get_db)):
     role = user_info.get("role")
-    if role == "student":
+    if role in ("student", "admin"):  # yönetici: öğrenci paneli önizlemesi
         student_ids = [int(user_info["sub"])]
     elif role == "parent":
         student_ids = list((await db.execute(
