@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Check, CheckSquare, Clock, Plus, Sparkles, Square, Trash2, X } from 'lucide-react';
+import { Check, CheckSquare, Clock, Plus, Sparkles, Trash2, X } from 'lucide-react';
 import TaskSlideShell, { type TaskRole } from './TaskSlideShell';
 import { STAGE_META } from './taskStages';
 import type { CriterionResult } from './challengeCheck';
@@ -116,11 +116,11 @@ const ProduceSlideBuilder: React.FC<Props> = ({
         };
 
         return (
-            <div className={`border-2 rounded-2xl p-3.5 ${theme.panel}`}>
+            <div className={isEdit ? `border-2 rounded-2xl p-3.5 ${theme.panel}` : ''}>
                 <div className="flex items-center justify-between mb-2">
-                    <span className={`text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 ${theme.panelTitle}`}>
-                        <CheckSquare size={13} className={theme.badgeIcon} />
-                        Proje Gereksinimleri
+                    <span className={`flex items-center gap-1.5 ${isEdit ? `text-[11px] font-black uppercase tracking-wider ${theme.panelTitle}` : 'text-xs font-black text-slate-400'}`}>
+                        <CheckSquare size={isEdit ? 13 : 14} className={theme.badgeIcon} />
+                        {isEdit ? 'Proje Gereksinimleri' : 'Projen şunları yapmalı'}
                     </span>
                     {isEdit && (
                         <button
@@ -167,15 +167,24 @@ const ProduceSlideBuilder: React.FC<Props> = ({
                         if (!req.trim()) return null;
                         const result = statusOf(req);
                         return (
-                            <div key={idx} className="flex items-start gap-2 py-1 px-2 rounded-lg">
-                                {result?.status === 'pass' ? <Check size={14} className="text-emerald-600 shrink-0 mt-0.5" />
-                                    : result?.status === 'fail' ? <X size={14} className="text-rose-500 shrink-0 mt-0.5" />
-                                    : result?.status === 'pending' ? <Clock size={14} className="text-slate-400 shrink-0 mt-0.5" />
-                                    : <Square size={14} className="text-amber-400 shrink-0 mt-0.5" />}
-                                <span className="min-w-0">
-                                    <span className={`text-xs font-medium ${result?.status === 'pass' ? 'text-slate-500' : 'text-slate-700'}`}>{req}</span>
+                            <div key={idx} className={`flex items-start gap-2.5 py-2 px-3 rounded-2xl border-2 ${
+                                result?.status === 'pass' ? 'bg-emerald-50 border-emerald-200'
+                                    : result?.status === 'fail' ? 'bg-rose-50 border-rose-200'
+                                    : 'bg-white border-slate-100'}`}>
+                                <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
+                                    result?.status === 'pass' ? 'bg-emerald-500 text-white'
+                                        : result?.status === 'fail' ? 'bg-rose-500 text-white'
+                                        : result?.status === 'pending' ? 'bg-slate-200 text-slate-500'
+                                        : 'bg-amber-100 text-amber-600 text-[11px] font-black'}`}>
+                                    {result?.status === 'pass' ? <Check size={14} strokeWidth={3} />
+                                        : result?.status === 'fail' ? <X size={14} strokeWidth={3} />
+                                        : result?.status === 'pending' ? <Clock size={13} />
+                                        : idx + 1}
+                                </span>
+                                <span className="min-w-0 pt-0.5">
+                                    <span className={`text-sm font-bold ${result?.status === 'pass' ? 'text-emerald-800' : 'text-slate-700'}`}>{req}</span>
                                     {result?.detail && result.status !== 'pass' && (
-                                        <span className="block text-[10.5px] text-slate-500 mt-0.5">{result.detail}</span>
+                                        <span className="block text-xs font-bold text-slate-500 mt-0.5">{result.detail}</span>
                                     )}
                                 </span>
                             </div>

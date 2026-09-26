@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-    Check, Loader2, Monitor, Play, PlugZap, RefreshCw, Zap,
+    Check, Code2, Loader2, Play, PlugZap, RefreshCw, Zap,
 } from 'lucide-react';
+import MufiBuildImg from '../../assets/sprites/mufi/build.webp';
+import { VSCodeGuideModal, type VSCodeState } from '../student-pages/VSCodeStatus';
 import ChallengeResultPanel from './ChallengeResultPanel';
 import { localRuntime } from './challengeRuntime';
 import { useChallengeCheck, type TaskCheckOptions } from './useChallengeCheck';
@@ -75,144 +77,136 @@ const ChallengeCodeLab: React.FC<Props> = ({ task }) => {
     };
 
     const online = connection === 'online';
+    const [showGuide, setShowGuide] = useState(false);
+    const vsState: VSCodeState = connection === 'probing' ? 'checking' : online ? 'connected' : 'offline';
+
+    // Üç adım: aç → yaz → kontrol et. Öğrenci nerede olduğunu tek bakışta görsün.
+    const steps = [
+        { label: 'VS Code\'da aç', done: launched || check.opened },
+        { label: 'Kodunu yaz ve kaydet', done: check.stdout !== null },
+        { label: 'Kontrol et', done: check.status === 'solved' },
+    ];
 
     return (
-        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-2xl border-2 border-slate-200 border-b-[5px] overflow-hidden">
-            {/* ── Başlık: laboratuvar kimliği + bağlantı ışığı ── */}
-            <div className="shrink-0 flex items-center gap-2 px-3 py-2.5 bg-slate-900 border-b-2 border-slate-800">
-                <Monitor size={14} className="text-sky-400 shrink-0" />
-                <span className="text-[11px] font-black tracking-widest text-white">KOD LABORATUVARI</span>
-                <span className="ml-auto flex items-center gap-1.5">
-                    <span className={`w-2 h-2 rounded-full ${
-                        online ? 'bg-emerald-400 animate-pulse'
-                            : connection === 'probing' ? 'bg-amber-400 animate-pulse' : 'bg-rose-400'}`} />
-                    <span className="font-mono text-[10px] text-slate-300">
-                        {language === 'python' ? 'Python' : language} · {entry.name}
-                        {files.length > 1 && ` +${files.length - 1}`}
-                    </span>
-                </span>
+        <div className="flex-1 min-h-0 flex flex-col bg-white rounded-3xl border-2 border-slate-200 border-b-[6px] overflow-hidden">
+            {showGuide && <VSCodeGuideModal state={vsState} recheck={() => probe(true)} onClose={() => setShowGuide(false)} />}
+
+            {/* ── Başlık: kod alanı + bağlantı durumu ── */}
+            <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b-2 border-slate-100">
+                <span className="w-9 h-9 rounded-xl bg-violet-100 text-violet-600 flex items-center justify-center shrink-0"><Code2 size={18} /></span>
+                <div className="min-w-0">
+                    <p className="text-sm font-black text-slate-800 leading-tight">Kod alanın</p>
+                    <p className="text-[11px] font-bold text-slate-400 truncate font-mono">
+                        {language === 'python' ? 'Python' : language} · {entry.name}{files.length > 1 && ` +${files.length - 1}`}
+                    </p>
+                </div>
+                <button type="button" onClick={() => setShowGuide(true)}
+                        className={`ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border-2 text-xs font-black ${
+                            online ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                                : connection === 'probing' ? 'bg-slate-50 border-slate-200 text-slate-500'
+                                : 'bg-orange-50 border-orange-200 text-orange-700'}`}>
+                    {connection === 'probing' ? <Loader2 size={12} className="animate-spin" />
+                        : <span className={`w-2 h-2 rounded-full ${online ? 'bg-emerald-500' : 'bg-orange-500 animate-pulse'}`} />}
+                    {connection === 'probing' ? 'Aranıyor…' : online ? 'VS Code bağlı' : 'VS Code bağlı değil'}
+                </button>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-                {/* ── VS Code'a geçiş ── */}
-                <div className={`rounded-xl border-2 border-b-[4px] p-3 ${
-                    online ? 'bg-sky-50/70 border-sky-200' : 'bg-amber-50/70 border-amber-200'}`}>
-                    {connection === 'probing' ? (
-                        <p className="flex items-center gap-2 text-[12px] font-bold text-slate-500">
-                            <Loader2 size={14} className="animate-spin" /> VS Code aranıyor…
-                        </p>
-                    ) : online ? (
-                        <>
-                            <p className="text-[12.5px] font-bold text-slate-700 leading-snug">
-                                {launched
-                                    ? 'Kodunu VS Code\'da yaz. Yazdıkça kaydet, sonra buradan kontrol et.'
-                                    : 'Bu görevi VS Code\'da açalım mı? Kodunu orada yazacaksın.'}
-                            </p>
-                            <p className="mt-1 text-[11px] font-medium text-slate-500 leading-snug">
-                                {check.opened
-                                    ? files.length > 1
-                                        ? <>{files.length} dosya VS Code'a gönderildi. Program <span className="font-mono font-bold text-slate-700">{entry.name}</span> dosyasından çalışır.</>
-                                        : <>Görev <span className="font-mono font-bold text-slate-700">{entry.name}</span> olarak VS Code'a gönderildi.</>
-                                    : 'Görev dosyaları VS Code\'a gönderiliyor…'}
-                            </p>
+            <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4">
+                {online ? (
+                    <>
+                        <ol className="flex items-center gap-2">
+                            {steps.map((st, i) => (
+                                <li key={st.label} className="flex items-center gap-2 min-w-0 flex-1">
+                                    <span className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-black ${
+                                        st.done ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                                        {st.done ? <Check size={14} strokeWidth={3} /> : i + 1}
+                                    </span>
+                                    <span className={`text-xs font-black truncate ${st.done ? 'text-emerald-700' : 'text-slate-500'}`}>{st.label}</span>
+                                    {i < steps.length - 1 && <span className="hidden sm:block flex-1 h-0.5 rounded-full bg-slate-100 min-w-3" />}
+                                </li>
+                            ))}
+                        </ol>
 
-                            {/* Çok dosyalı görevde öğrenci HANGİ dosyada ne olduğunu
-                                bilmeli: çalıştırılan dosya işaretli, ötekiler yanında. */}
-                            {files.length > 1 && (
-                                <div className="mt-2 flex flex-wrap gap-1">
-                                    {files.map((f) => (
-                                        <span
-                                            key={f.name}
-                                            className={`inline-flex items-center gap-1 rounded-md border-2 px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                                                f.name === entry.name
-                                                    ? 'bg-sky-100 border-sky-300 text-sky-800'
-                                                    : 'bg-white border-slate-200 text-slate-500'}`}
-                                        >
-                                            {f.name === entry.name && <Play size={9} />} {f.name}
-                                        </span>
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        <>
-                            <p className="text-[12.5px] font-black text-amber-800 leading-snug">
-                                VS Code bağlantısı bulunamadı.
+                        <div className="rounded-2xl bg-violet-50 border-2 border-violet-100 p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                            <p className="text-sm font-bold text-slate-700 flex-1">
+                                {!(launched || check.opened)
+                                    ? 'Görevin dosyası hazır. VS Code\'da açıp kodunu orada yaz.'
+                                    : files.length > 1
+                                        ? <>{files.length} dosya VS Code'da. Program <span className="font-mono font-black">{entry.name}</span> dosyasından çalışır.</>
+                                        : <>Kodunu VS Code'da <span className="font-mono font-black">{entry.name}</span> dosyasına yaz, kaydet, sonra burada kontrol et.</>}
                             </p>
-                            <p className="mt-1 text-[11px] font-medium text-amber-700/90 leading-snug">
-                                GoMufi eklentisinin kurulu, VS Code'un açık ve eklentide giriş yapmış
-                                olman gerekiyor. Kurulumun varsa VS Code'u açıp tekrar dene.
-                            </p>
-                        </>
-                    )}
-
-                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
-                        <button
-                            onClick={openInVSCode}
-                            className="flex items-center gap-1.5 bg-sky-500 hover:bg-sky-400 text-white font-black text-[12px] px-3.5 py-1.5 rounded-lg border-2 border-sky-700 border-b-[4px] active:border-b-2 active:translate-y-0.5 transition-all cursor-pointer"
-                        >
-                            <Zap size={13} /> VS CODE'U AÇ
-                        </button>
-
-                        {!online && (
-                            <button
-                                onClick={() => void probe(true)}
-                                disabled={connection === 'probing'}
-                                className="flex items-center gap-1.5 bg-white hover:bg-slate-50 text-slate-600 font-bold text-[11.5px] px-3 py-1.5 rounded-lg border-2 border-slate-200 border-b-[4px] active:border-b-2 active:translate-y-0.5 transition-all cursor-pointer disabled:opacity-60"
-                            >
-                                <RefreshCw size={12} className={connection === 'probing' ? 'animate-spin' : ''} />
-                                Yeniden dene
+                            <button onClick={openInVSCode}
+                                    className="shrink-0 inline-flex items-center justify-center gap-2 h-11 px-5 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white font-black text-sm border-b-4 border-violet-700 active:translate-y-1 active:border-b-0 transition-all duration-75">
+                                <Zap size={16} /> {launched || check.opened ? 'VS Code\'a geç' : 'VS Code\'da aç'}
                             </button>
+                        </div>
+
+                        {files.length > 1 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {files.map((f) => (
+                                    <span key={f.name} className={`inline-flex items-center gap-1 rounded-lg border-2 px-2 py-0.5 font-mono text-[11px] font-bold ${
+                                        f.name === entry.name ? 'bg-violet-50 border-violet-200 text-violet-700' : 'bg-white border-slate-200 text-slate-500'}`}>
+                                        {f.name === entry.name && <Play size={10} />} {f.name}
+                                    </span>
+                                ))}
+                            </div>
                         )}
-
+                    </>
+                ) : connection === 'probing' ? (
+                    <p className="flex items-center justify-center gap-2 py-8 text-sm font-bold text-slate-400">
+                        <Loader2 size={16} className="animate-spin" /> VS Code aranıyor…
+                    </p>
+                ) : (
+                    <div className="rounded-2xl bg-orange-50 border-2 border-orange-100 p-4 flex items-start gap-3">
+                        <img src={MufiBuildImg} alt="" className="w-16 shrink-0" />
+                        <div className="min-w-0 flex-1">
+                            <p className="font-black text-slate-800">Önce VS Code'u açalım</p>
+                            <p className="text-sm font-bold text-slate-500 mt-0.5">
+                                Kodun kendi bilgisayarında, VS Code'da çalışır. Açıksa ve GoMufi eklentisine giriş yaptıysan birkaç saniyede bağlanır.
+                            </p>
+                            <div className="flex flex-wrap gap-2 mt-3">
+                                <button onClick={openInVSCode}
+                                        className="inline-flex items-center gap-2 h-10 px-4 rounded-2xl bg-violet-500 hover:bg-violet-600 text-white font-black text-sm border-b-4 border-violet-700 active:translate-y-1 active:border-b-0 transition-all duration-75">
+                                    <Zap size={15} /> VS Code'u aç
+                                </button>
+                                <button onClick={() => void probe(true)}
+                                        className="inline-flex items-center gap-2 h-10 px-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-600 font-black text-sm border-2 border-b-4 border-slate-200 active:translate-y-0.5 active:border-b-2 transition-all duration-75">
+                                    <RefreshCw size={14} /> Tekrar dene
+                                </button>
+                                <button onClick={() => setShowGuide(true)}
+                                        className="inline-flex items-center gap-1.5 h-10 px-2 text-sm font-black text-violet-600 hover:underline">
+                                    <PlugZap size={14} /> Kurulum rehberi
+                                </button>
+                            </div>
+                        </div>
                     </div>
+                )}
 
-                    <div className="mt-2.5 flex items-center gap-1.5 text-[10.5px] font-bold">
-                        {online ? (
-                            <>
-                                <Check size={12} className="text-emerald-600" />
-                                <span className="text-emerald-700">VS Code bağlantısı aktif</span>
-                            </>
-                        ) : (
-                            <>
-                                <PlugZap size={12} className="text-slate-400" />
-                                <span className="text-slate-500">
-                                    {connection === 'probing' ? 'Bağlantı kontrol ediliyor…' : 'Bağlantı yok'}
-                                </span>
-                            </>
-                        )}
-                    </div>
-                </div>
-
-                {/* ── Son kontrol ── */}
-                <div>
-                    <h3 className="text-[9.5px] font-black text-slate-500 tracking-widest mb-1.5">SON KONTROL</h3>
-                    <ChallengeResultPanel
-                        status={check.status}
-                        stdout={check.stdout}
-                        stderr={check.stderr}
-                        checks={check.checks}
-                        coach={check.coach}
-                        coachLoading={check.coachLoading}
-                        activeHint={check.activeHint}
-                        xp={xp}
-                        onReveal={check.reveal}
-                        idleText="Henüz kod kontrol edilmedi. VS Code'da kodunu yaz, sonra Görevi Kontrol Et'e bas."
-                    />
-                </div>
+                <ChallengeResultPanel
+                    status={check.status}
+                    stdout={check.stdout}
+                    stderr={check.stderr}
+                    checks={check.checks}
+                    coach={check.coach}
+                    coachLoading={check.coachLoading}
+                    activeHint={check.activeHint}
+                    xp={xp}
+                    onReveal={check.reveal}
+                    idleText="Henüz kontrol edilmedi. Kodunu VS Code'da yazıp kaydet, sonra Kontrol et'e bas."
+                />
             </div>
 
             {/* ── Kontrol düğmesi ── */}
-            <div className="shrink-0 p-3 pt-0">
+            <div className="shrink-0 p-4 pt-0">
                 <button
                     onClick={check.handleCheck}
                     disabled={check.running || !online}
-                    className="w-full flex items-center justify-center gap-1.5 bg-emerald-500 hover:bg-emerald-400 disabled:opacity-50 text-white font-black text-[12.5px] py-2 rounded-xl border-2 border-emerald-700 border-b-[4px] active:border-b-2 active:translate-y-0.5 transition-all cursor-pointer disabled:cursor-not-allowed"
+                    className="w-full h-12 flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:border-slate-300 text-white font-black text-base rounded-2xl border-b-4 border-emerald-700 active:translate-y-1 active:border-b-0 transition-all duration-75 disabled:cursor-not-allowed"
                 >
-                    {check.running ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                    {check.running ? <Loader2 size={18} className="animate-spin" /> : <Play size={18} className="fill-current" />}
                     {check.status === 'running' ? 'VS Code terminalinde çalışıyor…'
                         : check.status === 'checking' ? 'Kontrol ediliyor…'
-                        : 'Görevi Kontrol Et'}
+                        : 'Kontrol et'}
                 </button>
             </div>
         </div>

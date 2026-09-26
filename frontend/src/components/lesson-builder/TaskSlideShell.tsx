@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import MufiPeekImg from '../../assets/sprites/mufi/peek.webp';
 import {
     AlertTriangle, Check, ChevronDown, Code2, Download, File as FileIcon, FileCode2, FileText,
     Image as ImageIcon, Lightbulb, Loader2, Play, Plus, Send, ShieldCheck, Sparkles, Trash2,
@@ -138,7 +139,7 @@ const renderInline = (text: string, keyBase: string) =>
 const FormattedText: React.FC<{ text?: string }> = ({ text }) => {
     if (!text) return null;
     return (
-        <div className="text-[12px] sm:text-xs md:text-[13.5px] font-medium text-slate-700 leading-relaxed">
+        <div className="text-sm md:text-[15px] font-semibold text-slate-700 leading-relaxed">
             {text.split('\n').map((line, i) => {
                 const trimmed = line.trim();
                 if (trimmed.startsWith('# ')) {
@@ -958,13 +959,15 @@ const TaskSlideShell: React.FC<Props> = ({
                             />
                         </div>
                     ) : (
-                        <h2 className="text-lg md:text-xl font-black text-slate-800 font-display tracking-tight">{cfg.title}</h2>
+                        <h2 className="text-xl md:text-2xl font-black text-slate-800 font-display tracking-tight">{cfg.title}</h2>
                     )}
                     {titleExtra}
                 </div>
 
                 <div>
-                    <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1 block">{meta.promptLabel}</label>
+                    {isEdit
+                        ? <label className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-1 block">{meta.promptLabel}</label>
+                        : <p className="text-xs font-black text-slate-400 mb-1.5">Ne yapacaksın?</p>}
                     {isEdit ? (
                         <textarea
                             value={cfg.prompt}
@@ -974,7 +977,7 @@ const TaskSlideShell: React.FC<Props> = ({
                             placeholder={meta.promptPlaceholder}
                         />
                     ) : (
-                        <div className={`p-3.5 rounded-2xl border ${theme.promptBox}`}>
+                        <div className={`p-4 rounded-2xl border-2 ${theme.promptBox}`}>
                             <FormattedText text={cfg.prompt} />
                         </div>
                     )}
@@ -1000,11 +1003,11 @@ const TaskSlideShell: React.FC<Props> = ({
                 )}
 
                 {isCode && (samples.length > 0 || isEdit) && (
-                    <div className={`border-2 rounded-2xl p-3.5 flex flex-col gap-2 ${theme.panel}`}>
+                    <div className={`flex flex-col gap-2 ${isEdit ? `border-2 rounded-2xl p-3.5 ${theme.panel}` : ''}`}>
                         <div className="flex items-center justify-between">
-                            <span className={`text-[11px] font-black uppercase tracking-wider flex items-center gap-1.5 ${theme.panelTitle}`}>
-                                <Sparkles size={13} className={theme.badgeIcon} />
-                                Örnekler & Test Girdileri
+                            <span className={`flex items-center gap-1.5 ${isEdit ? `text-[11px] font-black uppercase tracking-wider ${theme.panelTitle}` : 'text-xs font-black text-slate-400'}`}>
+                                {isEdit && <Sparkles size={13} className={theme.badgeIcon} />}
+                                {isEdit ? 'Örnekler & Test Girdileri' : samples.length > 1 ? 'Örnek çıktılar' : 'Örnek çıktı'}
                             </span>
                             {isEdit && (
                                 <button
@@ -1044,10 +1047,11 @@ const TaskSlideShell: React.FC<Props> = ({
                                             </button>
                                         </>
                                     ) : (
-                                        <div className="w-full flex items-center justify-between gap-2 bg-white/80 border border-slate-200 rounded-lg px-2.5 py-1">
-                                            <span className="text-slate-700 font-bold">{s.input || '(girdi yok)'}</span>
-                                            <span className={`font-black ${theme.accentText}`}>➔</span>
-                                            <span className="text-slate-800 font-extrabold">{s.output}</span>
+                                        // Öğrenciye örnek, gerçek bir terminal gibi: komut, (varsa) girdi, çıktı.
+                                        <div className="w-full rounded-xl bg-slate-900 px-3 py-2.5 text-[12.5px] leading-relaxed">
+                                            <p className="text-slate-500">$ python {language === 'python' ? 'gorev.py' : 'program'}</p>
+                                            {s.input && <p className="text-sky-300">› {s.input}</p>}
+                                            <p className="text-emerald-300 whitespace-pre-wrap">{s.output}</p>
                                         </div>
                                     )}
                                 </div>
@@ -1180,13 +1184,13 @@ const TaskSlideShell: React.FC<Props> = ({
                             }
                             setShowHint(!showHint);
                         }}
-                        className={`w-full flex items-center justify-between text-left text-xs font-black ${theme.hintTitle}`}
+                        className={`w-full flex items-center justify-between text-left text-sm font-black ${theme.hintTitle}`}
                     >
-                        <span className="flex items-center gap-1.5">
-                            <Lightbulb size={14} className={theme.hintIcon} />
-                            {isEdit ? meta.hintEditLabel : meta.hintViewLabel}
+                        <span className="flex items-center gap-2">
+                            {isEdit ? <Lightbulb size={14} className={theme.hintIcon} /> : <img src={MufiPeekImg} alt="" className="w-9 -my-1" />}
+                            {isEdit ? meta.hintEditLabel : showHint ? 'Mufi\'nin ipucu' : 'Takıldın mı? Mufi\'den ipucu al'}
                         </span>
-                        <span className={`text-[10px] uppercase font-bold ${theme.accentText}`}>{showHint ? 'Gizle' : 'Göster'}</span>
+                        <span className="text-[11px] font-black text-amber-700 bg-white border-2 border-amber-200 rounded-lg px-2 py-0.5">{showHint ? 'Gizle' : 'Göster'}</span>
                     </button>
                     {showHint && (isEdit ? (
                         <textarea
@@ -1337,14 +1341,14 @@ const TaskSlideShell: React.FC<Props> = ({
             <button
                 onClick={handleSubmit}
                 disabled={!canSubmit}
-                className={`shrink-0 flex items-center justify-center gap-1.5 font-black text-[11px] md:text-sm py-1.5 md:py-2.5 rounded-xl border-2 border-b-[4px] md:border-b-[5px] active:border-b-2 active:translate-y-0.5 transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`shrink-0 flex items-center justify-center gap-2 font-black text-sm md:text-base h-12 rounded-2xl border-2 border-b-[5px] active:border-b-2 active:translate-y-0.5 transition-all duration-75 disabled:opacity-50 disabled:cursor-not-allowed ${
                     sent && !sending ? theme.submitDone : theme.submit}`}
             >
                 {sending ? <Loader2 size={15} className="animate-spin" /> : sent ? <Check size={15} /> : <Send size={15} />}
                 {sending ? 'Gönderiliyor…' : sent ? `${meta.sentLabel} · Tekrar Gönder` : meta.submitLabel}
             </button>
             {needsCheckFirst && !sent && (
-                <p className="text-[10.5px] font-bold text-slate-400 text-center">
+                <p className="text-xs font-bold text-slate-400 text-center">
                     Göndermeden önce kodunu en az bir kez kontrol et.
                 </p>
             )}
@@ -1367,8 +1371,11 @@ const TaskSlideShell: React.FC<Props> = ({
     );
 
     return (
-        <div className="w-full h-full bg-slate-50 overflow-y-auto custom-scrollbar pt-12 md:pt-16 pb-36 md:pb-44 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20">
-            <div className="w-full max-w-[1560px] mx-auto flex flex-col md:flex-row gap-6 lg:gap-8 items-start">
+        <div className={`w-full h-full overflow-y-auto custom-scrollbar ${isEdit
+            ? 'bg-slate-50 pt-12 md:pt-16 pb-36 md:pb-44 px-4 sm:px-8 md:px-12 lg:px-16 xl:px-20'
+            // Oynatıcıda üst/alt çubuklar zaten yer ayırıyor; zemin sayfanın noktalı zemini.
+            : 'bg-transparent pt-2 pb-6 px-1 sm:px-2'}`}>
+            <div className={`w-full mx-auto flex flex-col md:flex-row gap-5 lg:gap-6 items-start ${isEdit ? 'max-w-[1560px]' : 'max-w-6xl'}`}>
                 <div className="w-full md:w-[38%] lg:w-[36%] shrink-0 flex flex-col gap-3 md:gap-4">{brief}</div>
                 <div className="w-full flex-1 flex flex-col gap-3 min-w-0 md:sticky md:top-4">
                     {(isStudent || isPresent) && <TaskTimerBanner taskKey={submissionNodeId} big={isPresent} />}
