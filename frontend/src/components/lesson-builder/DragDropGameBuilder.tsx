@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plus, Trash2, Clock, Check, Puzzle, Eye, ArrowRight, EyeOff, Layout, ListOrdered, FolderClosed, Image, CalendarRange, X } from 'lucide-react';
 import type { Slide } from './types';
+import { useSlideAnswerTarget } from './slideAnswerContext';
+import { trackLearningEvent, type GameItem } from '../../learningEvents';
 
 interface DragDropGameBuilderProps {
     slide: Slide;
@@ -114,6 +116,57 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
             setTimelineEventsPool(shuffle(events));
             setTimelineMatches({});
         }
+    };
+
+    // Öğrencinin ilk "Kontrol Et" sonucu öğretmene gider: hangi öğeyi neyle
+    // karıştırdığı "Neyi anlamadılar?" ekranında yanılgı adayı olarak görünür.
+    const answerTarget = useSlideAnswerTarget();
+    const reportedRef = useRef(false);
+    useEffect(() => { reportedRef.current = false; }, [answerTarget?.slideId]);
+
+    const collectItems = (): GameItem[] => {
+        const q = getActiveQuestion();
+        if (q.type === 'matching' && q.pairs) {
+            const conceptText = (id?: string) => q.pairs!.find(p => p.id === id)?.concept || null;
+            return q.pairs.map(p => ({
+                item: p.concept, chosen: conceptText(matches[p.id]), expected: p.definition, correct: matches[p.id] === p.id,
+            }));
+        }
+        if (q.type === 'sorting' && q.steps) {
+            return q.steps.map((step, idx) => {
+                const placed = previewSteps[idx];
+                return { item: step.text, chosen: placed?.text || null, expected: `${idx + 1}. sıra`, correct: placed?.correctIdx === idx };
+            });
+        }
+        if (q.type === 'categories' && q.categories) {
+            const owner = (item: string) => q.categories!.find(c => c.items.includes(item))?.title || null;
+            return q.categories.flatMap<GameItem>(c => (categoryMatches[c.id] || []).map(item => ({
+                item, chosen: c.title, expected: owner(item), correct: c.items.includes(item),
+            }))).concat(categoryItemsPool.map(item => ({ item, chosen: null, expected: owner(item), correct: false })));
+        }
+        if (q.type === 'image_drop' && q.imageDrop) {
+            return q.imageDrop.hotspots.map(h => ({
+                item: h.label, chosen: imageMatches[h.id] || null, expected: h.label, correct: imageMatches[h.id] === h.label,
+            }));
+        }
+        if (q.type === 'timeline' && q.timelineEvents) {
+            const eventText = (id?: string) => q.timelineEvents!.find(e => e.id === id)?.event || null;
+            return q.timelineEvents.map(e => ({
+                item: e.event, chosen: eventText(timelineMatches[e.id]), expected: e.year, correct: timelineMatches[e.id] === e.id,
+            }));
+        }
+        return [];
+    };
+
+    const checkResults = () => {
+        setShowResults(true);
+        if (!isPreview || !answerTarget?.courseId || answerTarget.slideId == null || reportedRef.current) return;
+        const items = collectItems().filter(i => i.item);
+        if (items.length === 0) return;
+        reportedRef.current = true;
+        trackLearningEvent(answerTarget.courseId, {
+            type: 'slide_answer', slide_id: String(answerTarget.slideId), answer: getActiveQuestion().text || undefined, items,
+        });
     };
 
     const fillCorrectAnswers = () => {
@@ -817,7 +870,7 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     )}
                                     <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest text-center block mb-1">KONTROLLER</span>
                                     <button
-                                        onClick={() => setShowResults(true)}
+                                        onClick={checkResults}
                                         className="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-green-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
                                     >
                                         Kontrol Et
@@ -912,7 +965,7 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     )}
                                     <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest text-center block mb-1">KONTROLLER</span>
                                     <button
-                                        onClick={() => setShowResults(true)}
+                                        onClick={checkResults}
                                         className="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-green-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
                                     >
                                         Kontrol Et
@@ -1043,7 +1096,7 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     )}
                                     <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest text-center block mb-1">KONTROLLER</span>
                                     <button
-                                        onClick={() => setShowResults(true)}
+                                        onClick={checkResults}
                                         className="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-green-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
                                     >
                                         Kontrol Et
@@ -1169,7 +1222,7 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     )}
                                     <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest text-center block mb-1">KONTROLLER</span>
                                     <button
-                                        onClick={() => setShowResults(true)}
+                                        onClick={checkResults}
                                         className="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-green-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
                                     >
                                         Kontrol Et
@@ -1306,7 +1359,7 @@ const DragDropGameBuilder: React.FC<DragDropGameBuilderProps> = ({ slide, update
                                     )}
                                     <span className="text-[10px] font-black text-slate-450 uppercase tracking-widest text-center block mb-1">KONTROLLER</span>
                                     <button
-                                        onClick={() => setShowResults(true)}
+                                        onClick={checkResults}
                                         className="w-full bg-green-500 hover:bg-green-600 text-white font-extrabold text-xs py-3.5 rounded-2xl border-b-4 border-green-700 active:border-b-0 active:translate-y-0.5 transition-all shadow-md uppercase tracking-wider text-center"
                                     >
                                         Kontrol Et

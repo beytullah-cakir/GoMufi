@@ -347,6 +347,27 @@ const MatchingGameBuilder: React.FC<MatchingGameBuilderProps> = ({ slide, update
                                                 </div>
                                             )}
 
+                                            {(qType === 'multiple_choice' || qType === 'true_false') && q.options.some(o => !o.isCorrect) && (
+                                                <div className="mt-4 bg-amber-50 border-2 border-amber-100 rounded-2xl p-4 space-y-2">
+                                                    <p className="text-xs font-black text-amber-700">
+                                                        Yanlış şıklar hangi yanılgıyı gösteriyor? <span className="font-bold text-amber-600">(isteğe bağlı — "Neyi anlamadılar?" ekranında görünür)</span>
+                                                    </p>
+                                                    {q.options.filter(o => !o.isCorrect).map((opt, i) => (
+                                                        <label key={opt.id} className="flex items-center gap-3">
+                                                            <span className="w-28 shrink-0 text-sm font-black text-slate-600 truncate" title={opt.text}>{opt.text || `Seçenek ${i + 1}`}</span>
+                                                            <input
+                                                                type="text"
+                                                                value={opt.misconception || ''}
+                                                                onChange={(e) => updateOption(q.id, opt.id, { misconception: e.target.value })}
+                                                                placeholder="ör. input()'un sayı döndürdüğünü sanıyor"
+                                                                aria-label={`${opt.text || `Seçenek ${i + 1}`} şıkkının yanılgısı`}
+                                                                className="flex-1 min-w-0 px-3 py-2 bg-white border-2 border-amber-100 rounded-xl text-sm font-bold text-slate-700 focus:outline-none focus:border-amber-300"
+                                                            />
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+
                                             {qType === 'short_answer' && (
                                                 <div className="bg-amber-50 border-2 border-amber-200 rounded-3xl p-6 flex flex-col gap-3">
                                                     <span className="text-amber-700 text-xs font-black uppercase tracking-wider">Kısa Cevap Doğrulama:</span>

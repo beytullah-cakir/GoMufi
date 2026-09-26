@@ -170,6 +170,19 @@ def evidences_for_event(
         for concept, weight in weights.items():
             add(concept, value, weight * 0.8)
 
+    elif kind == "slide_answer":
+        # Ders slaytındaki soru/oyun: ANLA aşamasının "anladı mı" kanıtı. Yanlış şıkkın
+        # yanılgısı (öğretmen/YZ yazdı) modülün birincil kavramına not düşülür.
+        if "score" in event:
+            value = max(0.0, min(1.0, float(event.get("score") or 0.0)))
+            factor = 0.6
+        else:
+            value = 1.0 if event.get("correct") else 0.0
+            factor = 0.8
+        for concept, weight in weights.items():
+            add(concept, value, weight * factor,
+                event.get("misconception") if concept == primary and value < 0.5 else None)
+
     elif kind == "homework_review":
         score = event.get("score")
         if isinstance(score, (int, float)):

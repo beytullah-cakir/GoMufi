@@ -273,6 +273,35 @@ export interface PracticeDraft {
     nodes: Array<{ node_id: string; title: string; stage: string }>;
 }
 
+/** "Neyi anlamadılar?" — sınıfın yanılgıları, öğrenci sayısına göre sıralı. */
+export interface MisconceptionRow {
+    label: string;
+    student_count: number;
+    students: Array<{ id: number; name: string }>;
+    /** kaynak → kayıt sayısı: soru, oyun, koç, ödev */
+    sources: Record<string, number>;
+    modules: string[];
+    concept_id: string | null;
+    concept: string | null;
+    examples: string[];
+}
+
+export interface QuestionStat {
+    slide_id: string;
+    element_id: string;
+    question: string;
+    module: string | null;
+    answered: number;
+    first_try_correct: number;
+    correct_rate: number;
+    wrong_choices: Array<{ text: string; misconception: string | null; students: number }>;
+}
+
+export interface Misconceptions {
+    misconceptions: MisconceptionRow[];
+    questions: QuestionStat[];
+}
+
 export type ActionKind = 'reteach' | 'practice_task' | 'talk' | 'check_code' | 'other';
 export type ActionVerdict = 'iyilesti' | 'degismedi' | 'kotulesti' | 'veri_bekleniyor';
 
@@ -398,11 +427,15 @@ export const learningApi = {
         api.get<InsightState>(`${base(c)}/insights`, { params: studentId ? { student_id: studentId } : {} }).then((r) => r.data),
     createInsight: (c: number, studentId?: number, force = false) =>
         api.post<InsightState>(`${base(c)}/insights`, { student_id: studentId ?? null, force }).then((r) => r.data),
-    practiceTask: (c: number, conceptId: string) =>
-        api.post<PracticeDraft>(`${base(c)}/practice-task`, { concept_id: conceptId }).then((r) => r.data),
-    applyPracticeTask: (c: number, nodeId: string, slide: PracticeDraft['slide'], conceptId?: string) =>
-        api.post<{ ok: boolean; node: string }>(`${base(c)}/practice-task/apply`, { node_id: nodeId, slide, concept_id: conceptId })
+    misconceptions: (c: number, s?: Scope) =>
+        api.get<Misconceptions>(`${base(c)}/misconceptions`, q(s)).then((r) => r.data),
+    practiceTask: (c: number, conceptId: string, misconception?: string) =>
+        api.post<PracticeDraft>(`${base(c)}/practice-task`, { concept_id: conceptId, misconception: misconception || null })
             .then((r) => r.data),
+    applyPracticeTask: (c: number, nodeId: string, slide: PracticeDraft['slide'], conceptId?: string, studentIds: number[] = []) =>
+        api.post<{ ok: boolean; node: string; assigned_to: number[] }>(`${base(c)}/practice-task/apply`, {
+            node_id: nodeId, slide, concept_id: conceptId, student_ids: studentIds,
+        }).then((r) => r.data),
 
     // --- canlı ders ve müdahaleler (bkz. backend/routers/live_teaching.py) ---
     helpQueue: (c: number, taskKey?: string) =>

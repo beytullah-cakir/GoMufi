@@ -942,6 +942,9 @@ class AILevelContentsResponse(BaseModel):
 class QuizOption(BaseModel):
     text: str
     isCorrect: bool
+    # Yanlış şık: bu şıkkı seçen öğrencinin kafasındaki yanlış fikir (öğretmen
+    # "neyi anlamadılar" listesinde bunu görür). Doğru şıkta boş.
+    misconception: Optional[str] = None
 
 class QuizQuestion(BaseModel):
     questionText: str
@@ -2410,6 +2413,7 @@ HARD RULES:
 - The Lesson Title may name several topics at once (e.g. "Giriş, Değişkenler"). That is the whole LESSON, not your module. Ignore the parts of the title that belong to the other modules.
 - Do NOT try to cover the lesson objective end to end. Your module is one step of it.
 - Do NOT emit quiz_map or homework_map unless the target module type is QUIZ or HOMEWORK.
+- quiz_map: every INCORRECT option is a plausible wrong answer that a real student would pick because of one specific misunderstanding. Write that misunderstanding in `misconception` (Turkish, 3-10 words, concrete: "input()'un sayı döndürdüğünü sanıyor", NOT "konuyu bilmiyor"). Different wrong options must represent different misconceptions. The correct option has no misconception.
 """
 
         # Düzen menüsü sabit bir metin — prompt'un önbelleklenen önekinde kalması
@@ -2613,9 +2617,10 @@ Expected JSON Structure:
       "questionText": "Question text in Turkish?",
       "options": [
         {{ "text": "Correct Option text in Turkish", "isCorrect": true }},
-        {{ "text": "Incorrect Option text in Turkish", "isCorrect": false }},
-        {{ "text": "Another Incorrect Option", "isCorrect": false }},
-        {{ "text": "Another Incorrect Option", "isCorrect": false }}
+        {{ "text": "Incorrect Option text in Turkish", "isCorrect": false,
+           "misconception": "the wrong idea a student who picks this holds, 3-10 words, Turkish" }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false, "misconception": "..." }},
+        {{ "text": "Another Incorrect Option", "isCorrect": false, "misconception": "..." }}
       ]
     }}
   ],
@@ -2848,10 +2853,13 @@ Modules list: {json.dumps(req.modules, ensure_ascii=False)}
                     for idx, qq in enumerate(quiz_questions):
                         options_list = []
                         for opt_idx, opt in enumerate(qq.get("options", [])):
+                            is_correct = bool(opt.get("isCorrect", False))
                             options_list.append({
                                 "id": str(opt_idx + 1),
                                 "text": opt.get("text", ""),
-                                "isCorrect": opt.get("isCorrect", False)
+                                "isCorrect": is_correct,
+                                # Yanlış şıkkın temsil ettiği yanılgı (ör. "input'un sayı döndürdüğünü sanıyor")
+                                "misconception": None if is_correct else (str(opt.get("misconception") or "").strip()[:200] or None),
                             })
                         questions_list.append({
                             "id": f"q-{idx + 1}-{int(random.random() * 100000)}",

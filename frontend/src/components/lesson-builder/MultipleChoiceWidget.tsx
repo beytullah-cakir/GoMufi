@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Check, X, Settings, Image as ImageIcon, HelpCircle, RefreshCw, Trash2 } from 'lucide-react';
 import type { SlideElement } from './types';
+import { useSlideAnswerTarget } from './slideAnswerContext';
+import { trackLearningEvent } from '../../learningEvents';
 
 interface MultipleChoiceWidgetProps {
     el: SlideElement;
@@ -58,6 +60,9 @@ const MultipleChoiceWidget: React.FC<MultipleChoiceWidgetProps> = ({
     const isChecked = extra.isChecked || false;
     const multipleCorrect = extra.multipleCorrect || false;
 
+    // Ders oynatıcısında (öğrenci) cevap öğrenme kaydına gider; oluşturucuda boş.
+    const answerTarget = useSlideAnswerTarget();
+
     // Local state for image url input popover
     const [editingImageOptId, setEditingImageOptId] = useState<string | null>(null);
     const [tempImageUrl, setTempImageUrl] = useState('');
@@ -69,6 +74,13 @@ const MultipleChoiceWidget: React.FC<MultipleChoiceWidgetProps> = ({
                 ...updates
             }
         });
+    };
+
+    const handleMisconceptionChange = (optId: string, misconception: string) => {
+        const updatedOptions = options.map((opt: any) =>
+            opt.id === optId ? { ...opt, misconception } : opt
+        );
+        handleUpdateExtra({ options: updatedOptions });
     };
 
     const handleOptionTextChange = (optId: string, text: string) => {
@@ -127,6 +139,14 @@ const MultipleChoiceWidget: React.FC<MultipleChoiceWidgetProps> = ({
     const handleCheckAnswer = () => {
         if (submittedAnswers.length === 0) return;
         handleUpdateExtra({ isChecked: true });
+        // Yalnızca seçilen şıklar gider; doğruluğu ve yanlış şıkkın yanılgısını sunucu
+        // kayıtlı sorudan hesaplar. Öğretmen "Neyi anlamadılar?" listesinde görür.
+        if (isPreview && answerTarget?.courseId && answerTarget.slideId != null) {
+            trackLearningEvent(answerTarget.courseId, {
+                type: 'slide_answer', slide_id: String(answerTarget.slideId),
+                element_id: String(el.id), selected: submittedAnswers,
+            });
+        }
     };
 
     const handleReset = () => {
@@ -267,13 +287,28 @@ const MultipleChoiceWidget: React.FC<MultipleChoiceWidgetProps> = ({
                                 {isPreview ? (
                                     <span className="text-lg font-black text-white font-display leading-tight">{opt.text}</span>
                                 ) : (
-                                    <input
-                                        type="text"
-                                        value={opt.text}
-                                        onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
-                                        className="bg-transparent border-none outline-none text-lg font-black text-white font-display leading-tight focus:bg-white/10 rounded px-1.5 py-0.5"
-                                        placeholder={`Seçenek ${opt.id}`}
-                                    />
+                                    <>
+                                        <input
+                                            type="text"
+                                            value={opt.text}
+                                            onChange={(e) => handleOptionTextChange(opt.id, e.target.value)}
+                                            className="bg-transparent border-none outline-none text-lg font-black text-white font-display leading-tight focus:bg-white/10 rounded px-1.5 py-0.5"
+                                            placeholder={`Seçenek ${opt.id}`}
+                                        />
+                                        {/* Yanlış şık: bunu seçen öğrenci neyi yanlış anlıyor? */}
+                                        {!opt.isCorrect && (
+                                            <input
+                                                type="text"
+                                                value={opt.misconception || ''}
+                                                onChange={(e) => handleMisconceptionChange(opt.id, e.target.value)}
+                                                onClick={(e) => e.stopPropagation()}
+                                                maxLength={200}
+                                                title="Bu şıkkı seçen öğrencinin kafasındaki yanlış fikir. Öğretmen panelinde 'Neyi anlamadılar?' listesinde görünür."
+                                                className="mt-1 bg-black/20 border border-white/10 focus:border-white/40 outline-none text-[11px] font-bold text-white/90 placeholder-white/50 rounded-lg px-2 py-1"
+                                                placeholder="Yanılgı: bunu seçen neyi yanlış anlıyor?"
+                                            />
+                                        )}
+                                    </>
                                 )}
                             </div>
 

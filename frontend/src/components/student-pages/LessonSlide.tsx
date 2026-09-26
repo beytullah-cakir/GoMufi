@@ -15,6 +15,7 @@ import StudentHomeworkView from './StudentHomeworkView';
 import { LiveTaskBoard } from '../instructor-pages/learning/LiveTask';
 import { learningApi } from '../instructor-pages/learning/learningApi';
 import { LiveLessonContext, type LiveTaskTimer } from '../lesson-builder/liveLessonContext';
+import { SlideAnswerContext } from '../lesson-builder/slideAnswerContext';
 import LiveBoardOverlay, { type BoardView } from './LiveBoardOverlay';
 import { useWebSocketEvent } from '../../hooks/useWebSocket';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -1146,7 +1147,11 @@ const LessonSlide: React.FC<LessonSlideProps> = ({
             {/* Full Screen Slide Content */}
             <div className="absolute inset-0 flex items-center justify-center px-2 sm:px-4 md:px-10 pt-14 md:pt-20 pb-16 md:pb-24 z-10">
                 <LiveLessonContext.Provider value={{ timer: taskTimer, live: isLive }}>
-                    {renderSlideContent()}
+                    {/* Öğrencinin slayttaki soru/oyun cevapları öğrenme kaydına gider (öğretmen önizlemesi hariç) */}
+                    <SlideAnswerContext.Provider value={previewRole === 'teacher' || !courseId ? null
+                        : { courseId, slideId: localSlides?.[currentSlide]?.id ?? null }}>
+                        {renderSlideContent()}
+                    </SlideAnswerContext.Provider>
                 </LiveLessonContext.Provider>
             </div>
 
