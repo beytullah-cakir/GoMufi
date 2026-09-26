@@ -233,7 +233,7 @@ Return ONLY valid JSON. No markdown.
         data = json.loads(response.text.strip())
     except Exception as e:
         logger.error("Kavram sözlüğü taslağı üretilemedi (%s): %s", language, e)
-        raise HTTPException(status_code=500, detail=f"Kavram sözlüğü taslağı üretilemedi: {e}")
+        raise HTTPException(status_code=500, detail="Kavram sözlüğü taslağı üretilemedi. Biraz sonra tekrar deneyin.")
 
     drafted = []
     seen = set()
@@ -324,7 +324,7 @@ async def approve_dictionary_api(
     except Exception as e:
         await db.rollback()
         logger.error("Kavram sözlüğü kaydedilemedi (%s): %s", language, e)
-        raise HTTPException(status_code=500, detail=f"Kavram sözlüğü kaydedilemedi: {e}")
+        raise HTTPException(status_code=500, detail="Kavram sözlüğü kaydedilemedi.")
 
     entries = await registry.get_dictionary(db, language)
     return {

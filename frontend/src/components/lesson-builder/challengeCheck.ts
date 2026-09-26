@@ -35,6 +35,8 @@ export interface CriterionResult {
     detail?: string;
     /** Tahkim aşamasının ölçüte geri dönebilmesi için kaynak. */
     source?: ChallengeCriterion;
+    /** YZ kararının sunucu imzası: "geçti" olayı bunu taşımazsa sunucu görevi çözülmüş saymaz. */
+    token?: string;
 }
 
 /**
@@ -193,8 +195,11 @@ const templateDetail = (template: string, actual: string): string => {
     return 'Çıktı istenen biçime uymuyor (boşluk veya noktalama farkı olabilir).';
 };
 
+type AIVerdict = { passed: boolean; reason: string; token?: string };
+
 interface AIJudge {
-    (criterion: string): Promise<{ passed: boolean; reason: string } | null>;
+    /** `arbitrate`: tahkim edilen beklenen çıktı — ölçüt metnini sunucu kurar. */
+    (criterion: string, arbitrate?: string): Promise<AIVerdict | null>;
 }
 
 /**
@@ -283,9 +288,10 @@ export const evaluate = async (
             const c = r.source;
             if (!c || (c.kind !== 'template' && c.kind !== 'exact')) continue;
 
-            const verdict = await judge(arbitrationCriterion(c.value));
+            const verdict = await judge(arbitrationCriterion(c.value), c.value);
             if (verdict?.passed) {
                 r.status = 'near';
+                r.token = verdict.token;
                 r.detail = verdict.reason || 'Kabul edildi, biçimde küçük fark var.';
             } else if (verdict?.reason) {
                 r.detail = verdict.reason;
@@ -310,6 +316,7 @@ export const evaluate = async (
             id: c.id, kind: 'ai', label: criterionLabel(c),
             status: verdict?.passed ? 'pass' : 'fail',
             detail: verdict?.reason,
+            token: verdict?.token,
         });
     }
 
@@ -328,11 +335,12 @@ export const evaluate = async (
  * ikinci kez farklı sonuç verirse öğrenci sistemin adil olmadığını düşünür ve
  * bu, yanlış bir karardan daha çok zarar verir.
  */
-const verdictCache = new Map<string, { passed: boolean; reason: string }>();
+const verdictCache = new Map<string, AIVerdict>();
 
 export const makeAIJudge = (
     courseId: number | string | undefined, task: string, code: string, stdout: string,
-): AIJudge => async (criterion: string) => {
+    taskKey?: string,
+): AIJudge => async (criterion: string, arbitrate?: string) => {
     if (!courseId) return null;
     const key = `${criterion} ${code} ${stdout}`;
     const cached = verdictCache.get(key);
@@ -341,14 +349,19 @@ export const makeAIJudge = (
     try {
         const res = await api.post('/ai/challenge-check', {
             course_id: Number(courseId),
+            // Öğrencide görev ve ölçüt sunucuda bu anahtarla kurstan okunur;
+            // aşağıdaki metinler yalnızca öğretmen önizlemesinde kullanılır.
+            task_key: taskKey,
             task,
             criterion,
+            arbitrate,
             student_code: code,
             stdout,
         });
-        const verdict = {
+        const verdict: AIVerdict = {
             passed: !!res.data?.passed,
             reason: String(res.data?.reason || ''),
+            token: typeof res.data?.token === 'string' ? res.data.token : undefined,
         };
         verdictCache.set(key, verdict);
         return verdict;
@@ -368,12 +381,12 @@ export const makeAIJudge = (
  * `null` = değerlendirilemedi (ağ/servis hatası). Çağıran bunu "düştü" değil
  * "bakılamadı" olarak göstermeli.
  */
-const reviewCache = new Map<string, Array<{ passed: boolean; reason: string }>>();
+const reviewCache = new Map<string, AIVerdict[]>();
 
 export const reviewRequirements = async (
     courseId: number | string | undefined, task: string, requirements: string[],
-    code: string, stdout: string,
-): Promise<Array<{ passed: boolean; reason: string }> | null> => {
+    code: string, stdout: string, taskKey?: string,
+): Promise<AIVerdict[] | null> => {
     if (!courseId || !requirements.length) return null;
     const key = JSON.stringify([requirements, code, stdout]);
     const cached = reviewCache.get(key);
@@ -382,6 +395,7 @@ export const reviewRequirements = async (
     try {
         const res = await api.post('/ai/project-review', {
             course_id: Number(courseId),
+            task_key: taskKey,
             task,
             requirements,
             student_code: code,
@@ -391,10 +405,10 @@ export const reviewRequirements = async (
         // Model maddeleri atlayabilir ya da sırayı bozabilir; sonucu ÖĞRETMENİN
         // listesine göre diziyoruz, eksik madde "bakılamadı" kalır.
         const byIndex = new Map(raw.map((r) => [Number(r?.index), r]));
-        const verdicts = requirements.map((_, i) => {
+        const verdicts: AIVerdict[] = requirements.map((_, i) => {
             const r = byIndex.get(i + 1);
             return r
-                ? { passed: !!r.passed, reason: String(r.reason || '') }
+                ? { passed: !!r.passed, reason: String(r.reason || ''), token: typeof r.token === 'string' ? r.token : undefined }
                 : { passed: false, reason: '' };
         });
         if (raw.length) reviewCache.set(key, verdicts);

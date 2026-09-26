@@ -213,8 +213,7 @@ async def _openverse(client: httpx.AsyncClient, q: str, must_include: Optional[L
     Openverse, Flickr gibi küratörsüz kaynaklardan geldiği için Wikipedia'dan
     daha gevşek eşleşiyor (ölçüldü: "python setup" araması alakasız bir LEGO
     Technic fotoğrafına eşleşti) — Wikipedia'daki aynı alaka filtresi burada da
-    uygulanır. `url` (kaynağın kendi CDN'i) `thumbnail` (Openverse proxy'si)
-    yerine tercih edilir: proxy bazı istemcilerden kırık görsel döndürüyordu.
+    uygulanır. Yalnızca Wikimedia Commons'ta barınan sonuçlar kabul edilir.
     """
     try:
         r = await client.get(
@@ -225,12 +224,19 @@ async def _openverse(client: httpx.AsyncClient, q: str, must_include: Optional[L
         for res in r.json().get("results") or []:
             if not _relevant(res.get("title") or "", must_include):
                 continue
-            url = res.get("url") or res.get("thumbnail")
-            if url:
+            url = res.get("url") or ""
+            # Yalnızca Wikimedia'da barınan görseller: Flickr ve kişisel siteler
+            # öğrencinin tarayıcısını üçüncü bir sunucuya bağlıyordu (IP sızıntısı)
+            # ve sahibi görseli sonradan değiştirebilirdi — slayt öğretmenin
+            # onayladığı görseli değil, o sunucunun o an verdiğini gösterirdi.
+            if _ALLOWED_IMAGE_HOST.match(url):
                 return url
     except Exception:
         return None
     return None
+
+
+_ALLOWED_IMAGE_HOST = re.compile(r"^https://upload\.wikimedia\.org/")
 
 
 def _placeholder(query: str) -> str:
